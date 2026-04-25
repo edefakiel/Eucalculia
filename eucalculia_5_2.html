@@ -1,0 +1,3702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Eucalculia v5.2</title>
+<style>
+:root {
+  --bg:#050508; --fg:#e8e8f0; --muted:#666677; --ok:#00d68f; --bad:#ff4757;
+  --accent:#6c5ce7; --gold:#ffc107; --blue:#4da6ff; --surface:#111116;
+  --meta1:#ff9f43; --meta2:#ee5a24; --meta3:#c770e8;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { height:100%; min-height:100%; }
+body {
+  background:var(--bg); color:var(--fg);
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  height:100svh; overflow:hidden;
+  display:flex; justify-content:center; align-items:center;
+  padding:0;
+  touch-action:none; user-select:none; -webkit-user-select:none;
+}
+
+#app {
+  --app-pad:clamp(4px, 1svh, 8px);
+  --tray-h:clamp(118px, 25svh, 184px);
+  width:min(480px,100vw);
+  height:min(100svh, 820px);
+  max-height:100svh;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) var(--tray-h);
+  padding:var(--app-pad); gap:clamp(3px,0.8svh,6px);
+  position:relative; min-height:0; overflow:hidden;
+}
+
+@media (max-height:720px), (max-width:390px) {
+  #app { --tray-h:clamp(104px, 27svh, 156px); --app-pad:4px; }
+  #hud { padding:7px; }
+  #modeLabel { font-size:9px; padding:3px 7px; max-width:72%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #blockProgress { font-size:9px; padding:3px 6px; }
+  #pauseBtn { bottom:7px; right:7px; padding:6px 9px; font-size:9px; }
+  #promptRow { height:22px; gap:8px; }
+  .numBtn { font-size:1.12rem; border-radius:8px; }
+  .numBtn[data-v="0"] { font-size:1.05rem; }
+  .boolBtn { font-size:1.05rem; border-radius:9px; gap:3px; }
+  .boolBtn span { font-size:0.55rem; }
+}
+
+@media (max-height:600px) {
+  #app { --tray-h:clamp(92px, 28svh, 132px); }
+  #game-container { border-radius:10px; }
+  #tray { gap:2px; }
+  #promptRow { height:20px; }
+  #promptText { font-size:0.62rem; letter-spacing:0.6px; }
+  #answerDisplay { font-size:1.05rem; }
+  .numBtn { font-size:1rem; border-radius:7px; }
+  .boolBtn { font-size:0.95rem; }
+}
+
+/* Game area */
+#game-container {
+  position:relative; background:#000;
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px; overflow:hidden;
+  min-height:0;
+}
+#game-container.pulse-ok { border-color:var(--ok); box-shadow:0 0 30px rgba(0,214,143,0.25) inset; }
+#game-container.pulse-bad { border-color:var(--bad); box-shadow:0 0 30px rgba(255,71,87,0.25) inset; }
+#game-container.pulse-fast { border-color:var(--gold); box-shadow:0 0 40px rgba(255,193,7,0.3) inset; }
+#game-container.pulse-lvl { border-color:var(--gold); box-shadow:0 0 50px rgba(255,193,7,0.5) inset; animation:flashGold 0.6s ease-out; }
+@keyframes flashGold { 0%{background:rgba(255,193,7,0.3);} 100%{background:#000;} }
+
+canvas { width:100%; height:100%; display:block; }
+#particles { position:absolute; inset:0; pointer-events:none; }
+
+/* HUD */
+#hud {
+  position:absolute; inset:0; pointer-events:none;
+  display:flex; flex-direction:column; justify-content:space-between;
+  padding:10px;
+}
+.hud-top { display:flex; justify-content:space-between; align-items:flex-start; }
+.hud-bot { display:flex; justify-content:center; gap:12px; padding-bottom:8px; }
+
+#modeLabel {
+  font-size:11px; font-weight:700; color:var(--accent);
+  background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:6px;
+  letter-spacing:1px;
+}
+#blockProgress {
+  font-size:10px; color:var(--muted);
+  background:rgba(0,0,0,0.7); padding:4px 8px; border-radius:6px;
+  font-family:monospace;
+}
+#rtDisplay {
+  font-size:12px; font-weight:700; color:var(--gold);
+  background:rgba(0,0,0,0.7); padding:4px 10px; border-radius:6px;
+  font-family:monospace; opacity:0; transition:opacity 0.2s;
+}
+#rtDisplay.visible { opacity:1; }
+#streakDisplay {
+  font-size:13px; font-weight:700; color:var(--gold);
+  text-shadow:0 2px 8px rgba(255,193,7,0.4);
+  opacity:0; transition:opacity 0.2s;
+}
+#streakDisplay.visible { opacity:1; }
+
+#levelBadge {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  font-size:13px; font-weight:800;
+  padding:6px 16px; border-radius:8px;
+  letter-spacing:2px; text-transform:uppercase;
+  opacity:0; transition:opacity 0.3s;
+  pointer-events:none;
+}
+#levelBadge.visible { opacity:1; }
+#levelBadge.l0 { color:var(--accent); background:rgba(108,92,231,0.15); border:1px solid rgba(108,92,231,0.3); }
+#levelBadge.l1 { color:var(--meta1); background:rgba(255,159,67,0.15); border:1px solid rgba(255,159,67,0.3); }
+#levelBadge.l2 { color:var(--meta2); background:rgba(238,90,36,0.15); border:1px solid rgba(238,90,36,0.3); }
+#levelBadge.l3 { color:var(--meta3); background:rgba(199,112,232,0.15); border:1px solid rgba(199,112,232,0.3); }
+
+#pauseBtn {
+  position:absolute; bottom:10px; right:10px;
+  pointer-events:auto;
+  background:rgba(255,255,255,0.05); color:var(--fg);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:6px; padding:8px 12px;
+  cursor:pointer; font-size:10px; font-weight:700;
+  text-transform:uppercase; letter-spacing:1px;
+}
+
+/* Meta question display on canvas */
+#metaQuestion {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center; pointer-events:none;
+  opacity:0; transition:opacity 0.3s;
+  width:min(92%, 430px);
+}
+#metaQuestion.visible { opacity:1; }
+#metaQuestion .meta-label {
+  font-size:clamp(9px, 1.8svh, 11px); font-weight:800; letter-spacing:2px;
+  text-transform:uppercase; margin-bottom:clamp(5px, 1svh, 8px);
+}
+#metaQuestion .meta-label.l1 { color:var(--meta1); }
+#metaQuestion .meta-label.l2 { color:var(--meta2); }
+#metaQuestion .meta-label.l3 { color:var(--meta3); }
+#metaQuestion .meta-q {
+  font-size:clamp(1.05rem, 4.2svh, 1.55rem); font-weight:700; color:var(--fg);
+  line-height:1.25;
+}
+#metaQuestion .meta-hint {
+  font-size:0.7rem; color:var(--muted);
+  margin-top:8px;
+}
+
+/* Overlay / Menu */
+#overlay {
+  --modal-pad:clamp(4px, 1.4svh, 14px);
+  position:fixed; inset:0; display:none;
+  justify-content:center; align-items:stretch;
+  pointer-events:auto;
+  background:rgba(5,5,8,0.96);
+  backdrop-filter:blur(12px);
+  z-index:100;
+  overflow:hidden;
+  padding:var(--modal-pad);
+  touch-action:pan-y;
+}
+#overlayCard {
+  width:min(440px,100%);
+  height:calc(100svh - 2 * var(--modal-pad));
+  max-height:none;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-gutter:stable both-edges;
+  background:var(--surface);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:clamp(10px,2svh,16px);
+  padding:clamp(10px,1.9svh,18px);
+  margin:auto;
+}
+#overlayCard h1 {
+  font-size:clamp(1.02rem, 3.2svh, 1.3rem); font-weight:800;
+  letter-spacing:1px; color:var(--accent);
+  margin-bottom:clamp(2px,0.5svh,4px);
+}
+#overlayCard .subtitle {
+  color:var(--muted); font-size:clamp(0.64rem,1.8svh,0.72rem);
+  margin-bottom:clamp(8px,1.6svh,14px); line-height:1.35;
+}
+
+label {
+  display:block; font-size:clamp(0.54rem,1.55svh,0.62rem); font-weight:700;
+  color:var(--muted); text-transform:uppercase;
+  letter-spacing:clamp(0.5px,0.2svh,1px); margin-bottom:clamp(3px,0.7svh,6px); margin-top:clamp(7px,1.5svh,13px);
+}
+select, input[type="number"] {
+  width:100%; background:#1a1a1f; color:var(--fg);
+  border:1px solid #333; border-radius:clamp(6px,1.2svh,8px);
+  padding:clamp(7px,1.5svh,10px) clamp(8px,1.8svh,12px);
+  font-size:clamp(0.76rem,2.1svh,0.88rem); font-weight:600;
+  outline:none;
+  min-height:clamp(32px,5.8svh,42px);
+}
+select:focus, input:focus { border-color:var(--accent); }
+
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:clamp(6px,1.3svh,12px); }
+
+.repGrid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(clamp(48px, 17vw, 76px), 1fr));
+  gap:clamp(3px,0.75svh,5px);
+}
+.repChip {
+  display:flex; align-items:center; justify-content:center;
+  min-height:clamp(24px,4.4svh,34px);
+  padding:clamp(3px,0.8svh,7px) 2px; border-radius:clamp(5px,1svh,6px);
+  background:#1a1a1f; border:1px solid #333;
+  cursor:pointer; font-size:clamp(0.48rem,1.45svh,0.58rem); font-weight:600; color:#888;
+  transition:all 0.1s;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.repChip.on { border-color:var(--accent); background:rgba(108,92,231,0.15); color:#fff; }
+.repChip:active { transform:scale(0.96); }
+
+.btnRow { display:grid; grid-template-columns:1fr 2fr; gap:clamp(6px,1.2svh,10px); margin-top:clamp(10px,1.8svh,18px); }
+.btn {
+  padding:clamp(9px,1.9svh,14px); border-radius:clamp(8px,1.5svh,10px); border:none;
+  background:#222; color:#fff;
+  font-weight:700; font-size:clamp(0.72rem,1.9svh,0.85rem); cursor:pointer;
+  transition:all 0.1s;
+  min-height:clamp(34px,6.2svh,48px);
+}
+.btn:active { transform:scale(0.98); }
+.btn.primary { background:var(--ok); color:#000; }
+
+.statBox {
+  margin-top:clamp(8px,1.5svh,14px); background:#0a0a0c;
+  border:1px solid #222; border-radius:clamp(6px,1.2svh,8px);
+  padding:clamp(7px,1.4svh,12px); font-family:monospace;
+  font-size:clamp(7.5px,1.35svh,9px); color:#777;
+  white-space:pre-wrap; line-height:1.35;
+  max-height:clamp(54px,16svh,150px); overflow-y:auto;
+  overscroll-behavior:contain;
+}
+
+@media (max-width:420px), (max-height:700px) {
+  #overlay { --modal-pad:4px; }
+  #overlayCard { width:100%; padding:9px; border-radius:10px; }
+  #overlayCard h1 { font-size:1rem; }
+  #overlayCard .subtitle { display:none; }
+  label { margin-top:7px; margin-bottom:3px; }
+  select, input[type="number"] { min-height:30px; padding:6px 8px; }
+  .row2 { gap:6px; }
+  .repGrid { grid-template-columns:repeat(auto-fit, minmax(52px, 1fr)); gap:3px; }
+  .repChip { min-height:23px; font-size:0.49rem; }
+  .statBox { max-height:58px; padding:6px; line-height:1.25; }
+  .btnRow { margin-top:9px; gap:6px; }
+  .btn { min-height:34px; padding:8px; }
+  #guideBtn { margin-top:6px !important; }
+}
+
+@media (max-height:560px) {
+  #overlayCard h1 { display:none; }
+  #overlayCard .subtitle { display:none; }
+  label { margin-top:5px; }
+  .repGrid { grid-template-columns:repeat(auto-fit, minmax(48px, 1fr)); }
+  .repChip { min-height:21px; padding:2px; }
+  .statBox { max-height:42px; }
+  #menuStats:empty { display:none; }
+  .btnRow { margin-top:7px; }
+}
+
+@media (max-height:470px) {
+  #menuStats { display:none; }
+  #overlayCard { padding:7px; }
+  select, input[type="number"] { min-height:28px; }
+  .btn { min-height:30px; padding:7px; }
+}
+
+/* Block Summary Modal */
+#summaryModal {
+  position:fixed; inset:0; display:none;
+  justify-content:center; align-items:center;
+  pointer-events:auto;
+  background:rgba(5,5,8,0.96);
+  backdrop-filter:blur(12px);
+  z-index:150;
+  overflow-y:auto;
+  padding:clamp(8px,2svh,16px);
+  touch-action:pan-y;
+}
+#summaryCard {
+  width:min(380px,100%);
+  max-height:calc(100svh - 2 * clamp(8px,2svh,16px));
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  background:var(--surface);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:16px; padding:clamp(16px,3svh,24px);
+  text-align:center;
+  margin:auto;
+}
+#summaryCard h2 {
+  font-size:1.1rem; color:var(--gold);
+  margin-bottom:16px;
+}
+.summaryStats {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:12px; margin-bottom:20px;
+}
+.summaryStats .stat {
+  background:#1a1a1f; border-radius:10px;
+  padding:14px 8px;
+}
+.summaryStats .stat-value {
+  font-size:1.6rem; font-weight:800;
+  color:var(--fg);
+}
+.summaryStats .stat-label {
+  font-size:0.65rem; color:var(--muted);
+  text-transform:uppercase; margin-top:4px;
+}
+.summaryStats .stat.good .stat-value { color:var(--ok); }
+.summaryStats .stat.warn .stat-value { color:var(--gold); }
+.summaryStats .stat.bad .stat-value { color:var(--bad); }
+
+#summaryCard .btn { margin-top:8px; width:100%; }
+
+/* Tray */
+#tray {
+  min-height:0;
+  display:flex; flex-direction:column; gap:4px;
+  padding:0 4px;
+}
+#promptRow {
+  display:flex; justify-content:center; align-items:center;
+  height:28px; gap:12px;
+}
+#promptText {
+  font-size:0.75rem; font-weight:700; color:var(--blue);
+  text-transform:uppercase; letter-spacing:1px;
+  max-width:62%; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  text-align:center;
+}
+#promptText.meta1 { color:var(--meta1); }
+#promptText.meta2 { color:var(--meta2); }
+#promptText.meta3 { color:var(--meta3); }
+#answerDisplay {
+  font-family:monospace; font-size:1.3rem; font-weight:800;
+  color:var(--fg); min-width:40px; max-width:35%; text-align:center;
+  border-bottom:2px solid #333; padding-bottom:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#answerDisplay.typing { border-color:var(--accent); color:var(--accent); }
+
+#trayPanels { flex:1; position:relative; }
+.panel { position:absolute; inset:0; display:none; flex-direction:column; gap:6px; }
+.panel.active { display:flex; }
+
+#numpad {
+  display:grid; grid-template-columns:repeat(3,1fr);
+  grid-template-rows:repeat(4,1fr);
+  gap:5px; height:100%;
+}
+.numBtn {
+  background:#161618; border:1px solid #2a2a2f;
+  border-radius:10px; color:#fff;
+  font-size:1.5rem; font-weight:600;
+  cursor:pointer; transition:all 0.08s;
+}
+.numBtn:active { background:#333; border-color:var(--accent); transform:scale(0.96); }
+.numBtn[data-v="0"] { grid-column:span 3; font-size:1.3rem; }
+
+#boolpad { display:flex; gap:8px; height:100%; }
+.boolBtn {
+  flex:1; border-radius:12px; border:2px solid transparent;
+  font-size:1.3rem; font-weight:700; cursor:pointer;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:6px;
+  transition:all 0.1s;
+}
+.boolBtn span { font-size:0.65rem; opacity:0.6; }
+.boolBtn.yes { background:rgba(0,214,143,0.12); color:var(--ok); border-color:rgba(0,214,143,0.25); }
+.boolBtn.no { background:rgba(255,71,87,0.12); color:var(--bad); border-color:rgba(255,71,87,0.25); }
+.boolBtn:active { transform:scale(0.97); }
+
+/* Guide Modal */
+#guideModal {
+  position:fixed; inset:0; display:none;
+  justify-content:center; align-items:flex-start;
+  pointer-events:auto;
+  background:rgba(5,5,8,0.97);
+  backdrop-filter:blur(12px);
+  z-index:200;
+  overflow-y:auto;
+  padding:clamp(8px,2svh,16px) 8px;
+  touch-action:pan-y;
+}
+#guideCard {
+  width:min(460px,96%);
+  max-height:calc(100svh - 2 * clamp(8px,2svh,16px));
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  background:var(--surface);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:16px; padding:clamp(16px,3svh,22px);
+  margin:auto;
+  position:relative;
+}
+#guideCard h2 {
+  font-size:1.15rem; color:var(--accent);
+  margin-bottom:16px; text-align:center;
+}
+#closeGuideBtn {
+  position:sticky;
+  bottom:0;
+  margin-top:16px;
+}
+.guide-section {
+  margin-bottom:18px;
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.guide-section:last-of-type { border-bottom:none; }
+.guide-section h3 {
+  font-size:0.8rem; color:var(--gold);
+  margin-bottom:8px; text-transform:uppercase;
+  letter-spacing:1px;
+}
+.guide-section p {
+  font-size:0.78rem; color:#aaa;
+  line-height:1.5; margin-bottom:6px;
+}
+.guide-section ul {
+  font-size:0.75rem; color:#aaa;
+  line-height:1.6; padding-left:18px;
+}
+.guide-section li { margin-bottom:4px; }
+
+.rt-table { margin:8px 0; }
+.rt-row {
+  display:flex; justify-content:space-between;
+  padding:6px 10px; font-size:0.72rem;
+  background:rgba(255,255,255,0.03);
+  border-radius:4px; margin-bottom:4px;
+}
+.rt-label { font-weight:700; color:var(--fg); }
+.rt-desc { color:var(--muted); }
+
+.mode-item {
+  background:rgba(255,255,255,0.02);
+  border-radius:8px; padding:10px 12px;
+  margin-bottom:8px;
+}
+.mode-item strong { color:var(--fg); font-size:0.8rem; }
+.mode-item p {
+  font-size:0.72rem; color:#888;
+  margin:4px 0 0 0; line-height:1.4;
+}
+.mode-tag {
+  font-size:0.6rem; padding:2px 6px;
+  border-radius:4px; margin-left:6px;
+  font-weight:600;
+}
+.mode-tag.simple { background:rgba(0,214,143,0.2); color:var(--ok); }
+.mode-tag.complex { background:rgba(108,92,231,0.2); color:var(--accent); }
+.mode-tag.meta { background:rgba(255,159,67,0.2); color:var(--meta1); }
+.mode-tag.meta2 { background:rgba(238,90,36,0.2); color:var(--meta2); }
+.mode-tag.meta3 { background:rgba(199,112,232,0.2); color:var(--meta3); }
+
+.tier-group { margin:6px 0 10px 0; }
+.tier-label {
+  font-size:0.65rem; font-weight:700; color:var(--accent);
+  margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;
+}
+.tier-item {
+  font-size:0.7rem; color:#999; line-height:1.5;
+  padding:2px 0 2px 10px;
+  border-left:2px solid rgba(108,92,231,0.2);
+  margin-bottom:2px;
+}
+.tier-item b { color:var(--fg); }
+.tier-item.meta1 { border-left-color:rgba(255,159,67,0.4); }
+.tier-item.meta2 { border-left-color:rgba(238,90,36,0.4); }
+.tier-item.meta3 { border-left-color:rgba(199,112,232,0.4); }
+
+.guide-credits {
+  text-align:center; margin-top:16px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,0.08);
+}
+.guide-credits p {
+  font-size:0.75rem; color:var(--muted);
+  margin-bottom:4px;
+}
+.guide-credits a {
+  font-size:0.7rem; color:var(--accent);
+  text-decoration:none;
+}
+.guide-credits a:hover { text-decoration:underline; }
+
+#metaLevelRow { display:none; }
+#metaLevelRow.visible { display:block; }
+
+#rtTargetDisplay {
+  padding:clamp(7px,1.5svh,10px) clamp(8px,1.8svh,12px) !important;
+  min-height:clamp(30px,5.8svh,40px);
+  display:flex; align-items:center;
+  font-size:clamp(0.68rem,1.85svh,0.8rem) !important;
+}
+@media (max-height:560px) {
+  #meta3Hint { display:none !important; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="game-container">
+<canvas id="gameCanvas"></canvas>
+<canvas id="particles"></canvas>
+<div id="hud">
+<div class="hud-top">
+<div id="modeLabel">SUBITIZING</div>
+<div id="blockProgress">1/20</div>
+</div>
+<div class="hud-bot">
+<div id="rtDisplay">—</div>
+<div id="streakDisplay">🔥 0</div>
+</div>
+<div id="levelBadge"></div>
+<div id="metaQuestion">
+<div class="meta-label l1">META</div>
+<div class="meta-q"></div>
+<div class="meta-hint"></div>
+</div>
+<button id="pauseBtn">Menu</button>
+</div>
+</div>
+
+<div id="tray">
+<div id="promptRow">
+<div id="promptText">Ready</div>
+<div id="answerDisplay">—</div>
+</div>
+<div id="trayPanels">
+<div class="panel" id="panelNumpad">
+<div id="numpad">
+<button class="numBtn" data-v="1">1</button>
+<button class="numBtn" data-v="2">2</button>
+<button class="numBtn" data-v="3">3</button>
+<button class="numBtn" data-v="4">4</button>
+<button class="numBtn" data-v="5">5</button>
+<button class="numBtn" data-v="6">6</button>
+<button class="numBtn" data-v="7">7</button>
+<button class="numBtn" data-v="8">8</button>
+<button class="numBtn" data-v="9">9</button>
+<button class="numBtn" data-v="0">0</button>
+</div>
+</div>
+<div class="panel" id="panelBool">
+<div id="boolpad">
+<button class="boolBtn yes" id="btnYes">YES<span>← or Y</span></button>
+<button class="boolBtn no" id="btnNo">NO<span>→ or N</span></button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="overlay">
+<div id="overlayCard">
+<h1>EUCALCULIA 5.2</h1>
+<p class="subtitle">Number sense training: subitizing, relational thinking (RFT/Posner), and relational integration across hierarchical levels.</p>
+
+<label>Training Mode</label>
+<select id="modeSelect">
+<option value="A">Subitizing — Quantity → Number</option>
+<option value="D">Relational Thinking — RFT / Posner</option>
+</select>
+
+<div id="metaLevelRow">
+<label>Relational Integration Levels</label>
+<select id="metaLevelSelect">
+<option value="0">Level 0 only — Standard Posner</option>
+<option value="1">Levels 0+1 — Meta-questions (compute derivations)</option>
+<option value="2">Levels 0+1+2 — Meta² (compare derivations)</option>
+<option value="3">Levels 0+1+2+3 — Meta³ (compare comparisons)</option>
+</select>
+<div id="meta3Hint" style="display:none;margin-top:6px;padding:6px 10px;background:rgba(199,112,232,0.10);border-left:2px solid var(--meta3);border-radius:4px;font-size:0.7rem;color:#bba;">
+Meta³ requires blocks of ≥30 trials to complete two full cycles (15 trials each).
+</div>
+</div>
+
+<div class="row2">
+<div>
+<label>Block Size</label>
+<select id="blockSizeSelect">
+<option value="10">10 trials</option>
+<option value="20" selected>20 trials</option>
+<option value="30">30 trials</option>
+<option value="40">40 trials</option>
+</select>
+</div>
+<div>
+<label>RT Target (auto)</label>
+<div style="padding:10px 12px;background:#1a1a1f;border-radius:8px;font-size:0.8rem;color:var(--muted);" id="rtTargetDisplay">Subitizing: &lt;600ms</div>
+</div>
+</div>
+
+<label style="display:flex;justify-content:space-between;align-items:center;">
+<span>Representations</span>
+<span style="display:flex;gap:4px;">
+<button type="button" class="btn" id="repsAllBtn" style="font-size:0.65rem;padding:3px 8px;">All</button>
+<button type="button" class="btn" id="repsCoreBtn" style="font-size:0.65rem;padding:3px 8px;">Core</button>
+<button type="button" class="btn" id="repsNoneBtn" style="font-size:0.65rem;padding:3px 8px;">None</button>
+</span>
+</label>
+<div class="repGrid">
+<div class="repChip on" data-rep="dots">Dots</div>
+<div class="repChip on" data-rep="cluster">Cluster</div>
+<div class="repChip on" data-rep="ten">Frame</div>
+<div class="repChip on" data-rep="dice">Dice</div>
+<div class="repChip on" data-rep="domino">Domino</div>
+<div class="repChip on" data-rep="tally">Tally</div>
+<div class="repChip on" data-rep="finger">Fingers</div>
+<div class="repChip on" data-rep="abacus">Abacus</div>
+<div class="repChip on" data-rep="card">Cards</div>
+<div class="repChip on" data-rep="cube">Cubes</div>
+<div class="repChip on" data-rep="coins">Coins</div>
+<div class="repChip on" data-rep="roman">Roman</div>
+<div class="repChip on" data-rep="clock">Clock</div>
+<div class="repChip on" data-rep="grid">Grid</div>
+</div>
+
+<div class="statBox" id="menuStats"></div>
+
+<div class="btnRow">
+<button class="btn" id="resetBtn">Reset All</button>
+<button class="btn primary" id="startBtn">▶ START BLOCK</button>
+</div>
+<button class="btn" id="guideBtn" style="width:100%;margin-top:10px;background:#1a1a1f;font-size:0.75rem;">📖 Guide & Credits</button>
+</div>
+</div>
+
+<div id="guideModal">
+<div id="guideCard">
+<h2>📖 Training Guide</h2>
+
+<div class="guide-section">
+<h3>What is Eucalculia?</h3>
+<p>Eucalculia is an evidence-based training tool designed to strengthen <strong>number sense</strong> through three complementary mechanisms: <em>subitizing</em> (instant quantity recognition), <em>relational evaluation</em> (Posner paradigm applied to number properties), and <em>relational integration</em> (computing and comparing derived numerical relations across hierarchical levels).</p>
+<p>The relational integration system (Levels 1 and 2) operationalizes Halford's relational complexity hierarchy in the numerical domain. Level 0 trains binary relational evaluation; Level 1 adds computation on retained values; Level 2 requires comparing across computations — the same cognitive demand that predicts fluid intelligence.</p>
+</div>
+
+<div class="guide-section">
+<h3>Relational Integration Levels</h3>
+
+<div class="mode-item">
+<strong>Level 0 — Relational Evaluation</strong> <span class="mode-tag complex">Posner</span>
+<p>Two quantities flash side by side, then disappear. A relational question appears: "Same parity?", "Sum > 10?", etc. You answer YES or NO. You must encode both quantities as abstract numerical representations because the question is hidden during presentation.</p>
+</div>
+
+<div class="mode-item">
+<strong>Level 1 — Cross-pair numeric questions</strong> <span class="mode-tag meta">Integration</span>
+<p>After two Level 0 trials you are asked a numeric question that combines <em>both</em> pairs — e.g. "Sum of all four values?" or "Difference of the two maximums?". There is no hint: both pairs must be retained in working memory as abstract numbers. Enter the answer on the numpad.</p>
+<p>This is the critical step: Level 0 only requires evaluating a relation; Level 1 requires retaining values and computing new ones — the transition from relational evaluation to relational integration.</p>
+</div>
+
+<div class="mode-item">
+<strong>Level 2 — Meta²-questions</strong> <span class="mode-tag meta2">Integration</span>
+<p>After two Level 1 trials, a Meta² question compares the numerical outputs you computed. "Was Calc₁ > Calc₂?", "Same parity?", "Differ by more than 3?" — using the same relational vocabulary as Level 0, but applied to numbers you constructed mentally, never saw on screen.</p>
+<p>After two Level 1 trials you are asked a boolean question that compares the two numeric answers you computed — e.g. "Was the first answer larger?" or "Same parity?". You must have retained both L1 answers in memory to respond. This is a ternary relation (a relation between two relations).</p>
+</div>
+
+<div class="mode-item">
+<strong>Level 3 — Meta³-questions</strong> <span class="mode-tag meta3">Integration</span>
+<p>After two Level 2 trials, a Meta³ question compares the two correct YES/NO answers from the previous Meta² questions. The wording is explicit — for example: "Were both previous Meta² answers YES?" or "Was the first previous Meta² answer NO?" You must retain both prior booleans in working memory despite all the numerical/relational processing between them. This is Halford's quaternary level — the theoretical ceiling of human relational processing.</p>
+<p>Ground truth is the <em>correct</em> answer to each L2, not what you responded. If you got an L2 wrong, the REVIEW feedback tells you the correct value; use it to update your retained boolean before L3 arrives.</p>
+</div>
+</div>
+
+<div class="guide-section">
+<h3>Block Structure (with Meta-levels)</h3>
+<p>Trials follow nested cycles: <strong>L0 → L0 → L1</strong> repeats twice to set up an <strong>L2</strong>, and two L2s set up an <strong>L3</strong>. At Meta³ enabled, the full cycle is 15 trials. L1 always spans the two preceding L0 pairs, L2 the two preceding L1 answers, L3 the two preceding L2 booleans. Temporal proximity ensures integration — not episodic recall — is the cognitive bottleneck.</p>
+</div>
+
+<div class="guide-section">
+<h3>Level 0 Question Tiers</h3>
+
+<div class="tier-group">
+<div class="tier-label">Tier 1 — Direct comparison (all levels)</div>
+<div class="tier-item"><b>Same number?</b> — Do both displays represent the same quantity? This ignores visual format; format is asked separately.</div>
+<div class="tier-item"><b>Left > Right?</b> — Is the left quantity larger?</div>
+<div class="tier-item"><b>Differ by 1?</b> — Are they consecutive numbers?</div>
+<div class="tier-item"><b>Same representation?</b> — Are both shown in the same visual format?</div>
+</div>
+
+<div class="tier-group">
+<div class="tier-label">Tier 2 — Single property (level 2+)</div>
+<div class="tier-item"><b>Same parity?</b> — Both even or both odd?</div>
+<div class="tier-item"><b>Both > 5?</b> — Are both quantities greater than five?</div>
+<div class="tier-item"><b>Both ≤ 4?</b> — Are both in the small-number range?</div>
+<div class="tier-item"><b>Sum > 10?</b> — Does their sum exceed ten?</div>
+<div class="tier-item"><b>Sum = 10?</b> — Do they add up to exactly ten?</div>
+</div>
+
+<div class="tier-group">
+<div class="tier-label">Tier 3 — Compound reasoning (level 3+)</div>
+<div class="tier-item"><b>Difference > 3?</b> — Is the gap more than 3?</div>
+<div class="tier-item"><b>Sum is even?</b> — Is their sum an even number?</div>
+<div class="tier-item"><b>Left is double?</b> — Is left exactly twice right?</div>
+<div class="tier-item"><b>Both prime?</b> — Are both prime numbers?</div>
+<div class="tier-item"><b>Product > 20?</b> — Does their product exceed 20?</div>
+<div class="tier-item"><b>Difference is even?</b> — Is the gap even?</div>
+<div class="tier-item"><b>Both multiples of 3?</b> — Are both divisible by three?</div>
+</div>
+
+<div class="tier-group">
+<div class="tier-label">Tier 4 — Multi-step reasoning (level 5+)</div>
+<div class="tier-item"><b>One divides the other?</b> — Is one a factor of the other?</div>
+<div class="tier-item"><b>Sum is prime?</b> — Is their sum a prime number?</div>
+<div class="tier-item"><b>Exactly one even?</b> — Is precisely one even?</div>
+<div class="tier-item"><b>Gap > half the larger?</b> — Difference exceeds half the max?</div>
+<div class="tier-item"><b>Both square?</b> — Are both perfect squares?</div>
+<div class="tier-item"><b>Left ≥ 3× Right?</b> — Is left at least triple right?</div>
+</div>
+</div>
+
+<div class="guide-section">
+<h3>Level 1 Operations</h3>
+<div class="tier-group">
+<div class="tier-label">Derivations on retained pairs</div>
+<div class="tier-item meta1"><b>Sum of all four values</b> — Add every value from both pairs</div>
+<div class="tier-item meta1"><b>Largest / smallest of all four</b> — Max or min across both pairs</div>
+<div class="tier-item meta1"><b>Sum of the larger / smaller of each pair</b> — Take the max (or min) of each pair, then add</div>
+<div class="tier-item meta1"><b>Difference of the two totals</b> — Direction specified in the question; answer is always non-negative</div>
+<div class="tier-item meta1"><b>Difference of the two maxima (or minima)</b> — Direction specified in the question</div>
+</div>
+<p style="margin-top:8px;font-size:0.7rem;color:#777;">For difference operations, the question wording indicates the direction (e.g. "first pair's total minus second pair's total"). The system selects the direction that yields a non-negative answer, but you still have to compute which way the question is pointing.</p>
+</div>
+
+<div class="guide-section">
+<h3>Level 2 Comparisons</h3>
+<div class="tier-group">
+<div class="tier-label">Relations on computed derivations</div>
+<div class="tier-item meta2"><b>Was the first answer larger?</b> — r₁ &gt; r₂ (or r₂ &gt; r₁ when swapped)</div>
+<div class="tier-item meta2"><b>Same answer both times?</b> — r₁ = r₂</div>
+<div class="tier-item meta2"><b>Same parity?</b> — Both answers even or both odd</div>
+<div class="tier-item meta2"><b>Within N of each other?</b> — Threshold adapts to the actual L1 operation pair</div>
+<div class="tier-item meta2"><b>Sum of both answers &gt; N?</b> — Threshold adapts to the operation-pair distribution</div>
+<div class="tier-item meta2"><b>Sum of both answers even?</b> — Parity of r₁ + r₂</div>
+<div class="tier-item meta2"><b>Both answers &gt; N?</b> — Threshold adapts to the operation-pair distribution</div>
+</div>
+<p style="margin-top:8px;font-size:0.7rem;color:#777;">L2 thresholds are calibrated against an exact analytical distribution for the actual pair of L1 operations that produced r₁ and r₂, under the modelled value range [1..m]. Because the live L0 generator also has category weights, filters and adaptive history, this is an exact model-level calibration rather than a claim that every effective session distribution is mathematically uniform. When adjacent integer thresholds straddle the target rate, the system samples between them across trials.</p>
+</div>
+
+<div class="guide-section">
+<h3>Level 3 Meta³-comparisons</h3>
+<div class="tier-group">
+<div class="tier-label">Relations between two retained boolean answers (b₁, b₂)</div>
+<div class="tier-item meta3"><b>Same answer to both questions?</b> — b₁ = b₂</div>
+<div class="tier-item meta3"><b>Both previous Meta² answers YES?</b> — b₁ ∧ b₂</div>
+<div class="tier-item meta3"><b>Both previous Meta² answers NO?</b> — ¬b₁ ∧ ¬b₂</div>
+<div class="tier-item meta3"><b>At least one previous Meta² answer YES?</b> — b₁ ∨ b₂</div>
+<div class="tier-item meta3"><b>Was the first / second meta-answer YES?</b> — b₁ or b₂</div>
+</div>
+<p style="margin-top:8px;font-size:0.7rem;color:#777;">L3 ground-truth is the <em>correct</em> answer to each prior L2, not what you responded. If you got an L2 wrong, use the REVIEW feedback to update your retained booleans before L3 arrives. This trains both quaternary relational integration (Halford's theoretical ceiling) and feedback-driven belief updating.</p>
+</div>
+
+<div class="guide-section">
+<h3>Adaptive System</h3>
+<p><strong>Subitizing mode:</strong> each number has its own exposure time (ET). Correct fast responses shorten ET; errors increase it. Less-mastered numbers appear more frequently. Level-up when all values at the current range are mastered.</p>
+<p><strong>Relational mode:</strong> a single global ET applies to all stimuli — individual values are not the unit of learning, relations are. Level-up requires a rolling window of L0 trials at the current level with ≥85% accuracy and average correct RT ≤1200 ms (window size scales with level difficulty).</p>
+<p>Level 0 categories are filtered by whether the current value range supports them (e.g. "Sum &gt; 10?" only appears once the range is large enough). Each L0 trial is an independent Bernoulli(0.5) over YES/NO: the generator draws a target outcome first, then builds a pair that satisfies it — so YES and NO are structurally balanced, not statistically hoped-for.</p>
+<p>L0 categories are weighted by per-category accuracy and RT (harder categories appear more). L1 operations are weighted by accuracy. L2 picks category uniformly, balances target YES/NO per trial, computes thresholds from analytical operation-pair distributions, avoids degenerate zero-threshold prompts, and logs YES rate, accuracy, RT and fallback rate by category. L3 also picks category uniformly and balances target YES/NO per trial; its first/second-answer category includes explicit YES and NO variants so natural-rate fallbacks should be exceptional and measurable.</p>
+</div>
+
+<div class="guide-credits">
+<p>Developed by <strong>Alberto Flaño Lombardo</strong></p>
+<a href="https://www.linkedin.com/in/alberto-flaño-lombardo-762618259" target="_blank">linkedin.com/in/alberto-flaño-lombardo-762618259</a>
+<p style="margin-top:12px;font-size:0.65rem;color:#555;">Based on research in numerical cognition, subitizing, Relational Frame Theory, the Posner paradigm, and Halford's relational complexity theory.</p>
+</div>
+
+<button class="btn primary" id="closeGuideBtn" style="width:100%;">✕ Close Guide</button>
+</div>
+</div>
+
+<div id="summaryModal">
+<div id="summaryCard">
+<h2>🎯 Block Complete!</h2>
+<div class="summaryStats">
+<div class="stat" id="sumAcc"><div class="stat-value">0%</div><div class="stat-label">Accuracy</div></div>
+<div class="stat" id="sumRT"><div class="stat-value">0ms</div><div class="stat-label">Avg RT</div></div>
+<div class="stat" id="sumFast"><div class="stat-value">0</div><div class="stat-label">Fast Responses</div></div>
+<div class="stat" id="sumStreak"><div class="stat-value">0</div><div class="stat-label">Best Streak</div></div>
+</div>
+<div id="summaryBreakdown" style="font-size:0.7rem;color:var(--muted);margin-bottom:12px;font-family:monospace;white-space:pre-wrap;"></div>
+<div id="summaryMessage" style="font-size:0.8rem;color:var(--muted);margin-bottom:16px;"></div>
+<button class="btn primary" id="continueBtn">Continue Training</button>
+<button class="btn" id="restBtn" style="margin-top:8px;">Take a Break</button>
+</div>
+</div>
+
+<script>
+// ============================================================================
+// EUCALCULIA v5.2 — Relational Integration Hierarchy
+// ----------------------------------------------------------------------------
+// v5.2 changes:
+// - Menu/overlay responsiveness refactor: the start menu now uses the real
+//   visual viewport as a constrained scroll container, with compact spacing,
+//   adaptive chip grids, smaller controls at high browser zoom, and touch
+//   scrolling restored inside modals. This fixes overflow/empty-space issues
+//   without changing the game canvas layout.
+// - Menu statistics and action rows now shrink progressively on short
+//   screens; extreme-height cases hide non-essential menu diagnostics so
+//   start/settings remain reachable.
+// ----------------------------------------------------------------------------
+// v5.1 changes:
+// - Responsive layout refactor: compact viewport-aware grid, smaller tray on
+//   short screens/zoomed browsers, scroll-safe menu/summary modals, and
+//   larger central question area with clamp() typography.
+// - Question wording pass: removed ambiguous terms such as "Identical?"
+//   for numerical equality and "relation hold/fail" for L3; prompts now
+//   explicitly name numbers, answers, previous Meta² answers, YES/NO,
+//   and calculation order.
+// ----------------------------------------------------------------------------
+// v5.0 changes:
+// - Retina/HiDPI rendering: main canvas, particle canvas, mask canvas, and
+//   cached stimuli now render at devicePixelRatio while preserving logical
+//   CSS coordinates. Uses setTransform() to avoid cumulative scaling.
+// - Removed dead L1_OPS range() fields left over from v4.4.0; analytical
+//   L2 calibration now uses l1AnswerDistribution()/l2MetricDistribution().
+// - L2 threshold categories no longer generate threshold 0 prompts for
+//   sum_gt/both_large. marginOK() now uses a small absolute lower bound so
+//   threshold filtering does not collapse when N is near zero.
+// - Summary modal accepts Enter as well as Space for keyboard continuation.
+// - Documentation/changelog aligned with the v5.0 rendering and calibration
+//   cleanup.
+// ----------------------------------------------------------------------------
+// v4.4.7 changes:
+// - UX overlap fix: suppress the transient center level badge when the
+//   meta-question overlay is shown. The overlay already labels the level.
+// - REVIEW badge moved below the HUD and widened responsively, avoiding
+//   collisions with the top mode label.
+// - Tray prompt simplified during Meta trials (META / META² / META³ only);
+//   the full question remains in the central overlay.
+// - Menu diagnostics now include a compact L1 answer histogram so repeated
+//   answers such as 11 can be inspected directly.
+// ----------------------------------------------------------------------------
+// v4.4.6 changes:
+// - L3 first_yes now has explicit NO/negated variants for both first and
+//   second retained booleans. This removes its remaining natural-rate
+//   fallback when both prior booleans match.
+// - Added internal diagnostic logging for L2/L3 by category and by rendered
+//   variant: frequency, YES rate, accuracy, correct-RT, and fallback rate.
+// - L2 analytical threshold selection now supports stochastic bracketing:
+//   when two adjacent integer thresholds straddle the target YES rate, the
+//   system samples between them so the expected YES rate matches the target
+//   more closely than any single integer threshold can.
+// - Guide text now distinguishes the exact analytical model from the
+//   effective distribution induced by setupPosner() and adaptive weights.
+// ----------------------------------------------------------------------------
+// v4.4.5 changes:
+// - L3 setupL3() rewritten with category-first selection + per-category
+//   target balancing (Bernoulli 0.5). Previously, base rates of categories
+//   like "both_yes" (~25% YES) and "any_yes" (~75% YES) were directly
+//   exposed to the user, who could exploit them implicitly. Quaternary
+//   integration is now genuinely the cognitive bottleneck.
+// - L2 setupL2() rewritten with category-first selection. Previously, the
+//   global candidate pool meant categories with more variants (the three
+//   threshold cats with 10 variants each) trained ~70% more frequently
+//   than pure cats (with 5 variants each). All seven L2 categories now
+//   receive equal exposure.
+// - Removed dead state: l1AnswerHistory was used by v4.4.2's empirical
+//   calibration but became unused in v4.4.3's analytical refactor. Save
+//   schema preserved for backward compatibility.
+// - Documentation alignment: comments/guide now reflect actual analytical
+//   threshold calibration.
+// ----------------------------------------------------------------------------
+// v4.4.4 changes:
+// - L2 threshold categories (close, sum_gt, both_large) re-balanced: each
+//   now has 10 variants (5 non-negate, 5 negate) instead of asymmetric 4:1
+//   or 5:0 splits. Per-variant text templates with {N} placeholder, so each
+//   variant actually surfaces different wording (previously, multiple
+//   "variants" of the same kind rendered identically — Posner principle in
+//   name only).
+// - Per-category prima de pereza in L2 dropped from +9.8 pp (v4.4.1) to
+//   +1.8 pp.
+// ----------------------------------------------------------------------------
+// v4.4.3 changes:
+// - L2 thresholds calibrated against the EXACT distribution of answers
+//   for the actual pair of L1 operations. Caches l1AnswerDistribution by
+//   (opId, m) and l2MetricDistribution by (op1, op2, m, metric).
+//   Replaces v4.4.2's rolling-empirical (which mixed incompatible families).
+// - thresholdForTargetRate originally searched integer thresholds for the one that
+//   minimized |observed_rate - target_rate|; v4.4.6 adds stochastic
+//   bracketing when adjacent thresholds straddle the target rate.
+// - No warmup period needed.
+// ----------------------------------------------------------------------------
+// v4.4.2 changes (superseded by v4.4.3):
+// - Rolling l1AnswerHistory used to calibrate thresholds via empirical
+//   percentiles. State field preserved for backward-compatibility with
+//   saves but no longer drives calibration.
+// ----------------------------------------------------------------------------
+// v4.4.1 changes:
+// - RT Target display now reflects mode AND metaLevel (L0 vs Meta).
+// - Visible hint when Meta³ is selected (block size auto-clamped to ≥30).
+// - Reps preset buttons: All / Core / None.
+// ----------------------------------------------------------------------------
+// v4.4.0 changes:
+// - L1_OPS gain `family` and `range()`. L2 categories declare kind
+//   (pure | threshold). setupL2 picks target YES/NO first (Bernoulli 0.5),
+//   then searches for variants matching target with non-trivial margin.
+// - REVIEW badge for meta2 shows the threshold when applicable.
+// ----------------------------------------------------------------------------
+// v4.3.1 changes:
+// - Fix: t++ for L1/L2/L3 trial counters incremented BEFORE save/updateHUD,
+//   so the menu doesn't lag a trial on the first meta of a session.
+// - Fix: same_rep gate when the active repertoire (or value range) doesn't
+//   support two distinct representations — the category is filtered out
+//   instead of silently flipping isTrue.
+// - Block size minimum 30 enforced when Meta³ is selected (full cycle is
+//   15 trials).
+// ----------------------------------------------------------------------------
+// v4.3.0 changes:
+// - New Level 3 (Meta³). After two L2 trials, a boolean question compares
+//   the two correct L2 answers. Ground truth-based (user must update from
+//   REVIEW feedback if they got an L2 wrong). This reaches Halford's
+//   quaternary relational complexity — the theoretical ceiling.
+// - L3_CATS: same, both_yes, both_no, any_yes, first_yes — with variants.
+// - Menu option "Levels 0+1+2+3 — Meta³" added.
+// - Purple accent color --meta3 (#c770e8).
+//
+// v4.2.1 changes:
+// - L1 answers now always non-negative: setupL1 picks the variant direction
+//   whose wording matches the non-negative side of the computation. The
+//   numpad has no minus sign, so the previous behaviour silently penalised
+//   users on ~25% of asymmetric difference trials.
+// - L1/L2 prompts rewritten in natural English (no more "Max(pair 1) minus
+//   Max(pair 2)?"). Multiple Posner-style variants kept.
+// - L2 gains l2_eq and l2_both_large; l2_both_positive and l2_same_sign
+//   removed (trivial when answers are always non-negative).
+//
+// v4.2.0 changes:
+// - setupPosner now USES cat.gen() instead of ignoring it. Each trial is an
+//   independent Bernoulli(0.5) over {YES,NO}, so the stimulus-question
+//   coupling produces genuinely balanced trials per category.
+// - POSNER_CATS gain a minM field; categories are filtered by currentMax()
+//   (replaces the old `m = Math.max(m, 10)` hack inside gen()).
+// - Level-up in mode D no longer uses per-value ET. Instead uses rolling
+//   tier-accuracy: advance when the current tier's last-N accuracy ≥ target.
+//   etByModeAndValue is kept only for mode A (subitizing).
+// - Fixed review-badge bug in L1 (info.pair → info.pair1/pair2).
+// - Fixed L1/L2 RT tracking asymmetry on errors (consistent behavior).
+// - Removed dead code: op.label reference in updateMenu.
+// ============================================================================
+
+const CONFIG = {
+  prepFrames: 15,
+  maskFrames: 8,
+  reviewFrames: 40,
+  autoFrames: 15,
+  metaPrepFrames: 25, // longer prep for meta trials (mental preparation)
+
+  levels: [4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20],
+
+  startETByMode: { A: 45, D: 80 },
+
+  minET: 4, speedStep: 2, penalty: 10,
+  rtSubitizing: 300, rtFast: 600, rtGood: 1200, rtSlow: 2000,
+  rtMetaGood: 3000, rtMetaFast: 1500, // L1/L2 have higher RT targets
+  maxParticles: 80, blockSize: 20,
+
+  // Meta-level sequencing
+  l0PerL1: 2, // L0 trials between each L1
+  l1PerL2: 2, // L1 trials between each L2
+  l2PerL3: 2, // L2 trials between each L3
+};
+
+const ALL_REPS = ["dots","cluster","ten","dice","domino","tally","finger","abacus","card","cube","coins","roman","clock","grid"];
+const DEFAULT_REPS = ALL_REPS.slice();
+function sanitizeReps(list){
+  const out = (Array.isArray(list)?list:[]).filter(r=>ALL_REPS.includes(r));
+  return out.length ? out : DEFAULT_REPS.slice();
+}
+
+const State = {
+  running: false, paused: true, status: "MENU", frameCount: 0,
+  mode: "A",
+  metaLevel: 0, // 0=standard, 1=L0+L1, 2=L0+L1+L2
+  reps: DEFAULT_REPS.slice(),
+  levelByMode: {A:0, D:0},
+  etByMode: {...CONFIG.startETByMode},
+  etByModeAndValue: {A:{}, D:{}},
+  blockSize: 20, blockTrials: 0, blockCorrect: 0, blockRTs: [], blockBestStreak: 0,
+
+  pendingPanel: "none", inputBuffer: "", maxValue: 4, targetValue: null,
+  mainStim: null, secStim: null, mainCache: null, secCache: null,
+  trialInfo: null, trialStartTime: 0, lastRT: 0,
+  currentTrialValue: null,
+  currentTrialLevel: 0, // 0, 1, 2, or 3
+
+  stats: {trials:0, correct:0, streak:0, bestStreak:0},
+  statsByMode: {A:{t:0,c:0,rt:[]}, D:{t:0,c:0,rt:[]}},
+  posnerCatStats: {},
+  confusion: {}, problemValues: {},
+  particles: [],
+
+  // Meta-level state
+  meta: {
+    l0SinceL1: 0,      // L0 trials since last L1
+    l1SinceL2: 0,      // L1 trials since last L2
+    l2SinceL3: 0,      // L2 trials since last L3
+    lastPair: null,    // {a, b} from most recent L0 trial  (kept for compat)
+    pairHistory: [],   // last 2+ L0 pairs [{a,b}] for cross-pair L1
+    l1Results: [],     // [{answer, op, correct}, ...] last L1 outputs for L2
+    l2Results: [],     // [{isTrue, cat, correct}, ...] last L2 outputs for L3
+    l1AnswerHistory: [], // Legacy field from v4.4.2 (rolling empirical calibration). v4.4.3+ uses analytical distributions; preserved for backward-compatible save/load.
+    l1Stats: {},       // Per-operation stats: {sum: {t,c,rt:[]}, ...}
+    l2Stats: {t:0, c:0, rt:[]},
+    l3Stats: {t:0, c:0, rt:[]},
+    l2Diag: {cats:{}, variants:{}}, // Diagnostic buckets: t/c/yes/rt/fallback
+    l3Diag: {cats:{}, variants:{}},
+  },
+
+  // Per-level block stats
+  blockByLevel: {0:{t:0,c:0,rt:[]}, 1:{t:0,c:0,rt:[]}, 2:{t:0,c:0,rt:[]}, 3:{t:0,c:0,rt:[]}},
+  blockDiag: {l2:{cats:{}, variants:{}}, l3:{cats:{}, variants:{}}},
+
+  // Rolling window of L0 trials in mode D, used for level-up criterion
+  // (abandons per-value ET mastery in D — values are not the unit of learning
+  // in relational mode; relations are).
+  dL0Window: [],   // [{correct:bool, rt:int, levelAtTrial:int}, ...] last ~60
+};
+
+const $ = id => document.getElementById(id);
+const gameContainer = $("game-container");
+const cvs = $("gameCanvas"), ctx = cvs.getContext("2d");
+const pCvs = $("particles"), pCtx = pCvs.getContext("2d");
+
+const rand = (a,b) => a + Math.random() * (b - a);
+const randInt = (a,b) => Math.floor(rand(a,b));
+const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
+const choice = arr => arr[randInt(0, arr.length)];
+const shuffle = arr => { for(let i=arr.length-1;i>0;i--){ const j=randInt(0,i+1);[arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; };
+const now = () => performance.now();
+
+// ---------- Per-value ET helpers ----------
+function getValueET(mode, value){
+  const modeETs = State.etByModeAndValue[mode];
+  if(modeETs && typeof modeETs[value] === "number") return modeETs[value];
+  return CONFIG.startETByMode[mode];
+}
+function setValueET(mode, value, et){
+  if(!State.etByModeAndValue[mode]) State.etByModeAndValue[mode] = {};
+  State.etByModeAndValue[mode][value] = et;
+}
+
+function weightedRandInt(min, max){
+  const pool = [];
+  const mode = State.mode;
+  for(let v = min; v <= max; v++){
+    const et = getValueET(mode, v);
+    const problemWeight = State.problemValues[v] || 0;
+    const startET = CONFIG.startETByMode[mode];
+    const etWeight = Math.max(1, Math.ceil((et - CONFIG.minET) / ((startET - CONFIG.minET) / 10) + 1));
+    const totalWeight = etWeight + problemWeight * 2;
+    for(let i = 0; i < totalWeight; i++) pool.push(v);
+  }
+  return pool.length ? choice(pool) : randInt(min, max + 1);
+}
+
+function currentET(){
+  // Mode A: per-value ET (values are the unit of learning).
+  // Mode D: global per-mode ET (relations are the unit of learning;
+  //         stimulus speed is uniform across values).
+  if(State.mode === "A" && State.currentTrialValue !== null){
+    return getValueET(State.mode, State.currentTrialValue);
+  }
+  return State.etByMode[State.mode];
+}
+
+function countMasteredValues(mode){
+  const max = currentMax();
+  let mastered = 0;
+  for(let v = 1; v <= max; v++) if(getValueET(mode, v) <= CONFIG.minET) mastered++;
+  return mastered;
+}
+
+// Mode-D level-up criterion.
+// Rationale: in relational mode, individual values are not what is being
+// learned — relations are. Using per-value ET as in mode A produces unstable
+// level-up (some values over-represented by certain categories like primes or
+// squares). Instead we require a rolling accuracy + RT threshold on L0 trials
+// taken at the current level.
+function shouldLevelUpD(){
+  const lv = State.levelByMode.D;
+  if(lv >= CONFIG.levels.length - 1) return false;
+
+  // Need enough samples AT the current level. Scale window with level difficulty.
+  const windowSize = Math.max(15, Math.ceil(currentMax() * 1.2));
+  const atLevel = State.dL0Window.filter(e => e.levelAtTrial === lv);
+  if(atLevel.length < windowSize) return false;
+
+  const recent = atLevel.slice(-windowSize);
+  const acc = recent.filter(e => e.correct).length / recent.length;
+  if(acc < 0.85) return false;
+
+  const correctRTs = recent.filter(e => e.correct).map(e => e.rt);
+  if(!correctRTs.length) return false;
+  const avgRT = correctRTs.reduce((a,b)=>a+b,0) / correctRTs.length;
+  if(avgRT > CONFIG.rtGood) return false;
+
+  return true;
+}
+
+function getAverageET(mode){
+  const max = currentMax();
+  let total = 0;
+  for(let v = 1; v <= max; v++) total += getValueET(mode, v);
+  return Math.round(total / max);
+}
+
+function currentLevel(){ return State.levelByMode[State.mode]; }
+function currentMax(){ return CONFIG.levels[Math.min(currentLevel(), CONFIG.levels.length-1)]; }
+function currentStartET(){ return CONFIG.startETByMode[State.mode]; }
+
+let W = 400, H = 400, DPR = 1;
+
+function setupCanvas(canvas, context, w, h){
+  DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+  canvas.width = Math.max(1, Math.floor(w * DPR));
+  canvas.height = Math.max(1, Math.floor(h * DPR));
+  context.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+function resize(){
+  const container = cvs.parentElement;
+  const r = container.getBoundingClientRect();
+  W = Math.floor(r.width) || 400;
+  H = Math.floor(r.height) || 400;
+
+  setupCanvas(cvs, ctx, W, H);
+  setupCanvas(pCvs, pCtx, W, H);
+
+  Mask.gen();
+  if(State.mainCache){
+    State.mainCache = cacheStim(State.mainStim, State.mode==="D" ? Math.floor(W/2)-2 : W, H);
+  }
+  if(State.secCache && State.secStim){
+    State.secCache = cacheStim(State.secStim, Math.floor(W/2)-2, H);
+  }
+}
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", ()=>setTimeout(resize, 100));
+
+// ---------- UI Helpers ----------
+const panels = [...$("trayPanels").querySelectorAll(".panel")];
+function hideAllPanels(){ panels.forEach(p=>p.classList.remove("active")); State.pendingPanel="none"; }
+function showPanel(w){ hideAllPanels(); const m={numpad:$("panelNumpad"),bool:$("panelBool")}; if(m[w]) m[w].classList.add("active"); State.pendingPanel=w; }
+function setPrompt(t, cls){ 
+  const el = $("promptText");
+  el.textContent=t; 
+  el.classList.remove("meta1","meta2","meta3");
+  if(cls) el.classList.add(cls);
+}
+function setAnswer(t){ $("answerDisplay").textContent=t; }
+
+function updateHUD(){
+  const modeNames = {A:"SUBITIZING", D:"RELATIONAL"};
+  let label = `${modeNames[State.mode]||State.mode} • LV${currentLevel()+1}`;
+  if(State.mode === "D" && State.metaLevel > 0){
+    const metaSuffix = {1:"META", 2:"META²", 3:"META³"};
+    label += ` • ${metaSuffix[State.metaLevel] || ("META"+State.metaLevel)}`;
+  }
+  $("modeLabel").textContent = label;
+  $("blockProgress").textContent=`${State.blockTrials}/${State.blockSize}`;
+  $("streakDisplay").textContent=`🔥 ${State.stats.streak}`;
+  $("streakDisplay").classList.toggle("visible", State.stats.streak >= 3);
+}
+
+function showRT(rt, correct){
+  const el = $("rtDisplay");
+  const isL0 = State.currentTrialLevel === 0;
+  const isSimple = State.mode === "A";
+  const targetRT = isL0 ? (isSimple ? CONFIG.rtFast : CONFIG.rtGood) : CONFIG.rtMetaGood;
+  const fastRT = isL0 ? CONFIG.rtSubitizing : CONFIG.rtMetaFast;
+  if(!correct){ el.style.color="var(--bad)"; el.textContent="✗"; }
+  else if(rt < fastRT){ el.style.color="var(--gold)"; el.textContent=`⚡${rt}ms`; }
+  else if(rt < targetRT){ el.style.color="var(--ok)"; el.textContent=`${rt}ms`; }
+  else{ el.style.color="var(--muted)"; el.textContent=`${rt}ms`; }
+  el.classList.add("visible");
+  setTimeout(()=>el.classList.remove("visible"), 1200);
+}
+
+function showLevelBadge(level){
+  const el = $("levelBadge");
+  el.classList.remove("visible","l0","l1","l2","l3");
+  const labels = {0:"L0", 1:"META", 2:"META²", 3:"META³"};
+  el.textContent = labels[level] || "";
+  el.classList.add("l"+level, "visible");
+  setTimeout(()=>el.classList.remove("visible"), 800);
+}
+
+function showMetaQuestion(level, question, hint){
+  // The central meta overlay already labels the level. Hide the transient
+  // level badge to avoid covering the question text.
+  const badge = $("levelBadge");
+  if(badge) badge.classList.remove("visible","l0","l1","l2","l3");
+  const el = $("metaQuestion");
+  el.querySelector(".meta-label").className = "meta-label l" + level;
+  const labels = {1:"META ▸ LEVEL 1", 2:"META² ▸ LEVEL 2", 3:"META³ ▸ LEVEL 3"};
+  el.querySelector(".meta-label").textContent = labels[level] || "";
+  el.querySelector(".meta-q").textContent = question;
+  el.querySelector(".meta-hint").textContent = hint || "";
+  el.classList.add("visible");
+}
+function hideMetaQuestion(){ $("metaQuestion").classList.remove("visible"); }
+
+function pulse(type){
+  gameContainer.classList.remove("pulse-ok","pulse-bad","pulse-fast","pulse-lvl");
+  void gameContainer.offsetWidth;
+  gameContainer.classList.add("pulse-"+type);
+  const dur = type==="lvl"?600:(type==="fast"?300:180);
+  setTimeout(()=>gameContainer.classList.remove("pulse-"+type), dur);
+  const colors={ok:"#00d68f",bad:"#ff4757",fast:"#ffc107",lvl:"#ffc107"};
+  const counts={ok:12,bad:6,fast:18,lvl:25};
+  spawnParticles(W/2, H/2, counts[type]||10, colors[type]||"#fff");
+}
+
+function spawnParticles(cx,cy,n,color){
+  if(State.particles.length > CONFIG.maxParticles - n) State.particles.splice(0,n);
+  for(let i=0;i<n;i++){
+    const ang=rand(0,Math.PI*2), spd=rand(2,5);
+    State.particles.push({x:cx,y:cy,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd-1.5,life:randInt(20,40),maxLife:40,color,size:rand(2,6)});
+  }
+}
+function updateParticles(){ for(let i=State.particles.length-1;i>=0;i--){ const p=State.particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.12;p.vx*=0.97;p.life--;if(p.life<=0)State.particles.splice(i,1); } }
+function renderParticles(){ pCtx.clearRect(0,0,W,H);for(const p of State.particles){pCtx.globalAlpha=p.life/p.maxLife;pCtx.fillStyle=p.color;pCtx.beginPath();pCtx.arc(p.x,p.y,p.size*(p.life/p.maxLife),0,Math.PI*2);pCtx.fill();}pCtx.globalAlpha=1; }
+
+// ---------- Mask ----------
+const Mask = {
+  canvas: null,
+  gen(){
+    this.canvas = document.createElement("canvas");
+    this.canvas.width = Math.max(1, Math.floor(W * DPR));
+    this.canvas.height = Math.max(1, Math.floor(H * DPR));
+    const c = this.canvas.getContext("2d");
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.fillStyle = "#050508"; c.fillRect(0,0,W,H);
+    for(let i=0;i<350;i++){
+      c.fillStyle = `hsl(${randInt(240,280)},25%,${randInt(4,10)}%)`;
+      c.fillRect(rand(0,W), rand(0,H), rand(4,20), rand(4,20));
+    }
+  },
+  draw(c){ if(this.canvas) c.drawImage(this.canvas, 0, 0, W, H); }
+};
+
+// ============================================================================
+// STIMULI CLASSES (unchanged from v3.2)
+// ============================================================================
+class Stim {
+  constructor(v){ this.val=v; this.rot=choice([0,90,180,270])*Math.PI/180; this.rotOff=rand(-0.04,0.04); this.seed=Math.random()*9999; }
+  srand(i){ const x=Math.sin(this.seed+i*127.1)*43758.5453; return x-Math.floor(x); }
+  applyRot(c,cx,cy){ c.translate(cx,cy); c.rotate(this.rot+this.rotOff); c.translate(-cx,-cy); }
+  draw(c,x,y,w,h){}
+}
+
+class Dots extends Stim {
+  constructor(v){
+    super(v); this.pos=[];
+    const totalArea = 3600;
+    const meanR = Math.sqrt(totalArea / (v * Math.PI));
+    const scatter = 55 + this.srand(1) * 70;
+    for(let i=0;i<v;i++){
+      const rFactor = 0.5 + this.srand(i * 7 + 100) * 1.0;
+      const dotR = Math.max(4, Math.min(22, meanR * rFactor));
+      for(let a=0;a<250;a++){
+        const ang=this.srand(i*250+a)*Math.PI*2, dist=this.srand(i*250+a+500)*scatter;
+        const px=0.5+Math.cos(ang)*dist/350, py=0.5+Math.sin(ang)*dist/350;
+        if(px<0.12||px>0.88||py<0.12||py>0.88) continue;
+        let ok=true;
+        for(const d of this.pos) if(Math.hypot((px-d.px)*350,(py-d.py)*350)<dotR+d.r+8){ok=false;break;}
+        if(ok){this.pos.push({px,py,r:dotR});break;}
+      }
+    }
+  }
+  draw(c,x,y,w,h){
+    const scale = Math.min(w,h)/350;
+    for(const d of this.pos){
+      c.beginPath(); c.arc(x+d.px*w, y+d.py*h, d.r*scale, 0, Math.PI*2);
+      c.fillStyle="#e8e8f0"; c.fill();
+    }
+  }
+}
+
+class Cluster extends Stim {
+  constructor(v){
+    super(v); this.groups=[];
+    const ng=v<=3?1:(v<=6?2:3); let rem=v;
+    for(let g=0;g<ng;g++){
+      const inG=g===ng-1?rem:Math.max(1,Math.ceil(rem/(ng-g)*(0.4+this.srand(g)*0.5))); rem-=inG;
+      const gcx=0.2+this.srand(g+10)*0.6, gcy=0.2+this.srand(g+20)*0.6;
+      const dots=[];
+      const minDist = 0.055;
+      const spread = 0.06 + inG * 0.015;
+      for(let i=0;i<inG;i++){
+        for(let a=0;a<300;a++){
+          const ang=this.srand(g*300+i*300+a)*Math.PI*2;
+          const dist=this.srand(g*300+i*300+a+150)*spread;
+          const ox=Math.cos(ang)*dist, oy=Math.sin(ang)*dist;
+          let ok=true;
+          for(const d of dots){ if(Math.hypot(ox-d.ox, oy-d.oy) < minDist){ok=false;break;} }
+          if(ok){dots.push({ox,oy});break;}
+        }
+      }
+      this.groups.push({cx:gcx,cy:gcy,dots});
+    }
+  }
+  draw(c,x,y,w,h){
+    const r=Math.min(w,h)*0.025;
+    const cols=["#00d68f","#6c5ce7","#ffc107"];
+    this.groups.forEach((g,gi)=>{
+      for(const d of g.dots){
+        const dx=x+(g.cx+d.ox)*w, dy=y+(g.cy+d.oy)*h;
+        c.beginPath(); c.arc(dx, dy, r, 0, Math.PI*2);
+        c.fillStyle=cols[gi%3]; c.fill();
+        c.strokeStyle="rgba(0,0,0,0.5)"; c.lineWidth=Math.max(1,r*0.15); c.stroke();
+      }
+    });
+  }
+}
+
+class TenFrame extends Stim {
+  constructor(v,base=10){ super(v); this.base=base; }
+  draw(c,x,y,w,h){
+    c.save(); this.applyRot(c,x+w/2,y+h/2);
+    const cols=5, rows=Math.ceil(this.base/cols);
+    const pad=Math.min(w,h)*0.08;
+    const gw=w-2*pad, gh=h-2*pad;
+    const cell=Math.min(gw/cols, gh/rows);
+    const ox=x+(w-cell*cols)/2, oy=y+(h-cell*rows)/2;
+    const gap=cell*0.10, s=cell-gap;
+    c.lineJoin="round";
+    for(let i=0;i<this.base;i++){
+      const r=Math.floor(i/cols), col=i%cols;
+      const cx=ox+col*cell+gap/2, cy=oy+r*cell+gap/2;
+      c.fillStyle = i<this.val ? "rgba(108,92,231,0.85)" : "rgba(20,20,25,0.55)";
+      c.strokeStyle="rgba(220,220,255,0.25)"; c.lineWidth=Math.max(1,s*0.07);
+      c.beginPath();
+      if(c.roundRect) c.roundRect(cx,cy,s,s,Math.max(2,s*0.14)); else c.rect(cx,cy,s,s);
+      c.fill(); c.stroke();
+    }
+    c.strokeStyle="rgba(255,255,255,0.12)"; c.lineWidth=Math.max(1,cell*0.08);
+    c.strokeRect(ox-gap*0.15, oy-gap*0.15, cell*cols+gap*0.3, cell*rows+gap*0.3);
+    c.restore();
+  }
+}
+
+class Dice extends Stim {
+  constructor(v){
+    super(v); this.dice=[];
+    let remaining=v, dieIdx=0;
+    const numDice=Math.min(4, Math.ceil(v/6));
+    while(remaining>0 && this.dice.length<numDice){
+      const diceLeft=numDice-this.dice.length; let dieVal;
+      if(diceLeft===1) dieVal=Math.min(6,remaining);
+      else { const minN=Math.max(1,remaining-(diceLeft-1)*6); const maxA=Math.min(6,remaining-(diceLeft-1)); dieVal=randInt(minN,maxA+1); }
+      this.dice.push({val:dieVal, rot:Math.floor(this.srand(dieIdx)*4)*Math.PI/2}); remaining-=dieVal; dieIdx++;
+    }
+    for(let i=this.dice.length-1;i>0;i--){ const j=Math.floor(this.srand(10+i)*(i+1));[this.dice[i],this.dice[j]]=[this.dice[j],this.dice[i]]; }
+  }
+  drawDie(c,x,y,s,v,rot){
+    c.save();c.translate(x+s/2,y+s/2);c.rotate(rot);c.translate(-s/2,-s/2);
+    c.fillStyle="#1a1a20";c.strokeStyle="#555";c.lineWidth=2;
+    c.beginPath();c.roundRect(0,0,s,s,s*0.12);c.fill();c.stroke();
+    c.fillStyle="#fff";const pr=s*0.08;
+    const pos={1:[[.5,.5]],2:[[.28,.28],[.72,.72]],3:[[.28,.28],[.5,.5],[.72,.72]],4:[[.28,.28],[.72,.28],[.28,.72],[.72,.72]],5:[[.28,.28],[.72,.28],[.5,.5],[.28,.72],[.72,.72]],6:[[.28,.22],[.28,.5],[.28,.78],[.72,.22],[.72,.5],[.72,.78]]};
+    for(const[fx,fy]of(pos[v]||[])){c.beginPath();c.arc(fx*s,fy*s,pr,0,Math.PI*2);c.fill();}
+    c.restore();
+  }
+  draw(c,x,y,w,h){
+    const n=this.dice.length;
+    const s=Math.min(w,h)*(n<=2?0.32:(n===3?0.26:0.24));
+    const gap=s*0.12;
+    if(n===1){ this.drawDie(c,x+w/2-s/2,y+h/2-s/2,s,this.dice[0].val,this.dice[0].rot); }
+    else if(n===2){ const tw=s*2+gap,cx0=x+(w-tw)/2; this.drawDie(c,cx0,y+h/2-s/2,s,this.dice[0].val,this.dice[0].rot); this.drawDie(c,cx0+s+gap,y+h/2-s/2,s,this.dice[1].val,this.dice[1].rot); }
+    else if(n===3){ const topY=y+h*0.28-s/2,botY=y+h*0.68-s/2; this.drawDie(c,x+w/2-s/2,topY,s,this.dice[0].val,this.dice[0].rot); const tw=s*2+gap,cx0=x+(w-tw)/2; this.drawDie(c,cx0,botY,s,this.dice[1].val,this.dice[1].rot); this.drawDie(c,cx0+s+gap,botY,s,this.dice[2].val,this.dice[2].rot); }
+    else { const tw=s*2+gap,th=s*2+gap,cx0=x+(w-tw)/2,cy0=y+(h-th)/2; this.drawDie(c,cx0,cy0,s,this.dice[0].val,this.dice[0].rot);this.drawDie(c,cx0+s+gap,cy0,s,this.dice[1].val,this.dice[1].rot);this.drawDie(c,cx0,cy0+s+gap,s,this.dice[2].val,this.dice[2].rot);this.drawDie(c,cx0+s+gap,cy0+s+gap,s,this.dice[3].val,this.dice[3].rot); }
+  }
+}
+
+class Domino extends Stim {
+  constructor(v){
+    super(v); this.dominoes=[];
+    let remaining=v, domIdx=0;
+    const numDom=Math.min(3, Math.ceil(v/12));
+    while(remaining>0 && this.dominoes.length<numDom){
+      const domLeft=numDom-this.dominoes.length; let domVal;
+      if(domLeft===1) domVal=Math.min(12,remaining);
+      else { const minN=Math.max(1,remaining-(domLeft-1)*12); const maxA=Math.min(12,remaining-(domLeft-1)); domVal=randInt(minN,maxA+1); }
+      const cands=[]; for(let i=0;i<=6;i++){ const j=domVal-i; if(j>=0&&j<=6) cands.push([i,j]); }
+      const pick=cands.length?cands[Math.floor(this.srand(domIdx*3)*cands.length)]:[Math.min(6,domVal),clamp(domVal-6,0,6)];
+      this.dominoes.push({a:pick[0],b:pick[1],rot:Math.floor(this.srand(domIdx*3+1)*4)*Math.PI/2+(this.srand(domIdx*3+2)-0.5)*0.08});
+      remaining-=domVal; domIdx++;
+    }
+  }
+  drawPips(c,cx,cy,s,v){
+    c.fillStyle="#fff";const pr=s*0.05;
+    const pos={0:[],1:[[.5,.5]],2:[[.32,.32],[.68,.68]],3:[[.32,.32],[.5,.5],[.68,.68]],4:[[.32,.32],[.68,.32],[.32,.68],[.68,.68]],5:[[.32,.32],[.68,.32],[.5,.5],[.32,.68],[.68,.68]],6:[[.32,.22],[.32,.5],[.32,.78],[.68,.22],[.68,.5],[.68,.78]]};
+    for(const[fx,fy]of(pos[v]||[])){c.beginPath();c.arc(cx+fx*s*0.45,cy+fy*s,pr,0,Math.PI*2);c.fill();}
+  }
+  drawOneDomino(c,x,y,s,dom){
+    c.save();c.translate(x+s/2,y+s/2);c.rotate(dom.rot);c.translate(-s/2,-s/2);
+    c.fillStyle="#1a1a20";c.strokeStyle="#555";c.lineWidth=2;
+    c.beginPath();c.roundRect(0,0,s,s,s*0.1);c.fill();c.stroke();
+    c.strokeStyle="#444";c.beginPath();c.moveTo(s/2,s*0.06);c.lineTo(s/2,s*0.94);c.stroke();
+    this.drawPips(c,s*0.02,0,s,dom.a);this.drawPips(c,s*0.52,0,s,dom.b);
+    c.restore();
+  }
+  draw(c,x,y,w,h){
+    const n=this.dominoes.length;
+    const s=Math.min(w,h)*(n===1?0.44:(n===2?0.36:0.30));
+    const gap=s*0.15;
+    if(n===1) this.drawOneDomino(c,x+w/2-s/2,y+h/2-s/2,s,this.dominoes[0]);
+    else if(n===2){ const tw=s*2+gap,cx0=x+(w-tw)/2; this.drawOneDomino(c,cx0,y+h/2-s/2,s,this.dominoes[0]); this.drawOneDomino(c,cx0+s+gap,y+h/2-s/2,s,this.dominoes[1]); }
+    else { const topY=y+h*0.25-s/2,botY=y+h*0.70-s/2; this.drawOneDomino(c,x+w/2-s/2,topY,s,this.dominoes[0]); const tw=s*2+gap,cx0=x+(w-tw)/2; this.drawOneDomino(c,cx0,botY,s,this.dominoes[1]); this.drawOneDomino(c,cx0+s+gap,botY,s,this.dominoes[2]); }
+  }
+}
+
+class Tally extends Stim {
+  draw(c,x,y,w,h){ c.save();this.applyRot(c,x+w/2,y+h/2);const n=this.val,groups=Math.ceil(n/5),groupW=(w*0.7)/Math.max(1,groups);const lineH=h*0.5,top=y+h/2-lineH/2,startX=x+w*0.15;c.strokeStyle="#e8e8f0";c.lineWidth=Math.max(2.5,Math.min(w,h)*0.022);c.lineCap="round";let drawn=0;for(let g=0;g<groups&&drawn<n;g++){const gx=startX+g*groupW,step=groupW*0.17,inG=Math.min(5,n-drawn);for(let i=0;i<Math.min(4,inG);i++){c.beginPath();c.moveTo(gx+i*step,top);c.lineTo(gx+i*step,top+lineH);c.stroke();drawn++;}if(inG===5){c.beginPath();c.moveTo(gx-step*0.25,top+lineH*0.85);c.lineTo(gx+step*3.25,top+lineH*0.15);c.stroke();drawn++;}}c.restore(); }
+}
+
+class Finger extends Stim {
+  constructor(v){ super(v); this.parts=v<=5?[v]:[5,v-5]; }
+  draw(c,x,y,w,h){ if(this.parts.length===1)this.drawHand(c,x+w*0.2,y+h*0.1,w*0.6,h*0.8,this.parts[0],true);else{this.drawHand(c,x,y+h*0.1,w*0.48,h*0.8,5,true);this.drawHand(c,x+w*0.52,y+h*0.1,w*0.48,h*0.8,this.parts[1],false);} }
+  drawHand(c,x,y,w,h,fingers,isLeft){ const fW=w*0.15,fGap=w*0.02,palmH=h*0.32,fH=h*0.52,palmY=y+fH+h*0.05;c.fillStyle="#e8c4a0";c.strokeStyle="#c9a882";c.lineWidth=1.5;c.beginPath();c.roundRect(x+w*0.1,palmY,w*0.8,palmH,8);c.fill();c.stroke();const order=isLeft?[4,3,2,1,0]:[0,1,2,3,4],heights=[0.65,0.88,1,0.88,0.62];for(let i=0;i<5;i++){const fi=order[i],isUp=fi<fingers;const fh=fH*heights[i],fx=x+w*0.1+i*(fW+fGap);const fy=isUp?palmY-fh+fW/2:palmY-fW,actualH=isUp?fh:fW*1.4;c.fillStyle=isUp?"#e8c4a0":"#c9a882";c.beginPath();c.roundRect(fx,fy,fW,actualH,fW/2);c.fill();c.stroke();} }
+}
+
+class Abacus extends Stim {
+  draw(c,x,y,w,h){ const n=this.val,fives=Math.floor(n/5),ones=n%5;const beadR=Math.min(w,h)*0.055,rodLen=w*0.7,startX=x+(w-rodLen)/2;const rodY=y+h*0.35;c.strokeStyle="#5a5a6a";c.lineWidth=3;c.beginPath();c.moveTo(startX,rodY);c.lineTo(startX+rodLen,rodY);c.stroke();c.fillStyle="#ff6b7a";for(let i=0;i<fives;i++){c.beginPath();c.arc(startX+beadR*2.2+i*beadR*2.4,rodY,beadR,0,Math.PI*2);c.fill();}const rod2Y=y+h*0.65;c.beginPath();c.moveTo(startX,rod2Y);c.lineTo(startX+rodLen,rod2Y);c.stroke();c.fillStyle="#00d68f";for(let i=0;i<ones;i++){c.beginPath();c.arc(startX+beadR*2.2+i*beadR*2.4,rod2Y,beadR,0,Math.PI*2);c.fill();} }
+}
+
+class Card extends Stim {
+  constructor(v){
+    super(v); this.cards=[];
+    let remaining=v, cardIdx=0;
+    const numCards=Math.min(3, Math.ceil(v/10));
+    while(remaining>0 && this.cards.length<numCards){
+      const cardsLeft=numCards-this.cards.length; let cardVal;
+      if(cardsLeft===1) cardVal=Math.min(10,remaining);
+      else { const minN=Math.max(1,remaining-(cardsLeft-1)*10); const maxA=Math.min(10,remaining-(cardsLeft-1)); cardVal=randInt(minN,maxA+1); }
+      this.cards.push({val:cardVal,rot:(this.srand(cardIdx*2)-0.5)*0.15+(this.srand(cardIdx*2+1)<0.5?0:Math.PI)});
+      remaining-=cardVal; cardIdx++;
+    }
+    for(let i=this.cards.length-1;i>0;i--){ const j=Math.floor(this.srand(20+i)*(i+1));[this.cards[i],this.cards[j]]=[this.cards[j],this.cards[i]]; }
+  }
+  drawOneCard(c,x,y,cardW,cardH,card){
+    c.save();c.translate(x+cardW/2,y+cardH/2);c.rotate(card.rot);c.translate(-cardW/2,-cardH/2);
+    c.fillStyle="#f5f5f5";c.strokeStyle="#333";c.lineWidth=2;
+    c.beginPath();c.roundRect(0,0,cardW,cardH,5);c.fill();c.stroke();
+    c.fillStyle="#c41e3a";const ps=cardW*0.11;
+    const layouts={1:[[.5,.5]],2:[[.5,.25],[.5,.75]],3:[[.5,.2],[.5,.5],[.5,.8]],4:[[.3,.25],[.7,.25],[.3,.75],[.7,.75]],5:[[.3,.2],[.7,.2],[.5,.5],[.3,.8],[.7,.8]],6:[[.3,.2],[.7,.2],[.3,.5],[.7,.5],[.3,.8],[.7,.8]],7:[[.3,.18],[.7,.18],[.5,.38],[.3,.55],[.7,.55],[.3,.82],[.7,.82]],8:[[.3,.15],[.7,.15],[.3,.38],[.7,.38],[.3,.62],[.7,.62],[.3,.85],[.7,.85]],9:[[.3,.15],[.7,.15],[.3,.38],[.7,.38],[.5,.5],[.3,.62],[.7,.62],[.3,.85],[.7,.85]],10:[[.3,.12],[.7,.12],[.5,.26],[.3,.4],[.7,.4],[.3,.6],[.7,.6],[.5,.74],[.3,.88],[.7,.88]]};
+    for(const[fx,fy]of(layouts[Math.min(card.val,10)]||layouts[1])){
+      const px=fx*cardW,py=fy*cardH;
+      c.beginPath();c.moveTo(px,py+ps*0.3);
+      c.bezierCurveTo(px-ps,py-ps*0.4,px-ps*0.5,py-ps,px,py-ps*0.3);
+      c.bezierCurveTo(px+ps*0.5,py-ps,px+ps,py-ps*0.4,px,py+ps*0.3);
+      c.fill();
+    }
+    c.restore();
+  }
+  draw(c,x,y,w,h){
+    const n=this.cards.length;
+    const cardW=Math.min(w,h)*(n===1?0.48:(n===2?0.38:0.30));
+    const cardH=cardW*1.4;
+    const gap=cardW*0.15;
+    if(n===1) this.drawOneCard(c,x+w/2-cardW/2,y+h/2-cardH/2,cardW,cardH,this.cards[0]);
+    else if(n===2){ const tw=cardW*2+gap,cx0=x+(w-tw)/2; this.drawOneCard(c,cx0,y+h/2-cardH/2,cardW,cardH,this.cards[0]); this.drawOneCard(c,cx0+cardW+gap,y+h/2-cardH/2,cardW,cardH,this.cards[1]); }
+    else { const topY=y+h*0.22-cardH/2,botY=y+h*0.72-cardH/2; this.drawOneCard(c,x+w/2-cardW/2,topY,cardW,cardH,this.cards[0]); const tw=cardW*2+gap,cx0=x+(w-tw)/2; this.drawOneCard(c,cx0,botY,cardW,cardH,this.cards[1]); this.drawOneCard(c,cx0+cardW+gap,botY,cardW,cardH,this.cards[2]); }
+  }
+}
+
+class Coins extends Stim {
+  constructor(v){
+    super(v); this.coins=[];
+    let rem=v;
+    while(rem>0){
+      let coin;
+      if(rem>=5 && Math.random()<0.6){ coin=5; } else if(rem>=2 && Math.random()<0.5){ coin=2; } else { coin=1; }
+      coin=Math.min(coin,rem); this.coins.push(coin); rem-=coin;
+    }
+    shuffle(this.coins);
+  }
+  draw(c,x,y,w,h){
+    const n=this.coins.length;
+    const maxCpr=Math.ceil(Math.sqrt(n*1.5));
+    const r=Math.min(w/(maxCpr*2.5), h/(Math.ceil(n/maxCpr)*2.5), Math.min(w,h)*0.12);
+    const cols=Math.min(maxCpr,n), rows=Math.ceil(n/cols);
+    const spacingX=r*2.4, spacingY=r*2.4;
+    const totalW=(cols-1)*spacingX, totalH=(rows-1)*spacingY;
+    const startX=x+w/2-totalW/2, startY=y+h/2-totalH/2;
+    let drawn=0;
+    const coinColors={1:"#cd7f32",2:"#c0c0c0",5:"#ffd700"};
+    const coinBorders={1:"#a0612b",2:"#909090",5:"#c9a200"};
+    for(let row=0;row<rows&&drawn<n;row++){
+      const rowCoins=Math.min(cols,n-drawn);
+      const rowOffset=(cols-rowCoins)*spacingX/2;
+      for(let col=0;col<rowCoins;col++){
+        const coin=this.coins[drawn];
+        const cx=startX+col*spacingX+rowOffset, cy=startY+row*spacingY;
+        c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
+        c.fillStyle=coinColors[coin]||"#cd7f32";c.fill();
+        c.strokeStyle=coinBorders[coin]||"#a0612b";c.lineWidth=Math.max(1,r*0.1);c.stroke();
+        c.fillStyle="rgba(0,0,0,0.6)";c.font=`${Math.max(8,Math.floor(r*0.7))}px system-ui`;
+        c.textAlign="center";c.textBaseline="middle";c.fillText(String(coin),cx,cy);
+        drawn++;
+      }
+    }
+  }
+}
+
+class Roman extends Stim {
+  toRoman(n){
+    const map=[[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+    let out=""; for(const[v,s] of map) while(n>=v){out+=s;n-=v;} return out;
+  }
+  draw(c,x,y,w,h){
+    c.save();const txt=this.toRoman(this.val);const maxW=w*0.85;
+    let fs=Math.min(w,h)*0.5;c.font=`900 ${Math.floor(fs)}px ui-monospace, Menlo, Consolas, monospace`;
+    let measured=c.measureText(txt).width;if(measured>maxW) fs=fs*(maxW/measured);
+    fs=Math.min(fs,h*0.6);
+    c.fillStyle="#e8e8f0";c.font=`900 ${Math.floor(fs)}px ui-monospace, Menlo, Consolas, monospace`;
+    c.textAlign="center";c.textBaseline="middle";c.fillText(txt,x+w/2,y+h/2);c.restore();
+  }
+}
+
+class Clock extends Stim {
+  draw(c,x,y,w,h){
+    const cx=x+w/2,cy=y+h/2,r=Math.min(w,h)*0.38;
+    c.strokeStyle="#444";c.lineWidth=3;c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.stroke();
+    // Tick marks only — no numerals (numerals would bypass subitizing by making the value trivially readable)
+    for(let i=0;i<12;i++){
+      const ang=(i/12)*Math.PI*2;
+      const isMajor=(i%3===0);
+      const inner=r*(isMajor?0.78:0.87), outer=r*0.96;
+      c.strokeStyle=isMajor?"#aaa":"#555";c.lineWidth=isMajor?2.5:1.5;
+      c.beginPath();
+      c.moveTo(cx+Math.cos(ang)*inner,cy+Math.sin(ang)*inner);
+      c.lineTo(cx+Math.cos(ang)*outer,cy+Math.sin(ang)*outer);
+      c.stroke();
+    }
+    const hourAng=(this.val/12)*Math.PI*2-Math.PI/2;
+    c.strokeStyle="#e8e8f0";c.lineWidth=Math.max(3,r*0.07);c.lineCap="round";
+    c.beginPath();c.moveTo(cx,cy);c.lineTo(cx+Math.cos(hourAng)*r*0.60,cy+Math.sin(hourAng)*r*0.60);c.stroke();
+    c.fillStyle="#e8e8f0";c.beginPath();c.arc(cx,cy,r*0.07,0,Math.PI*2);c.fill();
+  }
+}
+
+class Cube extends Stim {
+  constructor(v){
+    super(v); this.variations=[];
+    for(let i=0;i<v;i++) this.variations.push({hueShift:(this.srand(i*5)-0.5)*15, scale:0.95+this.srand(i*5+1)*0.1});
+  }
+  drawIsoCube(c,cx,cy,s,hueShift=0){
+    const dx=s*0.5,dy=s*0.28,depth=s*0.52;const hue=258+hueShift;
+    c.fillStyle="rgba(0,0,0,0.18)";c.beginPath();c.ellipse(cx,cy+depth+dy+4,s*0.45,s*0.15,0,0,Math.PI*2);c.fill();
+    c.beginPath();c.moveTo(cx-dx,cy);c.lineTo(cx,cy+dy);c.lineTo(cx,cy+dy+depth);c.lineTo(cx-dx,cy+depth);c.closePath();
+    const gradL=c.createLinearGradient(cx-dx,cy,cx,cy+dy);gradL.addColorStop(0,`hsl(${hue},55%,32%)`);gradL.addColorStop(1,`hsl(${hue},55%,38%)`);c.fillStyle=gradL;c.fill();
+    c.beginPath();c.moveTo(cx+dx,cy);c.lineTo(cx,cy+dy);c.lineTo(cx,cy+dy+depth);c.lineTo(cx+dx,cy+depth);c.closePath();
+    const gradR=c.createLinearGradient(cx,cy+dy,cx+dx,cy);gradR.addColorStop(0,`hsl(${hue},60%,42%)`);gradR.addColorStop(1,`hsl(${hue},60%,50%)`);c.fillStyle=gradR;c.fill();
+    c.beginPath();c.moveTo(cx,cy-dy);c.lineTo(cx+dx,cy);c.lineTo(cx,cy+dy);c.lineTo(cx-dx,cy);c.closePath();
+    const gradT=c.createLinearGradient(cx-dx,cy,cx+dx,cy);gradT.addColorStop(0,`hsl(${hue},50%,68%)`);gradT.addColorStop(0.5,`hsl(${hue},45%,78%)`);gradT.addColorStop(1,`hsl(${hue},50%,65%)`);c.fillStyle=gradT;c.fill();
+    c.strokeStyle=`hsla(${hue},30%,90%,0.4)`;c.lineWidth=Math.max(0.5,s*0.015);c.beginPath();c.moveTo(cx,cy-dy);c.lineTo(cx-dx,cy);c.moveTo(cx,cy-dy);c.lineTo(cx+dx,cy);c.stroke();
+    c.strokeStyle=`hsla(${hue},40%,20%,0.35)`;c.lineWidth=Math.max(0.5,s*0.02);c.beginPath();c.moveTo(cx,cy+dy);c.lineTo(cx,cy+dy+depth);c.moveTo(cx-dx,cy+depth);c.lineTo(cx,cy+dy+depth);c.lineTo(cx+dx,cy+depth);c.stroke();
+  }
+  draw(c,x,y,w,h){
+    const n=Math.max(1,this.val|0);const maxCpr=Math.ceil(Math.sqrt(n*1.3));const baseSize=Math.min(w,h)/(maxCpr+0.8);const s=Math.min(baseSize,Math.min(w,h)*0.32);
+    const spacingX=s*1.15,spacingY=s*0.7;const cols=Math.min(maxCpr,n),rows=Math.ceil(n/cols);
+    const totalW=(cols-1)*spacingX,totalH=(rows-1)*spacingY+s;const startX=x+w/2-totalW/2,startY=y+h/2-totalH/2+s*0.2;
+    let drawn=0;
+    for(let row=0;row<rows&&drawn<n;row++){
+      const rowCubes=Math.min(cols,n-drawn);const rowOffset=(cols-rowCubes)*spacingX/2;
+      for(let col=0;col<rowCubes;col++){
+        const variation=this.variations[drawn]||{hueShift:0,scale:1};
+        this.drawIsoCube(c,startX+col*spacingX+rowOffset,startY+row*spacingY,s*variation.scale,variation.hueShift);drawn++;
+      }
+    }
+  }
+}
+
+class Grid extends Stim {
+  draw(c,x,y,w,h){
+    c.save();this.applyRot(c,x+w/2,y+h/2);const n=Math.max(0,this.val|0);const pad=Math.min(w,h)*0.10;const bw=w-2*pad,bh=h-2*pad;
+    let cols=clamp(Math.ceil(Math.sqrt(n||1)),2,10);let rows=Math.max(Math.ceil(n/cols),1);
+    const cell=Math.min(bw/cols,bh/rows);const gap=cell*0.12,s=cell-gap;const ox=x+(w-cell*cols)/2,oy=y+(h-cell*rows)/2;
+    c.lineJoin="round";
+    for(let i=0;i<n;i++){
+      const r=Math.floor(i/cols),col=i%cols;const cx2=ox+col*cell+gap/2,cy2=oy+r*cell+gap/2;
+      c.fillStyle="rgba(255,255,255,0.82)";c.strokeStyle="rgba(0,0,0,0.35)";c.lineWidth=Math.max(1,s*0.06);
+      c.beginPath();if(c.roundRect) c.roundRect(cx2,cy2,s,s,Math.max(2,s*0.12)); else c.rect(cx2,cy2,s,s);c.fill();c.stroke();
+    }
+    c.restore();
+  }
+}
+
+class Digit extends Stim {
+  draw(c,x,y,w,h){
+    c.save();const txt=String(this.val);const maxW=w*0.85;let fs=Math.min(w,h)*0.5;
+    c.font=`800 ${fs}px system-ui`;let measured=c.measureText(txt).width;if(measured>maxW) fs=fs*(maxW/measured);
+    c.fillStyle="#e8e8f0";c.font=`800 ${Math.floor(fs)}px system-ui`;c.textAlign="center";c.textBaseline="middle";c.fillText(txt,x+w/2,y+h/2);c.restore();
+  }
+}
+
+// ---------- Stim Builders ----------
+function allowedReps(v){
+  const r=[];
+  for(const rep of State.reps){
+    if(rep==="dots" && v>20) continue;
+    if(rep==="cluster" && v>15) continue;
+    if(rep==="ten" && v>30) continue;
+    if(rep==="dice" && v>24) continue;
+    if(rep==="domino" && v>36) continue;
+    if(rep==="card" && v>30) continue;
+    if(rep==="finger" && v>10) continue;
+    if(rep==="clock" && (v<1||v>12)) continue;
+    if(rep==="grid" && v>40) continue;
+    r.push(rep);
+  }
+  return r.length ? r : ["ten"];
+}
+
+function makeStim(v,rep){
+  const base = v<=10 ? 10 : (v<=20 ? 20 : 30);
+  const m={
+    dots:()=>new Dots(v), cluster:()=>new Cluster(v),
+    ten:()=>new TenFrame(v,base), dice:()=>new Dice(v), domino:()=>new Domino(v),
+    tally:()=>new Tally(v), finger:()=>new Finger(v), abacus:()=>new Abacus(v),
+    card:()=>new Card(v), cube:()=>new Cube(v), coins:()=>new Coins(v),
+    roman:()=>new Roman(v), clock:()=>new Clock(v), grid:()=>new Grid(v),
+    digit:()=>new Digit(v),
+  };
+  return (m[rep]||m.ten)();
+}
+
+function pickVisual(v){
+  const reps = allowedReps(v).filter(r=>r!=="digit");
+  const rep = reps.length ? choice(reps) : "ten";
+  return {rep, stim: makeStim(v,rep)};
+}
+
+function cacheStim(stim,w,h){
+  const cv = document.createElement("canvas");
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+  cv.width = Math.max(1, Math.floor(w * dpr));
+  cv.height = Math.max(1, Math.floor(h * dpr));
+  const c = cv.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.fillStyle = "#000";
+  c.fillRect(0, 0, w, h);
+  stim.draw(c, 0, 0, w, h);
+  return cv;
+}
+
+// ============================================================================
+// RELATIONAL THINKING (RFT / Posner) — LEVEL 0
+// ============================================================================
+const PRIMES = new Set([2,3,5,7,11,13,17,19]);
+function isPrime(n){ return n >= 2 && PRIMES.has(n); }
+function randWithParity(max,wantEven){ const pool=[]; for(let i=1;i<=max;i++) if((i%2===0)===wantEven) pool.push(i); return pool.length ? choice(pool) : 1; }
+
+// Variant system: each category has multiple surface formulations.
+// Wording should name the logical object being tested (number, format, answer,
+// prior Meta² answer) rather than relying on ambiguous surface terms.
+// { q, swap } — swap:true means evaluate verify(b,a) and visually display (b,a) as (left,right).
+// Symmetric categories (where verify(a,b)===verify(b,a) always) use swap only for surface variety.
+// Asymmetric categories (left_gt, left_double, left_triple) use swap to produce genuinely
+// distinct logical propositions, preventing proceduralization on a fixed surface form.
+
+const POSNER_CATS = [
+  // TIER 1
+  { id:"identical", tier:1, reqRep:true,
+    variants:[
+      { q:"Same number?" },
+      { q:"Equal numerical value?" },
+      { q:"Same quantity?" },
+      { q:"Do they represent the same amount?" },
+    ],
+    gen(m,t){ const v=randInt(1,m+1); return t ? [v,v] : [v, ((v-1+randInt(1,m))%m)+1 || 1]; },
+    verify(a,b){ return a===b; } },
+
+  { id:"left_gt", tier:1,
+    variants:[
+      { q:"Left > Right?" },
+      { q:"Right < Left?" },
+      { q:"Is left larger?" },
+      { q:"Right > Left?",     swap:true },
+      { q:"Left < Right?",     swap:true },
+      { q:"Is right larger?",  swap:true },
+      { q:"Does left fall short of right?", swap:true },
+    ],
+    gen(m,t){ if(t){const v=randInt(2,m+1);return[v,randInt(1,v)];} const v=randInt(1,m);return[v,randInt(v,m+1)]; },
+    verify(a,b){ return a>b; } },
+
+  { id:"diff_one", tier:1,
+    variants:[
+      { q:"Differ by 1?" },
+      { q:"Consecutive numbers?" },
+      { q:"Adjacent values?" },
+      { q:"One apart?" },
+      { q:"Neighbors on the number line?" },
+    ],
+    gen(m,t){ if(t){const v=randInt(1,m);return[v,Math.random()<.5?(v>1?v-1:v+1):Math.min(v+1,m)];} const v=randInt(1,m+1);let b;do{b=randInt(1,m+1);}while(Math.abs(v-b)===1||v===b);return[v,b]; },
+    verify(a,b){ return Math.abs(a-b)===1; } },
+
+  { id:"same_rep", tier:1, checkRep:true,
+    variants:[
+      { q:"Same format?" },
+      { q:"Same representation?" },
+      { q:"Shown the same way?" },
+      { q:"Matching notation?" },
+    ],
+    gen(m,t){ return [randInt(1,m+1), randInt(1,m+1)]; },
+    verify(a,b){ return false; } },
+
+  // TIER 2
+  { id:"same_parity", tier:2,
+    variants:[
+      { q:"Same parity?" },
+      { q:"Both even or both odd?" },
+      { q:"Parity matches?" },
+      { q:"One even, one odd?", negate:true },
+      { q:"Different parity?",  negate:true },
+    ],
+    gen(m,t){ const v=randInt(1,m+1),vE=v%2===0; return [v, randWithParity(m, t?vE:!vE)]; },
+    verify(a,b){ return (a%2)===(b%2); } },
+
+  { id:"both_gt_5", tier:2, minM:8,
+    variants:[
+      { q:"Both > 5?" },
+      { q:"Both exceed 5?" },
+      { q:"Neither ≤ 5?" },
+      { q:"At least one ≤ 5?", negate:true },
+    ],
+    gen(m,t){ if(t) return [randInt(6,m+1),randInt(6,m+1)]; return [randInt(1,6),randInt(1,m+1)]; },
+    verify(a,b){ return a>5 && b>5; } },
+
+  { id:"both_small", tier:2, minM:5,
+    variants:[
+      { q:"Both ≤ 4?" },
+      { q:"Both in the small range?" },
+      { q:"Neither exceeds 4?" },
+      { q:"At least one is 5 or more?", negate:true },
+    ],
+    gen(m,t){ if(t) return [randInt(1,5),randInt(1,5)]; return [randInt(5,Math.max(6,m+1)),randInt(1,m+1)]; },
+    verify(a,b){ return a<=4 && b<=4; } },
+
+  { id:"sum_gt_10", tier:2, minM:9,
+    variants:[
+      { q:"Sum > 10?" },
+      { q:"Sum exceeds 10?" },
+      { q:"Do they add up to more than 10?" },
+      { q:"Sum ≤ 10?", negate:true },
+      { q:"Sum at most 10?", negate:true },
+    ],
+    gen(m,t){ if(t){const v=randInt(5,m+1);return[v,randInt(Math.max(1,11-v),m+1)];} const v=randInt(1,6);return[v,randInt(1,Math.max(2,11-v))]; },
+    verify(a,b){ return a+b>10; } },
+
+  { id:"sum_eq_10", tier:2, minM:9,
+    variants:[
+      { q:"Sum = 10?" },
+      { q:"Do they add to exactly 10?" },
+      { q:"Total is ten?" },
+      { q:"Complements to 10?" },
+    ],
+    gen(m,t){ if(t){const a=randInt(1,10);return[a,10-a];} return[randInt(1,m+1),randInt(1,m+1)]; },
+    verify(a,b){ return a+b===10; } },
+
+  // TIER 3
+  { id:"diff_gt_3", tier:3, minM:5,
+    variants:[
+      { q:"Difference > 3?" },
+      { q:"Gap exceeds 3?" },
+      { q:"More than 3 apart?" },
+      { q:"Differ by at most 3?", negate:true },
+      { q:"Within 3 of each other?", negate:true },
+    ],
+    gen(m,t){ if(t){const a=randInt(5,Math.max(6,m+1)),b=randInt(1,Math.max(2,a-3));return[a,b];} const a=randInt(1,m+1),b=clamp(a+randInt(-3,4),1,m);return[a,b]; },
+    verify(a,b){ return Math.abs(a-b)>3; } },
+
+  { id:"sum_even", tier:3, minM:2,
+    variants:[
+      { q:"Sum is even?" },
+      { q:"Even total?" },
+      { q:"Do they add to an even number?" },
+      { q:"Sum is odd?", negate:true },
+    ],
+    gen(m,t){ const a=randInt(1,m+1); if(t) return [a, randWithParity(m, a%2===0)]; return [a, randWithParity(m, a%2!==0)]; },
+    verify(a,b){ return (a+b)%2===0; } },
+
+  { id:"left_double", tier:3, minM:4,
+    variants:[
+      { q:"Left is double right?" },
+      { q:"Right is half of left?" },
+      { q:"Left = 2 × right?" },
+      { q:"Right is double left?",  swap:true },
+      { q:"Left is half of right?", swap:true },
+      { q:"Right = 2 × left?",      swap:true },
+    ],
+    gen(m,t){ if(t){const b=randInt(1,Math.floor(m/2)+1);return[b*2,b];} const a=randInt(1,m+1);let b;do{b=randInt(1,m+1);}while(a===b*2);return[a,b]; },
+    verify(a,b){ return b>0 && a===b*2; } },
+
+  { id:"both_prime", tier:3, minM:3,
+    variants:[
+      { q:"Both prime?" },
+      { q:"Both are prime numbers?" },
+      { q:"At least one composite?", negate:true },
+      { q:"Neither is prime?", negate:true, swap:false },
+    ],
+    gen(m,t){ const primes=[2,3,5,7,11,13,17,19].filter(p=>p<=m); if(t&&primes.length>=2) return [choice(primes),choice(primes)]; const nonP=[]; for(let i=1;i<=m;i++) if(!isPrime(i)) nonP.push(i); return [nonP.length?choice(nonP):4, randInt(1,m+1)]; },
+    verify(a,b){ return isPrime(a) && isPrime(b); } },
+
+  { id:"product_gt_20", tier:3, minM:7,
+    variants:[
+      { q:"Product > 20?" },
+      { q:"Product exceeds 20?" },
+      { q:"Do they multiply to more than 20?" },
+      { q:"Product ≤ 20?", negate:true },
+    ],
+    gen(m,t){ if(t){const a=randInt(4,Math.max(5,m+1)),b=randInt(Math.max(1,Math.ceil(21/a)),m+1);return[a,b];} const a=randInt(1,5),b=randInt(1,Math.min(Math.floor(20/Math.max(1,a))+1,m+1));return[a,b]; },
+    verify(a,b){ return a*b>20; } },
+
+  { id:"diff_even", tier:3, minM:2,
+    variants:[
+      { q:"Difference is even?" },
+      { q:"Even gap?" },
+      { q:"Difference is odd?", negate:true },
+    ],
+    gen(m,t){ const a=randInt(1,m+1); if(t) return [a, randWithParity(m, a%2===0)]; return [a, randWithParity(m, a%2!==0)]; },
+    verify(a,b){ return Math.abs(a-b)%2===0; } },
+
+  { id:"both_mult3", tier:3, minM:6,
+    variants:[
+      { q:"Both multiples of 3?" },
+      { q:"Both divisible by 3?" },
+      { q:"3 divides both?" },
+      { q:"At least one not a multiple of 3?", negate:true },
+    ],
+    gen(m,t){ const m3=[]; for(let i=3;i<=m;i+=3) m3.push(i); const nm3=[]; for(let i=1;i<=m;i++) if(i%3!==0) nm3.push(i); if(t&&m3.length>=2) return [choice(m3),choice(m3)]; return [nm3.length?choice(nm3):1, randInt(1,m+1)]; },
+    verify(a,b){ return a%3===0 && b%3===0; } },
+
+  // TIER 4
+  { id:"one_divides", tier:4, minM:4,
+    variants:[
+      { q:"One divides the other?" },
+      { q:"Is one a factor of the other?" },
+      { q:"Does left divide right?",         swap:false },
+      { q:"Does right divide left?",         swap:true  },
+      { q:"Neither divides the other?",      negate:true },
+    ],
+    gen(m,t){ if(t){const a=randInt(2,Math.min(7,m+1)),mult=randInt(1,Math.floor(m/a)+1);return Math.random()<0.5?[a*mult,a]:[a,a*mult];} let a,b;do{a=randInt(2,m+1);b=randInt(2,m+1);}while(a%b===0||b%a===0);return[a,b]; },
+    verify(a,b){ return (a>0&&b>0) && (a%b===0||b%a===0); } },
+
+  { id:"sum_prime", tier:4, minM:4,
+    variants:[
+      { q:"Sum is prime?" },
+      { q:"Do they add to a prime?" },
+      { q:"Prime total?" },
+      { q:"Sum is composite?", negate:true },
+    ],
+    gen(m,t){ if(t){ for(let tries=0;tries<50;tries++){const a=randInt(1,m+1),b=randInt(1,m+1);if(isPrime(a+b)) return [a,b];} return [2,1]; } for(let tries=0;tries<50;tries++){const a=randInt(1,m+1),b=randInt(1,m+1);if(!isPrime(a+b)) return [a,b];} return [2,2]; },
+    verify(a,b){ return isPrime(a+b); } },
+
+  { id:"xor_even", tier:4, minM:2,
+    variants:[
+      { q:"Exactly one even?" },
+      { q:"One even, one odd?" },
+      { q:"Mixed parity?" },
+      { q:"Both same parity?", negate:true },
+    ],
+    gen(m,t){ const a=randInt(1,m+1); if(t) return [a, randWithParity(m, a%2!==0)]; return [a, randWithParity(m, a%2===0)]; },
+    verify(a,b){ return (a%2===0) !== (b%2===0); } },
+
+  { id:"diff_gt_half", tier:4, minM:4,
+    variants:[
+      { q:"Gap > half the larger?" },
+      { q:"Gap exceeds 50% of the larger?" },
+      { q:"Wide gap relative to size?" },
+      { q:"Gap ≤ half the larger?", negate:true },
+    ],
+    gen(m,t){ const big=randInt(4,Math.max(5,m+1)); if(t){const small=randInt(1,Math.max(2,Math.ceil(big/2)));return Math.random()<0.5?[big,small]:[small,big];} const small=randInt(Math.ceil(big/2),big+1);return Math.random()<0.5?[big,small]:[small,big]; },
+    verify(a,b){ const mx=Math.max(a,b); return Math.abs(a-b)>mx/2; } },
+
+  { id:"both_square", tier:4, minM:4,
+    variants:[
+      { q:"Both perfect squares?" },
+      { q:"Both square numbers?" },
+      { q:"Both are squares?" },
+      { q:"At least one non-square?", negate:true },
+    ],
+    gen(m,t){ const sq=[1,4,9,16].filter(s=>s<=m); const nsq=[]; for(let i=1;i<=m;i++) if(![1,4,9,16].includes(i)) nsq.push(i); if(t&&sq.length>=2) return [choice(sq),choice(sq)]; return [nsq.length?choice(nsq):2, randInt(1,m+1)]; },
+    verify(a,b){ const sq=new Set([1,4,9,16]); return sq.has(a) && sq.has(b); } },
+
+  { id:"left_triple", tier:4, minM:4,
+    variants:[
+      { q:"Left ≥ triple right?" },
+      { q:"Left ≥ 3 × right?" },
+      { q:"Right is at most a third of left?" },
+      { q:"Right ≥ triple left?",             swap:true },
+      { q:"Right ≥ 3 × left?",               swap:true },
+      { q:"Left is at most a third of right?",swap:true },
+    ],
+    gen(m,t){ if(t){const b=randInt(1,Math.max(2,Math.floor(m/3)+1));return[randInt(b*3,m+1),b];} const b=randInt(2,m+1);return[randInt(1,Math.min(b*3,m+1)),b]; },
+    verify(a,b){ return b>0 && a>=b*3; } },
+];
+
+function getPosnerTier(){
+  const lv = currentLevel();
+  if(lv >= 4) return 4;
+  if(lv >= 2) return 3;
+  if(lv >= 1) return 2;
+  return 1;
+}
+
+function buildPosnerWeightedPool(cats){
+  const pool = [];
+  for(const cat of cats){
+    const cs = State.posnerCatStats[cat.id];
+    let weight = 3;
+    if(cs && cs.t >= 3){
+      const acc = cs.c / cs.t;
+      const avgRT = cs.rt.length ? cs.rt.slice(-10).reduce((a,b)=>a+b,0)/Math.min(10,cs.rt.length) : 2000;
+      weight = Math.max(1, Math.round((1 - acc) * 8 + (avgRT > CONFIG.rtGood ? 3 : 0)));
+    } else if(cs && cs.t > 0){ weight = 4; }
+    for(let i = 0; i < weight; i++) pool.push(cat);
+  }
+  return pool;
+}
+
+function setupPosner(){
+  const m = currentMax();
+  const maxTier = getPosnerTier();
+
+  // Filter by tier AND by minM compatibility with current level.
+  let avail = POSNER_CATS.filter(c =>
+    c.tier <= maxTier && (c.minM === undefined || m >= c.minM)
+  );
+
+  // Gate same_rep: the category requires at least one value in [1, m] for
+  // which allowedReps() returns 2+ non-digit reps. Otherwise the fallback
+  // branch inside would silently flip a negative trial into a positive one.
+  // (Happens when State.reps is down to one rep, or when the active reps
+  // cover different value ranges and overlap only on a single rep for
+  // small m.)
+  const hasViableRepPair = (() => {
+    for(let v = 1; v <= m; v++){
+      const reps = allowedReps(v).filter(r => r !== "digit");
+      if(reps.length >= 2) return true;
+    }
+    return false;
+  })();
+  if(!hasViableRepPair) avail = avail.filter(c => !c.checkRep);
+
+  // Split by whether the category compares visual representations or values.
+  const repCats = avail.filter(c => c.checkRep);
+  const valCats = avail.filter(c => !c.checkRep);
+
+  // Weighted category selection (same adaptive logic as before).
+  const repPool = buildPosnerWeightedPool(repCats);
+  const valPool = buildPosnerWeightedPool(valCats);
+  const totalW  = repPool.length + valPool.length;
+  const useRep  = repCats.length > 0 &&
+                  (valCats.length === 0 || Math.random() < repPool.length / totalW);
+
+  if(useRep){
+    // Representation-comparison categories (e.g. same_rep).
+    // For these, YES/NO is determined AFTER picking reps, not by gen().
+    // We force 50/50 by choosing the rep pair intentionally.
+    const cat      = choice(repPool.length ? repPool : repCats);
+    const wantTrue = Math.random() < 0.5;
+    let   rawA     = randInt(1, m+1);
+    let   rawB     = randInt(1, m+1);
+    const visA     = pickVisual(rawA);
+    let   visB;
+    if(wantTrue){
+      visB = { rep: visA.rep, stim: makeStim(rawB, visA.rep) };
+    } else {
+      // Need a rep for rawB different from visA.rep. If rawB's allowed reps
+      // don't offer one, re-pick rawB from values that do. Last-resort
+      // fallback: re-pick rawA too. The hasViableRepPair gate above should
+      // make this branch almost never fire, but we keep the inner retry for
+      // robustness.
+      let allowed = allowedReps(rawB).filter(r => r !== "digit" && r !== visA.rep);
+      if(!allowed.length){
+        const candidates = [];
+        for(let v = 1; v <= m; v++){
+          const vReps = allowedReps(v).filter(r => r !== "digit" && r !== visA.rep);
+          if(vReps.length) candidates.push(v);
+        }
+        if(candidates.length){
+          rawB = choice(candidates);
+          allowed = allowedReps(rawB).filter(r => r !== "digit" && r !== visA.rep);
+        }
+      }
+      if(allowed.length){
+        const otherRep = choice(allowed);
+        visB = { rep: otherRep, stim: makeStim(rawB, otherRep) };
+      } else {
+        // Absolute fallback: this should be unreachable given the gate.
+        // Degenerate to wantTrue=true rather than lie to the user.
+        visB = { rep: visA.rep, stim: makeStim(rawB, visA.rep) };
+      }
+    }
+    const vnt    = choice(cat.variants);
+    const negate = !!vnt.negate;
+    const base   = (visA.rep === visB.rep);
+    const isTrue = negate ? !base : base;
+    return { a:rawA, b:rawB, repA:visA.rep, repB:visB.rep,
+             question:vnt.q, isTrue, catId:cat.id };
+  }
+
+  // Value-comparison categories — the main path.
+  // Each trial is an independent Bernoulli(0.5) over {YES, NO}.
+  // We first pick the variant (which may swap and/or negate), then solve
+  // backwards for what gen() must produce so that the final isTrue matches
+  // our target.
+  const cat      = choice(valPool.length ? valPool : valCats);
+  const vnt      = choice(cat.variants);
+  const swap     = !!vnt.swap;
+  const negate   = !!vnt.negate;
+  const wantTrue = Math.random() < 0.5;
+
+  // Whatever the surface framing, we want the final isTrue to equal wantTrue.
+  // isTrue = negate ? !base : base   (where base = verify on swapped args)
+  //   → base must equal wantTrue XOR negate.
+  const baseTarget = negate ? !wantTrue : wantTrue;
+  const [genA, genB] = cat.gen(m, baseTarget);
+
+  // The display is always rawA=left, rawB=right (never physically swapped).
+  // When swap:true, the question refers to "right vs left", so the values
+  // gen() produced for the unswapped verify(a,b) must appear as (b,a) on screen.
+  const rawA = swap ? genB : genA;
+  const rawB = swap ? genA : genB;
+
+  // Sanity check: recompute isTrue from what will actually be displayed
+  // and the swap/negate flags, and fall back to random if gen() returned
+  // out-of-range values.
+  const baseCheck = swap ? cat.verify(rawB, rawA) : cat.verify(rawA, rawB);
+  const isTrue    = negate ? !baseCheck : baseCheck;
+
+  const visA = pickVisual(rawA), visB = pickVisual(rawB);
+  return { a:rawA, b:rawB, repA:visA.rep, repB:visB.rep,
+           question:vnt.q, isTrue, catId:cat.id };
+}
+
+// ============================================================================
+// LEVEL 1 — CROSS-PAIR NUMERIC QUESTIONS
+// After two L0 trials the user must compute a numeric answer that combines
+// both pairs.  No hints — both pairs must be retained in working memory.
+//
+// Design notes:
+//   - Natural-English variants only (no math notation like "Max(pair 1)").
+//     The prompt must not compete with the cognitive task.
+//   - Multiple variants per op (Posner principle: vary surface, preserve
+//     the underlying relation).
+//   - Asymmetric ops (sum_diff/max_diff/min_diff) can yield negative results
+//     with one direction and non-negative with the other. setupL1 detects
+//     the sign and selects a variant whose wording matches the non-negative
+//     direction, so the answer the user must type is always >= 0.
+//     (The numpad has no minus key; forcing a directional-but-positive
+//     answer preserves the cognitive challenge while staying answerable.)
+// ============================================================================
+const L1_OPS = [
+  // ── Symmetric operations ──────────────────────────────────────────
+  // Each operation declares its semantic family for analytical L2
+  // calibration. Answer distributions are computed centrally by
+  // l1AnswerDistribution(), so per-op range() fields are no longer needed.
+  { id:"sum_all", symmetric:true, family:"sum4",
+    variants:[
+      { q:"Sum of all four values?" },
+      { q:"Total of both pairs?" },
+      { q:"Add all four together?" },
+    ],
+    fn:(p1,p2)=> p1.a+p1.b+p2.a+p2.b },
+
+  { id:"max_all", symmetric:true, family:"max",
+    variants:[
+      { q:"Largest of all four values?" },
+      { q:"Overall maximum?" },
+      { q:"Biggest across both pairs?" },
+    ],
+    fn:(p1,p2)=> Math.max(p1.a,p1.b,p2.a,p2.b) },
+
+  { id:"min_all", symmetric:true, family:"min",
+    variants:[
+      { q:"Smallest of all four values?" },
+      { q:"Overall minimum?" },
+      { q:"Smallest across both pairs?" },
+    ],
+    fn:(p1,p2)=> Math.min(p1.a,p1.b,p2.a,p2.b) },
+
+  { id:"sum_maxima", symmetric:true, family:"sum_minmax",
+    variants:[
+      { q:"Add the larger of each pair?" },
+      { q:"Sum of both pairs' larger values?" },
+      { q:"Add together the bigger value of each pair?" },
+    ],
+    fn:(p1,p2)=> Math.max(p1.a,p1.b)+Math.max(p2.a,p2.b) },
+
+  { id:"sum_minima", symmetric:true, family:"sum_minmax",
+    variants:[
+      { q:"Add the smaller of each pair?" },
+      { q:"Sum of both pairs' smaller values?" },
+      { q:"Add together the lesser value of each pair?" },
+    ],
+    fn:(p1,p2)=> Math.min(p1.a,p1.b)+Math.min(p2.a,p2.b) },
+
+  // ── Asymmetric: direction selected by setupL1 based on sign ──────────
+  { id:"sum_diff", symmetric:false, family:"diff",
+    variants:[
+      { q:"First pair's total minus second pair's total?" },
+      { q:"Pair 1's sum minus pair 2's sum?" },
+      { q:"By how much does pair 1 exceed pair 2 in total?" },
+      { q:"Second pair's total minus first pair's total?", swap:true },
+      { q:"Pair 2's sum minus pair 1's sum?",               swap:true },
+      { q:"By how much does pair 2 exceed pair 1 in total?", swap:true },
+    ],
+    fn:(p1,p2)=> (p1.a+p1.b) - (p2.a+p2.b) },
+
+  { id:"max_diff", symmetric:false, family:"diff",
+    variants:[
+      { q:"Larger of pair 1 minus larger of pair 2?" },
+      { q:"First pair's biggest minus second pair's biggest?" },
+      { q:"By how much does pair 1's maximum exceed pair 2's?" },
+      { q:"Larger of pair 2 minus larger of pair 1?",                     swap:true },
+      { q:"Second pair's biggest minus first pair's biggest?",            swap:true },
+      { q:"By how much does pair 2's maximum exceed pair 1's?",           swap:true },
+    ],
+    fn:(p1,p2)=> Math.max(p1.a,p1.b) - Math.max(p2.a,p2.b) },
+
+  { id:"min_diff", symmetric:false, family:"diff",
+    variants:[
+      { q:"Smaller of pair 1 minus smaller of pair 2?" },
+      { q:"First pair's smallest minus second pair's smallest?" },
+      { q:"Smaller of pair 2 minus smaller of pair 1?",                  swap:true },
+      { q:"Second pair's smallest minus first pair's smallest?",         swap:true },
+    ],
+    fn:(p1,p2)=> Math.min(p1.a,p1.b) - Math.min(p2.a,p2.b) },
+];
+
+function setupL1(){
+  const hist = State.meta.pairHistory;
+  if(hist.length < 2) return null;
+
+  const rawP1 = hist[hist.length - 2];
+  const rawP2 = hist[hist.length - 1];
+
+  // Weighted op selection based on per-op accuracy
+  const pool = [];
+  for(const op of L1_OPS){
+    const st = State.meta.l1Stats[op.id];
+    let weight = 3;
+    if(st && st.t >= 3){
+      const acc = st.c / st.t;
+      weight = Math.max(1, Math.round((1 - acc) * 8 + 2));
+    } else if(st && st.t > 0){ weight = 4; }
+    for(let i = 0; i < weight; i++) pool.push(op);
+  }
+  const op = pool.length ? choice(pool) : choice(L1_OPS);
+
+  let vnt, p1, p2, answer;
+  if(op.symmetric){
+    // Symmetric: any variant works; fn(p1,p2) == fn(p2,p1).
+    vnt = choice(op.variants);
+    p1 = rawP1; p2 = rawP2;
+    answer = op.fn(p1, p2);
+  } else {
+    // Asymmetric: pick direction so answer is non-negative.
+    // delta >= 0 → unswapped variant ("pair 1 minus pair 2", answer = delta)
+    // delta <  0 → swapped variant   ("pair 2 minus pair 1", answer = -delta)
+    const delta = op.fn(rawP1, rawP2);
+    const wantSwap = delta < 0;
+    const matching = op.variants.filter(v => !!v.swap === wantSwap);
+    vnt = matching.length ? choice(matching) : choice(op.variants);
+    p1 = vnt.swap ? rawP2 : rawP1;
+    p2 = vnt.swap ? rawP1 : rawP2;
+    answer = op.fn(p1, p2);  // guaranteed >= 0 by construction
+  }
+
+  return {
+    op: op,
+    pair1: {a: p1.a, b: p1.b},
+    pair2: {a: p2.a, b: p2.b},
+    answer: answer,
+    question: vnt.q,
+  };
+}
+
+// ============================================================================
+// LEVEL 2 — CROSS-L1 META²-QUESTIONS
+// After two L1 trials (each producing a numeric answer r1, r2), ask a boolean
+// relational question comparing those two retained numbers.
+// ----------------------------------------------------------------------------
+// v4.4.3 analytical L2 thresholds:
+//   - Threshold categories (close, sum_gt, both_large) are calibrated against
+//     the exact answer distribution for the ACTUAL pair of L1 operations that
+//     produced r1 and r2. This fixes the v4.4.2 problem where a rolling global
+//     empirical window mixed incompatible operation families and placed the
+//     threshold in valleys between modes.
+//   - No warmup is needed. For each L1 operation and current max m, the code
+//     enumerates all possible L0 pair combinations in [1..m] and builds the
+//     exact answer distribution. The result is cached by (opId, m).
+//   - For a concrete L2 category, we derive the distribution of the relevant
+//     metric: |r1-r2| for close, r1+r2 for sum_gt, min(r1,r2) for both_large.
+//     The displayed threshold is the integer that makes the expected YES rate
+//     closest to the target rate for that category/tier.
+// ============================================================================
+
+function niceThreshold(x){
+  // Kept for legacy calls and possible future UI use. v4.4.3 analytical
+  // calibration no longer forces L2 thresholds onto this ladder because doing
+  // so can reintroduce avoidable base-rate skew.
+  const ladder = [2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50];
+  for(const n of ladder) if(x <= n) return n;
+  return ladder[ladder.length - 1];
+}
+
+function percentile(values, p){
+  if(!values || !values.length) return null;
+  const sorted = values.slice().sort((a,b)=>a-b);
+  const idx = (sorted.length - 1) * clamp(p, 0, 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if(lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+const L1_DIST_CACHE = Object.create(null);
+const L2_METRIC_DIST_CACHE = Object.create(null);
+
+function opFromL1Result(obj){
+  if(obj && obj.op && obj.op.id) return obj.op;
+  if(obj && obj.opId){
+    const op = L1_OPS.find(o => o.id === obj.opId);
+    if(op) return op;
+  }
+  // Defensive fallback for migrated/legacy state. Live trials should always
+  // carry an op object because setupL1 stores it in trialInfo and l1Results.
+  return L1_OPS[0];
+}
+
+function l1AnswerDistribution(op, m){
+  const key = `${op.id}|${m}`;
+  if(L1_DIST_CACHE[key]) return L1_DIST_CACHE[key];
+
+  const counts = new Map();
+  for(let a = 1; a <= m; a++){
+    for(let b = 1; b <= m; b++){
+      const p1 = {a, b};
+      for(let c = 1; c <= m; c++){
+        for(let d = 1; d <= m; d++){
+          const p2 = {a:c, b:d};
+          let answer = op.fn(p1, p2);
+          // setupL1 chooses the non-negative wording for asymmetric ops.
+          if(!op.symmetric) answer = Math.abs(answer);
+          counts.set(answer, (counts.get(answer) || 0) + 1);
+        }
+      }
+    }
+  }
+
+  const entries = [...counts.entries()]
+    .map(([value, count]) => ({value, count}))
+    .sort((x,y)=>x.value-y.value);
+  L1_DIST_CACHE[key] = entries;
+  return entries;
+}
+
+function l2MetricDistribution(r1obj, r2obj, m, metricName, metricFn){
+  const op1 = opFromL1Result(r1obj);
+  const op2 = opFromL1Result(r2obj);
+  const key = `${op1.id}|${op2.id}|${m}|${metricName}`;
+  if(L2_METRIC_DIST_CACHE[key]) return L2_METRIC_DIST_CACHE[key];
+
+  const d1 = l1AnswerDistribution(op1, m);
+  const d2 = l1AnswerDistribution(op2, m);
+  const counts = new Map();
+
+  for(const x of d1){
+    for(const y of d2){
+      const value = metricFn(x.value, y.value);
+      counts.set(value, (counts.get(value) || 0) + x.count * y.count);
+    }
+  }
+
+  const entries = [...counts.entries()]
+    .map(([value, count]) => ({value, count}))
+    .sort((a,b)=>a.value-b.value);
+  L2_METRIC_DIST_CACHE[key] = entries;
+  return entries;
+}
+
+function yesRateForThreshold(entries, threshold, relation){
+  let yes = 0, total = 0;
+  for(const e of entries){
+    total += e.count;
+    if(relation === "le"){
+      if(e.value <= threshold) yes += e.count;
+    } else if(relation === "gt"){
+      if(e.value > threshold) yes += e.count;
+    }
+  }
+  return total ? yes / total : 0.5;
+}
+
+function thresholdForTargetRate(entries, relation, targetRate, minThreshold = 0){
+  if(!entries || !entries.length) return minThreshold;
+  const minV = entries[0].value;
+  const maxV = entries[entries.length - 1].value;
+
+  let best = minThreshold;
+  let bestErr = Infinity;
+  let bestDistToCenter = Infinity;
+  const candidates = [];
+
+  // Integer thresholds are clear in the prompt. Discrete distributions can
+  // jump over the target rate, so v4.4.6 samples between the two adjacent
+  // integer thresholds that bracket the target when possible. This keeps the
+  // visible threshold integer-valued while matching the target rate in
+  // expectation across trials.
+  const lo = Math.max(minThreshold, Math.floor(minV) - 1);
+  const hi = Math.max(lo, Math.ceil(maxV) + 1);
+
+  for(let thr = lo; thr <= hi; thr++){
+    const rate = yesRateForThreshold(entries, thr, relation);
+    const err = Math.abs(rate - targetRate);
+    const distToCenter = Math.abs(thr - (minV + maxV) / 2);
+    candidates.push({thr, rate, err, distToCenter});
+    if(err < bestErr - 1e-12 || (Math.abs(err - bestErr) <= 1e-12 && distToCenter < bestDistToCenter)){
+      best = thr;
+      bestErr = err;
+      bestDistToCenter = distToCenter;
+    }
+  }
+
+  const exact = candidates.find(c => Math.abs(c.rate - targetRate) <= 1e-12);
+  if(exact) return exact.thr;
+
+  for(let i = 0; i < candidates.length - 1; i++){
+    const a = candidates[i], b = candidates[i+1];
+    const da = a.rate - targetRate;
+    const db = b.rate - targetRate;
+    if(da === 0) return a.thr;
+    if(db === 0) return b.thr;
+    if(da * db < 0){
+      const pA = clamp((targetRate - b.rate) / (a.rate - b.rate), 0, 1);
+      return Math.random() < pA ? a.thr : b.thr;
+    }
+  }
+
+  return best;
+}
+
+function analyticalThreshold(r1obj, r2obj, m, metricName, metricFn, relation, targetRate, minThreshold){
+  const entries = l2MetricDistribution(r1obj, r2obj, m, metricName, metricFn);
+  return thresholdForTargetRate(entries, relation, targetRate, minThreshold);
+}
+
+function computeCloseThreshold(r1obj, r2obj, m, tier){
+  // base relation: |r1-r2| <= N. Wide is deliberately easier/more permissive.
+  const targetYes = tier === "wide" ? 0.70 : 0.50;
+  return analyticalThreshold(
+    r1obj, r2obj, m,
+    "absdiff", (a,b)=>Math.abs(a-b),
+    "le", targetYes, 1
+  );
+}
+
+function computeSumGtThreshold(r1obj, r2obj, m, tier){
+  // base relation: r1+r2 > N. Wide asks for a genuinely high combined total,
+  // so the expected YES rate is lower than narrow.
+  const targetYes = tier === "wide" ? 0.30 : 0.50;
+  return analyticalThreshold(
+    r1obj, r2obj, m,
+    "sum", (a,b)=>a+b,
+    "gt", targetYes, 1
+  );
+}
+
+function computeBothLargeThreshold(r1obj, r2obj, m, tier){
+  // base relation: min(r1,r2) > N. Wide asks for both to be well above the
+  // operation-pair-specific distribution, so target YES is lower.
+  const targetYes = tier === "wide" ? 0.30 : 0.50;
+  return analyticalThreshold(
+    r1obj, r2obj, m,
+    "min", (a,b)=>Math.min(a,b),
+    "gt", targetYes, 1
+  );
+}
+
+const L2_CATS = [
+  { id:"l2_gt", kind:"pure",
+    variants:[
+      { q:"Was answer 1 greater than answer 2?" },
+      { q:"Did calculation 1 produce the larger number?" },
+      { q:"Was the first result larger?" },
+      { q:"Was answer 2 greater than answer 1?",        swap:true },
+      { q:"Did calculation 2 produce the larger number?", swap:true },
+      { q:"Was the second result larger?",              swap:true },
+    ],
+    verify:(r1,r2) => r1 > r2 },
+
+  { id:"l2_eq", kind:"pure",
+    variants:[
+      { q:"Were the two answers equal?" },
+      { q:"Same numerical answer both times?" },
+      { q:"Did both calculations give the same number?" },
+      { q:"Were the two answers different?",        negate:true },
+      { q:"Did the calculations give different numbers?", negate:true },
+    ],
+    verify:(r1,r2) => r1 === r2 },
+
+  { id:"l2_parity", kind:"pure",
+    variants:[
+      { q:"Same even/odd status?" },
+      { q:"Are both answers even, or both odd?" },
+      { q:"Do the answers have the same parity?" },
+      { q:"Different even/odd status?",          negate:true },
+      { q:"Is one answer even and the other odd?", negate:true },
+    ],
+    verify:(r1,r2) => (r1%2)===(r2%2) },
+
+  { id:"l2_close", kind:"threshold", thresholdFn: computeCloseThreshold,
+    variants:[
+      { tier:"narrow", template:"Are the two answers at most {N} apart?" },
+      { tier:"narrow", template:"Is |answer 1 − answer 2| ≤ {N}?" },
+      { tier:"narrow", template:"Do the answers differ by {N} or less?" },
+      { tier:"narrow", negate:true, template:"Are the two answers more than {N} apart?" },
+      { tier:"narrow", negate:true, template:"Is |answer 1 − answer 2| > {N}?" },
+      { tier:"narrow", negate:true, template:"Do the answers differ by more than {N}?" },
+      { tier:"wide", template:"Are the two answers at most {N} apart?" },
+      { tier:"wide", template:"Is the gap between answers ≤ {N}?" },
+      { tier:"wide", negate:true, template:"Are the two answers more than {N} apart?" },
+      { tier:"wide", negate:true, template:"Is the gap between answers > {N}?" },
+    ],
+    verify:(r1,r2,thr) => Math.abs(r1-r2) <= thr },
+
+  { id:"l2_sum_even", kind:"pure",
+    variants:[
+      { q:"Is answer 1 + answer 2 even?" },
+      { q:"Do the two answers add to an even number?" },
+      { q:"Is the combined total even?" },
+      { q:"Is answer 1 + answer 2 odd?", negate:true },
+      { q:"Is the combined total odd?",   negate:true },
+    ],
+    verify:(r1,r2) => (r1+r2)%2 === 0 },
+
+  { id:"l2_sum_gt", kind:"threshold", thresholdFn: computeSumGtThreshold,
+    variants:[
+      { tier:"narrow", template:"Is answer 1 + answer 2 greater than {N}?" },
+      { tier:"narrow", template:"Does the combined total exceed {N}?" },
+      { tier:"narrow", template:"Do the two answers add to more than {N}?" },
+      { tier:"narrow", negate:true, template:"Is answer 1 + answer 2 ≤ {N}?" },
+      { tier:"narrow", negate:true, template:"Is the combined total at most {N}?" },
+      { tier:"narrow", negate:true, template:"Do the two answers add to {N} or less?" },
+      { tier:"wide", template:"Is answer 1 + answer 2 greater than {N}?" },
+      { tier:"wide", template:"Does the combined total exceed {N}?" },
+      { tier:"wide", negate:true, template:"Is answer 1 + answer 2 ≤ {N}?" },
+      { tier:"wide", negate:true, template:"Is the combined total at most {N}?" },
+    ],
+    verify:(r1,r2,thr) => r1+r2 > thr },
+
+  { id:"l2_both_large", kind:"threshold", thresholdFn: computeBothLargeThreshold,
+    variants:[
+      { tier:"narrow", template:"Are both answers greater than {N}?" },
+      { tier:"narrow", template:"Is answer 1 > {N} and answer 2 > {N}?" },
+      { tier:"narrow", template:"Does each answer exceed {N}?" },
+      { tier:"narrow", negate:true, template:"Is at least one answer ≤ {N}?" },
+      { tier:"narrow", negate:true, template:"Is answer 1 ≤ {N} or answer 2 ≤ {N}?" },
+      { tier:"narrow", negate:true, template:"Does at least one answer fail to exceed {N}?" },
+      { tier:"wide", template:"Are both answers greater than {N}?" },
+      { tier:"wide", template:"Is each answer > {N}?" },
+      { tier:"wide", negate:true, template:"Is at least one answer ≤ {N}?" },
+      { tier:"wide", negate:true, template:"Is one of the answers not greater than {N}?" },
+    ],
+    verify:(r1,r2,thr) => r1 > thr && r2 > thr },
+];
+// For threshold categories, render the concrete N into the question text
+// so the user has a decidable prompt.
+//
+// Each variant may carry a `template` string with {N} for the threshold;
+// templates win over category defaults. This lets multiple variants in the
+// same (cat, tier, negate) bucket actually surface different wording in the
+// UI — which is the point of the Posner principle. Without templates, the
+// renderer would output identical text for every variant of the same kind.
+function renderL2Question(cat, vnt, threshold){
+  if(cat.kind !== "threshold") return vnt.q;
+  if(vnt.template) return vnt.template.replace("{N}", String(threshold));
+  // Defaults — used when a variant has no `template`.
+  const id = cat.id;
+  if(id === "l2_close"){
+    if(vnt.negate) return `Is |answer 1 − answer 2| > ${threshold}?`;
+    return `Is |answer 1 − answer 2| ≤ ${threshold}?`;
+  }
+  if(id === "l2_sum_gt"){
+    if(vnt.negate) return `Is answer 1 + answer 2 ≤ ${threshold}?`;
+    return `Is answer 1 + answer 2 > ${threshold}?`;
+  }
+  if(id === "l2_both_large"){
+    if(vnt.negate) return `Is answer 1 ≤ ${threshold} or answer 2 ≤ ${threshold}?`;
+    return `Is answer 1 > ${threshold} and answer 2 > ${threshold}?`;
+  }
+  return vnt.q;
+}
+
+// Evaluate (cat, vnt, threshold) with given r1,r2. Return { isTrue, margin }
+// where margin measures distance from the threshold (∞ for pure categories,
+// which have no threshold).
+function evalL2(cat, vnt, threshold, r1, r2){
+  const swap   = !!vnt.swap;
+  const negate = !!vnt.negate;
+  const x1 = swap ? r2 : r1;
+  const x2 = swap ? r1 : r2;
+  const base = cat.kind === "threshold"
+    ? cat.verify(x1, x2, threshold)
+    : cat.verify(x1, x2);
+  const isTrue = negate ? !base : base;
+
+  // Margin: how far the actual pair sits from the decision boundary.
+  // Larger margin = more obvious answer. We want non-trivial margins.
+  let margin;
+  if(cat.id === "l2_close"){
+    const diff = Math.abs(x1 - x2);
+    margin = Math.abs(diff - threshold);   // 0 = right on boundary
+  } else if(cat.id === "l2_sum_gt"){
+    margin = Math.abs((x1 + x2) - threshold);
+  } else if(cat.id === "l2_both_large"){
+    // Distance of the closer-to-threshold answer from the boundary.
+    margin = Math.min(Math.abs(x1 - threshold), Math.abs(x2 - threshold));
+  } else {
+    margin = Infinity;  // pure categories have no threshold
+  }
+  return { isTrue, margin, x1, x2 };
+}
+
+function setupL2(){
+  const results = State.meta.l1Results;
+  if(results.length < 2) return null;
+
+  const r1obj = results[results.length - 2];
+  const r2obj = results[results.length - 1];
+  const r1 = r1obj.answer;
+  const r2 = r2obj.answer;
+  const m = currentMax();
+
+  // ── Two-stage selection ───────────────────────────────────────────────
+  //   1. Pick category uniformly. (Earlier versions enumerated all
+  //      candidates globally, which made categories with more variants
+  //      train more frequently — a structural confound separate from the
+  //      base-rate one. Picking the category first gives equal exposure.)
+  //   2. Pick wantTrue ~ Bernoulli(0.5).
+  //   3. Enumerate variants of that category (with their thresholds for
+  //      threshold categories), filter for isTrue == wantTrue and
+  //      non-trivial margin, then pick uniformly.
+  //   4. Cascading fallbacks: relax margin → flip target → take anything.
+  // ──────────────────────────────────────────────────────────────────────
+
+  const marginOK = c => {
+    if(c.margin === Infinity) return true;
+    if(c.threshold == null)   return true;
+    const scale = Math.max(2, Math.abs(c.threshold) * 1.2);
+    return c.margin <= scale;
+  };
+
+  const cat = choice(L2_CATS);
+  const wantTrue = Math.random() < 0.5;
+
+  // Enumerate this category's variants only. For threshold categories, sample
+  // a single threshold per tier for the current trial so wording variants do
+  // not accidentally differ in threshold merely because they were enumerated
+  // later.
+  const candidates = [];
+  const thresholdCache = {};
+  if(cat.kind === "pure"){
+    for(const vnt of cat.variants){
+      const res = evalL2(cat, vnt, null, r1, r2);
+      candidates.push({ cat, vnt, threshold: null, ...res });
+    }
+  } else {
+    for(const vnt of cat.variants){
+      const tier = vnt.tier || "narrow";
+      if(thresholdCache[tier] == null){
+        thresholdCache[tier] = cat.thresholdFn(r1obj, r2obj, m, tier);
+      }
+      const threshold = thresholdCache[tier];
+      const res = evalL2(cat, vnt, threshold, r1, r2);
+      candidates.push({ cat, vnt, threshold, ...res });
+    }
+  }
+
+  let fallbackStage = "target_margin";
+  let pool = candidates.filter(c => c.isTrue === wantTrue && marginOK(c));
+  if(!pool.length){
+    fallbackStage = "target_margin_relaxed";
+    pool = candidates.filter(c => c.isTrue === wantTrue);
+  }
+  if(!pool.length){
+    fallbackStage = "flipped_target_margin";
+    pool = candidates.filter(c => c.isTrue === !wantTrue && marginOK(c));
+  }
+  if(!pool.length){
+    fallbackStage = "any_candidate";
+    pool = candidates;
+  }
+
+  const pick = choice(pool);
+  const question = renderL2Question(pick.cat, pick.vnt, pick.threshold);
+  const variantKey = [
+    pick.cat.id,
+    pick.vnt.tier || "pure",
+    pick.vnt.negate ? "neg" : "pos",
+    pick.vnt.swap ? "swap" : "noswap",
+    pick.vnt.template || pick.vnt.q || question
+  ].join("|");
+
+  return {
+    cat: pick.cat,
+    r1: pick.x1, r2: pick.x2,
+    threshold: pick.threshold,
+    isTrue: pick.isTrue,
+    question,
+    wantTrue,
+    fallbackStage,
+    fallback: fallbackStage !== "target_margin",
+    variantKey,
+  };
+}
+
+// ============================================================================
+// LEVEL 3 — CROSS-L2 META³-QUESTIONS
+// After two L2 trials (each producing a boolean answer b1, b2), ask a boolean
+// relational question comparing those two retained booleans.
+// ----------------------------------------------------------------------------
+// Design: ground-truth based. L3 compares the CORRECT answers of the last two
+// L2s, not what the user responded. If the user got an L2 wrong, they need to
+// update from the REVIEW feedback (which shows correct) to answer L3 right.
+// This trains both quaternary integration AND feedback-based belief updating.
+//
+// Quaternary complexity (Halford): relations between relations between
+// relations. This is the ceiling of human relational processing.
+// ============================================================================
+const L3_CATS = [
+  { id:"l3_same",
+    variants:[
+      { q:"Were the two previous Meta² answers the same?" },
+      { q:"Did both previous Meta² questions have the same YES/NO answer?" },
+      { q:"Did the two previous answers match?" },
+      { q:"Were the two previous Meta² answers different?", negate:true },
+      { q:"Did the two previous answers disagree?",          negate:true },
+    ],
+    verify:(b1,b2) => b1 === b2 },
+
+  { id:"l3_both_yes",
+    variants:[
+      { q:"Were both previous Meta² answers YES?" },
+      { q:"Was YES correct for both previous Meta² questions?" },
+      { q:"Did both previous answers equal YES?" },
+      { q:"Was at least one previous Meta² answer NO?", negate:true },
+      { q:"Was NO correct for at least one previous Meta² question?", negate:true },
+    ],
+    verify:(b1,b2) => b1 === true && b2 === true },
+
+  { id:"l3_both_no",
+    variants:[
+      { q:"Were both previous Meta² answers NO?" },
+      { q:"Was NO correct for both previous Meta² questions?" },
+      { q:"Did both previous answers equal NO?" },
+      { q:"Was at least one previous Meta² answer YES?", negate:true },
+      { q:"Was YES correct for at least one previous Meta² question?", negate:true },
+    ],
+    verify:(b1,b2) => b1 === false && b2 === false },
+
+  { id:"l3_any_yes",
+    variants:[
+      { q:"Was at least one previous Meta² answer YES?" },
+      { q:"Was either previous answer YES?" },
+      { q:"Was YES correct for one or both previous Meta² questions?" },
+      { q:"Were both previous Meta² answers NO?", negate:true },
+      { q:"Was NO correct for both previous Meta² questions?", negate:true },
+    ],
+    verify:(b1,b2) => b1 === true || b2 === true },
+
+  { id:"l3_first_yes",
+    variants:[
+      { q:"Was the first previous Meta² answer YES?" },
+      { q:"Did the first previous answer equal YES?" },
+      { q:"Was the second previous Meta² answer YES?", swap:true },
+      { q:"Did the second previous answer equal YES?",  swap:true },
+      { q:"Was the first previous Meta² answer NO?",   negate:true },
+      { q:"Did the first previous answer equal NO?",    negate:true },
+      { q:"Was the second previous Meta² answer NO?",  swap:true, negate:true },
+      { q:"Did the second previous answer equal NO?",   swap:true, negate:true },
+    ],
+    verify:(b1,b2) => b1 === true },
+];
+function setupL3(){
+  const results = State.meta.l2Results;
+  if(results.length < 2) return null;
+
+  // Ground truth: the correct L2 answer (not what the user responded).
+  const rawB1 = results[results.length - 2].isTrue;
+  const rawB2 = results[results.length - 1].isTrue;
+
+  // ── Two-stage selection (matches L2 design) ──────────────────────────
+  //   1. Pick category uniformly. (Counts of variants per category vary;
+  //      selecting categories first ensures equal training exposure.)
+  //   2. Pick wantTrue ~ Bernoulli(0.5).
+  //   3. Search variants of that category for one whose final isTrue ==
+  //      wantTrue (after applying swap/negate to verify(b1, b2)).
+  //   4. If no variant of that category can produce wantTrue for the given
+  //      booleans, accept the natural target instead. This guarantees a
+  //      response — at the cost of letting that specific (b1,b2) trial fall
+  //      back to the natural rate. Because input booleans are ~uniform across
+  //      L2 results, this fallback fires symmetrically and does not
+  //      systematically bias YES rate.
+  // ─────────────────────────────────────────────────────────────────────
+
+  const cat = choice(L3_CATS);
+  const wantTrue = Math.random() < 0.5;
+
+  // Enumerate every (variant) configuration for this category; record
+  // the resulting isTrue. Then pick uniformly from those matching wantTrue.
+  const candidates = [];
+  for(const vnt of cat.variants){
+    const swap   = !!vnt.swap;
+    const negate = !!vnt.negate;
+    const b1 = swap ? rawB2 : rawB1;
+    const b2 = swap ? rawB1 : rawB2;
+    const base   = cat.verify(b1, b2);
+    const isTrue = negate ? !base : base;
+    candidates.push({ vnt, b1, b2, isTrue });
+  }
+
+  let fallbackStage = "target";
+  let pool = candidates.filter(c => c.isTrue === wantTrue);
+  if(!pool.length){
+    fallbackStage = "natural_fallback";
+    pool = candidates;   // fallback: accept whatever target
+  }
+
+  const pick = choice(pool);
+  const variantKey = [
+    cat.id,
+    pick.vnt.negate ? "neg" : "pos",
+    pick.vnt.swap ? "swap" : "noswap",
+    pick.vnt.q
+  ].join("|");
+  return {
+    cat: cat,
+    b1: pick.b1, b2: pick.b2,
+    isTrue: pick.isTrue,
+    question: pick.vnt.q,
+    wantTrue,
+    fallbackStage,
+    fallback: fallbackStage !== "target",
+    variantKey,
+  };
+}
+
+// ============================================================================
+// TRIAL SEQUENCING — determine next trial level
+// ============================================================================
+function nextTrialLevel(){
+  if(State.mode !== "D" || State.metaLevel === 0) return 0;
+
+  // Check if L3 is due (highest priority — consumes two L2 results)
+  if(State.metaLevel >= 3 &&
+     State.meta.l2SinceL3 >= CONFIG.l2PerL3 &&
+     State.meta.l2Results.length >= 2){
+    return 3;
+  }
+
+  // Check if L2 is due
+  if(State.metaLevel >= 2 &&
+     State.meta.l1SinceL2 >= CONFIG.l1PerL2 &&
+     State.meta.l1Results.length >= 2){
+    return 2;
+  }
+
+  // Check if L1 is due
+  if(State.metaLevel >= 1 &&
+     State.meta.l0SinceL1 >= CONFIG.l0PerL1 &&
+     State.meta.lastPair !== null){
+    return 1;
+  }
+
+  return 0;
+}
+
+// ============================================================================
+// TRIAL
+// ============================================================================
+function startTrial(){
+  State.frameCount=0;
+  State.inputBuffer="";
+  State.mainStim=State.secStim=null;
+  State.mainCache=State.secCache=null;
+  State.targetValue=null;
+  State.trialInfo=null;
+  State.trialStartTime=0;
+  State.currentTrialValue=null;
+
+  hideAllPanels();
+  hideMetaQuestion();
+  setAnswer("—");
+  $("answerDisplay").classList.remove("typing");
+
+  State.maxValue = currentMax();
+  const max = State.maxValue;
+  const pickValue = () => weightedRandInt(1, max);
+
+  // Determine trial level
+  const trialLevel = nextTrialLevel();
+  State.currentTrialLevel = trialLevel;
+
+  if(State.mode === "A"){
+    // SUBITIZING
+    State.currentTrialLevel = 0;
+    const v = pickValue();
+    State.targetValue = v;
+    State.currentTrialValue = v;
+    const {stim, rep} = pickVisual(v);
+    State.mainStim = stim;
+    State.mainCache = cacheStim(stim, W, H);
+    State.trialInfo = {kind:"subitize", rep, v};
+    State.pendingPanel = "numpad";
+    setPrompt("How many?");
+    State.status = "PREP";
+  }
+  else if(State.mode === "D" && trialLevel === 0){
+    // LEVEL 0: Standard Posner
+    const pos = setupPosner();
+    const sA = makeStim(pos.a, pos.repA), sB = makeStim(pos.b, pos.repB);
+    State.mainStim = sA; State.secStim = sB;
+    State.mainCache = cacheStim(sA, Math.floor(W/2)-2, H);
+    State.secCache = cacheStim(sB, Math.floor(W/2)-2, H);
+    State.targetValue = pos.isTrue ? 1 : 0;
+    State.currentTrialValue = Math.max(pos.a, pos.b);
+    State.trialInfo = {kind:"posner", level:0, a:pos.a, b:pos.b, question:pos.question, isTrue:pos.isTrue, delayedPrompt:pos.question, catId:pos.catId};
+    State.pendingPanel = "bool";
+    setPrompt("Encode…");
+    State.status = "PREP";
+  }
+  else if(trialLevel === 1){
+    // LEVEL 1: Cross-pair numeric question — requires retaining BOTH preceding L0 pairs
+    const l1 = setupL1();
+    if(!l1){ State.currentTrialLevel = 0; startTrial(); return; }
+    State.targetValue = l1.answer;
+    State.currentTrialValue = null;
+    State.trialInfo = {kind:"meta1", level:1, op:l1.op,
+                       pair1:l1.pair1, pair2:l1.pair2,
+                       answer:l1.answer, question:l1.question};
+    State.pendingPanel = "numpad";
+    showLevelBadge(1);
+    showMetaQuestion(1, l1.question, "");   // no hint
+    setPrompt("META", "meta1");
+    State.status = "META_PREP";
+  }
+  else if(trialLevel === 2){
+    // LEVEL 2: Cross-L1 boolean — compare the two retained numeric L1 answers
+    const l2 = setupL2();
+    if(!l2){ State.currentTrialLevel = 1; startTrial(); return; }
+    State.targetValue = l2.isTrue ? 1 : 0;
+    State.currentTrialValue = null;
+    State.trialInfo = {kind:"meta2", level:2, cat:l2.cat,
+                       r1:l2.r1, r2:l2.r2, threshold:l2.threshold,
+                       isTrue:l2.isTrue, question:l2.question,
+                       wantTrue:l2.wantTrue, fallbackStage:l2.fallbackStage,
+                       fallback:l2.fallback, variantKey:l2.variantKey};
+    State.pendingPanel = "bool";
+    showLevelBadge(2);
+    showMetaQuestion(2, l2.question, "");   // no hint — answers must be retained
+    setPrompt("META²", "meta2");
+    State.status = "META_PREP";
+  }
+  else if(trialLevel === 3){
+    // LEVEL 3: Cross-L2 boolean — compare the two retained boolean L2 answers
+    const l3 = setupL3();
+    if(!l3){ State.currentTrialLevel = 2; startTrial(); return; }
+    State.targetValue = l3.isTrue ? 1 : 0;
+    State.currentTrialValue = null;
+    State.trialInfo = {kind:"meta3", level:3, cat:l3.cat,
+                       b1:l3.b1, b2:l3.b2,
+                       isTrue:l3.isTrue, question:l3.question,
+                       wantTrue:l3.wantTrue, fallbackStage:l3.fallbackStage,
+                       fallback:l3.fallback, variantKey:l3.variantKey};
+    State.pendingPanel = "bool";
+    showLevelBadge(3);
+    showMetaQuestion(3, l3.question, "");   // no hint — booleans must be retained
+    setPrompt("META³", "meta3");
+    State.status = "META_PREP";
+  }
+}
+
+// ============================================================================
+// INPUT HANDLING
+// ============================================================================
+function handleDigit(d){
+  if(State.status!=="INPUT" || State.pendingPanel!=="numpad") return;
+  const t = String(State.targetValue ?? "");
+  const n = State.inputBuffer + d;
+  if(!t.length) return;
+
+  if(n===t){ setAnswer(n); processInput(parseInt(n,10)); }
+  else if(t.startsWith(n)){ State.inputBuffer=n; setAnswer(n+"…"); $("answerDisplay").classList.add("typing"); }
+  else { setAnswer(n); processInput(parseInt(n,10)); }
+}
+
+function ensureDiagBucket(map, key){
+  if(!map[key]) map[key] = {t:0, c:0, yes:0, rt:[], fallback:0};
+  return map[key];
+}
+
+function updateDiagBucket(bucket, info, correct, rt){
+  bucket.t++;
+  if(info?.isTrue) bucket.yes++;
+  if(info?.fallback) bucket.fallback++;
+  if(correct){
+    bucket.c++;
+    bucket.rt.push(rt);
+    if(bucket.rt.length > 50) bucket.rt.shift();
+  }
+}
+
+function recordMetaDiagnostic(levelName, correct, rt){
+  const info = State.trialInfo || {};
+  const catId = info.cat?.id || "unknown";
+  const variantKey = info.variantKey || `${catId}|${info.question || "unknown"}`;
+
+  const globalDiag = levelName === "l2" ? State.meta.l2Diag : State.meta.l3Diag;
+  if(!globalDiag.cats) globalDiag.cats = {};
+  if(!globalDiag.variants) globalDiag.variants = {};
+  updateDiagBucket(ensureDiagBucket(globalDiag.cats, catId), info, correct, rt);
+  updateDiagBucket(ensureDiagBucket(globalDiag.variants, variantKey), info, correct, rt);
+
+  const blockDiag = State.blockDiag[levelName];
+  if(blockDiag){
+    if(!blockDiag.cats) blockDiag.cats = {};
+    if(!blockDiag.variants) blockDiag.variants = {};
+    updateDiagBucket(ensureDiagBucket(blockDiag.cats, catId), info, correct, rt);
+    updateDiagBucket(ensureDiagBucket(blockDiag.variants, variantKey), info, correct, rt);
+  }
+}
+
+function formatDiagLine(id, s){
+  const acc = s.t ? Math.round(100 * s.c / s.t) : 0;
+  const yes = s.t ? Math.round(100 * s.yes / s.t) : 0;
+  const fb  = s.t ? Math.round(100 * s.fallback / s.t) : 0;
+  const rt  = s.rt && s.rt.length ? Math.round(s.rt.reduce((a,b)=>a+b,0)/s.rt.length) : 0;
+  return `${id.padEnd(16)} yes:${String(yes).padStart(3)}% acc:${String(acc).padStart(3)}% rt:${String(rt).padStart(4)} fb:${String(fb).padStart(3)}% n=${s.t}`;
+}
+
+function formatDiagSummary(diag, title, limit=7){
+  if(!diag || !diag.cats) return "";
+  const entries = Object.entries(diag.cats).filter(([_,s]) => s.t > 0);
+  if(!entries.length) return "";
+  entries.sort((a,b)=>b[1].t-a[1].t || a[0].localeCompare(b[0]));
+  let out = `${title}
+`;
+  for(const [id,s] of entries.slice(0, limit)) out += `  ${formatDiagLine(id, s)}
+`;
+  return out.trimEnd();
+}
+
+function formatL1AnswerHistogram(limit=8){
+  const hist = Array.isArray(State.meta.l1AnswerHistory) ? State.meta.l1AnswerHistory : [];
+  if(!hist.length) return "";
+  const counts = Object.create(null);
+  for(const e of hist){
+    const k = String(e.answer);
+    counts[k] = (counts[k] || 0) + 1;
+  }
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1] || Number(a[0])-Number(b[0]));
+  const recent = hist.slice(-8).map(e => e.answer).join(", ");
+  let out = `L1 answers: recent [${recent}]`;
+  out += `
+  top: ` + entries.slice(0, limit).map(([a,n]) => `${a}:${n}`).join("  ");
+  return out;
+}
+
+function processInput(val){
+  if(State.status!=="INPUT") return;
+  if(State.targetValue===null) return;
+
+  const rt = Math.round(now() - State.trialStartTime);
+  State.lastRT = rt;
+  State.status = "LOCKED";
+  hideAllPanels();
+  hideMetaQuestion();
+
+  const correct = val === State.targetValue;
+  const m = State.mode;
+  const trialVal = State.currentTrialValue;
+  const trialLevel = State.currentTrialLevel;
+
+  State.stats.trials++;
+  State.statsByMode[m].t++;
+  State.blockTrials++;
+  State.blockByLevel[trialLevel].t++;
+
+  // Increment meta-level trial counters BEFORE the correct/error branch,
+  // so save() and updateHUD() below see consistent stats. (Previously these
+  // lived after the branch, which made the menu lag one trial on first
+  // L1/L2/L3 of a session.)
+  if(trialLevel === 1 && State.trialInfo?.op){
+    const opId = State.trialInfo.op.id;
+    if(!State.meta.l1Stats[opId]) State.meta.l1Stats[opId] = {t:0, c:0, rt:[]};
+    State.meta.l1Stats[opId].t++;
+  }
+  if(trialLevel === 2){ State.meta.l2Stats.t++; }
+  if(trialLevel === 3){ State.meta.l3Stats.t++; }
+  if(trialLevel === 2){ recordMetaDiagnostic("l2", correct, rt); }
+  if(trialLevel === 3){ recordMetaDiagnostic("l3", correct, rt); }
+
+  // Per-category Posner tracking (L0 only)
+  const catId = State.trialInfo?.catId;
+  if(catId){
+    if(!State.posnerCatStats[catId]) State.posnerCatStats[catId] = {t:0, c:0, rt:[]};
+    State.posnerCatStats[catId].t++;
+  }
+
+  if(correct){
+    State.stats.correct++;
+    State.statsByMode[m].c++;
+    State.blockCorrect++;
+    State.blockByLevel[trialLevel].c++;
+    State.stats.streak++;
+    State.stats.bestStreak = Math.max(State.stats.bestStreak, State.stats.streak);
+    State.blockBestStreak = Math.max(State.blockBestStreak, State.stats.streak);
+    State.blockRTs.push(rt);
+    State.statsByMode[m].rt.push(rt);
+    State.blockByLevel[trialLevel].rt.push(rt);
+
+    if(catId && State.posnerCatStats[catId]){
+      State.posnerCatStats[catId].c++;
+      State.posnerCatStats[catId].rt.push(rt);
+      if(State.posnerCatStats[catId].rt.length > 50) State.posnerCatStats[catId].rt.shift();
+    }
+
+    // L1 per-op stats
+    if(trialLevel === 1 && State.trialInfo?.op){
+      const opId = State.trialInfo.op.id;
+      if(!State.meta.l1Stats[opId]) State.meta.l1Stats[opId] = {t:0, c:0, rt:[]};
+      State.meta.l1Stats[opId].c++;
+      State.meta.l1Stats[opId].rt.push(rt);
+      if(State.meta.l1Stats[opId].rt.length > 50) State.meta.l1Stats[opId].rt.shift();
+    }
+
+    // L2 stats
+    if(trialLevel === 2){
+      State.meta.l2Stats.c++;
+      State.meta.l2Stats.rt.push(rt);
+      if(State.meta.l2Stats.rt.length > 50) State.meta.l2Stats.rt.shift();
+    }
+
+    // L3 stats
+    if(trialLevel === 3){
+      State.meta.l3Stats.c++;
+      State.meta.l3Stats.rt.push(rt);
+      if(State.meta.l3Stats.rt.length > 50) State.meta.l3Stats.rt.shift();
+    }
+
+    // Update per-value ET (L0 only, mode A only — in D, values are not the
+    // unit of learning; relations are. See shouldLevelUpD.)
+    if(trialLevel === 0 && trialVal !== null && m === "A"){
+      const currentValET = getValueET(m, trialVal);
+      const fastThreshold = CONFIG.rtFast;
+      const lvlGain = (rt < CONFIG.rtSubitizing) ? 3 : (rt < fastThreshold ? 2 : 1);
+      setValueET(m, trialVal, Math.max(CONFIG.minET, currentValET - CONFIG.speedStep * lvlGain));
+    }
+
+    // Update global mode-D ET on L0 success — stimulus speed is uniform
+    // across values in relational mode.
+    if(trialLevel === 0 && m === "D"){
+      const lvlGain = rt < CONFIG.rtGood ? 2 : 1;
+      State.etByMode.D = Math.max(CONFIG.minET, State.etByMode.D - CONFIG.speedStep * lvlGain);
+    }
+
+    // Track L0 trial in mode D's rolling window
+    if(trialLevel === 0 && m === "D"){
+      State.dL0Window.push({correct:true, rt, levelAtTrial:State.levelByMode.D});
+      if(State.dL0Window.length > 120) State.dL0Window.shift();
+    }
+
+    const isSimple = m === "A";
+    const isFastL0 = rt < (isSimple ? CONFIG.rtFast : CONFIG.rtGood);
+    const isFastMeta = rt < CONFIG.rtMetaFast;
+    const isFast = trialLevel === 0 ? isFastL0 : isFastMeta;
+
+    // Level-up: mode A uses per-value mastery; mode D uses rolling window.
+    let leveledUp = false;
+    if(trialLevel === 0 && State.levelByMode[m] < CONFIG.levels.length-1){
+      if(m === "A" && countMasteredValues(m) >= currentMax()){
+        State.levelByMode[m]++;
+        leveledUp = true;
+      } else if(m === "D" && shouldLevelUpD()){
+        State.levelByMode.D++;
+        leveledUp = true;
+      }
+    }
+
+    if(leveledUp){
+      pulse("lvl");
+    } else if(isFast){
+      pulse("fast");
+    } else {
+      pulse("ok");
+    }
+    showRT(rt, true);
+
+    // Update meta state
+    updateMetaStateAfterTrial(trialLevel, correct);
+
+    save(); updateHUD();
+
+    if(State.blockTrials >= State.blockSize) setTimeout(showBlockSummary, 300);
+    else setTimeout(startTrial, 180);
+  } else {
+    if(typeof State.targetValue==="number" && typeof val==="number"){
+      const key = `${State.targetValue}→${val}`;
+      State.confusion[key] = (State.confusion[key]||0) + 1;
+      if(trialVal !== null) State.problemValues[trialVal] = (State.problemValues[trialVal]||0) + 1;
+    }
+
+    State.stats.streak = 0;
+
+    // Error tracking: neither L1 nor L2 push RT on errors — kept
+    // consistent with posnerCatStats and with standard psychometric practice
+    // (avgRT reflects the central tendency of correct responses only).
+    // Trial counters (t) are still incremented below, so accuracy stays accurate.
+
+    if(trialLevel === 0 && trialVal !== null && m === "A"){
+      const currentValET = getValueET(m, trialVal);
+      setValueET(m, trialVal, Math.min(currentStartET(), currentValET + CONFIG.penalty));
+    }
+
+    // Penalize global mode-D ET on L0 error
+    if(trialLevel === 0 && m === "D"){
+      State.etByMode.D = Math.min(currentStartET(), State.etByMode.D + CONFIG.penalty);
+    }
+
+    // Track L0 error in mode D's rolling window
+    if(trialLevel === 0 && m === "D"){
+      State.dL0Window.push({correct:false, rt, levelAtTrial:State.levelByMode.D});
+      if(State.dL0Window.length > 120) State.dL0Window.shift();
+    }
+    pulse("bad");
+    showRT(rt, false);
+
+    // Update meta state even on error
+    updateMetaStateAfterTrial(trialLevel, correct);
+
+    State.status = "REVIEW";
+    State.frameCount = 0;
+    save(); updateHUD();
+  }
+}
+
+function updateMetaStateAfterTrial(level, correct){
+  if(level === 0){
+    if(State.trialInfo && State.trialInfo.kind === "posner"){
+      const pair = {a: State.trialInfo.a, b: State.trialInfo.b};
+      State.meta.lastPair = pair;           // kept for legacy compat
+      State.meta.pairHistory.push(pair);
+      if(State.meta.pairHistory.length > 4) State.meta.pairHistory.shift();
+    }
+    State.meta.l0SinceL1++;
+  }
+  else if(level === 1){
+    // Store L1 numeric answer for L2 comparison
+    if(State.trialInfo && State.trialInfo.kind === "meta1"){
+      State.meta.l1Results.push({
+        answer: State.trialInfo.answer,
+        op: State.trialInfo.op,
+        correct: correct,
+      });
+      if(State.meta.l1Results.length > 4) State.meta.l1Results.shift();
+
+      if(!Array.isArray(State.meta.l1AnswerHistory)) State.meta.l1AnswerHistory = [];
+      State.meta.l1AnswerHistory.push({
+        answer: State.trialInfo.answer,
+        opId: State.trialInfo.op?.id || null,
+        family: State.trialInfo.op?.family || null,
+        levelAtTrial: State.levelByMode.D,
+      });
+      if(State.meta.l1AnswerHistory.length > 80) State.meta.l1AnswerHistory.shift();
+    }
+    State.meta.l0SinceL1 = 0;
+    State.meta.l1SinceL2++;
+  }
+  else if(level === 2){
+    // Store L2 boolean answer for L3 comparison
+    if(State.trialInfo && State.trialInfo.kind === "meta2"){
+      State.meta.l2Results.push({
+        isTrue: State.trialInfo.isTrue,
+        cat: State.trialInfo.cat,
+        correct: correct,
+      });
+      if(State.meta.l2Results.length > 4) State.meta.l2Results.shift();
+    }
+    State.meta.l1SinceL2 = 0;
+    State.meta.l2SinceL3++;
+  }
+  else if(level === 3){
+    State.meta.l2SinceL3 = 0;
+  }
+}
+
+// ============================================================================
+// BLOCK SUMMARY
+// ============================================================================
+function showBlockSummary(){
+  State.paused = true;
+  const acc = State.blockTrials ? Math.round(100 * State.blockCorrect / State.blockTrials) : 0;
+  const avgRT = State.blockRTs.length ? Math.round(State.blockRTs.reduce((a,b)=>a+b,0) / State.blockRTs.length) : 0;
+  const isSimple = State.mode === "A";
+  const fastThreshold = isSimple ? CONFIG.rtFast : CONFIG.rtGood;
+  const fastCount = State.blockRTs.filter(rt=>rt<fastThreshold).length;
+  const subitizingCount = State.blockRTs.filter(rt=>rt<CONFIG.rtSubitizing).length;
+
+  const accEl = $("sumAcc");
+  accEl.querySelector(".stat-value").textContent = acc + "%";
+  accEl.classList.remove("good","warn","bad");
+  accEl.classList.add(acc>=90?"good":acc>=70?"warn":"bad");
+
+  const rtEl = $("sumRT");
+  rtEl.querySelector(".stat-value").textContent = avgRT + "ms";
+  rtEl.classList.remove("good","warn","bad");
+  rtEl.classList.add(avgRT<fastThreshold?"good":avgRT<CONFIG.rtSlow?"warn":"bad");
+
+  $("sumFast").querySelector(".stat-value").textContent = subitizingCount > 0 ? `${subitizingCount}⚡` : fastCount;
+  $("sumStreak").querySelector(".stat-value").textContent = State.blockBestStreak;
+
+  // Per-level breakdown
+  let breakdown = "";
+  if(State.metaLevel > 0 && State.mode === "D"){
+    for(let lv = 0; lv <= State.metaLevel; lv++){
+      const s = State.blockByLevel[lv];
+      if(s.t > 0){
+        const lvAcc = Math.round(100 * s.c / s.t);
+        const lvRT = s.rt.length ? Math.round(s.rt.reduce((a,b)=>a+b,0)/s.rt.length) : 0;
+        const lvNames = {0:"L0 Posner", 1:"L1 Meta", 2:"L2 Meta²", 3:"L3 Meta³"};
+        const lvName = lvNames[lv] || ("L"+lv);
+        breakdown += `${lvName}: ${lvAcc}% acc, ${lvRT}ms avg (n=${s.t})\n`;
+      }
+    }
+  }
+    const l2Block = formatDiagSummary(State.blockDiag.l2, "L2 diagnostic:", 7);
+    const l3Block = formatDiagSummary(State.blockDiag.l3, "L3 diagnostic:", 7);
+    if(l2Block) breakdown += `
+${l2Block}
+`;
+    if(l3Block) breakdown += `
+${l3Block}
+`;
+  $("summaryBreakdown").textContent = breakdown;
+
+  let msg = "";
+  if(subitizingCount >= State.blockSize * 0.5) msg = "True subitizing detected — automatic recognition (⚡<300ms)!";
+  else if(acc>=90 && avgRT<fastThreshold) msg = "Excellent — fast and accurate. Keep pushing.";
+  else if(acc>=90) msg = "Great accuracy. Try to respond a bit faster.";
+  else if(avgRT<fastThreshold) msg = "Good speed! Focus on accuracy first.";
+  else if(acc<70) msg = "Take your time — accuracy matters more than speed.";
+  else msg = "Good progress. Keep practising.";
+  $("summaryMessage").textContent = msg;
+  $("summaryModal").style.display = "flex";
+}
+
+function resetBlock(){
+  State.blockTrials=0; State.blockCorrect=0; State.blockRTs=[]; State.blockBestStreak=0;
+  State.blockByLevel = {0:{t:0,c:0,rt:[]}, 1:{t:0,c:0,rt:[]}, 2:{t:0,c:0,rt:[]}, 3:{t:0,c:0,rt:[]}};
+  State.blockDiag = {l2:{cats:{}, variants:{}}, l3:{cats:{}, variants:{}}};
+  // Reset meta counters so the next block always starts with L0 trials, never L1/L2/L3.
+  State.meta.l0SinceL1    = 0;
+  State.meta.l1SinceL2    = 0;
+  State.meta.l2SinceL3    = 0;
+  State.meta.lastPair     = null;
+  State.meta.pairHistory  = [];
+  State.meta.l1Results    = [];
+  State.meta.l2Results    = [];
+}
+$("continueBtn").onclick = () => { $("summaryModal").style.display="none"; resetBlock(); State.paused=false; startTrial(); };
+$("restBtn").onclick = () => { $("summaryModal").style.display="none"; resetBlock(); $("overlay").style.display="flex"; State.status="MENU"; updateMenu(); };
+
+// ============================================================================
+// DRAWING
+// ============================================================================
+function drawFix(){
+  ctx.strokeStyle="#444"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W/2-8,H/2); ctx.lineTo(W/2+8,H/2); ctx.stroke();
+}
+function drawBadge(text, color="#fff"){
+  const bw=Math.min(Math.max(280, W*0.82), W-32), bh=34;
+  const bx=W/2-bw/2, by=Math.max(48, Math.round(H*0.08));
+  ctx.fillStyle="rgba(0,0,0,0.88)";
+  ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,6); ctx.fill();
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle=color; 
+  const fs = text.length > 28 ? Math.floor(bh*0.30) : (text.length > 15 ? Math.floor(bh*0.36) : Math.floor(bh*0.45));
+  ctx.font=`700 ${fs}px system-ui`;
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(text, bx+bw/2, by+bh/2);
+}
+
+function drawMetaScreen(){
+  // Dark background with subtle indicator
+  ctx.fillStyle="#050508"; ctx.fillRect(0,0,W,H);
+  const level = State.currentTrialLevel;
+  const color = level === 1 ? "rgba(255,159,67,0.08)" : "rgba(238,90,36,0.08)";
+  ctx.fillStyle = color;
+  ctx.fillRect(0,0,W,H);
+
+  // Subtle border glow
+  const borderColor = level === 1 ? "rgba(255,159,67,0.3)" : "rgba(238,90,36,0.3)";
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(4,4,W-8,H-8);
+}
+
+function draw(){
+  ctx.fillStyle="#050508"; ctx.fillRect(0,0,W,H);
+
+  if(State.status==="PREP") drawFix();
+  else if(State.status==="META_PREP" || (State.status==="INPUT" && State.currentTrialLevel > 0)){
+    drawMetaScreen();
+  }
+  else if(State.status==="FLASH"){
+    if(State.mode==="D"){
+      const halfW = Math.floor(W/2)-2;
+      if(State.mainCache) ctx.drawImage(State.mainCache,0,0,halfW,H);
+      if(State.secCache) ctx.drawImage(State.secCache,halfW+4,0,halfW,H);
+      ctx.fillStyle="#333"; ctx.fillRect(halfW+1,0,2,H);
+    } else if(State.mainCache){
+      ctx.drawImage(State.mainCache,0,0,W,H);
+    }
+  }
+  else if(State.status==="MASK") Mask.draw(ctx);
+  else if(State.status==="REVIEW"){
+    const info = State.trialInfo || {};
+    if(info.kind==="posner"){
+      const halfW = Math.floor(W/2)-2;
+      if(State.mainCache) ctx.drawImage(State.mainCache,0,0,halfW,H);
+      if(State.secCache) ctx.drawImage(State.secCache,halfW+4,0,halfW,H);
+      ctx.fillStyle="#333"; ctx.fillRect(halfW+1,0,2,H);
+      drawBadge(info.isTrue?"YES":"NO", info.isTrue?"#00d68f":"#ff4757");
+    }
+    else if(info.kind==="meta1"){
+      drawMetaScreen();
+      const color = "#ff9f43";
+      drawBadge(`(${info.pair1.a},${info.pair1.b}) · (${info.pair2.a},${info.pair2.b}) → ${info.answer}`, color);
+    }
+    else if(info.kind==="meta2"){
+      drawMetaScreen();
+      const thrStr = (info.threshold != null) ? ` (thr=${info.threshold})` : "";
+      drawBadge(`${info.r1} vs ${info.r2}${thrStr} → ${info.isTrue?"YES":"NO"}`, info.isTrue?"#00d68f":"#ff4757");
+    }
+    else if(info.kind==="meta3"){
+      drawMetaScreen();
+      const b1str = info.b1 ? "YES" : "NO";
+      const b2str = info.b2 ? "YES" : "NO";
+      drawBadge(`${b1str} · ${b2str} → ${info.isTrue?"YES":"NO"}`, info.isTrue?"#00d68f":"#ff4757");
+    }
+    else if(State.mainCache){
+      ctx.drawImage(State.mainCache,0,0,W,H);
+      if(State.targetValue!==null) drawBadge(`= ${State.targetValue}`);
+    }
+  }
+  updateParticles(); renderParticles();
+}
+
+// ============================================================================
+// STATE MACHINE
+// ============================================================================
+function update(){
+  if(State.paused || !State.running) return;
+  State.frameCount++;
+  const et = currentET();
+
+  if(State.status==="PREP" && State.frameCount > CONFIG.prepFrames){
+    State.status="FLASH"; State.frameCount=0;
+  }
+  else if(State.status==="FLASH" && State.frameCount > et){
+    State.status="MASK"; State.frameCount=0;
+  }
+  else if(State.status==="MASK" && State.frameCount > CONFIG.maskFrames){
+    State.status="INPUT"; State.frameCount=0; State.trialStartTime=now();
+    if(State.mode==="D" && State.trialInfo?.delayedPrompt){
+      setPrompt(State.trialInfo.delayedPrompt);
+    }
+    if(State.pendingPanel!=="none") showPanel(State.pendingPanel);
+    $("answerDisplay").classList.remove("typing");
+  }
+  else if(State.status==="META_PREP" && State.frameCount > CONFIG.metaPrepFrames){
+    State.status="INPUT"; State.frameCount=0; State.trialStartTime=now();
+    if(State.pendingPanel!=="none") showPanel(State.pendingPanel);
+    $("answerDisplay").classList.remove("typing");
+  }
+  else if(State.status==="REVIEW" && State.frameCount > CONFIG.reviewFrames){
+    if(State.blockTrials >= State.blockSize) showBlockSummary();
+    else startTrial();
+  }
+}
+
+// ============================================================================
+// SAVE / LOAD / MENU
+// ============================================================================
+function save(){
+  localStorage.setItem("eucalculia_v4", JSON.stringify({
+    mode:State.mode, reps:State.reps, metaLevel:State.metaLevel,
+    levelByMode:State.levelByMode, etByMode:State.etByMode,
+    etByModeAndValue:State.etByModeAndValue,
+    stats:State.stats, statsByMode:State.statsByMode,
+    posnerCatStats:State.posnerCatStats,
+    confusion:State.confusion, problemValues:State.problemValues,
+    blockSize:State.blockSize,
+    metaL1Stats:State.meta.l1Stats, metaL2Stats:State.meta.l2Stats,
+    metaL3Stats:State.meta.l3Stats,
+    metaL2Diag:State.meta.l2Diag, metaL3Diag:State.meta.l3Diag,
+    l1AnswerHistory:State.meta.l1AnswerHistory,
+    dL0Window:State.dL0Window,
+  }));
+}
+
+function load(){
+  try {
+    const d = JSON.parse(localStorage.getItem("eucalculia_v4"));
+    if(!d) return;
+    if(d.mode && (d.mode==="A"||d.mode==="D")) State.mode=d.mode;
+    if(typeof d.metaLevel === "number") State.metaLevel = clamp(d.metaLevel, 0, 3);
+    if(d.reps?.length) State.reps=d.reps;
+    if(d.levelByMode) Object.assign(State.levelByMode, d.levelByMode);
+    if(d.etByMode) Object.assign(State.etByMode, d.etByMode);
+    if(d.etByModeAndValue){
+      for(const mode of Object.keys(d.etByModeAndValue)){
+        if(!State.etByModeAndValue[mode]) State.etByModeAndValue[mode]={};
+        Object.assign(State.etByModeAndValue[mode], d.etByModeAndValue[mode]);
+      }
+    }
+    if(d.stats) State.stats=d.stats;
+    if(d.statsByMode) Object.assign(State.statsByMode, d.statsByMode);
+    if(d.posnerCatStats) State.posnerCatStats = d.posnerCatStats;
+    if(d.confusion) State.confusion=d.confusion;
+    if(d.problemValues) State.problemValues=d.problemValues;
+    if(d.blockSize) State.blockSize=d.blockSize;
+    if(d.metaL1Stats) State.meta.l1Stats = d.metaL1Stats;
+    if(d.metaL2Stats) State.meta.l2Stats = d.metaL2Stats;
+    if(d.metaL3Stats) State.meta.l3Stats = d.metaL3Stats;
+    if(d.metaL2Diag) State.meta.l2Diag = d.metaL2Diag;
+    if(d.metaL3Diag) State.meta.l3Diag = d.metaL3Diag;
+    if(!State.meta.l2Diag?.cats) State.meta.l2Diag = {cats:{}, variants:{}};
+    if(!State.meta.l3Diag?.cats) State.meta.l3Diag = {cats:{}, variants:{}};
+    if(Array.isArray(d.l1AnswerHistory)) State.meta.l1AnswerHistory = d.l1AnswerHistory.slice(-80);
+    if(Array.isArray(d.dL0Window)) State.dL0Window = d.dL0Window;
+  } catch(e){}
+}
+
+function updateMenu(){
+  $("modeSelect").value = State.mode;
+  $("metaLevelSelect").value = String(State.metaLevel);
+  $("blockSizeSelect").value = String(State.blockSize);
+  const isSimple = State.mode === "A";
+  const isRelational = State.mode === "D";
+  updateRTTargetDisplay();
+  updateMeta3Hint();
+  $("metaLevelRow").classList.toggle("visible", isRelational);
+  document.querySelectorAll(".repChip").forEach(ch => ch.classList.toggle("on", State.reps.includes(ch.dataset.rep)));
+
+  const m = State.mode;
+  const ms = State.statsByMode[m];
+  const mAcc = ms.t ? Math.round(100*ms.c/ms.t) : 0;
+  const total = currentMax();
+
+  let info = `${m==="A"?"SUBITIZING":"RELATIONAL"} — Level ${State.levelByMode[m]+1} (max: ${total})`;
+
+  if(m === "A"){
+    const mastered = countMasteredValues(m);
+    const avgET = getAverageET(m);
+    info += `\nMastered: ${mastered}/${total} values (avg ET: ${avgET} frames)`;
+  } else {
+    // Mode D: show progress toward next level based on rolling window.
+    const lv = State.levelByMode.D;
+    const windowSize = Math.max(15, Math.ceil(total * 1.2));
+    const atLevel = State.dL0Window.filter(e => e.levelAtTrial === lv);
+    if(atLevel.length === 0){
+      info += `\nLevel-up progress: 0/${windowSize} L0 trials at this level`;
+    } else {
+      const recent = atLevel.slice(-windowSize);
+      const acc = Math.round(100 * recent.filter(e => e.correct).length / recent.length);
+      const correctRTs = recent.filter(e => e.correct).map(e => e.rt);
+      const avgRT = correctRTs.length ? Math.round(correctRTs.reduce((a,b)=>a+b,0)/correctRTs.length) : 0;
+      const needed = Math.max(0, windowSize - atLevel.length);
+      info += `\nLevel-up: last ${Math.min(atLevel.length, windowSize)}/${windowSize} L0: ${acc}% acc, ${avgRT}ms avg`;
+      info += `\n  (need ≥85% acc, ≤${CONFIG.rtGood}ms avg, ${windowSize} trials at this level${needed?`; ${needed} more`:""})`;
+    }
+  }
+
+  if(m === "D"){
+    info += `  Tier: up to ${getPosnerTier()}`;
+    if(State.metaLevel > 0){
+      info += `\n─── Meta Levels: ${State.metaLevel} ───`;
+      // L1 stats
+      const l1Ops = Object.entries(State.meta.l1Stats);
+      if(l1Ops.length){
+        info += `\nL1 Operations:`;
+        for(const [opId, s] of l1Ops){
+          if(s.t > 0){
+            const acc = Math.round(100 * s.c / s.t);
+            const avgRT = s.rt.length ? Math.round(s.rt.slice(-10).reduce((a,b)=>a+b,0)/Math.min(10,s.rt.length)) : 0;
+            info += `\n  ${opId.padEnd(12)} ${String(acc).padStart(3)}%  ${String(avgRT).padStart(5)}ms (n=${s.t})`;
+          }
+        }
+      }
+      const l1AnswerTxt = formatL1AnswerHistogram(8);
+      if(l1AnswerTxt) info += `
+${l1AnswerTxt}`;
+      // L2 stats
+      if(State.metaLevel >= 2 && State.meta.l2Stats.t > 0){
+        const l2Acc = Math.round(100 * State.meta.l2Stats.c / State.meta.l2Stats.t);
+        const l2RT = State.meta.l2Stats.rt.length ? Math.round(State.meta.l2Stats.rt.slice(-10).reduce((a,b)=>a+b,0)/Math.min(10,State.meta.l2Stats.rt.length)) : 0;
+        info += `\nL2 Meta²:     ${String(l2Acc).padStart(3)}%  ${String(l2RT).padStart(5)}ms (n=${State.meta.l2Stats.t})`;
+      }
+      // L3 stats
+      if(State.metaLevel >= 3 && State.meta.l3Stats.t > 0){
+        const l3Acc = Math.round(100 * State.meta.l3Stats.c / State.meta.l3Stats.t);
+        const l3RT = State.meta.l3Stats.rt.length ? Math.round(State.meta.l3Stats.rt.slice(-10).reduce((a,b)=>a+b,0)/Math.min(10,State.meta.l3Stats.rt.length)) : 0;
+        info += `\nL3 Meta³:     ${String(l3Acc).padStart(3)}%  ${String(l3RT).padStart(5)}ms (n=${State.meta.l3Stats.t})`;
+      }
+    }
+    const l2DiagTxt = State.metaLevel >= 2 ? formatDiagSummary(State.meta.l2Diag, "L2 diagnostic:", 7) : "";
+    const l3DiagTxt = State.metaLevel >= 3 ? formatDiagSummary(State.meta.l3Diag, "L3 diagnostic:", 7) : "";
+    if(l2DiagTxt) info += `
+${l2DiagTxt}`;
+    if(l3DiagTxt) info += `
+${l3DiagTxt}`;
+    // Per-category breakdown
+    const catEntries = Object.entries(State.posnerCatStats)
+      .filter(([id, s]) => s.t >= 2)
+      .map(([id, s]) => {
+        const acc = Math.round(100 * s.c / s.t);
+        const avgRT = s.rt.length ? Math.round(s.rt.slice(-10).reduce((a,b)=>a+b,0)/Math.min(10,s.rt.length)) : 0;
+        const cat = POSNER_CATS.find(c => c.id === id);
+        const label = cat && cat.variants && cat.variants[0] ? cat.variants[0].q : id;
+        return { id, q: label, acc, avgRT, t: s.t };
+      })
+      .sort((a,b) => a.acc - b.acc || b.avgRT - a.avgRT);
+    if(catEntries.length){
+      info += `\n─── L0 Category Profile ───`;
+      const show = catEntries.slice(0, 5);
+      for(const e of show){
+        info += `\n ${e.q.padEnd(22)} ${String(e.acc).padStart(3)}%  ${String(e.avgRT).padStart(5)}ms  (n=${e.t})`;
+      }
+    }
+  }
+  info += `\nTrials: ${ms.t}  Accuracy: ${mAcc}%`;
+  $("menuStats").textContent = info;
+}
+
+// ---------- Event Wiring ----------
+$("pauseBtn").onclick = () => { State.paused=true; hideMetaQuestion(); $("overlay").style.display="flex"; updateMenu(); };
+$("startBtn").onclick = () => {
+  State.mode = $("modeSelect").value;
+  State.metaLevel = parseInt($("metaLevelSelect").value);
+  State.blockSize = parseInt($("blockSizeSelect").value);
+  // Safety clamp: Meta³ needs ≥30 trials per block to complete at least two
+  // full cycles. Silently enforce on startup.
+  if(State.metaLevel >= 3 && State.blockSize < 30){
+    State.blockSize = 30;
+    $("blockSizeSelect").value = "30";
+  }
+  const reps = []; document.querySelectorAll(".repChip.on").forEach(ch=>reps.push(ch.dataset.rep));
+  State.reps = sanitizeReps(reps);
+  // Reset meta state for new block
+  State.meta.l0SinceL1 = 0;
+  State.meta.l1SinceL2 = 0;
+  State.meta.l2SinceL3 = 0;
+  State.meta.lastPair = null;
+  State.meta.pairHistory = [];
+  State.meta.l1Results = [];
+  State.meta.l2Results = [];
+  resetBlock();
+  State.running=true; State.paused=false;
+  $("overlay").style.display="none";
+  startTrial(); save(); updateHUD();
+};
+$("resetBtn").onclick = () => { localStorage.removeItem("eucalculia_v4"); location.reload(); };
+document.querySelectorAll(".repChip").forEach(ch => ch.onclick = () => ch.classList.toggle("on"));
+$("guideBtn").onclick = () => { $("guideModal").style.display="flex"; };
+$("closeGuideBtn").onclick = () => { $("guideModal").style.display="none"; };
+$("guideModal").onclick = (e) => { if(e.target===$("guideModal")) $("guideModal").style.display="none"; };
+window.addEventListener("keydown", e => { if(e.key==="Escape" && $("guideModal").style.display==="flex"){ $("guideModal").style.display="none"; e.stopPropagation(); } }, true);
+// RT Target display: shows the relevant thresholds for the user's current
+// (mode × metaLevel) selection. Subitizing uses rtFast; L0 Relational uses
+// rtGood; Meta L1/L2/L3 use rtMetaGood.
+function updateRTTargetDisplay(){
+  const mode = $("modeSelect").value;
+  const lv = parseInt($("metaLevelSelect").value || "0");
+  let txt;
+  if(mode === "A"){
+    txt = `Subitizing: &lt;${CONFIG.rtFast}ms`;
+  } else if(lv === 0){
+    txt = `L0: &lt;${CONFIG.rtGood}ms`;
+  } else {
+    txt = `L0: &lt;${CONFIG.rtGood}ms · Meta: &lt;${CONFIG.rtMetaGood}ms`;
+  }
+  $("rtTargetDisplay").innerHTML = txt;
+}
+
+$("modeSelect").onchange = () => {
+  const m = $("modeSelect").value;
+  updateRTTargetDisplay();
+  $("metaLevelRow").classList.toggle("visible", m === "D");
+};
+
+// Meta³ requires block size ≥30 to complete at least two full cycles
+// (L0+L0+L1+L0+L0+L1+L2 ×2 + L3 = 15 trials per cycle).
+// We also surface a small hint so the user understands the auto-clamp.
+function updateMeta3Hint(){
+  const lv = parseInt($("metaLevelSelect").value || "0");
+  const hint = $("meta3Hint");
+  if(!hint) return;
+  hint.style.display = (lv >= 3) ? "block" : "none";
+}
+
+$("metaLevelSelect").onchange = () => {
+  const lv = parseInt($("metaLevelSelect").value);
+  if(lv >= 3){
+    const bs = parseInt($("blockSizeSelect").value);
+    if(bs < 30) $("blockSizeSelect").value = "30";
+  }
+  updateMeta3Hint();
+  updateRTTargetDisplay();
+};
+
+// Symmetric: dropping block size below 30 while Meta³ is selected reverts.
+$("blockSizeSelect").onchange = () => {
+  const lv = parseInt($("metaLevelSelect").value);
+  const bs = parseInt($("blockSizeSelect").value);
+  if(lv >= 3 && bs < 30){
+    $("blockSizeSelect").value = "30";
+  }
+};
+
+// Reps presets. Core set = subitizing-classic representations whose patterns
+// are consistent and well-known (the user typically wants these to be fast).
+const CORE_REPS = ["dots","cluster","ten","dice","tally"];
+function setRepsActive(reps){
+  document.querySelectorAll(".repChip").forEach(ch => {
+    ch.classList.toggle("on", reps.includes(ch.dataset.rep));
+  });
+}
+$("repsAllBtn").onclick = () => setRepsActive(ALL_REPS);
+$("repsCoreBtn").onclick = () => setRepsActive(CORE_REPS);
+$("repsNoneBtn").onclick = () => setRepsActive([]);
+
+document.querySelectorAll(".numBtn").forEach(b => b.addEventListener("pointerdown", e => { e.preventDefault(); handleDigit(b.dataset.v); }));
+$("btnYes").addEventListener("click", () => processInput(1));
+$("btnNo").addEventListener("click", () => processInput(0));
+
+window.addEventListener("keydown", e => {
+  if(State.paused){
+    if($("summaryModal").style.display==="flex" && (e.key===" " || e.code==="Space" || e.key==="Enter")){
+      e.preventDefault(); $("continueBtn").click();
+    }
+    return;
+  }
+  if(State.status==="INPUT" && State.pendingPanel==="numpad"){
+    if(e.key>="0" && e.key<="9") handleDigit(e.key);
+  }
+  if(State.status==="INPUT" && State.pendingPanel==="bool"){
+    if(e.key==="y"||e.key==="Y"||e.key==="ArrowLeft") processInput(1);
+    if(e.key==="n"||e.key==="N"||e.key==="ArrowRight") processInput(0);
+  }
+  if(e.key==="Escape") $("pauseBtn").click();
+});
+
+// ---------- Main Loop ----------
+resize(); load(); updateHUD();
+function loop(){ try{ update(); draw(); updateHUD(); }catch(e){ console.error(e); } requestAnimationFrame(loop); }
+loop();
+$("overlay").style.display="flex"; State.status="MENU"; updateMenu();
+</script>
+</body>
+</html>
