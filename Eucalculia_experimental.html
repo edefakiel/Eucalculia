@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.5.47epistemic-expanded</title>
+<title>Eucalculia v6.5.48l1-expanded</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -2805,7 +2805,7 @@ select.cs-native {
 
 <div class="overlay-footer">
   <p class="credit">by <strong>Alberto Flaño Lombardo</strong> · <a href="https://www.linkedin.com/in/alberto-flaño-lombardo-762618259" target="_blank" rel="noopener">linkedin</a></p>
-  <p class="version" data-app-version>v6.5.47epistemic-expanded</p>
+  <p class="version" data-app-version>v6.5.48l1-expanded</p>
 </div>
 </div>
 </div>
@@ -2814,7 +2814,7 @@ select.cs-native {
 </div>
 <template id="guideTemplate">
 <div id="guideCard">
-<h2 id="guideTitle">Eucalculia v6.5.47epistemic-expanded Guide</h2>
+<h2 id="guideTitle">Eucalculia v6.5.48l1-expanded Guide</h2>
 
 <div class="guide-section">
 <h3>What Eucalculia trains</h3>
@@ -3300,14 +3300,14 @@ select.cs-native {
 </div>
 <button class="btn primary" id="continueBtn">Continue Training</button>
 <button class="btn" id="restBtn" style="margin-top:8px;">Take a Break</button>
-<div data-app-version style="margin-top:10px;text-align:center;font-size:0.55rem;color:#444;letter-spacing:0.5px;">v6.5.47epistemic-expanded</div>
+<div data-app-version style="margin-top:10px;text-align:center;font-size:0.55rem;color:#444;letter-spacing:0.5px;">v6.5.48l1-expanded</div>
 </div>
 </div>
 
 <script>
 
 // ============================================================================
-// EUCALCULIA v6.5.47epistemic-expanded — off-path trial preparation
+// EUCALCULIA v6.5.48l1-expanded — off-path trial preparation
 // ============================================================================
 // v6.5.26x: paper-folding boundary punches may unfold into multiple complete holes; no residual half-holes.
 // This build consolidates the 6.4.2 telemetry-cleanup fork and the 6.4.3
@@ -3321,10 +3321,10 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.5.47epistemic-expanded";
+const APP_VERSION = "v6.5.48l1-expanded";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
-  const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.47epistemic-expanded";
+  const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.48l1-expanded";
   try { document.title = `Eucalculia ${v}`; } catch(_){}
   try {
     document.querySelectorAll(".overlay-footer .version, [data-app-version]").forEach(el => { el.textContent = v; });
@@ -3373,7 +3373,7 @@ const CONFIG = {
   publicBuildDirectedVisualTries:8,
   publicBuildFalseCandidateBudget:24,
   publicBuildInstrumentTrialBuild:true,
-  // v6.5.47epistemic-expanded: move the expensive L0 trial build out of the
+  // v6.5.48l1-expanded: move the expensive L0 trial build out of the
   // PREP critical path when possible. Generic relational L0 trials are built
   // during REVIEW/idle and committed quickly at the next startTrial.
   nextTrialPregenerationEnabled:true,
@@ -3426,7 +3426,7 @@ const CONFIG = {
   publicBuildPersistForensicTelemetry:false,
   publicBuildProgressHistoryBlockOnly:true,
   diagnosticExportKeepForensicTelemetry:true,
-  // v6.5.47epistemic-expanded: three-layer post-answer accounting.
+  // v6.5.48l1-expanded: three-layer post-answer accounting.
   postAnswerDeferredTelemetryEnabled:true,
   postAnswerForensicQueueEnabled:true,
   postAnswerQueueIdleTimeoutMs:200,
@@ -3438,7 +3438,7 @@ const CONFIG = {
   atomicLegacySemanticBackfill:true,
   declarativeCoreMinAtomics:40,
   atomicLegacyCoverageMinShare:0.95,
-  // v6.5.47epistemic-expanded: keep structural atomics for traceability, but
+  // v6.5.48l1-expanded: keep structural atomics for traceability, but
   // use a separate cognitive signature for adaptation, duplicate semantics and
   // effective-cardinality metrics. Forensic snapshots are captured in every
   // public session and processed only when diagnostics/export explicitly asks.
@@ -3643,7 +3643,7 @@ const CONFIG = {
   effectiveSamplingRecentWindow: 32,
   effectiveSamplingMinL0ForCheck: 12,
   effectiveSamplingMaxDominantShare: 0.45,
-  // v6.5.47epistemic-expanded: atomics now drive real sampling diagnostics,
+  // v6.5.48l1-expanded: atomics now drive real sampling diagnostics,
   // duplicate checks and weakness estimates. They still remain lightweight in
   // public play: the monitor updates O(k²) over the small atomicsUsed vector.
   atomicCoreRuntimeEnabled: true,
@@ -3860,7 +3860,7 @@ const CONFIG = {
   l0EpistemicSufficiencyProbability: 0.055,
   l0EpistemicSufficiencyMaxProbability: 0.085,
   l0EpistemicSufficiencyAuditMax: 12,
-  // v6.5.47epistemic-expanded: the gated L0 epistemic slot now samples
+  // v6.5.48l1-expanded: the gated L0 epistemic slot now samples
   // across response formats, not only across one-agent possible-world scenarios.
   // Initial target mix: 50% canonical outcomes, 30% two-agent/public-announcement
   // capacity, 15% conditional observation, 5% closure-identification items.
@@ -4222,7 +4222,8 @@ const L1_FAMILY_STAGE = {
   balance_derive:5,
   program_card_l1:5,
   inverse_rule_probe:5,
-  boolean_nested:5
+  boolean_nested:5,
+  l0_question_comparison:5
 };
 const L1_STAGE_LABELS = ["basic integration", "gaps/differences", "position/cross-role", "global/property structure", "anchor/conditional", "composition", "transform/ratio/modular"];
 
@@ -4836,7 +4837,7 @@ function pushTrialTelemetry(entry){
 }
 
 // -----------------------------------------------------------------------------
-// v6.5.47epistemic-expanded — Three-layer post-answer accounting
+// v6.5.48l1-expanded — Three-layer post-answer accounting
 // -----------------------------------------------------------------------------
 const TELEMETRY_SNAPSHOT_QUEUE = [];
 const FORENSIC_DIAGNOSTIC_QUEUE = [];
@@ -25489,6 +25490,14 @@ const L1_OP_SHORT_LABELS = ({
   retained_order_relation_match:"Compare pair order relations",
   retained_gap_relation_match:"Compare within-pair diffs",
   retained_parity_pattern_match:"Compare parity patterns",
+  retained_factor_relation_match:"Compare factor relations",
+  retained_prime_pattern_match:"Compare prime patterns",
+  retained_anchor_distance_match:"Compare anchor distances",
+  retained_modular_class_match:"Compare modular classes",
+  retained_role_swap_relation_match:"Compare role-swap relation",
+  l1_compare_l0_scope:"Compare L0 question scope",
+  l1_compare_l0_predicate_family:"Compare L0 predicate family",
+  l1_compare_l0_quantifier_scope:"Compare L0 quantifier scope",
   retained_rule_parse_same_step:"Rule parse: same step",
   retained_rule_parse_rise_unequal:"Rule parse: unequal rise",
   retained_rule_parse_fall_unequal:"Rule parse: unequal fall",
@@ -25502,11 +25511,27 @@ const L1_OP_SHORT_LABELS = ({
   // v6.4.5: search-by-conjunction L1 entries (witness solver).
   witness_qualifier:"Largest/smallest predicate witness",
   witness_interval:"Unique-in-range predicate witness",
+  witness_largest_in_set:"Witness: largest in a set",
+  witness_smallest_in_set:"Witness: smallest in a set",
+  witness_closest_to_anchor:"Witness: closest to anchor",
+  witness_unique_in_interval:"Witness: unique in interval",
+  witness_equidistant:"Witness: equidistant value",
+  witness_relational_anchored:"Witness: anchored relation",
+  witness_negative_largest:"Witness: largest not-in-set",
+  witness_multiple6_smallest:"Witness: smallest multiple of 6",
+  witness_lower_boundary:"Witness: lower boundary",
+  witness_upper_boundary:"Witness: upper boundary",
   // v6.4.6: verify-under-distraction (coherence) and simulate-and-extract (counterfactual).
   coherence_find_true:"Pick the only true claim of four",
   coherence_find_false:"Pick the only false claim of four",
+  coherence_compatibility:"Claims: compatibility relation",
+  coherence_implication:"Claims: implication direction",
+  coherence_mutually_exclusive_subset:"Claims: mutually exclusive pair",
+  coherence_redundant_claim:"Claims: redundant proposition",
   counterfactual_single:"Simulate one transform; extract",
   counterfactual_double:"Simulate two transforms; extract",
+  counterfactual_identify_minimum_change:"Counterfactual: minimum change",
+  counterfactual_identify_sufficient_change:"Counterfactual: sufficient change",
   // v6.4.13: chained proportion (sub-category of counterfactual).
   counterfactual_chained_proportion:"Complete the chained proportion",
   // v6.4.8: cross-pair operand binding (pairingPattern dimension). Same-role
@@ -26953,7 +26978,8 @@ const L1_FAMILY_FRAME_MAP = {
   structured_state_composition:["structured_representation","state_composition","abacus5","row_weighting","source_relation","metric_relation"],
   pair_select_extract:["conditional","role_binding","source_relation","class_inclusion","metric_relation"],
   mentalLine:["mental_line","metric_relation","source_relation"],
-  boolean_nested:["boolean_composition","nested_prose","working_state","executive_control"]
+  boolean_nested:["boolean_composition","nested_prose","working_state","executive_control"],
+  l0_question_comparison:["metacognitive","source_readout","retained_question_structure","integration_load"]
 };
 function l1FrameTags(op){
   const tags = L1_FAMILY_FRAME_MAP[op?.family] || ["metric_relation"];
@@ -34872,7 +34898,8 @@ function witnessTryGenerate(p1, p2, config){
     const ties = cands.filter(n => Math.abs(n - anchors[0].value) === d && n !== answer);
     if(ties.length > 0) return null;
   }
-  if(anchors.some(a => a.value === answer)) return null;
+  const allowAnchorAnswer = !!config.allowAnchorAnswer || /boundary/.test(String(config.qualifierId || "")) || (Array.isArray(config.predicates) && config.predicates.some(pr => pr && pr.id === "equal_to_anchor"));
+  if(!allowAnchorAnswer && anchors.some(a => a.value === answer)) return null;
 
   const nearMiss = witnessFindNearMiss(lo, hi, predicates, cands, failureLabels);
   const prompt   = witnessBuildPrompt(config.qualifierId, anchors, unaryPredLabels, binaryPredLabels, binaryNounLabel);
@@ -35375,6 +35402,150 @@ function generateCoherenceCheck(p1, p2, mode, opts) {
 
 function generateCoherenceFindTrue(p1, p2, opts)  { return generateCoherenceCheck(p1, p2, "find_true",  opts); }
 function generateCoherenceFindFalse(p1, p2, opts) { return generateCoherenceCheck(p1, p2, "find_false", opts); }
+
+
+// ---- Logical relation generators over the coherence claim catalogue --------
+const COHERENCE_LOGIC_LABELS_COMPAT = ["Compatible: they can both be true", "Incompatible: they cannot both be true", "One implies the other", "Equivalent claims"];
+const COHERENCE_LOGIC_LABELS_IMPL = ["A implies B", "B implies A", "A and B are equivalent", "No implication either way"];
+const COHERENCE_LOGIC_CACHE = Object.create(null);
+function _coh_worldsForLogic(m=currentMax()){
+  const cap = Math.max(4, Math.min(8, Math.floor(Number(m)||8)));
+  const out = [];
+  for(let a=1;a<=cap;a++) for(let b=1;b<=cap;b++) for(let c=1;c<=cap;c++) for(let d=1;d<=cap;d++) out.push([{a,b},{a:c,b:d}]);
+  return out;
+}
+function _coh_truthBitsForClaim(claim, worlds){
+  let bits = "", trueCount = 0, valid = 0;
+  for(const [p1,p2] of worlds){
+    let v = null;
+    try{ v = claim.eval(p1,p2); }catch(_){ v = null; }
+    if(v === null || v === undefined) return null;
+    bits += v ? "1" : "0";
+    if(v) trueCount++;
+    valid++;
+  }
+  return {claim, bits, trueCount, falseCount:valid-trueCount, valid};
+}
+function coherenceLogicMatrix(m=currentMax()){
+  const cap = Math.max(4, Math.min(8, Math.floor(Number(m)||8)));
+  const key = `m${cap}`;
+  if(COHERENCE_LOGIC_CACHE[key]) return COHERENCE_LOGIC_CACHE[key];
+  const worlds = _coh_worldsForLogic(cap);
+  const rows = [];
+  for(const claim of COHERENCE_CLAIMS){
+    const row = _coh_truthBitsForClaim(claim, worlds);
+    if(row && row.trueCount > 0 && row.falseCount > 0) rows.push(row);
+  }
+  COHERENCE_LOGIC_CACHE[key] = {cap, worlds:worlds.length, rows, byId:Object.fromEntries(rows.map(r=>[r.claim.id,r]))};
+  return COHERENCE_LOGIC_CACHE[key];
+}
+function coherencePairLogic(rowA, rowB){
+  if(!rowA || !rowB || rowA.bits.length !== rowB.bits.length) return null;
+  let bothTrue = false, aImplB = true, bImplA = true, equivalent = true;
+  for(let i=0;i<rowA.bits.length;i++){
+    const A = rowA.bits[i] === "1", B = rowB.bits[i] === "1";
+    if(A && B) bothTrue = true;
+    if(A && !B) aImplB = false;
+    if(B && !A) bImplA = false;
+    if(A !== B) equivalent = false;
+  }
+  return {bothTrue, compatible:bothTrue, incompatible:!bothTrue, aImplB, bImplA, equivalent, anyImplies:aImplB || bImplA};
+}
+function coherenceCompatibilityIndex(rel){
+  if(!rel) return null;
+  if(rel.equivalent) return 3;
+  if(rel.anyImplies) return 2;
+  if(rel.incompatible) return 1;
+  return 0;
+}
+function coherenceImplicationIndex(rel){
+  if(!rel) return null;
+  if(rel.equivalent) return 2;
+  if(rel.aImplB && !rel.bImplA) return 0;
+  if(rel.bImplA && !rel.aImplB) return 1;
+  return 3;
+}
+function generateCoherenceClaimRelation(p1,p2,mode="compatibility",opts={}){
+  const budget = Number(opts.budget || 160);
+  const mat = coherenceLogicMatrix(opts.m || currentMax());
+  const ev = _coh_evaluateAll(p1,p2);
+  const available = Object.values(ev.byId || {}).map(x=>mat.byId[x.claim.id]).filter(Boolean);
+  if(available.length < 2) return null;
+  for(let i=0;i<budget;i++){
+    const A = _coh_pick(available), B = _coh_pick(available);
+    if(!A || !B || A.claim.id === B.claim.id || A.claim.group === B.claim.group) continue;
+    const rel = coherencePairLogic(A,B);
+    const idx = mode === "implication" ? coherenceImplicationIndex(rel) : coherenceCompatibilityIndex(rel);
+    if(!Number.isInteger(idx)) continue;
+    const labels = mode === "implication" ? COHERENCE_LOGIC_LABELS_IMPL : COHERENCE_LOGIC_LABELS_COMPAT;
+    return {
+      correctIndex:idx,
+      choiceLabels:labels,
+      question:`Claim A: “${A.claim.text(p1,p2)}”. Claim B: “${B.claim.text(p1,p2)}”. What logical relation holds between A and B?`,
+      coherenceTelemetry:{family:"coherence", mode, claimA:A.claim.id, claimB:B.claim.id, relation:rel}
+    };
+  }
+  return null;
+}
+function generateCoherenceMutuallyExclusiveSubset(p1,p2,opts={}){
+  const budget = Number(opts.budget || 280);
+  const mat = coherenceLogicMatrix(opts.m || currentMax());
+  const ev = _coh_evaluateAll(p1,p2);
+  const available = Object.values(ev.byId || {}).map(x=>mat.byId[x.claim.id]).filter(Boolean);
+  if(available.length < 4) return null;
+  for(let attempt=0; attempt<budget; attempt++){
+    const sample = _coh_shuffle(available.slice()).filter((r,idx,arr)=>arr.findIndex(x=>x.claim.group===r.claim.group)===idx).slice(0,4);
+    if(sample.length !== 4) continue;
+    const exclusivePairs = [];
+    for(let i=0;i<4;i++) for(let j=i+1;j<4;j++){
+      const rel = coherencePairLogic(sample[i], sample[j]);
+      if(rel && rel.incompatible) exclusivePairs.push([i,j]);
+    }
+    if(exclusivePairs.length !== 1) continue;
+    const [i,j] = exclusivePairs[0];
+    return {
+      correctIndices:[i,j], requiredSelections:2,
+      choiceLabels:sample.map((r,k)=>`Claim ${k+1}: ${r.claim.text(p1,p2)}`),
+      question:"Select the two claims that cannot both be true.",
+      coherenceTelemetry:{family:"coherence", mode:"mutual_exclusion_subset", claimIds:sample.map(r=>r.claim.id), correctPair:[sample[i].claim.id,sample[j].claim.id]}
+    };
+  }
+  return null;
+}
+function coherenceConjunctionImplies(target, others){
+  if(!target || !others?.length) return false;
+  for(let i=0;i<target.bits.length;i++){
+    const allOthers = others.every(r=>r.bits[i] === "1");
+    if(allOthers && target.bits[i] !== "1") return false;
+  }
+  return true;
+}
+function generateCoherenceRedundantClaim(p1,p2,opts={}){
+  const budget = Number(opts.budget || 360);
+  const mat = coherenceLogicMatrix(opts.m || currentMax());
+  const ev = _coh_evaluateAll(p1,p2);
+  const available = Object.values(ev.byId || {}).map(x=>mat.byId[x.claim.id]).filter(Boolean);
+  if(available.length < 4) return null;
+  for(let attempt=0; attempt<budget; attempt++){
+    const sample = _coh_shuffle(available.slice()).filter((r,idx,arr)=>arr.findIndex(x=>x.claim.group===r.claim.group)===idx).slice(0,4);
+    if(sample.length !== 4) continue;
+    const redundant = [];
+    for(let i=0;i<4;i++){
+      const others = sample.filter((_,j)=>j!==i);
+      if(coherenceConjunctionImplies(sample[i], others)) redundant.push(i);
+    }
+    if(redundant.length !== 1) continue;
+    const ci = redundant[0];
+    return {
+      correctIndex:ci,
+      choiceLabels:sample.map((r,k)=>`Claim ${k+1}: ${r.claim.text(p1,p2)}`),
+      question:"Which claim is redundant because it follows from the other three?",
+      coherenceTelemetry:{family:"coherence", mode:"redundant_claim", claimIds:sample.map(r=>r.claim.id), redundant:sample[ci].claim.id}
+    };
+  }
+  return null;
+}
+
 
 // ============================================================================
 // COUNTERFACTUAL SOLVER — simulate-and-extract L1 entries
@@ -37119,21 +37290,21 @@ const L1_OPS = [
 
   { id:"second_largest", symmetric:true, family:"global_order", minLevel:3,
     variants:[
-      { q:"Sort the four values. What is the second largest?" },
-      { q:"What was the second biggest value?" },
-      { q:"After the largest value, which value comes next?" },
-      { q:"Which value sits just below the largest one?", linguisticFrame:"comparative_scope" },
-      { q:"Excluding the largest, which is the largest of the remaining three?", linguisticFrame:"restrictive_quantifier" },
+      { q:"Sort the four slots, counting repeats. What is the value in the 3rd slot?" },
+      { q:"Counting duplicate values as separate slots, which value is second-largest?" },
+      { q:"In sorted order with repeats kept, which value sits just before the largest slot?" },
+      { q:"Counting duplicates as separate positions, what is the second-largest value?", linguisticFrame:"comparative_scope" },
+      { q:"Sort all four retained slots, keeping equal values; report the 3rd value.", linguisticFrame:"restrictive_quantifier" },
     ],
     fn:(p1,p2)=> l1Sorted(p1,p2)[2] },
 
   { id:"second_smallest", symmetric:true, family:"global_order", minLevel:3,
     variants:[
-      { q:"Sort the four values. What is the second smallest?" },
-      { q:"What was the second lowest value?" },
-      { q:"After the smallest value, which value comes next?" },
-      { q:"Which value sits just above the smallest one?", linguisticFrame:"comparative_scope" },
-      { q:"Excluding the smallest, which is the smallest of the remaining three?", linguisticFrame:"restrictive_quantifier" },
+      { q:"Sort the four slots, counting repeats. What is the value in the 2nd slot?" },
+      { q:"Counting duplicate values as separate slots, which value is second-smallest?" },
+      { q:"In sorted order with repeats kept, which value comes immediately after the first slot?" },
+      { q:"Counting duplicates as separate positions, what is the second-smallest value?", linguisticFrame:"comparative_scope" },
+      { q:"Sort all four retained slots, keeping equal values; report the 2nd value.", linguisticFrame:"restrictive_quantifier" },
     ],
     fn:(p1,p2)=> l1Sorted(p1,p2)[1] },
 
@@ -39412,6 +39583,7 @@ L1_OPS.push(...L1_CHOICE_OPS);
 // setupL1's existing retry-on-null path handles audit failures naturally.
 
 const L1_WITNESS_OPS = [
+
   { id:"witness_qualifier", symmetric:true, family:"witness",
     minLevel:5, minM:6,
     responseFormat:"numpad_dynamic",
@@ -43129,7 +43301,7 @@ function twoPropertyL0Cats(){
 POSNER_CATS.push(...twoPropertyL0Cats());
 
 
-// v6.5.47epistemic-expanded: small but real declarative L0 compiler.
+// v6.5.48l1-expanded: small but real declarative L0 compiler.
 // These specs demonstrate the atomic path that future content should use:
 // predicate atomics + quantifier atomics + optional scope atomics become one
 // playable family without writing a bespoke verifier for every combination.
@@ -47102,7 +47274,7 @@ function annotateTrialWithRegistryRuntime(layer, payload, entry){
     payload.registryRuntimeVersion = REGISTRY_RUNTIME_VERSION;
     payload.labelDictionaryVersion = LABEL_DICTIONARY_VERSION;
     if(!payload.atomicsUsed && Array.isArray(spec.atomicsUsed)) payload.atomicsUsed = spec.atomicsUsed.slice();
-    // v6.5.47epistemic-expanded: legacy and declarative trials expose the same
+    // v6.5.48l1-expanded: legacy and declarative trials expose the same
     // canonical cognitive signature on the live trialInfo object, not only in
     // deferred atomic telemetry. This prevents current-trial coverage from
     // being limited to the few declarative specs.
@@ -51667,7 +51839,7 @@ function recordL1RetainedPairMultiProbeOutcome(correct){
 
 
 // ============================================================================
-// v6.5.47epistemic-expanded — off-path L0 preparation and granular build timing
+// v6.5.48l1-expanded — off-path L0 preparation and granular build timing
 // ============================================================================
 function ensurePreparedTrialMonitor(){
   if(!State.productionMonitor) State.productionMonitor = {};
@@ -53195,6 +53367,26 @@ function recordMetaClassificationOutcome(info, correct, rt){
     const key = `${info.substantiveCorrect ? "substantive_correct" : "substantive_wrong"}__${correct ? "class_correct" : "class_wrong"}`;
     root.crosstab[key] = (root.crosstab[key] || 0) + 1;
   }
+  try{
+    const original = info.originalTrialInfo || {};
+    const hist = State.meta && Array.isArray(State.meta.pairHistory) ? State.meta.pairHistory : [];
+    for(let i=hist.length-1; i>=0; i--){
+      const row = hist[i];
+      if(!row) continue;
+      const sameCat = !original.catId || row.catId === original.catId;
+      const sameQuestion = !original.question || row.question === original.question;
+      const sameValues = (!Number.isFinite(original.a) || row.a === original.a) && (!Number.isFinite(original.b) || row.b === original.b);
+      if(sameCat && sameQuestion && sameValues){
+        row.metaClassExpected = info.expectedClass || null;
+        row.metaClassLabel = info.expectedLabel || (typeof metaClassificationLabel === "function" ? metaClassificationLabel(info.expectedClass) : null);
+        row.metaClassCorrect = !!correct;
+        row.metaClassRt = Number.isFinite(rt) ? rt : null;
+        row.metaClassSelectedIndex = Number.isInteger(info.selectedIndex) ? info.selectedIndex : null;
+        row.metaClassSelectedLabel = info.selectedOption?.text || null;
+        break;
+      }
+    }
+  }catch(_){ }
 }
 function formatMetaClassificationDiagSummary(stats, title="Metacognitive L0 classification:"){
   const root = ensureMetaClassificationStatsShape(stats).classification;
@@ -64924,6 +65116,549 @@ function loop(ts){
   }
   requestAnimationFrame(loop);
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v6.5.48 — L1 witness/coherence/counterfactual/analogy expansion
+// Adds named witness wrappers, logical coherence relations, richer
+// counterfactual transforms/extractions, abductive counterfactual choice items,
+// retained-pair analogy dimensions, and L1 comparison of the two retained L0
+// question structures. Kept late-gated and source-safe.
+// ─────────────────────────────────────────────────────────────────────────────
+(function installV6548L1Expansion(){
+  const safeUniq = (typeof uniq === "function") ? uniq : (xs)=>Array.from(new Set((xs||[]).filter(x=>x!=null)));
+  const pushUnique = (arr, item) => { if(Array.isArray(arr) && !arr.includes(item)) arr.push(item); };
+  const hasOp = id => Array.isArray(L1_OPS) && L1_OPS.some(o => o && o.id === id);
+  const shuffleLocal = arr => {
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  };
+  const registerExpansionAtomic = (id, kind, label) => {
+    try{
+      if(typeof registerAtomic === "function" && typeof ATOMIC_REGISTRY !== "undefined" && !ATOMIC_REGISTRY[id]){
+        registerAtomic({id, kind, label, evaluate:()=>true, phrase:()=>label});
+      }
+    }catch(_){ }
+  };
+  [
+    ["witness_boundary", "witness", "Witness boundary value"],
+    ["witness_negative_predicate", "witness", "Witness negative set predicate"],
+    ["witness_multiple_of_6", "witness", "Witness multiple of 6"],
+    ["coherence_compatibility", "coherence", "Logical compatibility between claims"],
+    ["coherence_implication", "coherence", "Logical implication between claims"],
+    ["coherence_mutual_exclusion", "coherence", "Mutual exclusion between claims"],
+    ["coherence_redundancy", "coherence", "Redundant claim identification"],
+    ["counterfactual_abductive_minimum", "counterfactual", "Minimum sufficient counterfactual change"],
+    ["counterfactual_abductive_sufficient", "counterfactual", "Sufficient counterfactual change"],
+    ["retained_factor_relation", "relation", "Retained-pair factor relation"],
+    ["retained_prime_pattern", "relation", "Retained-pair prime pattern"],
+    ["retained_anchor_distance", "relation", "Retained-pair anchor-distance relation"],
+    ["retained_modular_class", "relation", "Retained-pair modular-class relation"],
+    ["retained_role_swap", "relation", "Retained-pair role-swap relation"],
+    ["l1_l0_question_comparison", "metacognitive", "Comparison of retained L0 question structures"],
+    ["l1_compare_l0_scope", "metacognitive", "Compare L0 question scope"],
+    ["l1_compare_l0_predicate_family", "metacognitive", "Compare L0 predicate family"],
+    ["l1_compare_l0_quantifier_scope", "metacognitive", "Compare L0 quantifier scope"]
+  ].forEach(row => registerExpansionAtomic(row[0], row[1], row[2]));
+
+  // ── Witness internal catalogue extension ───────────────────────────────
+  if(typeof WITNESS_PREDICATES !== "undefined"){
+    if(!WITNESS_PREDICATES.not_in_set){
+      WITNESS_PREDICATES.not_in_set = {
+        binary:false,
+        label:"not prime",
+        failureLabel:"not prime",
+        test:n => Number.isInteger(n) && n >= 0 && !witnessIsPrime(n)
+      };
+    }
+    if(!WITNESS_PREDICATES.multiple_of_6){
+      WITNESS_PREDICATES.multiple_of_6 = {
+        binary:false,
+        label:"multiple of 6",
+        failureLabel:"a multiple of 6",
+        test:n => Number.isInteger(n) && n !== 0 && n % 6 === 0
+      };
+    }
+    if(!WITNESS_PREDICATES.equal_to_anchor){
+      WITNESS_PREDICATES.equal_to_anchor = {
+        binary:true,
+        nounLabel:    a => `value equal to ${a.label}`,
+        modifierLabel:a => `equal to ${a.label}`,
+        failureLabel: a => `equal to ${a.label}`,
+        test:(n,a) => Number.isInteger(n) && Number.isInteger(a?.value) && n === a.value
+      };
+    }
+  }
+  if(typeof WITNESS_PREDS_UNARY !== "undefined"){
+    ["not_in_set","multiple_of_6"].forEach(x => pushUnique(WITNESS_PREDS_UNARY, x));
+  }
+  if(typeof WITNESS_PREDS_BINARY !== "undefined") pushUnique(WITNESS_PREDS_BINARY, "equal_to_anchor");
+
+  if(typeof WITNESS_QUALIFIERS !== "undefined"){
+    if(!WITNESS_QUALIFIERS.lower_boundary){
+      WITNESS_QUALIFIERS.lower_boundary = {
+        needsAnchors:2,
+        range:a => [Math.min(a[0].value, a[1].value), Math.max(a[0].value, a[1].value)],
+        pick:c => {
+          if(!c.length) return null;
+          const s = c.slice().sort((x,y)=>x-y);
+          const lo = s[0];
+          return s.includes(lo + 1) && !s.includes(lo - 1) ? lo : null;
+        },
+        requireUnique:false,
+        leadWord:"The lower-boundary",
+        rangeClause:a => `from ${a[0].label} through ${a[1].label}`
+      };
+    }
+    if(!WITNESS_QUALIFIERS.upper_boundary){
+      WITNESS_QUALIFIERS.upper_boundary = {
+        needsAnchors:2,
+        range:a => [Math.min(a[0].value, a[1].value), Math.max(a[0].value, a[1].value)],
+        pick:c => {
+          if(!c.length) return null;
+          const s = c.slice().sort((x,y)=>x-y);
+          const hi = s[s.length-1];
+          return s.includes(hi - 1) && !s.includes(hi + 1) ? hi : null;
+        },
+        requireUnique:false,
+        leadWord:"The upper-boundary",
+        rangeClause:a => `from ${a[0].label} through ${a[1].label}`
+      };
+    }
+  }
+
+  const WITNESS_NAMED_PROFILES = [
+    {id:"witness_largest_in_set", qualifierIds:["largest_le"], predIds:["prime","square","multiple_of_3","multiple_of_4","multiple_of_5","multiple_of_6"], anchorIds:["max_all","p1_sum","p2_sum","p1_max","p2_max"], minLevel:5, minM:6, tags:["class_inclusion","set_vs_magnitude","ordered_search"]},
+    {id:"witness_smallest_in_set", qualifierIds:["smallest_ge"], predIds:["prime","square","multiple_of_3","multiple_of_4","multiple_of_5","multiple_of_6"], anchorIds:["min_all","gap_min","p1_min","p2_min","mid_all"], minLevel:5, minM:6, tags:["class_inclusion","set_vs_magnitude","ordered_search"]},
+    {id:"witness_closest_to_anchor", qualifierIds:["closest_to"], predIds:["even","odd","prime","square"], anchorIds:["mid_all","p1_sum","p2_sum","gap_max","max_all"], minLevel:5, minM:6, tags:["metric_relation","class_inclusion","anchor_distance"]},
+    {id:"witness_unique_in_interval", qualifierIds:["unique_in_open","unique_in_closed"], predIds:["prime","square","multiple_of_3","multiple_of_4","multiple_of_6","not_in_set"], anchorPairs:[["min_all","max_all"],["p1_min","p2_max"],["p1_max","p2_max"],["p1_sum","p2_sum"],["gap_min","sum_all"]], minLevel:6, minM:8, tags:["class_inclusion","conditionality_relation","interval_relation"]},
+    {id:"witness_equidistant", qualifierIds:["equidistant_between"], predIds:["even","odd","not_in_set"], anchorPairs:[["min_all","max_all"],["p1_min","p2_max"],["p1_max","p2_max"],["p1_sum","p2_sum"]], minLevel:6, minM:8, tags:["metric_relation","anchor_distance","class_inclusion"]},
+    {id:"witness_relational_anchored", qualifierIds:["largest_le","smallest_ge","closest_to"], binaryPredIds:["divisor_of","coprime_with","same_parity_as","equal_to_anchor"], anchorIds:["max_all","min_all","p1_sum","p2_sum","mid_all"], predicateAnchorIds:["p1_min","p1_max","p2_min","p2_max","gap_max"], minLevel:6, minM:8, tags:["metric_relation","class_inclusion","relation_binding"]},
+    {id:"witness_negative_largest", qualifierIds:["largest_le"], predIds:["not_in_set"], anchorIds:["max_all","p1_sum","p2_sum","p1_max","p2_max"], minLevel:6, minM:8, tags:["class_inclusion","opposition","ordered_search"]},
+    {id:"witness_multiple6_smallest", qualifierIds:["smallest_ge"], predIds:["multiple_of_6"], anchorIds:["min_all","gap_min","p1_min","p2_min"], minLevel:6, minM:8, tags:["class_inclusion","composite_property","ordered_search"]},
+    {id:"witness_lower_boundary", qualifierIds:["lower_boundary"], predIds:["not_in_set"], anchorPairs:[["min_all","max_all"],["p1_min","p2_max"],["p1_sum","p2_sum"],["gap_min","sum_all"]], minLevel:7, minM:8, tags:["class_inclusion","boundary_value","conditionality_relation"]},
+    {id:"witness_upper_boundary", qualifierIds:["upper_boundary"], predIds:["not_in_set"], anchorPairs:[["min_all","max_all"],["p1_min","p2_max"],["p1_sum","p2_sum"],["gap_min","sum_all"]], minLevel:7, minM:8, tags:["class_inclusion","boundary_value","conditionality_relation"]}
+  ];
+
+  function witnessProfilePick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+  function generateWitnessNamedProfile(p1, p2, profile, opts={}){
+    if(typeof witnessTryGenerate !== "function") return null;
+    const budget = opts.budget || 60;
+    for(let i=0;i<budget;i++){
+      const qid = witnessProfilePick(profile.qualifierIds || ["largest_le"]);
+      const qual = WITNESS_QUALIFIERS[qid];
+      if(!qual) continue;
+      let anchorIds;
+      if(qual.needsAnchors === 2){
+        const pairs = profile.anchorPairs || WITNESS_INT_ANCHOR_PAIRS || [["min_all","max_all"]];
+        anchorIds = witnessProfilePick(pairs).slice();
+      } else {
+        const pool = profile.anchorIds || WITNESS_QUAL_ANCHORS || ["max_all"];
+        anchorIds = [witnessProfilePick(pool)];
+      }
+      let predicates;
+      if(Array.isArray(profile.binaryPredIds) && profile.binaryPredIds.length){
+        predicates = [{id:witnessProfilePick(profile.binaryPredIds), anchorId:witnessProfilePick(profile.predicateAnchorIds || WITNESS_BIN_PRED_ANCHORS || ["p1_min"])}];
+      } else {
+        predicates = [{id:witnessProfilePick(profile.predIds || WITNESS_PREDS_UNARY || ["even"])}];
+      }
+      const inst = witnessTryGenerate(p1, p2, {qualifierId:qid, anchorIds, predicates, allowAnchorAnswer:profile.id.includes("boundary") || predicates.some(pr => pr.id === "equal_to_anchor")});
+      if(inst) return inst;
+    }
+    return null;
+  }
+
+  if(typeof L1_OPS !== "undefined"){
+    for(const profile of WITNESS_NAMED_PROFILES){
+      if(hasOp(profile.id)) continue;
+      const op = {
+        id:profile.id,
+        symmetric:true,
+        family:"witness",
+        minLevel:profile.minLevel || 6,
+        minM:profile.minM || 6,
+        responseFormat:"numpad_dynamic",
+        atomicsUsed: safeUniq(["witness_qualifier"].concat(profile.id.includes("boundary") ? ["witness_boundary"] : [], profile.predIds?.includes("not_in_set") ? ["witness_negative_predicate"] : [], profile.predIds?.includes("multiple_of_6") ? ["witness_multiple_of_6"] : [])),
+        frameTags:safeUniq(["set_vs_magnitude","integration_load"].concat(profile.tags || [])),
+        fn:(p1,p2,m)=>{
+          const inst = generateWitnessNamedProfile(p1,p2,profile);
+          if(!inst) return null;
+          return {
+            answer:inst.answer,
+            question:inst.prompt,
+            nearMiss:inst.nearMiss,
+            witnessTelemetry:{family:"witness", opId:profile.id, qualifier:inst.qualifier, predicates:inst.predicates.map(p=>p.id), anchorIds:inst.anchorIds}
+          };
+        }
+      };
+      L1_OPS.push(op);
+      try{ if(Array.isArray(L1_WITNESS_OPS)) L1_WITNESS_OPS.push(op); }catch(_){ }
+    }
+  }
+
+  // ── Logical coherence relation generators ─────────────────────────────
+  const cohRelationCache = new Map();
+  function cohClaimText(c,p1,p2){ try{return c.text(p1,p2);}catch(_){return c.id;} }
+  function cohEvalClaim(c,p1,p2){ try{ const v=c.eval(p1,p2); return v===null || v===undefined ? null : !!v; }catch(_){ return null; } }
+  function cohTruthFlags(a,b,m){
+    const key = `${a.id}|${b.id}|${m}`;
+    if(cohRelationCache.has(key)) return cohRelationCache.get(key);
+    const flags = {tt:false, tf:false, ft:false, ff:false, n:0, aT:0, aF:0, bT:0, bF:0};
+    const cap = Math.max(2, Math.min(8, Number(m)||12));
+    for(let a1=1;a1<=cap;a1++) for(let b1=1;b1<=cap;b1++) for(let a2=1;a2<=cap;a2++) for(let b2=1;b2<=cap;b2++){
+      const p1={a:a1,b:b1}, p2={a:a2,b:b2};
+      const av=cohEvalClaim(a,p1,p2), bv=cohEvalClaim(b,p1,p2);
+      if(av===null || bv===null) continue;
+      flags.n++;
+      if(av) flags.aT++; else flags.aF++;
+      if(bv) flags.bT++; else flags.bF++;
+      if(av&&bv) flags.tt=true; else if(av&&!bv) flags.tf=true; else if(!av&&bv) flags.ft=true; else flags.ff=true;
+    }
+    cohRelationCache.set(key, flags);
+    return flags;
+  }
+  function cohRelationKind(a,b,m){
+    const f = cohTruthFlags(a,b,m);
+    if(!f.n || !f.aT || !f.aF || !f.bT || !f.bF) return "unknown";
+    const eq = !f.tf && !f.ft;
+    if(eq) return "equivalent";
+    if(!f.tt) return "incompatible";
+    if(!f.tf || !f.ft) return "one_implies_other";
+    return "compatible";
+  }
+  function cohImplicationKind(a,b,m){
+    const f = cohTruthFlags(a,b,m);
+    if(!f.n || !f.aT || !f.aF || !f.bT || !f.bF) return "unknown";
+    if(!f.tf && !f.ft) return "equivalent";
+    if(!f.tf) return "a_implies_b";
+    if(!f.ft) return "b_implies_a";
+    return "none";
+  }
+  function cohConjunctionImplies(target, others, m){
+    const cap = Math.max(2, Math.min(8, Number(m)||12));
+    let support = 0;
+    for(let a1=1;a1<=cap;a1++) for(let b1=1;b1<=cap;b1++) for(let a2=1;a2<=cap;a2++) for(let b2=1;b2<=cap;b2++){
+      const p1={a:a1,b:b1}, p2={a:a2,b:b2};
+      let all = true;
+      for(const c of others){ const v=cohEvalClaim(c,p1,p2); if(v!==true){ all=false; break; } }
+      if(!all) continue;
+      const tv = cohEvalClaim(target,p1,p2);
+      if(tv === null) continue;
+      support++;
+      if(tv === false) return false;
+    }
+    return support > 0;
+  }
+  function cohRandomClaims(n){
+    if(typeof COHERENCE_CLAIMS === "undefined") return [];
+    return shuffleLocal(COHERENCE_CLAIMS).slice(0,n);
+  }
+  function generateCoherenceCompatibility(p1,p2,m){
+    const labels = ["They can both be true", "They cannot both be true", "One claim implies the other", "They are equivalent"];
+    const map = {compatible:0, incompatible:1, one_implies_other:2, equivalent:3};
+    for(let t=0;t<140;t++){
+      const [a,b] = cohRandomClaims(2);
+      if(!a||!b||a.id===b.id) continue;
+      const kind = cohRelationKind(a,b,m);
+      if(!(kind in map)) continue;
+      return {correctIndex:map[kind], choiceLabels:labels, question:`Claim A: ${cohClaimText(a,p1,p2)}\nClaim B: ${cohClaimText(b,p1,p2)}\nWhat logical relation holds between A and B?`, coherenceTelemetry:{family:"coherence", mode:"compatibility", claimIds:[a.id,b.id], relation:kind}};
+    }
+    return null;
+  }
+  function generateCoherenceImplication(p1,p2,m){
+    const labels = ["A implies B", "B implies A", "A and B are equivalent", "No implication"];
+    const map = {a_implies_b:0, b_implies_a:1, equivalent:2, none:3};
+    for(let t=0;t<160;t++){
+      const [a,b] = cohRandomClaims(2);
+      if(!a||!b||a.id===b.id) continue;
+      const kind = cohImplicationKind(a,b,m);
+      if(!(kind in map)) continue;
+      return {correctIndex:map[kind], choiceLabels:labels, question:`Claim A: ${cohClaimText(a,p1,p2)}\nClaim B: ${cohClaimText(b,p1,p2)}\nWhich implication relation is valid?`, coherenceTelemetry:{family:"coherence", mode:"implication", claimIds:[a.id,b.id], relation:kind}};
+    }
+    return null;
+  }
+  function generateCoherenceMutualExclusion(p1,p2,m){
+    for(let t=0;t<220;t++){
+      const claims = cohRandomClaims(4);
+      if(claims.length < 4 || new Set(claims.map(c=>c.id)).size < 4) continue;
+      const pairs=[];
+      for(let i=0;i<4;i++) for(let j=i+1;j<4;j++) if(!cohTruthFlags(claims[i], claims[j], m).tt) pairs.push([i,j]);
+      if(pairs.length !== 1) continue;
+      return {correctIndices:pairs[0], requiredSelections:2, choiceLabels:claims.map(c=>cohClaimText(c,p1,p2)), question:"Select the two statements that cannot both be true.", coherenceTelemetry:{family:"coherence", mode:"mutual_exclusion", claimIds:claims.map(c=>c.id), pair:pairs[0]}};
+    }
+    return null;
+  }
+  function generateCoherenceRedundantClaim(p1,p2,m){
+    for(let t=0;t<260;t++){
+      const [a,b] = cohRandomClaims(2);
+      if(!a||!b||a.id===b.id) continue;
+      const rel = cohImplicationKind(a,b,m);
+      if(rel !== "a_implies_b") continue; // B is redundant if A is retained.
+      const fillers = cohRandomClaims(12).filter(c=>c.id!==a.id && c.id!==b.id).slice(0,2);
+      if(fillers.length < 2) continue;
+      const claims = shuffleLocal([a,b,...fillers]);
+      const redundant = claims.findIndex(c=>c.id===b.id);
+      const redundants=[];
+      for(let i=0;i<claims.length;i++){
+        const others = claims.filter((_,j)=>j!==i);
+        if(cohConjunctionImplies(claims[i], others, m)) redundants.push(i);
+      }
+      if(redundants.length !== 1 || redundants[0] !== redundant) continue;
+      return {correctIndex:redundant, choiceLabels:claims.map(c=>cohClaimText(c,p1,p2)), question:"Which statement is logically redundant, because the other three already imply it?", coherenceTelemetry:{family:"coherence", mode:"redundancy", claimIds:claims.map(c=>c.id), redundantId:b.id}};
+    }
+    return null;
+  }
+  const cohOps = [
+    {id:"coherence_compatibility", atomicsUsed:["coherence_compatibility"], fn:generateCoherenceCompatibility, tags:["coordination","logical_relation"]},
+    {id:"coherence_implication", atomicsUsed:["coherence_implication"], fn:generateCoherenceImplication, tags:["conditionality_relation","logical_relation"]},
+    {id:"coherence_mutually_exclusive_subset", atomicsUsed:["coherence_mutual_exclusion"], fn:generateCoherenceMutualExclusion, tags:["opposition","logical_relation"]},
+    {id:"coherence_redundant_claim", atomicsUsed:["coherence_redundancy"], fn:generateCoherenceRedundantClaim, tags:["abductive_relation","logical_relation"]}
+  ];
+  if(typeof L1_OPS !== "undefined"){
+    for(const row of cohOps){
+      if(hasOp(row.id)) continue;
+      L1_OPS.push({id:row.id, symmetric:true, family:"coherence", minLevel:6, minM:6, responseFormat:"choice", choiceLabels:["","","",""], atomicsUsed:row.atomicsUsed, frameTags:safeUniq(["set_vs_magnitude","class_inclusion","integration_load"].concat(row.tags)), fn:(p1,p2,m)=>row.fn(p1,p2,m)});
+    }
+  }
+
+  // ── Counterfactual transform and extraction extension ─────────────────
+  function cfSetSmaller(p, val){ return p.a <= p.b ? {a:val,b:p.b} : {a:p.a,b:val}; }
+  function cfSetLarger(p, val){ return p.a >= p.b ? {a:val,b:p.b} : {a:p.a,b:val}; }
+  function cfPairDelta(a,b){ return Math.abs(Number(a.a)-Number(b.a)) + Math.abs(Number(a.b)-Number(b.b)); }
+  function cfPairKey(p){ return `${Number(p.a)},${Number(p.b)}`; }
+  function cfStateKey(s){ return `${cfPairKey(s.p1)}|${cfPairKey(s.p2)}`; }
+  function cfValidPair(p){ return p && Number.isInteger(p.a) && Number.isInteger(p.b) && p.a >= 0 && p.b >= 0 && p.a <= 99 && p.b <= 99; }
+  function cfFlip(v){ return v % 2 === 0 ? v + 1 : v - 1; }
+  function cfClip(v, lo=3, hi=9){ return Math.max(lo, Math.min(hi, v)); }
+  function cfAddTransform(id, def){ if(typeof COUNTERFACTUAL_TRANSFORMS !== "undefined" && !COUNTERFACTUAL_TRANSFORMS[id]) COUNTERFACTUAL_TRANSFORMS[id] = Object.assign({id}, def); }
+  function cfAddUnaryTargetTransforms(prefix, fn, label, detail, applies){
+    cfAddTransform(`${prefix}_smaller`, {applies:p=>applies(_cf_pmin(p)), apply:p=>_applyToSmaller(p, fn), label:pl=>`${pl}'s smaller value ${label}`, detail:p=>`${_cf_pmin(p)}→${fn(_cf_pmin(p))}`});
+    cfAddTransform(`${prefix}_larger`,  {applies:p=>applies(_cf_pmax(p)), apply:p=>_applyToLarger(p, fn),  label:pl=>`${pl}'s larger value ${label}`,  detail:p=>`${_cf_pmax(p)}→${fn(_cf_pmax(p))}`});
+  }
+  if(typeof COUNTERFACTUAL_TRANSFORMS !== "undefined"){
+    cfAddUnaryTargetTransforms("flip_parity", cfFlip, "had its parity flipped by one step", null, v=>Number.isInteger(v) && v>0 && cfFlip(v)>=0 && cfFlip(v)<=20 && cfFlip(v)!==v);
+    [3,5].forEach(k=>cfAddUnaryTargetTransforms(`mod_${k}_reduce`, v=>v%k, `were reduced to its remainder mod ${k}`, null, v=>Number.isInteger(v) && v>=k && (v%k)!==v));
+    cfAddUnaryTargetTransforms("reflect_around_5", v=>10-v, "were reflected around 5", null, v=>Number.isInteger(v) && 10-v>=0 && 10-v<=20 && 10-v!==v);
+    cfAddUnaryTargetTransforms("reflect_around_10", v=>20-v, "were reflected around 10", null, v=>Number.isInteger(v) && 20-v>=0 && 20-v<=20 && 20-v!==v);
+    cfAddUnaryTargetTransforms("clip_to_range", v=>cfClip(v,3,9), "were clipped into the range 3–9", null, v=>Number.isInteger(v) && cfClip(v,3,9)!==v);
+    cfAddTransform("swap_across_pairs_smaller", {
+      needsOtherPair:true,
+      applies:(p,ctx)=>!!(ctx && ctx.otherPair) && _cf_pmin(p)!==_cf_pmin(ctx.otherPair),
+      apply:(p,ctx)=>cfSetSmaller(p, _cf_pmin(ctx.otherPair)),
+      applyState:(p1,p2)=>{
+        const m1=_cf_pmin(p1), m2=_cf_pmin(p2);
+        return {p1:cfSetSmaller(p1,m2), p2:cfSetSmaller(p2,m1)};
+      },
+      label:()=>`Pair 1 and Pair 2 swapped their smaller values`,
+      detail:(p,ctx)=>ctx && ctx.otherPair ? `${_cf_pmin(p)}↔${_cf_pmin(ctx.otherPair)}` : "smaller values swap"
+    });
+  }
+  if(typeof COUNTERFACTUAL_EXTRACTIONS !== "undefined"){
+    if(!COUNTERFACTUAL_EXTRACTIONS.new_pair_parity_match){
+      COUNTERFACTUAL_EXTRACTIONS.new_pair_parity_match = {
+        scope:"all_four",
+        extract:(p1,p2)=>(((p1.a%2+2)%2)===(p2.a%2+2)%2 && ((p1.b%2+2)%2)===(p2.b%2+2)%2) ? 1 : 0,
+        label:()=>`whether the two new pairs match side-by-side in parity (1=yes, 0=no)`
+      };
+    }
+    if(!COUNTERFACTUAL_EXTRACTIONS.new_smaller_minus_old_smaller){
+      COUNTERFACTUAL_EXTRACTIONS.new_smaller_minus_old_smaller = {
+        scope:"single_pair_delta",
+        extract:(newP, oldP)=>_cf_pmin(newP) - _cf_pmin(oldP),
+        label:(pairLabel)=>`${pairLabel}'s new smaller value minus its old smaller value`
+      };
+    }
+  }
+  function cfApplyTransformState(transform, targetIsP1, p1, p2){
+    const target = targetIsP1 ? p1 : p2;
+    const other = targetIsP1 ? p2 : p1;
+    const targetLabel = targetIsP1 ? "Pair 1" : "Pair 2";
+    const otherLabel = targetIsP1 ? "Pair 2" : "Pair 1";
+    const ctx = {otherPair:other, otherPairLabel:otherLabel};
+    if(!transform || typeof transform.applies !== "function" || !transform.applies(target, ctx)) return null;
+    if(typeof transform.applyState === "function"){
+      const st = transform.applyState(p1, p2, targetIsP1, ctx);
+      if(!st || !cfValidPair(st.p1) || !cfValidPair(st.p2)) return null;
+      return {p1:st.p1, p2:st.p2, transformedTarget:targetIsP1 ? st.p1 : st.p2, originalTarget:target, targetLabel, otherLabel, ctx};
+    }
+    const transformedTarget = transform.apply(target, ctx);
+    if(!cfValidPair(transformedTarget)) return null;
+    return {p1:targetIsP1 ? transformedTarget : p1, p2:targetIsP1 ? p2 : transformedTarget, transformedTarget, originalTarget:target, targetLabel, otherLabel, ctx};
+  }
+  try{
+    const originalCounterfactualSingle = generateCounterfactualSingle;
+    generateCounterfactualSingle = function generateCounterfactualSingleV6548(p1,p2,opts){
+      const budget = (opts && opts.budget) || 120;
+      for(let attempt=0; attempt<budget; attempt++){
+        const targetIsP1 = Math.random() < 0.5;
+        const transformId = _cf_pick(Object.keys(COUNTERFACTUAL_TRANSFORMS));
+        const transform = COUNTERFACTUAL_TRANSFORMS[transformId];
+        const st = cfApplyTransformState(transform, targetIsP1, p1, p2);
+        if(!st) continue;
+        const extractionId = _cf_pickKey(COUNTERFACTUAL_EXTRACTIONS);
+        const extraction = COUNTERFACTUAL_EXTRACTIONS[extractionId];
+        let answerAfter, answerBefore;
+        if(extraction.scope === "single_pair"){
+          answerAfter = extraction.extract(st.transformedTarget, st.originalTarget, st);
+          answerBefore = extraction.extract(st.originalTarget, st.originalTarget, st);
+        } else if(extraction.scope === "single_pair_delta"){
+          answerAfter = extraction.extract(st.transformedTarget, st.originalTarget, st);
+          answerBefore = 0;
+        } else {
+          answerAfter = extraction.extract(st.p1, st.p2, st);
+          answerBefore = extraction.extract(p1, p2, {originalP1:p1, originalP2:p2});
+        }
+        if(!Number.isInteger(answerAfter) || answerAfter < 0 || answerAfter > 99) continue;
+        if(answerAfter === answerBefore) continue;
+        const transformLabel = transform.label(st.targetLabel, st.ctx);
+        const extractionLabel = extraction.scope === "single_pair" || extraction.scope === "single_pair_delta" ? extraction.label(st.targetLabel) : extraction.label();
+        return {answer:answerAfter, prompt:`If ${transformLabel}, what would be ${extractionLabel}?`, transformedPair:st.transformedTarget, transformedSide:targetIsP1?"p1":"p2", telemetry:{family:"counterfactual", depth:1, transformId, extractionId, targetSide:targetIsP1?"p1":"p2", answerBefore, answerAfter}};
+      }
+      return typeof originalCounterfactualSingle === "function" ? originalCounterfactualSingle(p1,p2,opts) : null;
+    };
+  }catch(_){ }
+
+  function cfCandidateStatesForTarget(p1,p2,targetIsP1){
+    const out=[];
+    for(const id of Object.keys(COUNTERFACTUAL_TRANSFORMS || {})){
+      const tr = COUNTERFACTUAL_TRANSFORMS[id];
+      const st = cfApplyTransformState(tr, targetIsP1, p1, p2);
+      if(!st) continue;
+      const key = cfStateKey(st);
+      if(key === cfStateKey({p1,p2})) continue;
+      out.push({id, transform:tr, state:st, key, delta:cfPairDelta(st.p1,p1)+cfPairDelta(st.p2,p2)});
+    }
+    return out;
+  }
+  function cfTransformOptionLabel(row, targetLabel){
+    try{return row.transform.label(targetLabel, row.state.ctx).replace(/^If\s+/i, "");}catch(_){return row.id.replace(/_/g," ");}
+  }
+  function generateCounterfactualAbductive(p1,p2,mode){
+    for(let attempt=0; attempt<80; attempt++){
+      const targetIsP1 = Math.random() < 0.5;
+      const targetLabel = targetIsP1 ? "Pair 1" : "Pair 2";
+      const target = targetIsP1 ? p1 : p2;
+      const candidates = cfCandidateStatesForTarget(p1,p2,targetIsP1);
+      if(candidates.length < 4) continue;
+      if(mode === "minimum"){
+        const viable = candidates.filter(c => (_cf_psum(c.state.transformedTarget) % 2) !== (_cf_psum(target) % 2));
+        if(viable.length < 4) continue;
+        viable.sort((a,b)=>a.delta-b.delta);
+        if(viable[0].delta === viable[1].delta) continue;
+        const correct = viable[0];
+        const distractors = viable.slice(1).filter(c=>c.key!==correct.key).slice(0,3);
+        if(distractors.length < 3) continue;
+        const opts = shuffleLocal([correct,...distractors]);
+        return {correctIndex:opts.findIndex(o=>o.id===correct.id), choiceLabels:opts.map(o=>cfTransformOptionLabel(o,targetLabel)), distractorTypes:opts.map(o=>o.id===correct.id?"correct":(Math.abs(o.delta-correct.delta)<=1?"near_numeric":"direction_lure")), question:`Which change would flip ${targetLabel}'s total parity with the smallest numerical change?`, counterfactualTelemetry:{family:"counterfactual", mode:"abductive_minimum", targetSide:targetIsP1?"p1":"p2", correctTransform:correct.id}};
+      }
+      const goal = Math.random()<0.5 ? "gap_even" : "total_above_old";
+      const good = candidates.filter(c => goal==="gap_even" ? (_cf_pgap(c.state.transformedTarget)%2===0) : (_cf_psum(c.state.transformedTarget)>_cf_psum(target)));
+      const bad = candidates.filter(c => !(goal==="gap_even" ? (_cf_pgap(c.state.transformedTarget)%2===0) : (_cf_psum(c.state.transformedTarget)>_cf_psum(target))));
+      if(!good.length || bad.length<3) continue;
+      const correct = _cf_pick(good), distractors = shuffleLocal(bad).slice(0,3);
+      const opts = shuffleLocal([correct,...distractors]);
+      const targetText = goal==="gap_even" ? `${targetLabel}'s new gap would be even` : `${targetLabel}'s new total would be greater than before`;
+      return {correctIndex:opts.findIndex(o=>o.id===correct.id), choiceLabels:opts.map(o=>cfTransformOptionLabel(o,targetLabel)), distractorTypes:opts.map(o=>o.id===correct.id?"correct":(Math.abs(o.delta-correct.delta)<=1?"near_numeric":(goal==="total_above_old" && _cf_psum(o.state.transformedTarget)<=_cf_psum(target)?"direction_lure":"format_lure"))), question:`Which change is sufficient so that ${targetText}?`, counterfactualTelemetry:{family:"counterfactual", mode:"abductive_sufficient", targetSide:targetIsP1?"p1":"p2", goal, correctTransform:correct.id}};
+    }
+    return null;
+  }
+  if(typeof L1_OPS !== "undefined"){
+    [
+      {id:"counterfactual_identify_minimum_change", mode:"minimum", atomic:"counterfactual_abductive_minimum"},
+      {id:"counterfactual_identify_sufficient_change", mode:"sufficient", atomic:"counterfactual_abductive_sufficient"}
+    ].forEach(row=>{
+      if(hasOp(row.id)) return;
+      L1_OPS.push({id:row.id, symmetric:true, family:"counterfactual", minLevel:7, minM:7, responseFormat:"choice", choiceLabels:["","","",""], atomicsUsed:[row.atomic], frameTags:["transformation_relation","hypothetical","abductive_relation","integration_load"], fn:(p1,p2,m)=>generateCounterfactualAbductive(p1,p2,row.mode)});
+    });
+  }
+
+  // ── Retained-pair relation analogy dimensions ─────────────────────────
+  const isPrimeLocal = n => typeof witnessIsPrime === "function" ? witnessIsPrime(n) : (Number.isInteger(n) && n>1 && Array.from({length:Math.floor(Math.sqrt(n))-1},(_,i)=>i+2).every(d=>n%d));
+  const gcdLocal = (a,b)=>{ a=Math.abs(a|0); b=Math.abs(b|0); while(b){ const t=a%b; a=b; b=t;} return a; };
+  const choiceResult = (idx, labels, q, telemetry, dtypes) => ({correctIndex:idx, choiceLabels:labels, question:q, relationAnalogyTelemetry:telemetry, distractorTypes:dtypes || labels.map((_,i)=>i===idx?"correct":"semantic_near_miss")});
+  const relationAnalogyOps = [
+    {id:"retained_factor_relation_match", atomic:"retained_factor_relation", fn:(p1,p2)=>{
+      const div = p => (p.a!==0 && p.b%p.a===0) || (p.b!==0 && p.a%p.b===0);
+      const share = p => gcdLocal(p.a,p.b)>1;
+      const p1v=div(p1)||share(p1), p2v=div(p2)||share(p2);
+      const idx=p1v&&p2v?0:p1v?1:p2v?2:3;
+      return choiceResult(idx,["Both pairs show a factor/divisibility relation","Only Pair 1 shows a factor/divisibility relation","Only Pair 2 shows a factor/divisibility relation","Neither pair shows a factor/divisibility relation"],"Which option describes the factor relation inside the two retained pairs?",{dimension:"factor"});}},
+    {id:"retained_prime_pattern_match", atomic:"retained_prime_pattern", fn:(p1,p2)=>{
+      const has=p=>isPrimeLocal(p.a)||isPrimeLocal(p.b); const p1v=has(p1), p2v=has(p2); const idx=p1v&&p2v?0:p1v?1:p2v?2:3;
+      return choiceResult(idx,["Both pairs contain at least one prime","Only Pair 1 contains a prime","Only Pair 2 contains a prime","Neither pair contains a prime"],"Which option describes the prime pattern across the two retained pairs?",{dimension:"prime_pattern"});}},
+    {id:"retained_anchor_distance_match", atomic:"retained_anchor_distance", fn:(p1,p2)=>{
+      const d=p=>Math.min(Math.abs(p.a-5),Math.abs(p.b-5)); const d1=d(p1), d2=d(p2); const straddle=p=>(p.a-5)*(p.b-5)<0; const idx=(straddle(p1)&&straddle(p2))?3:(d1<d2?0:d2<d1?1:2);
+      return choiceResult(idx,["Pair 1 is closer to 5","Pair 2 is closer to 5","Both pairs are equally close to 5","Both pairs straddle 5"],"Which option describes distance to the anchor 5?",{dimension:"anchor_distance"});}},
+    {id:"retained_modular_class_match", atomic:"retained_modular_class", fn:(p1,p2)=>{
+      const same=p=>((p.a-p.b)%3+3)%3===0; const p1v=same(p1), p2v=same(p2); const idx=p1v&&p2v?0:p1v?1:p2v?2:3;
+      return choiceResult(idx,["Both pairs have the same remainder mod 3 internally","Only Pair 1 has matching remainders mod 3","Only Pair 2 has matching remainders mod 3","Neither pair has matching remainders mod 3"],"Which option describes the internal mod-3 relation?",{dimension:"modular_class"});}},
+    {id:"retained_role_swap_relation_match", atomic:"retained_role_swap", fn:(p1,p2)=>{
+      const s=p=>p.a===p.b?0:(p.a<p.b?1:-1); const s1=s(p1), s2=s(p2); const idx=(s1===0&&s2===0)?3:(s1===0||s2===0)?2:(s1===s2?0:1);
+      return choiceResult(idx,["The two pairs have the same strict order","The two pairs have reversed strict order","At least one pair is tied","Both pairs are tied"],"How does the left-right order of Pair 1 relate to Pair 2?",{dimension:"role_swap"});}}
+  ];
+  if(typeof L1_OPS !== "undefined"){
+    for(const row of relationAnalogyOps){
+      if(hasOp(row.id)) continue;
+      L1_OPS.push({id:row.id, symmetric:true, family:"relation_analogy_choice", minLevel:5, minM:6, responseFormat:"choice", choiceLabels:["","","",""], atomicsUsed:[row.atomic], frameTags:["source_readout","retained_pair_readout","analogical_relation","comparison"], fn:(p1,p2,m)=>row.fn(p1,p2,m)});
+    }
+  }
+
+  // ── L1 comparison of the two retained L0 question structures ──────────
+  function l0CompareHarnessReady(){ try{return typeof requireHarnessPass !== "function" || requireHarnessPass("meta_classification");}catch(_){return false;} }
+  function l0CompareMetaReady(p1,p2){ return l0CompareHarnessReady() && p1?.metaClassCorrect === true && p2?.metaClassCorrect === true; }
+  function l0QuestionBinaryScope(row){
+    const fam=String(row?.family||row?.catId||"").toLowerCase(), q=String(row?.question||"").toLowerCase();
+    if(/single|direct|left only|right only|value property/.test(fam+" "+q)) return "unitary";
+    if(/both|pair|gap|sum|difference|left.*right|right.*left|same|larger|smaller|relation|membership|quantifier|mod|distance/.test(fam+" "+q)) return "binary";
+    return "unitary";
+  }
+  function l0QuestionQuantifierScope(row){
+    const s = `${row?.family||""} ${row?.catId||""} ${row?.question||""}`.toLowerCase();
+    if(/both|neither|all|every|ambos|ninguno|universal/.test(s)) return "universal";
+    if(/exactly one|at least one|one of|some|alguno|existential/.test(s)) return "existential";
+    return null;
+  }
+  function l0ClassLabel(cls){ return typeof metaClassificationLabel === "function" ? metaClassificationLabel(cls) : String(cls||"").replace(/_/g,"-"); }
+  function shuffledChoiceWithCorrect(correctLabel, distractors){
+    const labels=[]; [correctLabel].concat(distractors||[]).forEach(x=>{ if(x && !labels.includes(x)) labels.push(x); });
+    while(labels.length<4){ const filler=`Other pattern ${labels.length+1}`; if(!labels.includes(filler)) labels.push(filler); }
+    const opts=shuffleLocal(labels.slice(0,4));
+    return {labels:opts, index:opts.findIndex(x=>x===correctLabel)};
+  }
+  const l0CompareOps = [
+    {id:"l1_compare_l0_scope", atomic:"l1_compare_l0_scope", fn:(p1,p2)=>{
+      if(!l0CompareMetaReady(p1,p2) || !p1?.catId || !p2?.catId) return null;
+      const s1=l0QuestionBinaryScope(p1), s2=l0QuestionBinaryScope(p2);
+      const labels=["Both L0 questions used both values","Both L0 questions focused on one value","Only the first L0 question used both values","Only the second L0 question used both values"];
+      const idx=s1==="binary"&&s2==="binary"?0:s1==="unitary"&&s2==="unitary"?1:s1==="binary"?2:3;
+      return choiceResult(idx,labels,"Compare the two retained L0 questions: which one used both values of its pair?",{dimension:"l0_scope"});}},
+    {id:"l1_compare_l0_predicate_family", atomic:"l1_compare_l0_predicate_family", fn:(p1,p2)=>{
+      if(!l0CompareMetaReady(p1,p2) || !p1?.catId || !p2?.catId || typeof projectL0TrialToMetaClass !== "function") return null;
+      const c1=projectL0TrialToMetaClass(p1), c2=projectL0TrialToMetaClass(p2);
+      if(c1===c2) return null;
+      const all=["property_value","order_relation","set_membership","derived_metric"];
+      const correct=`First: ${l0ClassLabel(c1)} · Second: ${l0ClassLabel(c2)}`;
+      const distractors=[];
+      for(const a of all) for(const b of all){ const lab=`First: ${l0ClassLabel(a)} · Second: ${l0ClassLabel(b)}`; if(lab!==correct) distractors.push(lab); }
+      const built=shuffledChoiceWithCorrect(correct, shuffleLocal(distractors).slice(0,6));
+      return {correctIndex:built.index, choiceLabels:built.labels, question:"Which predicate-family pattern describes the two retained L0 questions?", distractorTypes:built.labels.map(x=>x===correct?"correct":"semantic_near_miss"), payload:{l0QuestionComparison:{dimension:"predicate_family", first:c1, second:c2}}};}},
+    {id:"l1_compare_l0_quantifier_scope", atomic:"l1_compare_l0_quantifier_scope", fn:(p1,p2)=>{
+      if(!l0CompareMetaReady(p1,p2) || !p1?.catId || !p2?.catId) return null;
+      const q1=l0QuestionQuantifierScope(p1), q2=l0QuestionQuantifierScope(p2);
+      if(!q1 || !q2) return null;
+      const labels=["Both used universal scope","Both used existential scope","Only the first used universal scope","Only the second used universal scope"];
+      const idx=q1==="universal"&&q2==="universal"?0:q1==="existential"&&q2==="existential"?1:q1==="universal"?2:3;
+      return choiceResult(idx,labels,"Compare the quantifier scope of the two retained L0 questions.",{dimension:"l0_quantifier_scope"});}}
+  ];
+  if(typeof L1_OPS !== "undefined"){
+    for(const row of l0CompareOps){
+      if(hasOp(row.id)) continue;
+      L1_OPS.push({id:row.id, symmetric:true, family:"l0_question_comparison", minLevel:7, minM:6, responseFormat:"choice", choiceLabels:["","","",""], atomicsUsed:["l1_l0_question_comparison", row.atomic], frameTags:["metacognitive","source_readout","retained_question_structure","integration_load"], canUse:(p1,p2,m)=>l0CompareMetaReady(p1,p2) && !!(p1?.catId && p2?.catId), fn:(p1,p2,m)=>row.fn(p1,p2,m)});
+    }
+  }
+})();
+
 requestAnimationFrame(loop);
 openModal("overlay"); setStatus("MENU"); updateMenu({force:true});
 
