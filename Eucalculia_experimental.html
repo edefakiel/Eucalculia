@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.5.48l1-expanded</title>
+<title>Eucalculia v6.5.54set-choice-clarity</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -2805,7 +2805,7 @@ select.cs-native {
 
 <div class="overlay-footer">
   <p class="credit">by <strong>Alberto Flaño Lombardo</strong> · <a href="https://www.linkedin.com/in/alberto-flaño-lombardo-762618259" target="_blank" rel="noopener">linkedin</a></p>
-  <p class="version" data-app-version>v6.5.48l1-expanded</p>
+  <p class="version" data-app-version>v6.5.54set-choice-clarity</p>
 </div>
 </div>
 </div>
@@ -2814,7 +2814,7 @@ select.cs-native {
 </div>
 <template id="guideTemplate">
 <div id="guideCard">
-<h2 id="guideTitle">Eucalculia v6.5.48l1-expanded Guide</h2>
+<h2 id="guideTitle">Eucalculia v6.5.54set-choice-clarity Guide</h2>
 
 <div class="guide-section">
 <h3>What Eucalculia trains</h3>
@@ -2826,8 +2826,8 @@ select.cs-native {
 <h3>Main screen and controls</h3>
 <ul>
 <li><strong>Training path:</strong> Auto is the public path. It runs recognition, single-stimulus mental transformations, L0 relational trials and later L1/L2/L3 integration according to performance. Manual forcing remains only as hidden developer infrastructure.</li>
-<li><strong>Relational Integration Levels:</strong> available only in Relational Reasoning. Auto is the recommended setting: L1, L2 and L3 unlock from recent performance and remain adaptively dosed. Manual L0/L1/L2/L3 settings are still available for isolating a specific layer. Level 0 gives standard Posner-style YES/NO relational trials. Level 1 adds numeric integration after two L0 trials. Level 2 adds four-option semantic conclusion tasks after two L1 trials. Level 3 adds synthesis across two L2 questions.</li>
-<li><strong>Block Size:</strong> number of trials before the summary screen. Auto is recommended in Relational Reasoning: it uses 20 trials normally and 30 when Meta³ is active or in preview. Manual Meta³ still clamps to at least 30 trials because a full L3 setup requires two complete L2 questions.</li>
+<li><strong>Relational Integration Levels:</strong> L0, L1, L2 and L3 are now internal Auto layers rather than public controls. Auto unlocks and doses them from recent performance: L0 gives standard Posner-style YES/NO relational trials, L1 adds numeric integration after retained L0 pairs, L2 adds four-option semantic conclusion tasks after retained L1 results, and L3 synthesizes across two L2 questions. Manual forcing remains diagnostic-only and is not exposed in the ordinary menu.</li>
+<li><strong>Block Size:</strong> Auto chooses the block length internally. It uses shorter ordinary blocks and extends when a retained META²/META³ chain must drain cleanly, so promised memory questions are not abandoned at the nominal limit.</li>
 <li><strong>Progress Summary context:</strong> shows a compact Auto focus, block progress, accuracy, average RT and storage status. Detailed response-time thresholds and forensic trial context are kept in Diagnostic export rather than rendered as public rows.</li>
 <li><strong>Representations:</strong> selects which visual formats may appear. All means all non-digit visual formats. Core selects the fastest, most rapid-recognition-friendly formats. None blocks Start. Digits uses only Arabic numerals.</li>
 <li><strong>Start Block:</strong> starts a new block and applies menu changes. You can also press <strong>Space</strong> from the menu for a fast start. <strong>Resume Block</strong> appears when a block is paused and continues the current block without changing its configuration.</li>
@@ -3300,14 +3300,14 @@ select.cs-native {
 </div>
 <button class="btn primary" id="continueBtn">Continue Training</button>
 <button class="btn" id="restBtn" style="margin-top:8px;">Take a Break</button>
-<div data-app-version style="margin-top:10px;text-align:center;font-size:0.55rem;color:#444;letter-spacing:0.5px;">v6.5.48l1-expanded</div>
+<div data-app-version style="margin-top:10px;text-align:center;font-size:0.55rem;color:#444;letter-spacing:0.5px;">v6.5.54set-choice-clarity</div>
 </div>
 </div>
 
 <script>
 
 // ============================================================================
-// EUCALCULIA v6.5.48l1-expanded — off-path trial preparation
+// EUCALCULIA v6.5.54set-choice-clarity — set-choice uniqueness and review clarity
 // ============================================================================
 // v6.5.26x: paper-folding boundary punches may unfold into multiple complete holes; no residual half-holes.
 // This build consolidates the 6.4.2 telemetry-cleanup fork and the 6.4.3
@@ -3321,10 +3321,10 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.5.48l1-expanded";
+const APP_VERSION = "v6.5.54set-choice-clarity";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
-  const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.48l1-expanded";
+  const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.54set-choice-clarity";
   try { document.title = `Eucalculia ${v}`; } catch(_){}
   try {
     document.querySelectorAll(".overlay-footer .version, [data-app-version]").forEach(el => { el.textContent = v; });
@@ -3373,7 +3373,7 @@ const CONFIG = {
   publicBuildDirectedVisualTries:8,
   publicBuildFalseCandidateBudget:24,
   publicBuildInstrumentTrialBuild:true,
-  // v6.5.48l1-expanded: move the expensive L0 trial build out of the
+  // v6.5.49retained-rule-parsing: move the expensive L0 trial build out of the
   // PREP critical path when possible. Generic relational L0 trials are built
   // during REVIEW/idle and committed quickly at the next startTrial.
   nextTrialPregenerationEnabled:true,
@@ -3426,7 +3426,7 @@ const CONFIG = {
   publicBuildPersistForensicTelemetry:false,
   publicBuildProgressHistoryBlockOnly:true,
   diagnosticExportKeepForensicTelemetry:true,
-  // v6.5.48l1-expanded: three-layer post-answer accounting.
+  // v6.5.49retained-rule-parsing: three-layer post-answer accounting.
   postAnswerDeferredTelemetryEnabled:true,
   postAnswerForensicQueueEnabled:true,
   postAnswerQueueIdleTimeoutMs:200,
@@ -3438,7 +3438,7 @@ const CONFIG = {
   atomicLegacySemanticBackfill:true,
   declarativeCoreMinAtomics:40,
   atomicLegacyCoverageMinShare:0.95,
-  // v6.5.48l1-expanded: keep structural atomics for traceability, but
+  // v6.5.49retained-rule-parsing: keep structural atomics for traceability, but
   // use a separate cognitive signature for adaptation, duplicate semantics and
   // effective-cardinality metrics. Forensic snapshots are captured in every
   // public session and processed only when diagnostics/export explicitly asks.
@@ -3559,6 +3559,9 @@ const CONFIG = {
   l1RetainedPairMultiProbeMinDLevel: 2,
   l1RetainedPairMultiProbeProbability: 0.55,
   l1RetainedPairMultiProbeMaxExtra: 1,
+  l1RetainedPairMultiProbeMaxExtraFluent: 2,
+  l1RetainedPairFatigueCeiling: 3.2,
+  l1RetainedPairFatigueRTScaleMs: 2400,
   l1RetainedPairMultiProbeCooldownTrials: 2,
   l0ExperientialAxisCooldownEnabled: true,
   l0ExperientialAxisRecentN: 5,
@@ -3643,7 +3646,7 @@ const CONFIG = {
   effectiveSamplingRecentWindow: 32,
   effectiveSamplingMinL0ForCheck: 12,
   effectiveSamplingMaxDominantShare: 0.45,
-  // v6.5.48l1-expanded: atomics now drive real sampling diagnostics,
+  // v6.5.49retained-rule-parsing: atomics now drive real sampling diagnostics,
   // duplicate checks and weakness estimates. They still remain lightweight in
   // public play: the monitor updates O(k²) over the small atomicsUsed vector.
   atomicCoreRuntimeEnabled: true,
@@ -3860,7 +3863,7 @@ const CONFIG = {
   l0EpistemicSufficiencyProbability: 0.055,
   l0EpistemicSufficiencyMaxProbability: 0.085,
   l0EpistemicSufficiencyAuditMax: 12,
-  // v6.5.48l1-expanded: the gated L0 epistemic slot now samples
+  // v6.5.49retained-rule-parsing: the gated L0 epistemic slot now samples
   // across response formats, not only across one-agent possible-world scenarios.
   // Initial target mix: 50% canonical outcomes, 30% two-agent/public-announcement
   // capacity, 15% conditional observation, 5% closure-identification items.
@@ -4212,6 +4215,8 @@ const L1_FAMILY_STAGE = {
   product:3,
   relation_analogy_choice:5,
   retained_rule_parsing_choice:5,
+  retained_rule_outlier_choice:5,
+  retained_rule_next_value:5,
   state_transition_choice:5,
   structured_state_composition:5,
   pair_select_extract:5,
@@ -4225,6 +4230,24 @@ const L1_FAMILY_STAGE = {
   boolean_nested:5,
   l0_question_comparison:5
 };
+// v6.5.50: declarative anchor→probe complementarity catalogue for retained-pair multi-probes.
+const L1_COMPLEMENTARY_PROBE_PAIRINGS = Object.freeze({
+  witness: ["counterfactual", "coherence", "state_transition_choice", "balance_derive"],
+  counterfactual: ["witness", "coherence", "retained_rule_parsing_choice", "relation_analogy_choice"],
+  coherence: ["witness", "counterfactual", "inverse_rule_probe", "balance_derive"],
+  relation_analogy_choice: ["witness", "counterfactual", "balance_derive", "program_card_l1"],
+  retained_rule_parsing_choice: ["witness", "counterfactual", "balance_derive", "coherence"],
+  state_transition_choice: ["witness", "counterfactual", "coherence", "balance_derive"],
+  balance_derive: ["coherence", "relation_analogy_choice", "state_transition_choice", "retained_rule_parsing_choice"],
+  program_card_l1: ["coherence", "relation_analogy_choice", "witness"],
+  inverse_rule_probe: ["coherence", "counterfactual", "state_transition_choice"]
+});
+function canonicalL1ComplementaryFamily(family){
+  const f = String(family || "");
+  if(f === "retained_rule_outlier_choice" || f === "retained_rule_next_value") return "retained_rule_parsing_choice";
+  return f;
+}
+
 const L1_STAGE_LABELS = ["basic integration", "gaps/differences", "position/cross-role", "global/property structure", "anchor/conditional", "composition", "transform/ratio/modular"];
 
 const L2_FAMILY_STAGE = { answer:0, threshold:1, metric:2, set_membership:2, set_compute:2, interval:2, modular:2, quantifier:2, two_property:3, boolean:3, implication:3, transform:3, ratio:3, ordinal:3, source:3, conditional:3, compound:3 };
@@ -4399,7 +4422,8 @@ const State = {
     paperFoldingAnalogy: {selected:0, answered:0, correct:0, buildFailures:0, byCat:{}, byVariant:{}, byX:{}, byA:{}, byB:{}, answer:{yes:0,no:0}, shortcutDivergence:{matches:0, diverges:0}},
     shepardConditional: {selected:0, answered:0, correct:0, buildFailures:0, byCat:{}, byFigureId:{}, byRelation:{rotation:0, mirror:0}, byBranch:{rotated:0, mirrored:0}, byA:{}, byB:{}, answer:{yes:0,no:0}},
     graphConditional: {selected:0, answered:0, correct:0, buildFailures:0, byCat:{}, byGraphId:{}, byRelation:{same:0, different:0}, byBranch:{same:0, different:0}, byEditType:{}, byA:{}, byB:{}, answer:{yes:0,no:0}},
-    l1RetainedPairMultiProbe: {scheduled:0, presented:0, successfulPairs:0, cancelled:0, byReason:{}},
+    l1RetainedPairMultiProbe: {scheduled:0, presented:0, successfulPairs:0, cancelled:0, byReason:{}, maxDepthReached:0, fatigueCancellations:0, byComplementarity:{curated:0, no_extras:0, non_curated:0}, recent:[]},
+    episodicEconomy: {episodes:0, probes:0, totalInformationYield:0, informationYield:[], complementarity:{curated:0, no_extras:0, non_curated:0}, cancellationByReason:{}, fatigueCancellations:0, maxDepthReached:0, active:null, recent:[]},
     // v6.3.5.57: tag counters surfaced in the diagnostic export diagnostics.
     // mechanismTagCounts and conflictTypeCounts are accumulated at probe
     // completion across every L0 trial; the diagnostic export renders the top-3
@@ -4837,7 +4861,7 @@ function pushTrialTelemetry(entry){
 }
 
 // -----------------------------------------------------------------------------
-// v6.5.48l1-expanded — Three-layer post-answer accounting
+// v6.5.49retained-rule-parsing — Three-layer post-answer accounting
 // -----------------------------------------------------------------------------
 const TELEMETRY_SNAPSHOT_QUEUE = [];
 const FORENSIC_DIAGNOSTIC_QUEUE = [];
@@ -8024,6 +8048,7 @@ function showPanel(w){
 function setChoiceOptions(options){
   const labels = ["1","2","3","4"];
   const optionCount = Array.isArray(options) ? options.length : 4;
+  const numericOnly = choiceOptionsAreNumericOnly(Array.isArray(options) ? options.slice(0, optionCount) : []);
   const pad = $("choicepad");
   if(pad) pad.classList.toggle("choice3", optionCount === 3);
   document.querySelectorAll(".choiceBtn").forEach((btn, i) => {
@@ -8041,10 +8066,14 @@ function setChoiceOptions(options){
     const rawText = opt.text || `Option ${i+1}`;
     const text = readabilityPolishText(rawText);
     btn.removeAttribute("aria-hidden");
-    btn.querySelector(".choiceKey").textContent = labels[i];
-    btn.querySelector(".choiceText").textContent = text;
+    // v6.5.53: when every visible option is a plain numeric value, the large
+    // touch target shows that value, not just the ordinal 1–4. This avoids the
+    // "press 1 for value 1" ambiguity in cyclic-distance readout trials.
+    btn.querySelector(".choiceKey").textContent = numericOnly ? text : labels[i];
+    btn.querySelector(".choiceText").textContent = numericOnly ? `Option ${i+1}` : text;
     const req = choiceRequiredSelections(State.trialInfo);
-    btn.setAttribute("aria-label", req > 1 ? `Option ${i+1}: ${text}. Select ${req} options.` : `Option ${i+1}: ${text}`);
+    const label = numericOnly ? `Value ${text}, option ${i+1}` : `Option ${i+1}: ${text}`;
+    btn.setAttribute("aria-label", req > 1 ? `${label}. Select ${req} options.` : label);
   });
   if(choiceRequiredSelections(State.trialInfo) > 1){
     if(State.trialInfo) State.trialInfo.choiceSelections = [];
@@ -8086,6 +8115,32 @@ function renderFrameChoiceOptions(options){
 function choiceRequiredSelections(info=State.trialInfo){
   const n = Number(info?.requiredSelections);
   return Number.isInteger(n) && n > 1 ? n : 1;
+}
+function choiceOptionPlainText(opt){
+  return readabilityPolishText(String(opt?.text ?? "").trim());
+}
+function choiceOptionsAreNumericOnly(options){
+  if(!Array.isArray(options) || !options.length) return false;
+  const texts = options.map(choiceOptionPlainText);
+  if(!texts.every(t => /^-?\d+$/.test(t))) return false;
+  return new Set(texts).size === texts.length;
+}
+function choiceIndexForNumericValueKey(key, info=State.trialInfo){
+  const k = String(key ?? "").trim();
+  if(!/^-?\d+$/.test(k) || !Array.isArray(info?.options) || choiceRequiredSelections(info) > 1) return null;
+  const matches = [];
+  info.options.forEach((opt, i) => {
+    if(choiceOptionPlainText(opt) === k) matches.push(i);
+  });
+  return matches.length === 1 ? matches[0] : null;
+}
+function choiceInputIndexFromKey(key, info=State.trialInfo){
+  const k = String(key ?? "").toLowerCase();
+  const optionCount = Array.isArray(info?.options) ? info.options.length : 4;
+  const numericValueIndex = choiceIndexForNumericValueKey(k, info);
+  if(numericValueIndex !== null && numericValueIndex < optionCount) return numericValueIndex;
+  const map = {a:0,b:1,c:2,d:3,"1":0,"2":1,"3":2,"4":3};
+  return Object.prototype.hasOwnProperty.call(map, k) && map[k] < optionCount ? map[k] : null;
 }
 function choiceCanonicalSelection(indices){
   // v6.5.26x: keep zero-based option index 0. This function is used by
@@ -25502,6 +25557,16 @@ const L1_OP_SHORT_LABELS = ({
   retained_rule_parse_rise_unequal:"Rule parse: unequal rise",
   retained_rule_parse_fall_unequal:"Rule parse: unequal fall",
   retained_rule_parse_alternating:"Rule parse: alternating",
+  retained_rule_parse_mod2_consistency:"Rule parse: same parity",
+  retained_rule_parse_mod3_consistency:"Rule parse: same mod-3 remainder",
+  retained_rule_parse_parity_alternating:"Rule parse: parity alternation",
+  retained_rule_parse_palindrome:"Rule parse: palindrome",
+  retained_rule_parse_period2:"Rule parse: period 2",
+  retained_rule_parse_period3_wrap:"Rule parse: period 3 wrap",
+  retained_rule_parse_monotone_repeat:"Rule parse: monotone repeat",
+  retained_rule_parse_geometric_ratio2:"Rule parse: geometric ×2",
+  retained_rule_outlier_choice:"Rule parse: outlier slot",
+  retained_rule_next_value:"Rule parse: next value",
   retained_state_direction_change:"Before/after side directions",
   retained_state_side_changed_more:"Which side changed more",
   retained_state_gap_change:"Before/after gap change",
@@ -25961,8 +26026,8 @@ function posnerFamily(cat){
 function posnerFamilyWeights(maxTier){
   if(maxTier <= 1) return {direct:1};
   if(maxTier === 2) return {direct:0.34, joint:0.23, role:0.23, set_membership:0.11, quantifier:0.09, relation_equivalence:0.00, visual_equivalence:0.00, boolean:0.00, factor:0.00, virtual_transform:0.00, ratio:0.00, modular:0.00, interval:0.00};
-  if(maxTier === 3) return {direct:0.22, joint:0.24, role:0.28, set_membership:0.10, quantifier:0.09, relation_equivalence:0.04, visual_equivalence:0.00, boolean:0.00, factor:0.03, virtual_transform:0.02, ratio:0.02, modular:0.02, interval:0.02};
-  return {direct:0.105, joint:0.165, role:0.205, set_membership:0.09, quantifier:0.08, relation_equivalence:0.055, visual_equivalence:0.075, boolean:0.085, factor:0.065, virtual_transform:0.055, ratio:0.04, modular:0.035, interval:0.035};
+  if(maxTier === 3) return {direct:0.22, joint:0.24, role:0.28, set_membership:0.10, quantifier:0.09, relation_equivalence:0.04, visual_equivalence:0.00, boolean:0.00, factor:0.03, virtual_transform:0.02, ratio:0.02, modular:0.02, interval:0.02, operation_invariance:0.00};
+  return {direct:0.105, joint:0.165, role:0.205, set_membership:0.09, quantifier:0.08, relation_equivalence:0.055, visual_equivalence:0.075, boolean:0.085, factor:0.065, virtual_transform:0.055, ratio:0.04, modular:0.035, interval:0.035, operation_invariance:0.012};
 }
 
 // ---------- Relational-frame tagging helpers (RFT-informed adaptive training metadata) ----------
@@ -26025,6 +26090,7 @@ function l0ExperientialAxisFromCat(cat){
   if(cat.shepardConditionalId) return "mental_rotation_conditional";
   if(cat.graphConditionalId) return "graph_structure_conditional";
   if(cat.family === "program_card" || cat.family === "state_iteration") return "procedural_state";
+  if(cat.family === "operation_invariance" || /^decl_operation_invariance/.test(String(cat.id || ""))) return "operation_invariance";
   if(cat.id && /cross_rep|projection|analogy/.test(String(cat.id))) return "representation_rule";
   if(cat.family === "visual_equivalence" || /^(grid|frame)_(same_under|mirror)/.test(String(cat.id || ""))) return "visual_equivalence";
   const tags = posnerFrameTags(cat, null) || [];
@@ -26974,6 +27040,8 @@ const L1_FAMILY_FRAME_MAP = {
   transformation:["transformation_relation","role_binding","metric_relation"], composition:["conditional","role_binding","metric_relation"],
   relation_analogy_choice:["source_relation","retained_pair_readout","comparison","coordination","opposition"],
   retained_rule_parsing_choice:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load"],
+  retained_rule_outlier_choice:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","outlier_detection"],
+  retained_rule_next_value:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","prediction"],
   state_transition_choice:["sequence_relation","comparison","metric_relation","role_binding","source_relation"],
   structured_state_composition:["structured_representation","state_composition","abacus5","row_weighting","source_relation","metric_relation"],
   pair_select_extract:["conditional","role_binding","source_relation","class_inclusion","metric_relation"],
@@ -30966,6 +31034,7 @@ const DISTRACTOR_TAXONOMY = Object.freeze({
   role_inversion:"Left/right or larger/smaller role inversion",
   surface_preserving_structure_violating:"Looks similar while breaking structure",
   structure_preserving_surface_violating:"Keeps structure while changing surface",
+  non_complementary_op:"Non-complementary operation candidate",
   correct:"Correct option",
   unclassified:"Unclassified / adapter fallback"
 });
@@ -30980,7 +31049,7 @@ const DISTRACTOR_TYPE_ADAPTER = Object.freeze({
   format_lure:"format_lure", visual_format_lure:"format_lure", surface_lure:"format_lure", representation_lure:"format_lure",
   semantic_lure:"semantic_near_miss", semantic_near_miss:"semantic_near_miss", set_lure:"semantic_near_miss", quantifier_flip:"semantic_near_miss", boolean_bucket_flip:"semantic_near_miss", epistemic_knows_yes:"semantic_near_miss", epistemic_cannot_know_no:"semantic_near_miss",
   surface_preserving_structure_violating:"surface_preserving_structure_violating", surface_preserving:"surface_preserving_structure_violating", structure_break:"surface_preserving_structure_violating", graph_edit_lure:"surface_preserving_structure_violating",
-  structure_preserving_surface_violating:"structure_preserving_surface_violating", structure_preserving:"structure_preserving_surface_violating", surface_change_lure:"structure_preserving_surface_violating"
+  structure_preserving_surface_violating:"structure_preserving_surface_violating", structure_preserving:"structure_preserving_surface_violating", surface_change_lure:"structure_preserving_surface_violating", non_complementary_op:"non_complementary_op"
 });
 function isCanonicalDistractorType(type){
   return DISTRACTOR_TAXONOMY_KEYS.includes(String(type || ""));
@@ -37745,7 +37814,7 @@ function makeL1CollectiveUniquenessOps(){
     fn(p1,p2,m){
       const values = [p1.a,p1.b,p2.a,p2.b].map(Number);
       const kinds = ["parity","mod3","mod5","raw"];
-      const labels = ["parity", "remainder mod 3", "remainder mod 5", "raw value"];
+      const labels = ["parity", "remainder after division by 3", "remainder after division by 5", "raw value"];
       const truths = kinds.map(k => l1AllDistinct(l1ClassificationClasses(k, values)));
       if(truths.filter(Boolean).length !== 1) return null;
       const correctIndex = truths.findIndex(Boolean);
@@ -37804,8 +37873,8 @@ function makeL1StructuralMatchingOps(){
     l1MatchingOp("parity", "even/odd", {frameTags:["class_inclusion"]}),
     l1MatchingOp("anchor5", "distance-to-5", {frameTags:["metric_relation","anchor_distance"]}),
     l1MatchingOp("anchor10", "distance-to-10", {frameTags:["metric_relation","anchor_distance"]}),
-    l1MatchingOp("modular", "mod 3 remainder", {mod:3, frameTags:["modular_relation"]}),
-    l1MatchingOp("modular", "mod 5 remainder", {mod:5, frameTags:["modular_relation"]})
+    l1MatchingOp("modular", "remainder after division by 3", {mod:3, frameTags:["modular_relation"]}),
+    l1MatchingOp("modular", "remainder after division by 5", {mod:5, frameTags:["modular_relation"]})
   ].map((op,i)=> i === 5 ? {...op, id:"decl_l1_matching_mod5_role"} : op);
 }
 try{
@@ -39145,22 +39214,75 @@ function retainedParityPatternChoice(p1,p2){
   return {correctIndex:ci, question:"Compare the even/odd pattern inside Pair 1 with the pattern inside Pair 2."};
 }
 
-const L1_RETAINED_RULE_PARSING_LABELS = [
-  "All three steps use the same non-zero change",
-  "The values rise each step, but not by equal steps",
-  "The values fall each step, but not by equal steps",
-  "The direction alternates at each step"
-];
 const L1_RETAINED_RULE_PARSING_RULES = [
-  {id:"same_step", index:0, label:L1_RETAINED_RULE_PARSING_LABELS[0],
-    fits:seq=>{ const d=l1RetainedRuleParsingDiffs(seq); return d.length===3 && d[0]!==0 && d[0]===d[1] && d[1]===d[2]; }},
-  {id:"rise_unequal", index:1, label:L1_RETAINED_RULE_PARSING_LABELS[1],
-    fits:seq=>{ const d=l1RetainedRuleParsingDiffs(seq); return d.length===3 && d.every(x=>x>0) && !(d[0]===d[1] && d[1]===d[2]); }},
-  {id:"fall_unequal", index:2, label:L1_RETAINED_RULE_PARSING_LABELS[2],
+  {id:"same_step", label:"All three steps use the same non-zero change", class:"arithmetic", atomic:"rule_constant_step",
+    fits:seq=>{ const d=l1RetainedRuleParsingDiffs(seq); return d.length===3 && d[0]!==0 && d[0]===d[1] && d[1]===d[2]; },
+    nextValue:seq=>{ const d=l1RetainedRuleParsingDiffs(seq); return d.length===3 ? seq[3] + d[0] : null; }},
+  {id:"rise_unequal", label:"The values rise each step, but not by equal steps", class:"arithmetic", atomic:"rule_unequal_rise",
+    fits:seq=>{ const d=l1RetainedRuleParsingDiffs(seq); return d.length===3 && d.every(x=>x>0) && !(d[0]===d[1] && d[1]===d[2]) && !l1RuleIsGeometricRatio2(seq); }},
+  {id:"fall_unequal", label:"The values fall each step, but not by equal steps", class:"arithmetic", atomic:"rule_unequal_fall",
     fits:seq=>{ const d=l1RetainedRuleParsingDiffs(seq); return d.length===3 && d.every(x=>x<0) && !(d[0]===d[1] && d[1]===d[2]); }},
-  {id:"alternating_direction", index:3, label:L1_RETAINED_RULE_PARSING_LABELS[3],
-    fits:seq=>{ const d=l1RetainedRuleParsingDiffs(seq); if(d.length!==3 || d.some(x=>x===0)) return false; return Math.sign(d[0])!==Math.sign(d[1]) && Math.sign(d[1])!==Math.sign(d[2]); }}
-];
+  {id:"alternating_direction", label:"The direction alternates at each step", class:"arithmetic", atomic:"rule_alternating_direction",
+    fits:seq=>{ const d=l1RetainedRuleParsingDiffs(seq); if(d.length!==3 || d.some(x=>x===0)) return false; return Math.sign(d[0])!==Math.sign(d[1]) && Math.sign(d[1])!==Math.sign(d[2]); }},
+
+  // v6.5.49: categorical rules over the retained values themselves.
+  {id:"modular_all_same_mod_2", label:"All four values share the same parity", class:"modular", atomic:"rule_modular_consistency",
+    fits:seq=> l1RuleSeqValid(seq) && seq.every(v => ((v % 2) + 2) % 2 === ((seq[0] % 2) + 2) % 2)},
+  {id:"modular_all_same_mod_3", label:"All four values share the same remainder after division by 3", class:"modular", atomic:"rule_modular_consistency",
+    fits:seq=> l1RuleSeqValid(seq) && seq.every(v => ((v % 3) + 3) % 3 === ((seq[0] % 3) + 3) % 3)},
+  {id:"parity_alternating", label:"The parity alternates at each step", class:"modular", atomic:"rule_parity_alternation",
+    fits:seq=> l1RuleSeqValid(seq) && seq.slice(1).every((v,i)=> (v % 2) !== (seq[i] % 2))},
+  {id:"palindrome", label:"The sequence is a palindrome", class:"symmetry", atomic:"rule_palindrome",
+    fits:seq=> l1RuleSeqValid(seq) && seq[0]===seq[3] && seq[1]===seq[2],
+    nextLabel:"Repeat the four-value palindrome block",
+    nextValue:seq=> l1RuleSeqValid(seq) ? seq[0] : null},
+  {id:"period_2", label:"The sequence repeats with period 2", class:"symmetry", atomic:"rule_periodic",
+    fits:seq=> l1RuleSeqValid(seq) && seq[0]===seq[2] && seq[1]===seq[3] && seq[0]!==seq[1],
+    nextValue:seq=> l1RuleSeqValid(seq) ? seq[0] : null},
+  {id:"period_3_wrap", label:"The fourth value wraps back to the first after three distinct values", class:"symmetry", atomic:"rule_periodic",
+    fits:seq=> l1RuleSeqValid(seq) && seq[0]===seq[3] && new Set(seq.slice(0,3)).size===3,
+    nextValue:seq=> l1RuleSeqValid(seq) ? seq[1] : null},
+  {id:"monotone_strict_with_one_repeat", label:"The chain is monotone with exactly one adjacent repeat", class:"order", atomic:"rule_monotone_with_repeat",
+    fits:seq=> l1RuleSeqValid(seq) && l1RuleMonotoneWithOneRepeat(seq)},
+
+  // Rare but explicit: with the present retained-value range, ratio 2 is the
+  // only tractable four-slot geometric rule expected to appear naturally.
+  {id:"geometric_ratio_2", label:"Each step doubles the previous value", class:"geometric", atomic:"rule_geometric",
+    fits:seq=> l1RuleIsGeometricRatio2(seq),
+    nextValue:seq=> l1RuleSeqValid(seq) ? seq[3] * 2 : null}
+].map((r, index) => Object.assign(r, {index}));
+const L1_RETAINED_RULE_PARSING_LABELS = Object.freeze(L1_RETAINED_RULE_PARSING_RULES.map(r => r.label));
+const L1_RETAINED_RULE_PARSING_RULE_IDS = Object.freeze(L1_RETAINED_RULE_PARSING_RULES.map(r => r.id));
+function l1RuleSeqValid(seq){
+  return Array.isArray(seq) && seq.length === 4 && seq.every(v => Number.isFinite(Number(v)));
+}
+function l1RuleById(id){
+  return L1_RETAINED_RULE_PARSING_RULES.find(r => r.id === String(id || "")) || null;
+}
+function l1RuleShuffle(arr){
+  const out = Array.isArray(arr) ? arr.slice() : [];
+  for(let i=out.length-1; i>0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = out[i]; out[i] = out[j]; out[j] = tmp;
+  }
+  return out;
+}
+function l1RuleIdByIndexOrId(target){
+  if(typeof target === "string") return target;
+  if(Number.isInteger(target)) return L1_RETAINED_RULE_PARSING_RULES[target]?.id || null;
+  return null;
+}
+function l1RuleIsGeometricRatio2(seq){
+  return l1RuleSeqValid(seq) && seq[0] !== 0 && seq[1] === 2*seq[0] && seq[2] === 2*seq[1] && seq[3] === 2*seq[2];
+}
+function l1RuleMonotoneWithOneRepeat(seq){
+  if(!l1RuleSeqValid(seq)) return false;
+  const eqAdj = (seq[0]===seq[1]?1:0) + (seq[1]===seq[2]?1:0) + (seq[2]===seq[3]?1:0);
+  if(eqAdj !== 1) return false;
+  const nondec = seq[0] <= seq[1] && seq[1] <= seq[2] && seq[2] <= seq[3];
+  const noninc = seq[0] >= seq[1] && seq[1] >= seq[2] && seq[2] >= seq[3];
+  return nondec || noninc;
+}
 function l1RetainedRuleParsingDiffs(seq){
   const s = Array.isArray(seq) ? seq.map(Number) : [];
   if(s.length !== 4 || s.some(v=>!Number.isFinite(v))) return [];
@@ -39187,7 +39309,8 @@ function l1RetainedRuleParsingMatches(seq){
     try{ return !!r.fits(seq); }catch(_){ return false; }
   });
 }
-function l1RetainedRuleParsingCandidates(p1,p2,targetIndex=null){
+function l1RetainedRuleParsingCandidates(p1,p2,target=null){
+  const targetId = l1RuleIdByIndexOrId(target);
   const slots = l1RetainedRuleParsingSlots(p1,p2);
   if(slots.length !== 4) return [];
   const candidates = [];
@@ -39196,47 +39319,318 @@ function l1RetainedRuleParsingCandidates(p1,p2,targetIndex=null){
     const matches = l1RetainedRuleParsingMatches(seq);
     if(matches.length !== 1) continue;
     const rule = matches[0];
-    if(Number.isInteger(targetIndex) && rule.index !== targetIndex) continue;
+    if(targetId && rule.id !== targetId) continue;
     const distinctPairs = new Set(path.map(s=>s.pair)).size;
     const sideSwitches = path.slice(1).filter((s,i)=>s.side !== path[i].side).length;
     const pairSwitches = path.slice(1).filter((s,i)=>s.pair !== path[i].pair).length;
     const valuesDistinct = new Set(seq).size;
-    const score = 4 + pairSwitches * 1.4 + sideSwitches * 0.9 + valuesDistinct * 0.35 + (rule.id === "same_step" ? 1.5 : 0);
-    candidates.push({path, seq, rule, correctIndex:rule.index, score, distinctPairs, pairSwitches, sideSwitches});
+    const rareBoost = (rule.class === "symmetry" || rule.class === "geometric") ? 1.7 : (rule.class === "modular" ? 1.25 : 1);
+    const score = rareBoost * (4 + pairSwitches * 1.4 + sideSwitches * 0.9 + valuesDistinct * 0.35 + (rule.id === "same_step" ? 1.5 : 0));
+    candidates.push({path, seq, rule, correctRuleId:rule.id, score, distinctPairs, pairSwitches, sideSwitches});
   }
   return candidates;
 }
-function l1PickRetainedRuleParsingCandidate(p1,p2,targetIndex=null){
-  const cands = l1RetainedRuleParsingCandidates(p1,p2,targetIndex);
+function l1PickRetainedRuleParsingCandidate(p1,p2,target=null){
+  const cands = l1RetainedRuleParsingCandidates(p1,p2,target);
   if(!cands.length) return null;
   return weightedPick(cands, c => Math.max(0.1, c.score || 1)) || choice(cands);
 }
 function l1RetainedRuleParsingQuestion(cand){
   const pathText = cand.path.map(s => s.label).join(" → ");
-  return `Use the retained values in this order: ${pathText}. Which rule describes the reordered chain?`;
+  return `Use the retained values in this order: ${pathText}. Which rule describes that chain?`;
 }
-function retainedRuleParsingChoiceForIndex(p1,p2,targetIndex){
-  const cand = l1PickRetainedRuleParsingCandidate(p1,p2,targetIndex);
-  if(!cand) return null;
+function l1RetainedRuleOptionDistance(correct, other){
+  if(!correct || !other) return 99;
+  if(correct.id === other.id) return 0;
+  if(correct.class === other.class) return 1;
+  if((correct.class === "modular" && other.id === "parity_alternating") || (other.class === "modular" && correct.id === "parity_alternating")) return 1.2;
+  if((correct.class === "symmetry" && other.id === "monotone_strict_with_one_repeat") || (other.class === "symmetry" && correct.id === "monotone_strict_with_one_repeat")) return 1.8;
+  if((correct.class === "arithmetic" && other.class === "geometric") || (correct.class === "geometric" && other.class === "arithmetic")) return 1.5;
+  return 3.0;
+}
+function l1RuleDistractorType(correct, other){
+  if(!correct || !other) return "semantic_near_miss";
+  if(correct.id === other.id) return "correct";
+  if(correct.class === other.class) return "semantic_near_miss";
+  if(correct.class === "arithmetic" || correct.class === "geometric"){
+    if(other.class === "arithmetic" || other.class === "geometric") return "near_numeric";
+    if(other.class === "order") return "direction_lure";
+  }
+  if(correct.class === "modular" || other.class === "modular") return "semantic_near_miss";
+  if(correct.class === "symmetry" || other.class === "symmetry") return "surface_preserving_structure_violating";
+  return "semantic_near_miss";
+}
+function l1RetainedRuleDynamicOptions(correctRule){
+  const correct = typeof correctRule === "string" ? l1RuleById(correctRule) : correctRule;
+  if(!correct) return null;
+  const distractors = L1_RETAINED_RULE_PARSING_RULES
+    .filter(r => r.id !== correct.id)
+    .map(r => ({rule:r, distance:l1RetainedRuleOptionDistance(correct, r)}))
+    .sort((a,b)=> a.distance - b.distance || a.rule.id.localeCompare(b.rule.id));
+  const selected = [];
+  const add = r => { if(r && !selected.some(x=>x.id===r.id)) selected.push(r); };
+  // First take close alternatives, then ensure the menu has at least one
+  // cross-family lure when possible.
+  for(const d of distractors) if(selected.length < 2) add(d.rule);
+  const cross = distractors.find(d => d.rule.class !== correct.class && !selected.some(r=>r.id===d.rule.id));
+  if(cross) add(cross.rule);
+  for(const d of distractors) if(selected.length < 3) add(d.rule);
+  const opts = [correct, ...selected.slice(0,3)];
+  while(opts.length < 4){
+    const fallback = L1_RETAINED_RULE_PARSING_RULES.find(r => !opts.some(o=>o.id===r.id));
+    if(!fallback) break;
+    opts.push(fallback);
+  }
+  if(opts.length !== 4) return null;
+  // Shuffle before handing to the builder. The builder may still move the
+  // correct option to satisfy global answer-position balancing.
+  const shuffled = l1RuleShuffle(opts.slice());
+  const correctIndex = shuffled.findIndex(r => r.id === correct.id);
   return {
-    correctIndex:cand.correctIndex,
+    labels:shuffled.map(r => r.label),
+    tags:shuffled.map(r => r.id),
+    correctIndex,
+    distractorTypes:shuffled.map(r => r.id === correct.id ? "correct" : l1RuleDistractorType(correct, r))
+  };
+}
+function retainedRuleParsingChoiceForRuleId(p1,p2,ruleId){
+  const cand = l1PickRetainedRuleParsingCandidate(p1,p2,ruleId);
+  if(!cand) return null;
+  const opts = l1RetainedRuleDynamicOptions(cand.rule);
+  if(!opts) return null;
+  return {
+    correctIndex:opts.correctIndex,
     question:l1RetainedRuleParsingQuestion(cand),
-    choiceLabels:L1_RETAINED_RULE_PARSING_LABELS,
+    choiceLabels:opts.labels,
+    distractorTypes:opts.distractorTypes,
+    tags:opts.tags,
     payload:{
       family:"retained_rule_parsing_choice",
       ruleId:cand.rule.id,
-      path:cand.path.map(s => ({id:s.id, pair:s.pair, side:s.side, label:s.label})),
+      optionRuleIds:opts.tags,
+      path:cand.path.map(s => ({id:s.id, pair:s.pair, side:s.side, label:s.label, value:s.value})),
       // Internal audit/review aid only. The prompt does not reprint retained values.
       sequence:cand.seq.slice(),
       diffs:l1RetainedRuleParsingDiffs(cand.seq)
     },
     frameTags:["retained_pair_readout","sequence_relation","rule_verification","integration_load"],
-    mechanismTags:["retained_value_reordering","rule_parsing","choice_verification"]
+    mechanismTags:["retained_value_reordering","rule_parsing","dynamic_rule_option_pool","choice_verification"]
   };
 }
-function retainedRuleParsingChoiceCanUse(p1,p2,targetIndex=null){
-  return l1RetainedRuleParsingCandidates(p1,p2,targetIndex).length > 0;
+function retainedRuleParsingChoiceForIndex(p1,p2,targetIndex){
+  return retainedRuleParsingChoiceForRuleId(p1,p2,l1RuleIdByIndexOrId(targetIndex));
 }
+function retainedRuleParsingChoiceCanUse(p1,p2,target=null){
+  return l1RetainedRuleParsingCandidates(p1,p2,target).length > 0;
+}
+function l1RulePathText(path, seq){
+  if(!Array.isArray(path) || !Array.isArray(seq)) return "";
+  return path.map((s,i)=>`${s.label} (${seq[i]})`).join(" → ");
+}
+function l1RuleEvidenceLines(ruleId, seq){
+  const d = l1RetainedRuleParsingDiffs(seq);
+  const par = Array.isArray(seq) ? seq.map(v=>v%2===0?"even":"odd") : [];
+  const mod3 = Array.isArray(seq) ? seq.map(v=>((v%3)+3)%3) : [];
+  switch(ruleId){
+    case "same_step": return [`Differences: ${seq[1]}−${seq[0]}=${d[0]}, ${seq[2]}−${seq[1]}=${d[1]}, ${seq[3]}−${seq[2]}=${d[2]}. All equal and non-zero.`];
+    case "rise_unequal": return [`Differences: ${d.join(", ")}. All are positive, but they are not all equal.`];
+    case "fall_unequal": return [`Differences: ${d.join(", ")}. All are negative, but they are not all equal.`];
+    case "alternating_direction": return [`Directions: ${d.map(x=>x>0?"up":"down").join(" → ")}. The sign changes at each step.`];
+    case "modular_all_same_mod_2": return [`Parity: ${par.join(" → ")}. All four share the same parity.`];
+    case "modular_all_same_mod_3": return [`Remainders mod 3: ${mod3.join(" → ")}. All four remainders match.`];
+    case "parity_alternating": return [`Parity: ${par.join(" → ")}. Each parity differs from the previous one.`];
+    case "palindrome": return [`Palindrome check: first=fourth (${seq[0]}=${seq[3]}) and second=third (${seq[1]}=${seq[2]}).`];
+    case "period_2": return [`Period-2 check: first=third (${seq[0]}=${seq[2]}) and second=fourth (${seq[1]}=${seq[3]}).`];
+    case "period_3_wrap": return [`Wrap check: fourth returns to first (${seq[3]}=${seq[0]}); the first three values are distinct.`];
+    case "monotone_strict_with_one_repeat": return [`Order check: the chain is one-way monotone and has exactly one adjacent repeat.`];
+    case "geometric_ratio_2": return [`Doubling check: ${seq[0]}×2=${seq[1]}, ${seq[1]}×2=${seq[2]}, ${seq[2]}×2=${seq[3]}.`];
+    default: return [`Check the stated rule against the four retained values.`];
+  }
+}
+function l1RuleFailureLine(ruleId, seq){
+  const d = l1RetainedRuleParsingDiffs(seq);
+  const rule = l1RuleById(ruleId);
+  const label = rule?.label || ruleId;
+  try{ if(rule && rule.fits(seq)) return `${label} actually fits.`; }catch(_){ }
+  switch(ruleId){
+    case "same_step": return `the differences are ${d.join(", ")}, not the same non-zero step.`;
+    case "rise_unequal": return `the differences are ${d.join(", ")}, so the chain is not an unequal rise.`;
+    case "fall_unequal": return `the differences are ${d.join(", ")}, so the chain is not an unequal fall.`;
+    case "alternating_direction": return `the signs of ${d.join(", ")} do not alternate at every step.`;
+    case "modular_all_same_mod_2": return `the values do not all have the same parity.`;
+    case "modular_all_same_mod_3": return `the remainders mod 3 are not all identical.`;
+    case "parity_alternating": return `the parities do not alternate at every transition.`;
+    case "palindrome": return `first/fourth or second/third do not mirror each other.`;
+    case "period_2": return `first/third or second/fourth are not matching period-2 positions.`;
+    case "period_3_wrap": return `the fourth value does not return to the first after three distinct values.`;
+    case "monotone_strict_with_one_repeat": return `the chain is not monotone with exactly one adjacent repeat.`;
+    case "geometric_ratio_2": return `the successive values are not all exact doublings.`;
+    default: return `it does not fit this sequence.`;
+  }
+}
+function l1RetainedRuleReviewDetails(info){
+  const payload = info?.payload || {};
+  if(payload.family === "retained_rule_parsing_choice"){
+    const seq = payload.sequence || [];
+    const path = payload.path || [];
+    const rule = l1RuleById(payload.ruleId);
+    const lines = [];
+    lines.push(`Sequence: ${l1RulePathText(path, seq)}`);
+    lines.push(...l1RuleEvidenceLines(rule?.id, seq).slice(0,1));
+    const shownRuleIds = Array.isArray(info?.options) ? info.options.map(o => o?.tag || payload.optionRuleIds?.[o?.semanticIndex]).filter(Boolean) : (payload.optionRuleIds || []);
+    for(const rid of shownRuleIds){
+      if(rid === rule?.id) continue;
+      const r = l1RuleById(rid);
+      if(!r) continue;
+      lines.push(`Not ${r.label}: ${l1RuleFailureLine(rid, seq)}`);
+      if(lines.length >= 5) break;
+    }
+    return lines.join("\n");
+  }
+  if(payload.family === "retained_rule_outlier_choice") return l1RetainedRuleOutlierReviewDetails(info);
+  return null;
+}
+
+const L1_RULE_OUTLIER_RULES = [
+  {id:"outlier_same_step", label:"constant non-zero step", canonicalRuleId:"same_step",
+    find:seq=>{
+      if(!l1RuleSeqValid(seq) || l1RuleById("same_step").fits(seq)) return null;
+      const hits=[];
+      for(let i=0;i<4;i++){
+        const r = seq.filter((_,j)=>j!==i);
+        const d1 = r[1]-r[0], d2 = r[2]-r[1];
+        if(d1 !== 0 && d1 === d2) hits.push(i);
+      }
+      return hits.length===1 ? {index:hits[0], reason:"the other three values form one equal non-zero step"} : null;
+    }},
+  {id:"outlier_strict_monotone", label:"strict one-way monotone chain", canonicalRuleId:"monotone_strict_with_one_repeat",
+    find:seq=>{
+      if(!l1RuleSeqValid(seq)) return null;
+      const strictInc = a => a[0] < a[1] && a[1] < a[2];
+      const strictDec = a => a[0] > a[1] && a[1] > a[2];
+      if(seq[0] < seq[1] && seq[1] < seq[2] && seq[2] < seq[3]) return null;
+      if(seq[0] > seq[1] && seq[1] > seq[2] && seq[2] > seq[3]) return null;
+      const hits=[];
+      for(let i=0;i<4;i++){
+        const r = seq.filter((_,j)=>j!==i);
+        if(strictInc(r) || strictDec(r)) hits.push(i);
+      }
+      return hits.length===1 ? {index:hits[0], reason:"removing it leaves a strict monotone chain"} : null;
+    }},
+  {id:"outlier_same_parity", label:"uniform parity", canonicalRuleId:"modular_all_same_mod_2",
+    find:seq=>{
+      if(!l1RuleSeqValid(seq)) return null;
+      const par = seq.map(v => ((v%2)+2)%2);
+      const counts = {0:par.filter(x=>x===0).length, 1:par.filter(x=>x===1).length};
+      const rare = counts[0]===1 ? 0 : (counts[1]===1 ? 1 : null);
+      if(rare === null) return null;
+      return {index:par.indexOf(rare), reason:"the other three values share parity"};
+    }},
+  {id:"outlier_same_mod3", label:"uniform remainder after division by 3", canonicalRuleId:"modular_all_same_mod_3",
+    find:seq=>{
+      if(!l1RuleSeqValid(seq)) return null;
+      const rem = seq.map(v => ((v%3)+3)%3);
+      const hits = [0,1,2].filter(r => rem.filter(x=>x===r).length === 1);
+      const common = [0,1,2].find(r => rem.filter(x=>x===r).length === 3);
+      if(hits.length !== 1 || common === undefined) return null;
+      return {index:rem.indexOf(hits[0]), reason:"the other three values share the same remainder after division by 3"};
+    }}
+];
+function l1RetainedRuleOutlierCandidates(p1,p2){
+  const slots = l1RetainedRuleParsingSlots(p1,p2);
+  if(slots.length !== 4) return [];
+  const out = [];
+  for(const path of l1RetainedRuleParsingPermutations(slots)){
+    const seq = path.map(s=>s.value);
+    for(const r of L1_RULE_OUTLIER_RULES){
+      const hit = r.find(seq);
+      if(!hit || !Number.isInteger(hit.index) || hit.index < 0 || hit.index > 3) continue;
+      const correctSlot = path[hit.index];
+      const score = 5 + new Set(seq).size * 0.3 + (r.id.includes("same_") ? 1 : 0);
+      out.push({rule:r, path, seq, outlierIndex:hit.index, correctSlot, reason:hit.reason, score});
+    }
+  }
+  return out;
+}
+function retainedRuleOutlierChoiceCanUse(p1,p2){ return l1RetainedRuleOutlierCandidates(p1,p2).length > 0; }
+function retainedRuleOutlierChoice(p1,p2){
+  const cands = l1RetainedRuleOutlierCandidates(p1,p2);
+  if(!cands.length) return null;
+  const cand = weightedPick(cands, c=>c.score || 1) || choice(cands);
+  const slots = l1RetainedRuleParsingSlots(p1,p2);
+  const labels = slots.map(s => s.label);
+  const correctIndex = slots.findIndex(s => s.id === cand.correctSlot.id);
+  if(correctIndex < 0) return null;
+  const dtypes = slots.map((s,i) => i === correctIndex ? "correct" : (s.pair === cand.correctSlot.pair || s.side === cand.correctSlot.side ? "role_inversion" : "near_numeric"));
+  const pathText = cand.path.map(s => s.label).join(" → ");
+  return {
+    correctIndex,
+    choiceLabels:labels,
+    distractorTypes:dtypes,
+    tags:slots.map(s=>s.id),
+    question:`Use the retained values in this order: ${pathText}. One slot breaks the rule "${cand.rule.label}". Which slot is it?`,
+    payload:{family:"retained_rule_outlier_choice", ruleId:cand.rule.id, canonicalRuleId:cand.rule.canonicalRuleId, ruleLabel:cand.rule.label, path:cand.path.map(s=>({id:s.id,pair:s.pair,side:s.side,label:s.label,value:s.value})), sequence:cand.seq.slice(), outlierIndex:cand.outlierIndex, correctSlotId:cand.correctSlot.id, reason:cand.reason},
+    frameTags:["retained_pair_readout","sequence_relation","rule_verification","integration_load","outlier_detection"],
+    mechanismTags:["retained_value_reordering","rule_outlier_identification","choice_verification"]
+  };
+}
+function l1RetainedRuleOutlierReviewDetails(info){
+  const p = info?.payload || {};
+  const seq = p.sequence || [];
+  const path = p.path || [];
+  const slot = path[p.outlierIndex];
+  const lines = [];
+  lines.push(`Sequence: ${l1RulePathText(path, seq)}`);
+  lines.push(`Rule: ${p.ruleLabel || "stated rule"}. Outlier: ${slot?.label || "?"} (${seq[p.outlierIndex] ?? "?"}).`);
+  if(p.reason) lines.push(`Why: ${p.reason}.`);
+  return lines.join("\n");
+}
+
+function l1RetainedRuleNextValueCandidates(p1,p2){
+  const slots = l1RetainedRuleParsingSlots(p1,p2);
+  if(slots.length !== 4) return [];
+  const out = [];
+  for(const path of l1RetainedRuleParsingPermutations(slots)){
+    const seq = path.map(s=>s.value);
+    const matches = l1RetainedRuleParsingMatches(seq).filter(r => typeof r.nextValue === "function");
+    if(matches.length !== 1) continue;
+    const rule = matches[0];
+    let next;
+    try{ next = Number(rule.nextValue(seq)); }catch(_){ next = NaN; }
+    if(!Number.isInteger(next) || next < 0 || next > 99) continue;
+    const score = 4 + (rule.id === "same_step" ? 2 : 0) + (rule.class === "symmetry" ? 1.5 : 0) + (rule.class === "geometric" ? 1 : 0);
+    out.push({path, seq, rule, next, score});
+  }
+  return out;
+}
+function retainedRuleNextValueCanUse(p1,p2){ return l1RetainedRuleNextValueCandidates(p1,p2).length > 0; }
+function retainedRuleNextValueResult(p1,p2){
+  const cands = l1RetainedRuleNextValueCandidates(p1,p2);
+  if(!cands.length) return null;
+  const cand = weightedPick(cands, c=>c.score || 1) || choice(cands);
+  const pathText = cand.path.map(s => s.label).join(" → ");
+  const ruleText = cand.rule.nextLabel || cand.rule.label;
+  return {
+    answer:cand.next,
+    question:`Use the retained values in this order: ${pathText}. Continue under the rule: ${ruleText}. What is the next value?`,
+    answerLabel:String(cand.next),
+    payload:{family:"retained_rule_next_value", ruleId:cand.rule.id, ruleLabel:cand.rule.label, nextLabel:ruleText, path:cand.path.map(s=>({id:s.id,pair:s.pair,side:s.side,label:s.label,value:s.value})), sequence:cand.seq.slice(), diffs:l1RetainedRuleParsingDiffs(cand.seq), next:cand.next},
+    nearMiss:{reason:`Rule: ${ruleText}. Next value is ${cand.next}.`},
+    frameTags:["retained_pair_readout","sequence_relation","rule_verification","integration_load","prediction"],
+    mechanismTags:["retained_value_reordering","rule_next_value_prediction"]
+  };
+}
+function l1RetainedRuleNextValueReviewDetails(info){
+  const p = info?.payload || {};
+  const seq = p.sequence || [];
+  const path = p.path || [];
+  const lines = [];
+  lines.push(`Sequence: ${l1RulePathText(path, seq)}`);
+  lines.push(...l1RuleEvidenceLines(p.ruleId, seq).slice(0,1));
+  lines.push(`Continue the rule → next value ${p.next ?? info?.answer}.`);
+  return lines.join("\n");
+}
+
 function retainedStateDirectionChoice(p1,p2){
   if(!p1 || !p2) return null;
   const dl = p2.a - p1.a;
@@ -39296,42 +39690,93 @@ const L1_CHOICE_OPS = [
     fn:(p1,p2)=> retainedParityPatternChoice(p1,p2) },
 
   // ── RETAINED FOUR-VALUE RULE PARSING ───────────────────────────────────
-  // The two retained pairs stay in their ordinary Pair 1/Pair 2 positions.
-  // The L1 question supplies an arbitrary path over their four slots and asks
-  // which rule describes the reordered chain. This is not an open number-series
-  // task: the response space is four fixed rules, and each built item is audited
-  // so exactly one rule fits the requested path.
-  { id:"retained_rule_parse_same_step", symmetric:true, family:"retained_rule_parsing_choice",
-    minLevel:5, minM:4,
-    responseFormat:"choice",
-    choiceLabels:L1_RETAINED_RULE_PARSING_LABELS,
-    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,0),
+  // v6.5.49: each catalog rule is its own sampling unit, but the menu shown
+  // to the user is dynamic: correct rule + three near distractors from the
+  // full rule catalog. This keeps the response grid readable as the catalog
+  // expands beyond four rules.
+  { id:"retained_rule_parse_same_step", correctRuleId:"same_step", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_constant_step","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"same_step"),
     frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load"],
-    fn:(p1,p2)=> retainedRuleParsingChoiceForIndex(p1,p2,0) },
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"same_step") },
 
-  { id:"retained_rule_parse_rise_unequal", symmetric:true, family:"retained_rule_parsing_choice",
-    minLevel:5, minM:4,
-    responseFormat:"choice",
-    choiceLabels:L1_RETAINED_RULE_PARSING_LABELS,
-    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,1),
+  { id:"retained_rule_parse_rise_unequal", correctRuleId:"rise_unequal", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_unequal_rise","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"rise_unequal"),
     frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load"],
-    fn:(p1,p2)=> retainedRuleParsingChoiceForIndex(p1,p2,1) },
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"rise_unequal") },
 
-  { id:"retained_rule_parse_fall_unequal", symmetric:true, family:"retained_rule_parsing_choice",
-    minLevel:5, minM:4,
-    responseFormat:"choice",
-    choiceLabels:L1_RETAINED_RULE_PARSING_LABELS,
-    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,2),
+  { id:"retained_rule_parse_fall_unequal", correctRuleId:"fall_unequal", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_unequal_fall","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"fall_unequal"),
     frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load"],
-    fn:(p1,p2)=> retainedRuleParsingChoiceForIndex(p1,p2,2) },
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"fall_unequal") },
 
-  { id:"retained_rule_parse_alternating", symmetric:true, family:"retained_rule_parsing_choice",
-    minLevel:5, minM:4,
-    responseFormat:"choice",
-    choiceLabels:L1_RETAINED_RULE_PARSING_LABELS,
-    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,3),
+  { id:"retained_rule_parse_alternating", correctRuleId:"alternating_direction", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_alternating_direction","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"alternating_direction"),
     frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load"],
-    fn:(p1,p2)=> retainedRuleParsingChoiceForIndex(p1,p2,3) },
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"alternating_direction") },
+
+  { id:"retained_rule_parse_mod2_consistency", correctRuleId:"modular_all_same_mod_2", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_modular_consistency","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"modular_all_same_mod_2"),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","class_inclusion"],
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"modular_all_same_mod_2") },
+
+  { id:"retained_rule_parse_mod3_consistency", correctRuleId:"modular_all_same_mod_3", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_modular_consistency","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"modular_all_same_mod_3"),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","modular_relation"],
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"modular_all_same_mod_3") },
+
+  { id:"retained_rule_parse_parity_alternating", correctRuleId:"parity_alternating", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_parity_alternation","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"parity_alternating"),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","class_inclusion"],
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"parity_alternating") },
+
+  { id:"retained_rule_parse_palindrome", correctRuleId:"palindrome", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_palindrome","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"palindrome"),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","symmetry_relation"],
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"palindrome") },
+
+  { id:"retained_rule_parse_period2", correctRuleId:"period_2", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_periodic","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"period_2"),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","periodic_structure"],
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"period_2") },
+
+  { id:"retained_rule_parse_period3_wrap", correctRuleId:"period_3_wrap", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_periodic","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"period_3_wrap"),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","periodic_structure"],
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"period_3_wrap") },
+
+  { id:"retained_rule_parse_monotone_repeat", correctRuleId:"monotone_strict_with_one_repeat", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:5, minM:4, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_monotone_with_repeat","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"monotone_strict_with_one_repeat"),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","ordinal_relation"],
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"monotone_strict_with_one_repeat") },
+
+  { id:"retained_rule_parse_geometric_ratio2", correctRuleId:"geometric_ratio_2", symmetric:true, family:"retained_rule_parsing_choice",
+    minLevel:6, minM:8, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_geometric","dynamic_rule_option_pool"],
+    canUse:(p1,p2)=> retainedRuleParsingChoiceCanUse(p1,p2,"geometric_ratio_2"),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","proportional_relation"],
+    fn:(p1,p2)=> retainedRuleParsingChoiceForRuleId(p1,p2,"geometric_ratio_2") },
+
+  { id:"retained_rule_outlier_choice", symmetric:true, family:"retained_rule_outlier_choice",
+    minLevel:6, minM:6, responseFormat:"choice", choiceLabels:["", "", "", ""], atomicsUsed:["rule_outlier_identification"],
+    canUse:(p1,p2)=> retainedRuleOutlierChoiceCanUse(p1,p2),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","outlier_detection"],
+    fn:(p1,p2)=> retainedRuleOutlierChoice(p1,p2) },
+
+  { id:"retained_rule_next_value", symmetric:true, family:"retained_rule_next_value",
+    minLevel:6, minM:6, responseFormat:"numpad_dynamic", atomicsUsed:["rule_next_value_prediction"],
+    canUse:(p1,p2)=> retainedRuleNextValueCanUse(p1,p2),
+    frameTags:["source_relation","retained_pair_readout","sequence_relation","rule_verification","integration_load","prediction"],
+    fn:(p1,p2)=> retainedRuleNextValueResult(p1,p2) },
 
   // ── BEFORE/AFTER STATE TRANSITION OVER RETAINED PAIRS ──────────────────
   // Pair 1 is treated as the initial state and Pair 2 as the final state,
@@ -39899,6 +40344,45 @@ function registerSpec(spec){
   SPEC_REGISTRY[spec.id] = spec;
   return spec;
 }
+
+// v6.5.49: atomics for the expanded retained-rule parsing family.
+(function registerRetainedRuleParsingAtomics(){
+  if(typeof registerAtomic !== "function") return;
+  const defs = [
+    ["rule_constant_step", "relation", "Rule: constant non-zero step"],
+    ["rule_unequal_rise", "relation", "Rule: unequal rising steps"],
+    ["rule_unequal_fall", "relation", "Rule: unequal falling steps"],
+    ["rule_alternating_direction", "relation", "Rule: alternating direction"],
+    ["rule_modular_consistency", "relation", "Rule: all values share a modular class"],
+    ["rule_parity_alternation", "relation", "Rule: parity alternates across the chain"],
+    ["rule_palindrome", "relation", "Rule: sequence is a palindrome"],
+    ["rule_periodic", "relation", "Rule: sequence has a short period"],
+    ["rule_monotone_with_repeat", "relation", "Rule: monotone sequence with one repeat"],
+    ["rule_geometric", "relation", "Rule: geometric progression"],
+    ["dynamic_rule_option_pool", "metacognitive", "Dynamic four-option pool for retained-rule parsing"],
+    ["rule_outlier_identification", "metacognitive", "Identify the slot that breaks a rule"],
+    ["rule_next_value_prediction", "relation", "Predict the next value under a retained rule"]
+  ];
+  for(const [id, kind, label] of defs){
+    if(!ATOMIC_REGISTRY[id]) registerAtomic({id, kind, label, phrase:()=>label, evaluate:()=>true, reviewLine:()=>label, source:"v6.5.49_retained_rule_parsing"});
+  }
+})();
+
+// v6.5.50: atomics for retained-episode economy and curated complementary probes.
+(function registerEpisodicEconomyAtomics(){
+  if(typeof registerAtomic !== "function") return;
+  const defs = [
+    ["complementary_probe_pairing", "metacognitive", "Curated complementary L1 probe pairing"],
+    ["extended_episodic_extraction", "metacognitive", "Second fluent extraction from the same retained episode"],
+    ["episodic_fatigue_tracking", "metacognitive", "Fatigue tracking over repeated probes on one retained pair"],
+    ["episodic_information_yield", "metacognitive", "Information yield per retained episode"],
+    ["episodic_economy_audit", "metacognitive", "Audit retained-episode economy"],
+    ["episodic_review_synthesis", "metacognitive", "Combined review over anchor and extra probe"]
+  ];
+  for(const [id, kind, label] of defs){
+    if(!ATOMIC_REGISTRY[id]) registerAtomic({id, kind, label, phrase:()=>label, evaluate:()=>true, reviewLine:()=>label, source:"v6.5.50_episodic_economy"});
+  }
+})();
 
 // ──────────────────────────────────────────────────────────────────
 // Atomic helpers — utilities atomics use to compute on stim composition.
@@ -41826,9 +42310,10 @@ function setupL1(){
   }
 
   const retainedPairPlan = ensureL1RetainedPairProbePlan();
-  if(retainedPairPlan.consumeNext && retainedPairPlan.anchorOpId){
-    const distinctOpBank = opBank.filter(op => op?.id !== retainedPairPlan.anchorOpId);
-    if(distinctOpBank.length) opBank = distinctOpBank;
+  if(retainedPairPlan.consumeNext){
+    const curatedOpBank = l1CuratedRetainedPairOpBank(opBank, rawP1, rawP2, m);
+    if(!curatedOpBank.length) return null;
+    opBank = curatedOpBank;
   }
 
   // v6.5.5: L1 op selection redesigned. Previous code had the same
@@ -41898,8 +42383,12 @@ function setupL1(){
       rawPair2:{a:rawP2.a, b:rawP2.b},
       directionSwapped:false,
       answer: fnResult.answer,
+      answerLabel: fnResult.answerLabel || null,
       question: fnResult.question,
+      payload: fnResult.payload || null,
       nearMiss: fnResult.nearMiss || null,
+      frameTags:uniq([...(op.frameTags || []), ...(fnResult.frameTags || [])]),
+      mechanismTags:uniq([...(fnResult.mechanismTags || [])]),
       witnessTelemetry: fnResult.witnessTelemetry || null,
       counterfactualTelemetry: fnResult.counterfactualTelemetry || null,
       chainedProportionPayload: fnResult.chainedProportionPayload || null,
@@ -43301,7 +43790,7 @@ function twoPropertyL0Cats(){
 POSNER_CATS.push(...twoPropertyL0Cats());
 
 
-// v6.5.48l1-expanded: small but real declarative L0 compiler.
+// v6.5.49retained-rule-parsing: small but real declarative L0 compiler.
 // These specs demonstrate the atomic path that future content should use:
 // predicate atomics + quantifier atomics + optional scope atomics become one
 // playable family without writing a bespoke verifier for every combination.
@@ -43440,7 +43929,7 @@ function registerOperationInvarianceAtomics(){
     ["op_add_constant", "transform", "add the same constant"],
     ["op_multiply_positive", "transform", "multiply by a positive integer"],
     ["op_reflect_around_anchor", "transform", "reflect around an anchor"],
-    ["op_modulo_wrap", "transform", "take remainder modulo k"],
+    ["op_modulo_wrap", "transform", "take the remainder after division by k"],
     ["truth_value_preservation", "logic", "truth-value preservation"]
   ];
   for(const [id, kind, phrase] of defs){
@@ -43462,7 +43951,7 @@ function operationInvarianceTransform(kind, m){
     return {id:"reflect_anchor", opAtomic:"op_reflect_around_anchor", anchor, phrase:`replace each value n with ${anchor} − n`};
   }
   const mod = Math.max(3, Math.min(7, Math.floor(M / 2) + 1));
-  return {id:"modulo_wrap", opAtomic:"op_modulo_wrap", mod, phrase:`take each value's remainder after division by ${mod}`};
+  return {id:"modulo_wrap", opAtomic:"op_modulo_wrap", mod, phrase:`replace each value by its remainder after division by ${mod}`};
 }
 function operationInvarianceApply(n, transform){
   const v = Number(n);
@@ -43484,32 +43973,53 @@ function operationInvarianceEvalScenario(a, b, transform){
   const afterTruth = afterRight > afterLeft;
   return {left, right, afterLeft, afterRight, beforeTruth, afterTruth, preserved:beforeTruth === afterTruth};
 }
+function operationInvarianceTruthShortcutTransform(transform){
+  const id = String(transform?.id || "");
+  // For a strict order comparison, adding a constant and multiplying by a
+  // positive constant are always order-preserving, while reflection is always
+  // order-reversing when LEFT and RIGHT differ. Those prompts are useful as
+  // demonstrations but not as repeated L0 probes: the answer can be read from
+  // the operation type alone. Runtime YES/NO probes therefore use only
+  // value-dependent transforms.
+  return id === "add_constant" || id === "multiply_positive" || id === "reflect_anchor";
+}
 function operationInvarianceScenario(m, wantPreserved){
-  const M = Math.max(6, Math.floor(Number(m) || currentMax() || 8));
+  const M = Math.max(8, Math.floor(Number(m) || currentMax() || 8));
   const target = !!wantPreserved;
-  const preferred = target
-    ? ["add_constant", "multiply_positive", "modulo_wrap"]
-    : ["reflect_anchor", "modulo_wrap"];
-  for(let guard=0; guard<160; guard++){
+  const preferred = ["modulo_wrap"];
+  for(let guard=0; guard<260; guard++){
     const kind = choice(preferred);
     const transform = operationInvarianceTransform(kind, M);
     const a = randInt(1, M + 1);
     let b = randInt(1, M + 1);
     if(b === a) b = (b % M) + 1;
     const ev = operationInvarianceEvalScenario(a, b, transform);
-    if(ev.preserved === target){
-      return {a, b, transform, ...ev, targetOutcome:target};
+    if(ev.preserved === target && (ev.afterLeft !== ev.left || ev.afterRight !== ev.right)){
+      return {a, b, transform, ...ev, targetOutcome:target, valueDependent:true};
     }
   }
-  // Deterministic safe fallback: add preserves; reflection reverses.
+  // Deterministic value-dependent fallbacks for the modulo version. These keep
+  // answer budgeting intact without falling back to the trivial add/reflect
+  // cases that caused shortcutting.
+  const mod = Math.max(3, Math.min(7, Math.floor(M / 2) + 1));
+  const candidates = [];
+  for(let a=1; a<=M; a++){
+    for(let b=1; b<=M; b++){
+      if(a === b) continue;
+      const transform = {id:"modulo_wrap", opAtomic:"op_modulo_wrap", mod, phrase:`replace each value by its remainder after division by ${mod}`};
+      const ev = operationInvarianceEvalScenario(a, b, transform);
+      if(ev.preserved === target && (ev.afterLeft !== ev.left || ev.afterRight !== ev.right)) candidates.push({a, b, transform, ...ev, targetOutcome:target, valueDependent:true});
+    }
+  }
+  if(candidates.length) return choice(candidates);
   const a = 2, b = Math.min(5, M);
-  const transform = target ? {id:"add_constant", opAtomic:"op_add_constant", k:2, phrase:"add 2 to both values"}
-                           : {id:"reflect_anchor", opAtomic:"op_reflect_around_anchor", anchor:M+1, phrase:`replace each value n with ${M+1} − n`};
+  const transform = {id:"modulo_wrap", opAtomic:"op_modulo_wrap", mod, phrase:`replace each value by its remainder after division by ${mod}`};
   const ev = operationInvarianceEvalScenario(a, b, transform);
-  return {a, b, transform, ...ev, targetOutcome:ev.preserved};
+  return {a, b, transform, ...ev, targetOutcome:ev.preserved, valueDependent:true};
 }
 function operationInvarianceQuestion(s){
-  return `LEFT is ${s.left}; RIGHT is ${s.right}. If we ${s.transform.phrase}, does the statement “RIGHT is greater than LEFT” keep the same truth value?`;
+  const rule = s?.transform?.phrase || "apply the stated rule to both values";
+  return `Look at the displayed LEFT and RIGHT. Apply this rule to both values: ${rule}. Does the statement “RIGHT is greater than LEFT” keep the same truth value?`;
 }
 function operationInvarianceReviewLines(state={}, expected=false){
   const src = state.invarianceUnderOperation || state.info?.invarianceUnderOperation || state.trialInfo?.invarianceUnderOperation || state;
@@ -43560,7 +44070,7 @@ function buildL0OperationInvarianceTrial(cat, m){
 function registerOperationInvarianceL0Family(){
   registerOperationInvarianceAtomics();
   const atomicsUsed = operationInvarianceCatAtomics();
-  const prompt = "After applying an operation to both values, does RIGHT-greater-than-LEFT keep the same truth value?";
+  const prompt = "After a value-dependent operation is applied to both displayed values, does RIGHT-greater-than-LEFT keep the same truth value?";
   const spec = registerSpec({
     id:OPERATION_INVARIANCE_SPEC_ID,
     layer:"L0",
@@ -43570,8 +44080,8 @@ function registerOperationInvarianceL0Family(){
     promptBuilder:(state={})=> state.invarianceUnderOperation ? operationInvarianceQuestion(state.invarianceUnderOperation) : prompt,
     verifier:(state={})=> operationInvarianceEvalScenario(state.a, state.b, state.transform || state.invarianceUnderOperation?.transform || {id:"add_constant", k:0}).preserved,
     reviewBuilder:operationInvarianceReviewLines,
-    minLevel:3,
-    minM:6,
+    minLevel:6,
+    minM:8,
     frameTags:["atomic_composition","comparison","transformation_relation","virtual_transform","invariance_relation"],
     canonicalFamily:"operation_invariance",
     labelOntology:{canonicalLabel:"Operation invariance: comparison truth", substrate:"symbolic", topology:"pair", operation:"apply operation to both values", direction:"both sides", predicate:"truth-value preservation of right > left", responseFormat:"bool"},
@@ -43580,20 +44090,20 @@ function registerOperationInvarianceL0Family(){
   });
   const cat = {
     id:OPERATION_INVARIANCE_SPEC_ID,
-    tier:3,
-    minLevel:3,
-    minM:6,
+    tier:4,
+    minLevel:6,
+    minM:8,
     family:"operation_invariance",
     canonicalFamily:"operation_invariance",
     operationInvarianceFamily:true,
     frameTags:spec.frameTags.slice(),
     atomicsUsed:atomicsUsed.slice(),
     variants:spec.prompts,
-    canUse:m => Number(m) >= 6,
-    // Generic probes use the modulo version because it admits both truth values.
-    // Runtime play uses buildL0OperationInvarianceTrial above, which varies the
-    // operation while preserving 50/50 answer budgeting.
-    gen:(m,t)=>genPairByPredicate(Math.max(6, Number(m)||8), !!t, (x,y)=>operationInvarianceEvalScenario(x,y,{id:"modulo_wrap", mod:5}).preserved, {allowEqual:false}),
+    canUse:m => currentLevel() >= 6 && Number(m) >= 8,
+    // Generic probes and runtime play both use the modulo version because it
+    // is value-dependent for the comparison; add/multiply/reflection are
+    // shortcutable and are kept for choice-format invariance questions only.
+    gen:(m,t)=>genPairByPredicate(Math.max(8, Number(m)||8), !!t, (x,y)=>operationInvarianceEvalScenario(x,y,{id:"modulo_wrap", mod:5}).preserved, {allowEqual:false}),
     verify:(x,y)=>operationInvarianceEvalScenario(x,y,{id:"modulo_wrap", mod:5}).preserved,
     _registrySpec:spec,
     registrySpecId:spec.id,
@@ -43739,6 +44249,24 @@ function l0QuantifierPublicLabel(q, setKey){
   if(q === "exactly_one") return `exactly one value is ${s}`;
   return `${q} ${s}`;
 }
+function l0SetChoiceOptionLabel(q, setKey, setOnly=false){
+  // v6.5.54: the old set-only display used bare labels ("odd", "square", ...).
+  // That made negated quantifiers look like a pure set-name choice even though
+  // the task was a truth-conditional claim about the remembered pair. Render the
+  // full quantified statement so "neither" cannot be read as a partition choice.
+  return l0QuantifierPublicLabel(q, setKey);
+}
+function l0SetMembershipChoiceRecord(q, setKey, a, b, m){
+  const leftInSet = numberSetHas(setKey, a, m);
+  const rightInSet = numberSetHas(setKey, b, m);
+  return {
+    setKey,
+    quantifier:q,
+    leftInSet:!!leftInSet,
+    rightInSet:!!rightInSet,
+    truth:l0SetQuantifierEval(q, setKey, a, b, m)
+  };
+}
 const L0_SET_OPTION_STRATA = {
   close:["even","odd","square","power2"],
   medium:["even","prime","multiple3","triangular"],
@@ -43761,12 +44289,23 @@ function buildL0PredicateOrSetChoice(cat, m){
   const defs = sets.slice(0,4).map(setKey => ({setKey, eval:(a,b)=>l0SetQuantifierEval(spec.q,setKey,a,b,m)}));
   const sample = samplePairWhereExactlyOne(m, defs, (d,a,b)=>d.eval(a,b), {allowEqual:true, cap:Math.min(m, 12)});
   if(!sample) return null;
-  const optionText = (setKey)=> cat.setOnly ? numberSetShortLabel(setKey) : l0QuantifierPublicLabel(spec.q, setKey);
-  const options = defs.map((d,i)=>l0ChoiceOption(optionText(d.setKey), i===sample.correctIndex, i===sample.correctIndex ? "correct" : (NUMBER_SETS[d.setKey]?.kind === NUMBER_SETS[defs[sample.correctIndex]?.setKey]?.kind ? "semantic_near_miss" : "magnitude_lure"), {setKey:d.setKey, quantifier:spec.q}));
+  const membershipRecords = defs.map(d => l0SetMembershipChoiceRecord(spec.q, d.setKey, sample.a, sample.b, m));
+  const trueIndices = membershipRecords.map((r,i)=>r.truth ? i : null).filter(Number.isInteger);
+  // Fail closed if a future set catalogue change makes the four options non-unique.
+  // This is especially important for "neither": overlapping number families can
+  // easily produce two or three true statements unless the sampled pair is vetted.
+  if(trueIndices.length !== 1 || trueIndices[0] !== sample.correctIndex) return null;
+  const optionText = (setKey)=> l0SetChoiceOptionLabel(spec.q, setKey, !!cat.setOnly);
+  const options = defs.map((d,i)=>l0ChoiceOption(
+    optionText(d.setKey),
+    i===sample.correctIndex,
+    i===sample.correctIndex ? "correct" : (NUMBER_SETS[d.setKey]?.kind === NUMBER_SETS[defs[sample.correctIndex]?.setKey]?.kind ? "semantic_near_miss" : "magnitude_lure"),
+    membershipRecords[i]
+  ));
   const prompt = cat.setOnly
-    ? (spec.q === "both" ? "Under this rule, which set contains both values?" : spec.q === "neither" ? "Under this rule, which set contains neither value?" : "Under this rule, which set contains exactly one of the values?")
-    : "Which joint predicate is true for the pair you just saw?";
-  return buildL0ChoiceTrialFromOptions(cat, m, sample.a, sample.b, prompt, options, sample.correctIndex, {setMembershipIdentification:{specId:spec.id, quantifier:spec.q, sets:defs.map(d=>d.setKey), setOnly:!!cat.setOnly}, mechanismTags:[cat.setOnly ? "set_identification" : "predicate_identification"]});
+    ? "Exactly one option is true. Which statement matches the pair?"
+    : "Exactly one joint statement is true for the pair you just saw. Which one?";
+  return buildL0ChoiceTrialFromOptions(cat, m, sample.a, sample.b, prompt, options, sample.correctIndex, {setMembershipIdentification:{specId:spec.id, quantifier:spec.q, sets:defs.map(d=>d.setKey), setOnly:!!cat.setOnly, pair:{a:sample.a,b:sample.b}, m, truth:membershipRecords}, mechanismTags:[cat.setOnly ? "set_identification" : "predicate_identification"]});
 }
 function makeL0PredicateIdentificationChoiceCats(){
   return l0PredicateIdentificationSpecs("predicate").map(spec=>({
@@ -43791,6 +44330,37 @@ function makeL0SetMembershipIdentificationChoiceCats(){
     buildChoiceTrial:buildL0PredicateOrSetChoice,
     gen(m,t){ return [randInt(1,m+1), randInt(1,m+1)]; }, verify(){ return INAPPLICABLE; }
   }));
+}
+function auditL0SetMembershipChoiceUniqueness(opts={}){
+  const maxM = Math.max(7, Math.floor(Number(opts.maxM) || 12));
+  const rows = [], blocking = [];
+  for(const spec of l0PredicateIdentificationSpecs("set_membership")){
+    for(let m=7; m<=maxM; m++){
+      const sets = spec.sets.filter(k => numberSetCanUse(k,m)).slice(0,4);
+      if(sets.length < 4) continue;
+      let exact = 0, ambiguous = 0, none = 0;
+      for(let a=1; a<=Math.min(m,12); a++){
+        for(let b=1; b<=Math.min(m,12); b++){
+          const truth = sets.map(k => l0SetQuantifierEval(spec.q,k,a,b,m));
+          const c = truth.filter(Boolean).length;
+          if(c === 1) exact++;
+          else if(c === 0) none++;
+          else ambiguous++;
+        }
+      }
+      const cat = {id:"audit_"+spec.id, family:"set_membership_identification", choiceSpec:spec, setOnly:true, frameTags:[]};
+      let builtOk = 0, builtBad = 0;
+      for(let i=0; i<40; i++){
+        const t = buildL0PredicateOrSetChoice(cat,m);
+        if(!t){ builtBad++; continue; }
+        const c = (t.options || []).filter(o=>!!o.correct).length;
+        if(c === 1) builtOk++; else { builtBad++; blocking.push({spec:spec.id,m,reason:"built_non_unique_correct_count", count:c}); }
+      }
+      rows.push({spec:spec.id, q:spec.q, stratum:spec.stratum, m, exact, ambiguous, none, builtOk, builtBad});
+      if(exact <= 0) blocking.push({spec:spec.id,m,reason:"no_exact_pair"});
+    }
+  }
+  return {ok:blocking.length===0, status:blocking.length?"blocking":"pass", rows, blocking};
 }
 
 function modularChoiceSpecs(){
@@ -44020,20 +44590,20 @@ function extraRelationEquivalenceSpecs(){
       {text:"LEFT is farther from 5", correct:dl>dr, distractorType:"role_inversion"},
       {text:"RIGHT is closer to 5", correct:dr<dl, distractorType:"role_inversion"}
     ];}, review(a,b){ return `Distances to 5: LEFT=${Math.abs(a-5)}, RIGHT=${Math.abs(b-5)}.`; }},
-    {id:"rel_eq_modular_dual_mod3", label:"modular dual mod 3", minM:7, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%3===0; return [
-      {text:"both leave the same remainder mod 3", correct:same, distractorType:"correct"},
+    {id:"rel_eq_modular_dual_mod3", label:"dual remainder relation by 3", minM:7, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%3===0; return [
+      {text:"both leave the same remainder after division by 3", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 3", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 3", correct:(a+b)%3===0, distractorType:"semantic_near_miss"},
       {text:"exactly one leaves remainder 1 mod 3", correct:(a%3===1)!==(b%3===1), distractorType:"semantic_near_miss"}
     ];}, review(a,b){ return `Remainders mod 3: LEFT=${a%3}, RIGHT=${b%3}.`; }},
-    {id:"rel_eq_modular_dual_mod4", label:"modular dual mod 4", minM:8, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%4===0; return [
-      {text:"both leave the same remainder mod 4", correct:same, distractorType:"correct"},
+    {id:"rel_eq_modular_dual_mod4", label:"dual remainder relation by 4", minM:8, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%4===0; return [
+      {text:"both leave the same remainder after division by 4", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 4", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 4", correct:(a+b)%4===0, distractorType:"semantic_near_miss"},
       {text:"exactly one leaves remainder 1 mod 4", correct:(a%4===1)!==(b%4===1), distractorType:"semantic_near_miss"}
     ];}, review(a,b){ return `Remainders mod 4: LEFT=${a%4}, RIGHT=${b%4}.`; }},
-    {id:"rel_eq_modular_dual_mod5", label:"modular dual mod 5", minM:10, stage:5, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%5===0; return [
-      {text:"both leave the same remainder mod 5", correct:same, distractorType:"correct"},
+    {id:"rel_eq_modular_dual_mod5", label:"dual remainder relation by 5", minM:10, stage:5, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%5===0; return [
+      {text:"both leave the same remainder after division by 5", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 5", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 5", correct:(a+b)%5===0, distractorType:"semantic_near_miss"},
       {text:"exactly one leaves remainder 1 mod 5", correct:(a%5===1)!==(b%5===1), distractorType:"semantic_near_miss"}
@@ -44096,7 +44666,7 @@ function makeExtraRelationEquivalenceCats(){
 function makeL0ModularAdditionalYesNoCats(){
   const cats=[];
   for(const mod of [7,10]){
-    cats.push(makeSimpleValuePosnerCat(`same_mod${mod}`,4,mod,"modular",[{q:`Do the values leave the same remainder mod ${mod}?`}],(a,b)=>Math.abs(a-b)%mod===0,["modular_relation","class_inclusion","coordination"],{relationMode:"modular",modulus:mod,minM:mod}));
+    cats.push(makeSimpleValuePosnerCat(`same_mod${mod}`,4,mod,"modular",[{q:`Do the values leave the same remainder when divided by ${mod}?`}],(a,b)=>Math.abs(a-b)%mod===0,["modular_relation","class_inclusion","coordination"],{relationMode:"modular",modulus:mod,minM:mod}));
     cats.push(makeSimpleValuePosnerCat(`sum_multiple_${mod}`,4,mod,"modular",[{q:`Is the sum a multiple of ${mod}?`}],(a,b)=>(a+b)%mod===0,["modular_relation","metric_relation"],{relationMode:"modular",modulus:mod,minM:mod}));
   }
   return cats;
@@ -44626,8 +45196,8 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
       {id:"rec_collatz_max_gt20", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"max_reached", threshold:20, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:5, q:"Run Collatz from LEFT. Does the trace ever exceed 20?"},
       {id:"rec_collatz_triple_twice", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"branch_usage_count", branchId:"triple_plus_one", threshold:2, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:9, q:"Run Collatz from LEFT. Is the 3v+1 branch used at least twice?"},
       {id:"rec_fa_parity_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"parity"}, maxTraceDepth:4, q:"Feed digits LEFT then RIGHT to the parity automaton. Does it finish in the even state?"},
-      {id:"rec_fa_div3_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"div3"}, maxTraceDepth:4, q:"Feed digits LEFT then RIGHT to the mod-3 automaton. Does it finish in remainder state 0?"},
-      {id:"rec_fa_div3_final_remainder1", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:1, params:{automaton:"div3"}, maxTraceDepth:4, q:"Feed digits LEFT then RIGHT to the mod-3 automaton. Does it finish in remainder state 1?"},
+      {id:"rec_fa_div3_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"div3"}, maxTraceDepth:4, q:"Read LEFT then RIGHT as digits in the division-by-3 machine. Does it finish in remainder state 0?"},
+      {id:"rec_fa_div3_final_remainder1", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:1, params:{automaton:"div3"}, maxTraceDepth:4, q:"Read LEFT then RIGHT as digits in the division-by-3 machine. Does it finish in remainder state 1?"},
       {id:"rec_counted_halving_count_eq2", opId:"counted_iteration", seedSource:"LEFT", tier:5, minM:8, predicate:"final_eq", value:2, params:{innerOpId:"halving_to_odd"}, maxTraceDepth:5, atomicsUsed:["multi_variable_state"], q:"Run counted halving on LEFT. Is the final step-count exactly 2?"},
       {id:"rec_counted_halving_count_gt2", opId:"counted_iteration", seedSource:"SUM", tier:5, minM:8, predicate:"final_gt", threshold:2, params:{innerOpId:"halving_to_odd"}, maxTraceDepth:5, atomicsUsed:["multi_variable_state"], q:"Run counted halving on LEFT+RIGHT. Is the final step-count greater than 2?"},
       {id:"rec_counted_halving_net_4_12", opId:"counted_iteration", seedSource:"SUM", tier:5, minM:8, predicate:"net_change", band:[4,12], params:{innerOpId:"halving_to_odd"}, maxTraceDepth:5, atomicsUsed:["multi_variable_state"], q:"Run counted halving on LEFT+RIGHT. Is the value-change between 4 and 12?"},
@@ -45833,6 +46403,8 @@ function auditOperationInvarianceFamily(opts={}){
       if(s.preserved !== want) block.push(`scenario_wrong_truth:${want}:${s.preserved}`);
       const q = operationInvarianceQuestion(s);
       if(!/RIGHT is greater than LEFT/.test(q)) block.push("prompt_missing_relation");
+      if(new RegExp(`\bLEFT is\s+${s.left}\b|\bRIGHT is\s+${s.right}\b`).test(q)) block.push("prompt_leaks_values");
+      if(operationInvarianceTruthShortcutTransform(s.transform)) block.push(`shortcut_transform_in_runtime:${s.transform?.id}`);
       const lines = operationInvarianceReviewLines({invarianceUnderOperation:s}, s.preserved);
       if(!Array.isArray(lines) || lines.length < 3) block.push("review_too_short");
       if(samples.length < 16) samples.push({want, a:s.left, b:s.right, op:s.transform.id, phrase:s.transform.phrase, before:s.beforeTruth, after:s.afterTruth, preserved:s.preserved});
@@ -47274,7 +47846,7 @@ function annotateTrialWithRegistryRuntime(layer, payload, entry){
     payload.registryRuntimeVersion = REGISTRY_RUNTIME_VERSION;
     payload.labelDictionaryVersion = LABEL_DICTIONARY_VERSION;
     if(!payload.atomicsUsed && Array.isArray(spec.atomicsUsed)) payload.atomicsUsed = spec.atomicsUsed.slice();
-    // v6.5.48l1-expanded: legacy and declarative trials expose the same
+    // v6.5.49retained-rule-parsing: legacy and declarative trials expose the same
     // canonical cognitive signature on the live trialInfo object, not only in
     // deferred atomic telemetry. This prevents current-trial coverage from
     // being limited to the few declarative specs.
@@ -51700,11 +52272,40 @@ function autoPhaseForTrialInfo(info){
 }
 
 // ============================================================================
-// RETAINED-PAIR MULTI-PROBE — reduce visible L0 saturation
+// RETAINED-PAIR MULTI-PROBE — curated episodic economy (v6.5.50)
 // ============================================================================
+function ensureEpisodicEconomyMonitor(){
+  if(!State.productionMonitor || typeof State.productionMonitor !== "object") State.productionMonitor = {};
+  const mon = State.productionMonitor.episodicEconomy && typeof State.productionMonitor.episodicEconomy === "object"
+    ? State.productionMonitor.episodicEconomy
+    : (State.productionMonitor.episodicEconomy = {});
+  mon.episodes = Math.max(0, Number(mon.episodes) || 0);
+  mon.probes = Math.max(0, Number(mon.probes) || 0);
+  mon.totalInformationYield = Number(mon.totalInformationYield) || 0;
+  if(!Array.isArray(mon.informationYield)) mon.informationYield = [];
+  if(!mon.complementarity || typeof mon.complementarity !== "object") mon.complementarity = {curated:0, no_extras:0, non_curated:0};
+  for(const k of ["curated","no_extras","non_curated"]) mon.complementarity[k] = Math.max(0, Number(mon.complementarity[k]) || 0);
+  if(!mon.cancellationByReason || typeof mon.cancellationByReason !== "object") mon.cancellationByReason = {};
+  mon.fatigueCancellations = Math.max(0, Number(mon.fatigueCancellations) || 0);
+  mon.maxDepthReached = Math.max(0, Number(mon.maxDepthReached) || 0);
+  if(!Array.isArray(mon.recent)) mon.recent = [];
+  if(mon.active && typeof mon.active !== "object") mon.active = null;
+  return mon;
+}
+function blankBlockEpisodicEconomy(){
+  return {episodes:0, probes:0, informationYield:[], complementarity:{curated:0, no_extras:0, non_curated:0}, cancellationByReason:{}, fatigueCancellations:0, maxDepthReached:0};
+}
+function ensureBlockEpisodicEconomy(){
+  if(!State.blockEpisodicEconomy || typeof State.blockEpisodicEconomy !== "object") State.blockEpisodicEconomy = blankBlockEpisodicEconomy();
+  const b = State.blockEpisodicEconomy;
+  if(!Array.isArray(b.informationYield)) b.informationYield = [];
+  if(!b.complementarity) b.complementarity = {curated:0, no_extras:0, non_curated:0};
+  if(!b.cancellationByReason) b.cancellationByReason = {};
+  return b;
+}
 function ensureL1RetainedPairProbePlan(){
   if(!State.l1RetainedPairProbePlan || typeof State.l1RetainedPairProbePlan !== "object"){
-    State.l1RetainedPairProbePlan = {remaining:0, sourcePairKey:null, consumeNext:false, scheduledAtBlockTrial:-9999, presented:0, successfulPairs:0, cancelled:0, anchorPairKey:null, anchorOpId:null, anchorCorrect:false, activePairKey:null, activeAnchorOpId:null, activeProbeOpId:null};
+    State.l1RetainedPairProbePlan = {remaining:0, sourcePairKey:null, consumeNext:false, scheduledAtBlockTrial:-9999, presented:0, successfulPairs:0, cancelled:0, anchorPairKey:null, anchorOpId:null, anchorFamily:null, anchorCorrect:false, anchorSummary:null, activePairKey:null, activeAnchorOpId:null, activeProbeOpId:null, pairingTargetFamilies:[], initialPairingTargetFamilies:[], previousProbeFamily:null, previousProbeOpId:null, probeFamilies:[], probeOpIds:[], extensionDepth:0, activeProbeDepth:0, episodeFatigueLoad:0, fatiguedPairKey:null};
   }
   const p = State.l1RetainedPairProbePlan;
   p.remaining = Math.max(0, Number(p.remaining) || 0);
@@ -51716,11 +52317,34 @@ function ensureL1RetainedPairProbePlan(){
   p.cancelled = Math.max(0, Number(p.cancelled) || 0);
   p.anchorPairKey = p.anchorPairKey || null;
   p.anchorOpId = p.anchorOpId || null;
+  p.anchorFamily = p.anchorFamily || (p.anchorOpId ? l1FamilyForOpId(p.anchorOpId) : null);
   p.anchorCorrect = !!p.anchorCorrect;
+  p.anchorSummary = p.anchorSummary || null;
   p.activePairKey = p.activePairKey || null;
   p.activeAnchorOpId = p.activeAnchorOpId || null;
   p.activeProbeOpId = p.activeProbeOpId || null;
+  p.pairingTargetFamilies = Array.isArray(p.pairingTargetFamilies) ? p.pairingTargetFamilies.map(canonicalL1ComplementaryFamily).filter(Boolean) : [];
+  p.initialPairingTargetFamilies = Array.isArray(p.initialPairingTargetFamilies) ? p.initialPairingTargetFamilies.map(canonicalL1ComplementaryFamily).filter(Boolean) : [];
+  p.previousProbeFamily = p.previousProbeFamily || null;
+  p.previousProbeOpId = p.previousProbeOpId || null;
+  p.probeFamilies = Array.isArray(p.probeFamilies) ? p.probeFamilies.map(canonicalL1ComplementaryFamily).filter(Boolean) : [];
+  p.probeOpIds = Array.isArray(p.probeOpIds) ? p.probeOpIds.filter(Boolean) : [];
+  p.extensionDepth = Math.max(0, Number(p.extensionDepth) || 0);
+  p.activeProbeDepth = Math.max(0, Number(p.activeProbeDepth) || 0);
+  p.episodeFatigueLoad = Math.max(0, Number(p.episodeFatigueLoad) || 0);
+  p.fatiguedPairKey = p.fatiguedPairKey || null;
   return p;
+}
+function ensureL1RetainedPairMultiProbeMonitor(){
+  if(!State.productionMonitor || typeof State.productionMonitor !== "object") State.productionMonitor = {};
+  const mon = State.productionMonitor.l1RetainedPairMultiProbe && typeof State.productionMonitor.l1RetainedPairMultiProbe === "object"
+    ? State.productionMonitor.l1RetainedPairMultiProbe
+    : (State.productionMonitor.l1RetainedPairMultiProbe = {});
+  for(const k of ["scheduled","presented","successfulPairs","cancelled","maxDepthReached","fatigueCancellations"]) mon[k] = Math.max(0, Number(mon[k]) || 0);
+  if(!mon.byReason || typeof mon.byReason !== "object") mon.byReason = {};
+  if(!mon.byComplementarity || typeof mon.byComplementarity !== "object") mon.byComplementarity = {curated:0, no_extras:0, non_curated:0};
+  if(!Array.isArray(mon.recent)) mon.recent = [];
+  return mon;
 }
 function currentRetainedPairKey(){
   const hist = State.meta?.pairHistory || [];
@@ -51729,26 +52353,205 @@ function currentRetainedPairKey(){
   const f = p => `${Number(p?.a)}:${Number(p?.b)}:${p?.repA || ""}:${p?.repB || ""}`;
   return `${f(p1)}|${f(p2)}`;
 }
+function l1FamilyForOp(op){
+  if(!op) return null;
+  return canonicalL1ComplementaryFamily(op.family || op.extensionFamily || null);
+}
+function l1FamilyForOpId(opId){
+  if(!opId) return null;
+  const op = (typeof L1_OPS !== "undefined" && Array.isArray(L1_OPS)) ? L1_OPS.find(o => o && o.id === opId) : null;
+  return l1FamilyForOp(op);
+}
+function l1ComplementaryTargetsForFamily(family){
+  const f = canonicalL1ComplementaryFamily(family);
+  return uniq((L1_COMPLEMENTARY_PROBE_PAIRINGS[f] || []).map(canonicalL1ComplementaryFamily).filter(Boolean));
+}
+function l1FamiliesAreComplementary(a, b){
+  const fa = canonicalL1ComplementaryFamily(a), fb = canonicalL1ComplementaryFamily(b);
+  if(!fa || !fb || fa === fb) return false;
+  return (L1_COMPLEMENTARY_PROBE_PAIRINGS[fa] || []).map(canonicalL1ComplementaryFamily).includes(fb)
+      || (L1_COMPLEMENTARY_PROBE_PAIRINGS[fb] || []).map(canonicalL1ComplementaryFamily).includes(fa);
+}
+function l1NextComplementaryTargets(anchorFamily, previousFamily){
+  const a = l1ComplementaryTargetsForFamily(anchorFamily);
+  const b = l1ComplementaryTargetsForFamily(previousFamily);
+  let targets = a.filter(x => b.includes(x));
+  if(!targets.length) targets = b.slice();
+  targets = targets.filter(x => x !== canonicalL1ComplementaryFamily(anchorFamily) && x !== canonicalL1ComplementaryFamily(previousFamily));
+  if(!targets.length) targets = a.filter(x => x !== canonicalL1ComplementaryFamily(previousFamily) && x !== canonicalL1ComplementaryFamily(anchorFamily));
+  return uniq(targets);
+}
+function l1RetainedPairHigherLevelDue(){
+  const plans = ensureMetaMemoryPlans();
+  return !!((plans[2]?.due && State.meta.l1Results.length >= 2) || (plans[3]?.due && State.meta.l2Results.length >= 2));
+}
+function l1AnchorSummaryFromInfo(info, correct, rt){
+  if(!info) return null;
+  const fmt = info.responseFormat || (Array.isArray(info.options) ? "choice" : "numeric");
+  let correctAnswer = null;
+  if(fmt === "choice"){
+    const opts = Array.isArray(info.options) ? info.options : [];
+    correctAnswer = opts[info.correctIndex]?.text || info.answerLabel || `Option ${(Number(info.correctIndex)||0)+1}`;
+  } else {
+    correctAnswer = Number.isFinite(Number(info.answer)) ? `= ${info.answer}` : String(info.answerLabel || info.answer || "correct answer");
+  }
+  return {
+    opId:info.op?.id || null,
+    family:l1FamilyForOp(info.op),
+    question:info.question || "",
+    correctAnswer,
+    userCorrect:!!correct,
+    rt:Number(rt)||0,
+    pair1:info.pair1 || null,
+    pair2:info.pair2 || null,
+    pairKey:currentRetainedPairKey()
+  };
+}
+function l1ProbeSummaryFromInfo(info, correct, rt){
+  const fmt = info?.responseFormat || (Array.isArray(info?.options) ? "choice" : "numeric");
+  let correctAnswer = null;
+  if(fmt === "choice"){
+    const opts = Array.isArray(info?.options) ? info.options : [];
+    correctAnswer = opts[info.correctIndex]?.text || info.answerLabel || `Option ${(Number(info.correctIndex)||0)+1}`;
+  } else {
+    correctAnswer = Number.isFinite(Number(info?.answer)) ? `= ${info.answer}` : String(info?.answerLabel || info?.answer || "correct answer");
+  }
+  return {opId:info?.op?.id || null, family:l1FamilyForOp(info?.op), question:info?.question || "", correctAnswer, userCorrect:!!correct, rt:Number(rt)||0};
+}
+function l1PairCompactFromSummary(summary){
+  const p1 = summary?.pair1, p2 = summary?.pair2;
+  if(p1 && p2) return `Pair 1 = (${p1.a}, ${p1.b}); Pair 2 = (${p2.a}, ${p2.b})`;
+  return "the same retained pair";
+}
+function l1EpisodeReviewText(anchorSummary, probeSummary){
+  if(!anchorSummary || !probeSummary) return "";
+  const pairLine = l1PairCompactFromSummary(anchorSummary);
+  const famA = String(anchorSummary.family || "anchor").replace(/_/g," ");
+  const famB = String(probeSummary.family || "probe").replace(/_/g," ");
+  return [
+    `Retained episode: ${pairLine}`,
+    `Anchor: ${anchorSummary.question || anchorSummary.opId || "previous L1 probe"} → ${anchorSummary.correctAnswer}`,
+    `Probe: ${probeSummary.question || probeSummary.opId || "current L1 probe"} → ${probeSummary.correctAnswer}`,
+    `Connection: both queried the same retained pair; the anchor extracted ${famA}, this probe extracted ${famB}.`
+  ].join("\n");
+}
+function episodicComplementarityFactor(probes){
+  const arr = Array.isArray(probes) ? probes : [];
+  if(arr.length <= 1) return {factor:1, type:"no_extras", ratio:1};
+  let total = 0, ok = 0;
+  for(let i=0; i<arr.length; i++) for(let j=i+1; j<arr.length; j++){
+    total++;
+    if(l1FamiliesAreComplementary(arr[i]?.family, arr[j]?.family)) ok++;
+  }
+  const ratio = total ? ok/total : 1;
+  if(ratio >= 0.999) return {factor:1, type:"curated", ratio};
+  return {factor:ratio >= 0.5 ? 0.7 : 0.5, type:"non_curated", ratio};
+}
+function startEpisodicEconomyEpisode(key, anchorSummary){
+  const mon = ensureEpisodicEconomyMonitor();
+  if(mon.active && mon.active.sourcePairKey && mon.active.sourcePairKey !== key) finalizeActiveEpisodicEconomy("pair_key_changed");
+  mon.active = {sourcePairKey:key, startedAt:Date.now(), probes:[], fatigueLoad:0, cancellationReason:null};
+  if(anchorSummary){
+    mon.active.probes.push({role:"anchor", opId:anchorSummary.opId || null, family:canonicalL1ComplementaryFamily(anchorSummary.family), correct:!!anchorSummary.userCorrect, rt:Number(anchorSummary.rt)||0, question:anchorSummary.question || "", answer:anchorSummary.correctAnswer || null});
+  }
+  return mon.active;
+}
+function appendEpisodicEconomyProbe(summary, role="probe"){
+  const mon = ensureEpisodicEconomyMonitor();
+  if(!mon.active) mon.active = {sourcePairKey:currentRetainedPairKey(), startedAt:Date.now(), probes:[], fatigueLoad:0, cancellationReason:null};
+  if(summary){
+    mon.active.probes.push({role, opId:summary.opId || null, family:canonicalL1ComplementaryFamily(summary.family), correct:!!summary.userCorrect, rt:Number(summary.rt)||0, question:summary.question || "", answer:summary.correctAnswer || null});
+  }
+  return mon.active;
+}
+function finalizeActiveEpisodicEconomy(reason="completed"){
+  const mon = ensureEpisodicEconomyMonitor();
+  const active = mon.active;
+  if(!active || !Array.isArray(active.probes) || !active.probes.length){ mon.active = null; return null; }
+  active.cancellationReason = reason || active.cancellationReason || null;
+  const probes = active.probes.slice();
+  const comp = episodicComplementarityFactor(probes);
+  const correctCount = probes.filter(p => p.correct).length;
+  const correctnessFactor = correctCount / Math.max(1, probes.length);
+  const informationExtracted = Math.round((probes.length * comp.factor * correctnessFactor) * 1000) / 1000;
+  const row = {sourcePairKey:active.sourcePairKey || null, probeCount:probes.length, extraCount:Math.max(0, probes.length-1), complementarityType:comp.type, complementarityRatio:Math.round(comp.ratio*1000)/1000, correctnessFactor:Math.round(correctnessFactor*1000)/1000, informationExtracted, fatigueLoad:Math.round((active.fatigueLoad || 0)*1000)/1000, reason:active.cancellationReason || reason || "completed", probes:probes.map(p=>({role:p.role, opId:p.opId, family:p.family, correct:p.correct}))};
+  mon.episodes++;
+  mon.probes += probes.length;
+  mon.totalInformationYield = Math.round(((mon.totalInformationYield || 0) + informationExtracted) * 1000) / 1000;
+  mon.informationYield.push(informationExtracted);
+  mon.informationYield = mon.informationYield.slice(-120);
+  mon.complementarity[comp.type] = (mon.complementarity[comp.type] || 0) + 1;
+  if(row.reason && row.reason !== "completed") mon.cancellationByReason[row.reason] = (mon.cancellationByReason[row.reason] || 0) + 1;
+  mon.recent.push(row);
+  mon.recent = mon.recent.slice(-60);
+  const block = ensureBlockEpisodicEconomy();
+  block.episodes++;
+  block.probes += probes.length;
+  block.informationYield.push(informationExtracted);
+  block.informationYield = block.informationYield.slice(-80);
+  block.complementarity[comp.type] = (block.complementarity[comp.type] || 0) + 1;
+  if(row.reason && row.reason !== "completed") block.cancellationByReason[row.reason] = (block.cancellationByReason[row.reason] || 0) + 1;
+  const mp = ensureL1RetainedPairMultiProbeMonitor();
+  mp.byComplementarity = mp.byComplementarity || {curated:0, no_extras:0, non_curated:0};
+  mp.byComplementarity[comp.type] = (mp.byComplementarity[comp.type] || 0) + 1;
+  mon.active = null;
+  return row;
+}
 function cancelL1RetainedPairExtraProbe(reason="cancelled"){
   const p = ensureL1RetainedPairProbePlan();
-  if(p.remaining > 0 || p.consumeNext){
+  const hadPending = p.remaining > 0 || p.consumeNext || p.activePairKey || p.sourcePairKey;
+  if(hadPending){
     p.cancelled++;
-    if(State.productionMonitor?.l1RetainedPairMultiProbe){
-      const mon = State.productionMonitor.l1RetainedPairMultiProbe;
-      mon.cancelled = (mon.cancelled || 0) + 1;
-      mon.byReason = mon.byReason || {};
-      mon.byReason[reason] = (mon.byReason[reason] || 0) + 1;
+    const mon = ensureL1RetainedPairMultiProbeMonitor();
+    mon.cancelled = (mon.cancelled || 0) + 1;
+    mon.byReason[reason] = (mon.byReason[reason] || 0) + 1;
+    if(reason === "pair_fatigue_exceeded"){
+      mon.fatigueCancellations = (mon.fatigueCancellations || 0) + 1;
+      const em = ensureEpisodicEconomyMonitor();
+      em.fatigueCancellations = (em.fatigueCancellations || 0) + 1;
+      const block = ensureBlockEpisodicEconomy();
+      block.fatigueCancellations = (block.fatigueCancellations || 0) + 1;
+      p.fatiguedPairKey = p.sourcePairKey || p.activePairKey || p.anchorPairKey || p.fatiguedPairKey;
     }
+    finalizeActiveEpisodicEconomy(reason);
   }
   p.remaining = 0;
   p.sourcePairKey = null;
   p.consumeNext = false;
   p.anchorPairKey = null;
   p.anchorOpId = null;
+  p.anchorFamily = null;
   p.anchorCorrect = false;
+  p.anchorSummary = null;
   p.activePairKey = null;
   p.activeAnchorOpId = null;
   p.activeProbeOpId = null;
+  p.pairingTargetFamilies = [];
+  p.initialPairingTargetFamilies = [];
+  p.previousProbeFamily = null;
+  p.previousProbeOpId = null;
+  p.probeFamilies = [];
+  p.probeOpIds = [];
+  p.extensionDepth = 0;
+  p.activeProbeDepth = 0;
+  p.episodeFatigueLoad = 0;
+}
+function l1RetainedPairFatigueIncrement(info, correct, rt){
+  const opId = info?.op?.id || null;
+  const stats = opId ? State.meta?.l1Stats?.[opId] : null;
+  const med = stats && Array.isArray(stats.rt) && stats.rt.length ? medianRT(stats.rt) : (adaptiveRTCorrectPercentile(State.levelByMode?.D || 0, 0.5) || CONFIG.rtL1Good || 3800);
+  const rtScale = Math.max(800, Number(CONFIG.l1RetainedPairFatigueRTScaleMs) || 2400);
+  const rtExcess = Math.max(0, (Number(rt)||0) - (Number(med)||0)) / rtScale;
+  const accCost = correct ? 0.12 : 0.90;
+  const load = Number(info?.compositionLoad ?? info?.compositionProfile?.load ?? compositionProfileForInfo(info, 1)?.load ?? 1) || 1;
+  const loadCost = Math.min(0.75, 0.08 * load);
+  return Math.round((accCost + rtExcess + loadCost) * 1000) / 1000;
+}
+function l1RetainedPairFluent(correct, rt){
+  if(!correct) return false;
+  const q75 = adaptiveRTCorrectPercentile(State.levelByMode?.D || 0, 0.75);
+  const threshold = Number.isFinite(q75) ? q75 : (CONFIG.rtL1Good || 3800) * 1.15;
+  return (Number(rt) || 0) > 0 && (Number(rt) || 0) <= threshold;
 }
 function shouldRunL1RetainedPairExtraProbe(){
   if(!CONFIG.l1RetainedPairMultiProbeEnabled) return false;
@@ -51757,10 +52560,10 @@ function shouldRunL1RetainedPairExtraProbe(){
   if(p.remaining <= 0) return false;
   const key = currentRetainedPairKey();
   if(!key || key !== p.sourcePairKey){ cancelL1RetainedPairExtraProbe("pair_key_changed"); return false; }
-  // Do not steal priority from a due higher-level question; L2/L3 are the
-  // reward for having just produced enough META answers.
-  const plans = ensureMetaMemoryPlans();
-  if((plans[2]?.due && State.meta.l1Results.length >= 2) || (plans[3]?.due && State.meta.l2Results.length >= 2)) return false;
+  if(p.fatiguedPairKey && p.fatiguedPairKey === key){ cancelL1RetainedPairExtraProbe("pair_fatigue_exceeded"); return false; }
+  if(p.fatiguedPairKey && p.fatiguedPairKey !== key) p.fatiguedPairKey = null;
+  if((p.episodeFatigueLoad || 0) > (Number(CONFIG.l1RetainedPairFatigueCeiling) || 3.2)){ cancelL1RetainedPairExtraProbe("pair_fatigue_exceeded"); return false; }
+  if(l1RetainedPairHigherLevelDue()){ cancelL1RetainedPairExtraProbe("subordinated_to_l2_l3"); return false; }
   p.consumeNext = true;
   return true;
 }
@@ -51770,16 +52573,21 @@ function consumeL1RetainedPairExtraProbeIfPending(){
   p.consumeNext = false;
   p.remaining = Math.max(0, p.remaining - 1);
   p.presented++;
+  p.extensionDepth = Math.max(0, Number(p.extensionDepth)||0) + 1;
+  p.activeProbeDepth = p.extensionDepth;
   p.activePairKey = p.sourcePairKey || p.anchorPairKey || null;
   p.activeAnchorOpId = p.anchorOpId || null;
   p.activeProbeOpId = null;
-  if(State.productionMonitor?.l1RetainedPairMultiProbe){
-    State.productionMonitor.l1RetainedPairMultiProbe.presented = (State.productionMonitor.l1RetainedPairMultiProbe.presented || 0) + 1;
-  }
-  if(p.remaining <= 0) p.sourcePairKey = null;
+  const mon = ensureL1RetainedPairMultiProbeMonitor();
+  mon.presented = (mon.presented || 0) + 1;
+  mon.maxDepthReached = Math.max(Number(mon.maxDepthReached)||0, p.extensionDepth);
+  const em = ensureEpisodicEconomyMonitor();
+  em.maxDepthReached = Math.max(Number(em.maxDepthReached)||0, p.extensionDepth);
+  const block = ensureBlockEpisodicEconomy();
+  block.maxDepthReached = Math.max(Number(block.maxDepthReached)||0, p.extensionDepth);
   return true;
 }
-function maybeScheduleL1RetainedPairExtraProbe(correct){
+function maybeScheduleL1RetainedPairExtraProbe(correct, rt=0){
   if(!CONFIG.l1RetainedPairMultiProbeEnabled) return;
   if(!correct) return;
   if(State.mode !== "D" || metaMemoryEffectiveCeiling() < 1) return;
@@ -51787,59 +52595,170 @@ function maybeScheduleL1RetainedPairExtraProbe(correct){
   const info = State.trialInfo || {};
   if(info.kind !== "meta1" || info.isMemInterferenceLure || info.isRetainedPairExtraProbe || info.countsForMetaHistory === false) return;
   const p = ensureL1RetainedPairProbePlan();
-  if(p.consumeNext || p.activePairKey) return; // avoid self-chaining and paired-event overlap
+  if(p.consumeNext || p.activePairKey) return;
   const key = currentRetainedPairKey();
   if(!key) return;
+  if(p.fatiguedPairKey && p.fatiguedPairKey !== key) p.fatiguedPairKey = null;
+  if(p.fatiguedPairKey === key) return;
   const anchorOpId = info.op?.id || null;
-  if(!anchorOpId) return;
+  const anchorFamily = l1FamilyForOp(info.op);
+  if(!anchorOpId || !anchorFamily) return;
+  const targets = l1ComplementaryTargetsForFamily(anchorFamily);
+  if(!targets.length) return;
   const cooldown = Math.max(0, CONFIG.l1RetainedPairMultiProbeCooldownTrials || 0);
   if(State.blockTrials - Number(p.scheduledAtBlockTrial || -9999) < cooldown) return;
   const maxExtra = Math.max(0, CONFIG.l1RetainedPairMultiProbeMaxExtra || 1);
   if(maxExtra <= 0) return;
   if(Math.random() >= (CONFIG.l1RetainedPairMultiProbeProbability ?? 0.55)) return;
+  const anchorSummary = l1AnchorSummaryFromInfo(info, correct, rt);
   p.remaining = maxExtra;
   p.sourcePairKey = key;
   p.anchorPairKey = key;
   p.anchorOpId = anchorOpId;
+  p.anchorFamily = anchorFamily;
   p.anchorCorrect = true;
+  p.anchorSummary = anchorSummary;
   p.consumeNext = false;
   p.scheduledAtBlockTrial = State.blockTrials;
-  if(State.productionMonitor?.l1RetainedPairMultiProbe){
-    State.productionMonitor.l1RetainedPairMultiProbe.scheduled = (State.productionMonitor.l1RetainedPairMultiProbe.scheduled || 0) + 1;
-  }
+  p.pairingTargetFamilies = targets.slice();
+  p.initialPairingTargetFamilies = targets.slice();
+  p.previousProbeFamily = null;
+  p.previousProbeOpId = null;
+  p.probeFamilies = [];
+  p.probeOpIds = [];
+  p.extensionDepth = 0;
+  p.activeProbeDepth = 0;
+  p.episodeFatigueLoad = l1RetainedPairFatigueIncrement(info, true, rt) * 0.45;
+  const mon = ensureL1RetainedPairMultiProbeMonitor();
+  mon.scheduled = (mon.scheduled || 0) + 1;
+  mon.recent.push({ts:Date.now(), event:"scheduled", anchorOpId, anchorFamily, targets:targets.slice(), key});
+  mon.recent = mon.recent.slice(-40);
+  startEpisodicEconomyEpisode(key, anchorSummary);
+  const em = ensureEpisodicEconomyMonitor();
+  if(em.active) em.active.fatigueLoad = p.episodeFatigueLoad;
 }
-function recordL1RetainedPairMultiProbeOutcome(correct){
+function l1CuratedRetainedPairOpBank(opBank, rawP1, rawP2, m){
+  const p = ensureL1RetainedPairProbePlan();
+  if(!p.consumeNext) return opBank || [];
+  const targets = uniq((p.pairingTargetFamilies || []).map(canonicalL1ComplementaryFamily).filter(Boolean));
+  if(!targets.length){ cancelL1RetainedPairExtraProbe("no_complementary_op_available"); return []; }
+  const excluded = new Set([p.anchorOpId, p.previousProbeOpId].filter(Boolean));
+  const curated = (opBank || []).filter(op => op && !excluded.has(op.id) && targets.includes(l1FamilyForOp(op)) && l1OpCanUse(op, rawP1, rawP2, currentLevel(), m));
+  if(!curated.length){
+    cancelL1RetainedPairExtraProbe("no_complementary_op_available");
+    return [];
+  }
+  return curated;
+}
+function recordL1RetainedPairMultiProbeOutcome(correct, rt=0){
   const info = State.trialInfo || {};
   if(!info.isRetainedPairExtraProbe) return;
   const p = ensureL1RetainedPairProbePlan();
   const key = currentRetainedPairKey();
   const probeOpId = info.op?.id || null;
+  const probeFamily = l1FamilyForOp(info.op);
   p.activeProbeOpId = probeOpId || p.activeProbeOpId || null;
   const sameKey = !!key && !!p.activePairKey && key === p.activePairKey;
-  const distinctProbe = !!probeOpId && !!p.activeAnchorOpId && probeOpId !== p.activeAnchorOpId;
-  if(correct && p.anchorCorrect && sameKey && distinctProbe){
+  const distinctProbe = !!probeOpId && !!p.activeAnchorOpId && probeOpId !== p.activeAnchorOpId && probeOpId !== p.previousProbeOpId;
+  const complementary = l1FamiliesAreComplementary(p.anchorFamily, probeFamily) && (!p.previousProbeFamily || l1FamiliesAreComplementary(p.previousProbeFamily, probeFamily));
+  const mon = ensureL1RetainedPairMultiProbeMonitor();
+  const probeSummary = l1ProbeSummaryFromInfo(info, correct, rt);
+  appendEpisodicEconomyProbe(probeSummary, "extra");
+  p.episodeFatigueLoad += l1RetainedPairFatigueIncrement(info, correct, rt);
+  const em = ensureEpisodicEconomyMonitor();
+  if(em.active) em.active.fatigueLoad = p.episodeFatigueLoad;
+  if(!correct && p.anchorSummary){
+    info.episodicReview = {anchor:p.anchorSummary, probe:probeSummary, text:l1EpisodeReviewText(p.anchorSummary, probeSummary)};
+  }
+  if(correct && p.anchorCorrect && sameKey && distinctProbe && complementary){
     p.successfulPairs = Math.max(0, Number(p.successfulPairs) || 0) + 1;
-    if(State.productionMonitor?.l1RetainedPairMultiProbe){
-      const mon = State.productionMonitor.l1RetainedPairMultiProbe;
-      mon.successfulPairs = Math.max(0, Number(mon.successfulPairs) || 0) + 1;
-    }
-  } else if(State.productionMonitor?.l1RetainedPairMultiProbe){
-    const mon = State.productionMonitor.l1RetainedPairMultiProbe;
-    mon.byReason = mon.byReason || {};
-    const reason = !correct ? "paired_probe_error" : (!sameKey ? "paired_probe_key_mismatch" : (!distinctProbe ? "paired_probe_same_op" : "paired_probe_unscored"));
+    mon.successfulPairs = Math.max(0, Number(mon.successfulPairs) || 0) + 1;
+  } else {
+    const reason = !correct ? "paired_probe_error" : (!sameKey ? "paired_probe_key_mismatch" : (!distinctProbe ? "paired_probe_same_op" : (!complementary ? "paired_probe_non_complementary" : "paired_probe_unscored")));
     mon.byReason[reason] = (mon.byReason[reason] || 0) + 1;
+  }
+  if(probeFamily) p.probeFamilies.push(probeFamily);
+  if(probeOpId) p.probeOpIds.push(probeOpId);
+  p.previousProbeFamily = probeFamily || p.previousProbeFamily;
+  p.previousProbeOpId = probeOpId || p.previousProbeOpId;
+
+  const fatigueExceeded = (p.episodeFatigueLoad || 0) > (Number(CONFIG.l1RetainedPairFatigueCeiling) || 3.2);
+  const canFluentExtend = correct && sameKey && distinctProbe && complementary && l1RetainedPairFluent(correct, rt) && p.anchorCorrect && !fatigueExceeded && !l1RetainedPairHigherLevelDue();
+  const maxFluent = Math.max(CONFIG.l1RetainedPairMultiProbeMaxExtra || 1, Number(CONFIG.l1RetainedPairMultiProbeMaxExtraFluent) || 2);
+  if(fatigueExceeded){
+    cancelL1RetainedPairExtraProbe("pair_fatigue_exceeded");
+    return;
+  }
+  if(canFluentExtend && p.extensionDepth < maxFluent && p.remaining <= 0){
+    const targets = l1NextComplementaryTargets(p.anchorFamily, probeFamily);
+    if(targets.length){
+      p.remaining = 1;
+      p.sourcePairKey = key || p.sourcePairKey || p.anchorPairKey;
+      p.pairingTargetFamilies = targets;
+      mon.maxDepthReached = Math.max(mon.maxDepthReached || 0, Math.min(maxFluent, p.extensionDepth + 1));
+      mon.recent.push({ts:Date.now(), event:"fluent_extend", depth:p.extensionDepth, nextTargets:targets.slice(), anchorFamily:p.anchorFamily, previousProbeFamily:probeFamily});
+      mon.recent = mon.recent.slice(-40);
+      if(typeof recordAtomicEvidence === "function") recordAtomicEvidence({atomicsUsed:["extended_episodic_extraction"], level:1}, true, rt);
+      p.activePairKey = null; p.activeAnchorOpId = null; p.activeProbeOpId = null; p.activeProbeDepth = 0;
+      return;
+    }
+    cancelL1RetainedPairExtraProbe("no_complementary_op_available");
+    return;
+  }
+  if(p.remaining <= 0){
+    finalizeActiveEpisodicEconomy(correct ? "completed" : "paired_probe_error");
+    p.sourcePairKey = null;
+    p.anchorPairKey = null;
+    p.anchorOpId = null;
+    p.anchorFamily = null;
+    p.anchorCorrect = false;
+    p.anchorSummary = null;
+    p.pairingTargetFamilies = [];
+    p.initialPairingTargetFamilies = [];
+    p.previousProbeFamily = null;
+    p.previousProbeOpId = null;
+    p.probeFamilies = [];
+    p.probeOpIds = [];
+    p.extensionDepth = 0;
+    p.episodeFatigueLoad = 0;
   }
   p.activePairKey = null;
   p.activeAnchorOpId = null;
   p.activeProbeOpId = null;
-  p.anchorPairKey = null;
-  p.anchorOpId = null;
-  p.anchorCorrect = false;
+  p.activeProbeDepth = 0;
+}
+function episodicEconomySnapshot(){
+  const mon = ensureEpisodicEconomyMonitor();
+  const yields = (mon.informationYield || []).map(Number).filter(Number.isFinite);
+  const mean = yields.length ? Math.round((yields.reduce((a,b)=>a+b,0)/yields.length)*1000)/1000 : 0;
+  const median = yields.length ? percentileNumeric(yields, 0.5) : 0;
+  return {episodes:mon.episodes||0, probes:mon.probes||0, probesPerEpisode:mon.episodes ? Math.round((mon.probes/mon.episodes)*1000)/1000 : 0, informationYield:{mean, median, recent:yields.slice(-24)}, complementarity:mon.complementarity || {}, cancellationByReason:mon.cancellationByReason || {}, fatigueCancellations:mon.fatigueCancellations||0, maxDepthReached:mon.maxDepthReached||0, active:mon.active ? {sourcePairKey:mon.active.sourcePairKey, probeCount:(mon.active.probes||[]).length, fatigueLoad:mon.active.fatigueLoad||0} : null, recent:(mon.recent||[]).slice(-20)};
+}
+function formatEpisodicEconomyDiagSummary(stats=null, title="Episodic economy:"){
+  const s = stats || ensureBlockEpisodicEconomy();
+  const yields = (s.informationYield || []).map(Number).filter(Number.isFinite);
+  if(!s || !(s.episodes > 0) && !yields.length) return "";
+  const mean = yields.length ? Math.round((yields.reduce((a,b)=>a+b,0)/yields.length)*100)/100 : 0;
+  const probesPer = s.episodes ? Math.round((s.probes/Math.max(1,s.episodes))*100)/100 : 0;
+  const comp = s.complementarity || {};
+  const cancels = Object.entries(s.cancellationByReason || {}).map(([k,v])=>`${k}:${v}`).join(", ") || "none";
+  return `${title}\nEpisodes: ${s.episodes||0} · probes/episode: ${probesPer} · info-yield mean: ${mean}\nComplementarity: curated ${comp.curated||0}, no extras ${comp.no_extras||0}, non-curated ${comp.non_curated||0}\nFatigue cancellations: ${s.fatigueCancellations||0} · max extra depth: ${s.maxDepthReached||0} · cancellations: ${cancels}`;
+}
+function auditL1EpisodicEconomy(opts={}){
+  const snap = episodicEconomySnapshot();
+  const block = [];
+  const pairings = L1_COMPLEMENTARY_PROBE_PAIRINGS || {};
+  for(const [fam, targets] of Object.entries(pairings)){
+    if(!Array.isArray(targets) || !targets.length) block.push(`${fam}: no complementary targets`);
+  }
+  if((snap.complementarity?.non_curated || 0) > 0) block.push(`non-curated episodes observed: ${snap.complementarity.non_curated}`);
+  if(snap.episodes >= 4 && snap.probesPerEpisode <= 1.05 && (ensureL1RetainedPairMultiProbeMonitor().scheduled || 0) >= 4) block.push("episodes consistently closed without extras");
+  if(snap.episodes >= 4 && (snap.fatigueCancellations || 0) / Math.max(1, snap.episodes) > 0.5) block.push("fatigue cancellations exceed 50% of episodes");
+  return auditResult(block.length ? "BLOCK" : "PASS", {totalL1Trials:State.blockByLevel?.[1]?.t || l1StatsEntriesWhere().reduce((a,[_,s])=>a+(s.t||0),0), episodes:snap.episodes, probesPerEpisode:snap.probesPerEpisode, complementarity:snap.complementarity, informationYield:snap.informationYield, fatigueCancellations:snap.fatigueCancellations, cancellationByReason:snap.cancellationByReason, block});
 }
 
-
 // ============================================================================
-// v6.5.48l1-expanded — off-path L0 preparation and granular build timing
+// v6.5.49retained-rule-parsing — off-path L0 preparation and granular build timing
 // ============================================================================
 function ensurePreparedTrialMonitor(){
   if(!State.productionMonitor) State.productionMonitor = {};
@@ -52662,10 +53581,17 @@ function startTrial(attempt = 0, forcedLevel = null){
     // During an active L1→L2 memory chain this branch may instead emit a
     // non-META L1 answer lure, which competes with the retained L1 answer but
     // is excluded from META² history.
-    const l1 = maybeSetupMemInterferenceLure(1) || setupL1();
+    const retainedPairExtraPending = !!ensureL1RetainedPairProbePlan().consumeNext;
+    const l1 = (retainedPairExtraPending ? null : maybeSetupMemInterferenceLure(1)) || setupL1();
     if(!l1){ cancelL1RetainedPairExtraProbe("setup_l1_failed"); startTrial(attempt + 1, 0); return; }
     const isRetainedPairExtraProbe = consumeL1RetainedPairExtraProbeIfPending();
-    if(isRetainedPairExtraProbe) l1.isRetainedPairExtraProbe = true;
+    if(isRetainedPairExtraProbe){
+      l1.isRetainedPairExtraProbe = true;
+      const rp = ensureL1RetainedPairProbePlan();
+      l1.retainedPairProbeDepth = rp.activeProbeDepth || rp.extensionDepth || 1;
+      l1.retainedPairAnchorSummary = rp.anchorSummary || null;
+      l1.retainedPairPairingTargetFamilies = Array.isArray(rp.pairingTargetFamilies) ? rp.pairingTargetFamilies.slice() : [];
+    }
     State.targetValue = l1.answer;
     State.dLastL1ExtensionFamily = l1.extensionFamily || null;
     State.currentTrialValue = null;
@@ -52693,6 +53619,9 @@ function startTrial(attempt = 0, forcedLevel = null){
                          memLureTargetLevel:l1.memLureTargetLevel || null,
                          countsForMetaHistory:l1.countsForMetaHistory !== false,
                          isRetainedPairExtraProbe:!!l1.isRetainedPairExtraProbe,
+                         retainedPairProbeDepth:l1.retainedPairProbeDepth || null,
+                         retainedPairAnchorSummary:l1.retainedPairAnchorSummary || null,
+                         retainedPairPairingTargetFamilies:l1.retainedPairPairingTargetFamilies || null,
                          competesWithRetainedAnswer:l1.competesWithRetainedAnswer || null,
                          answerDistanceFromPrevious:l1.answerDistanceFromPrevious ?? null,
                          mechanismTags:uniq(l1.mechanismTags || []),
@@ -52728,6 +53657,9 @@ function startTrial(attempt = 0, forcedLevel = null){
                          memLureTargetLevel:l1.memLureTargetLevel || null,
                          countsForMetaHistory:l1.countsForMetaHistory !== false,
                          isRetainedPairExtraProbe:!!l1.isRetainedPairExtraProbe,
+                         retainedPairProbeDepth:l1.retainedPairProbeDepth || null,
+                         retainedPairAnchorSummary:l1.retainedPairAnchorSummary || null,
+                         retainedPairPairingTargetFamilies:l1.retainedPairPairingTargetFamilies || null,
                          competesWithRetainedAnswer:l1.competesWithRetainedAnswer || null,
                          answerDistanceFromPrevious:l1.answerDistanceFromPrevious ?? null,
                          mechanismTags:uniq(l1.mechanismTags || []),
@@ -53493,6 +54425,10 @@ function processInput(val){
     } else {
       State.trialInfo.selectedIndex = val;
       State.trialInfo.selectedOption = State.trialInfo.options[val] || null;
+      // v6.5.53: keep the user's ordinal choice on the trial object. Generic
+      // L0 choice review uses this to avoid falling back to the YES/NO review
+      // wording, which previously rendered choice errors as "Correct: NO · You: —".
+      State.trialInfo.userAnswer = val;
       document.querySelectorAll(".choiceBtn").forEach((btn,i)=>{
         btn.classList.add("locked");
         if(i === val) btn.classList.add("selected");
@@ -53883,7 +54819,7 @@ function processInputPostAnswer(ctx){
     // and open a fresh memory window here without producing a visible badge.
     // Mode-D/Mode-A level-up badges remain unaffected.
     const metaCorrect = trialLevel === 0 && m === "D" ? l0FrameBurstEpisodeOutcome(correct, rt).correct : correct;
-    updateMetaStateAfterTrial(trialLevel, metaCorrect);
+    updateMetaStateAfterTrial(trialLevel, metaCorrect, rt);
     dMaybeShowAutoUnlockNotice();
     closeRuntimeEpisode("completed");
 
@@ -54006,7 +54942,7 @@ function processInputPostAnswer(ctx){
 
     // Update meta state even on error
     const metaCorrect = trialLevel === 0 && m === "D" ? l0FrameBurstEpisodeOutcome(correct, rt).correct : correct;
-    updateMetaStateAfterTrial(trialLevel, metaCorrect);
+    updateMetaStateAfterTrial(trialLevel, metaCorrect, rt);
     dMaybeShowAutoUnlockNotice();
     closeRuntimeEpisode("completed");
 
@@ -54039,7 +54975,7 @@ function processInputPostAnswer(ctx){
 }
 
 
-function updateMetaStateAfterTrial(level, correct){
+function updateMetaStateAfterTrial(level, correct, rt=0){
   if(level === 0){
     if(State.trialInfo?.isMemInterferenceLure || State.trialInfo?.countsForMetaHistory === false){
       return;
@@ -54112,8 +55048,8 @@ function updateMetaStateAfterTrial(level, correct){
       });
       if(State.meta.l1Results.length > 4) State.meta.l1Results.shift();
       completeMemoryPlanFromTrial(1);
-      recordL1RetainedPairMultiProbeOutcome(!!correct);
-      maybeScheduleL1RetainedPairExtraProbe(!!correct);
+      recordL1RetainedPairMultiProbeOutcome(!!correct, rt);
+      maybeScheduleL1RetainedPairExtraProbe(!!correct, rt);
     }
     State.meta.l0SinceL1 = 0;
     State.meta.l1SinceL2++;
@@ -54258,6 +55194,7 @@ function renderMilestonePopup(unlockedAchievements){
 function showBlockSummary(){
   pauseClock();
   flushDeferredPostAnswerQueues("block_summary", {all:true});
+  if(typeof finalizeActiveEpisodicEconomy === "function") finalizeActiveEpisodicEconomy("block_summary");
   const acc = State.blockTrials ? Math.round(100 * State.blockCorrect / State.blockTrials) : 0;
   const avgRT = State.blockRTs.length ? Math.round(State.blockRTs.reduce((a,b)=>a+b,0) / State.blockRTs.length) : 0;
   const isSimple = State.mode === "A";
@@ -54328,6 +55265,7 @@ function showBlockSummary(){
     const inverseOperationBlock = formatInverseOperationDiagSummary(State.blockInverseOperationStats, "Inverse operation cost:", 6);
     const epistemicBlock = formatL0EpistemicDiagSummary(State.blockEpistemicSufficiencyStats, "Epistemic sufficiency:", 6);
     const metaClassificationBlock = formatMetaClassificationDiagSummary(State.blockMetaClassificationStats, "L0 metacognitive classification:");
+    const episodicEconomyBlock = (typeof formatEpisodicEconomyDiagSummary === "function") ? formatEpisodicEconomyDiagSummary(State.blockEpisodicEconomy, "Episodic economy:") : "";
     const executiveBlock = formatExecutiveDiagSummary(State.blockExecutiveStats, "Executive-control diagnostics:", 7);
     const integrationBlock = formatIntegrationDiagSummary(State.blockExecutiveStats, "Integration-efficiency diagnostics:", 6);
     blockDiagnostics = [
@@ -54345,6 +55283,7 @@ function showBlockSummary(){
       inverseOperationBlock,
       epistemicBlock,
       metaClassificationBlock,
+      episodicEconomyBlock,
       executiveBlock,
       integrationBlock,
     ].filter(Boolean).join("\n\n");
@@ -54410,7 +55349,9 @@ function resetBlock(){
   pruneStateDictionaries();
   resetGatingMissedForBlock();
   trimDistributionCachesForCurrentMax();
+  if(typeof finalizeActiveEpisodicEconomy === "function") finalizeActiveEpisodicEconomy("reset_block");
   State.blockTrials=0; State.blockCorrect=0; State.blockRTs=[]; State.blockBestStreak=0;
+  State.blockEpisodicEconomy = (typeof blankBlockEpisodicEconomy === "function") ? blankBlockEpisodicEconomy() : {episodes:0, probes:0, informationYield:[], complementarity:{curated:0, no_extras:0, non_curated:0}, cancellationByReason:{}};
   // v6.5.3: horizontal exposure tracking. The Set of L0 category ids
   // sampled in the current block, used by chooseFamilyBalancedPosnerCat
   // to enforce a hard breadth guarantee after N trials. The pyramid
@@ -54694,6 +55635,105 @@ function drawReviewCard({label="REVIEW", question="", details="", answer="", col
       ay += answerLineH;
     }
   }
+}
+
+function choiceReviewOptionText(info, idx){
+  if(!Number.isInteger(idx)) return "—";
+  const opt = Array.isArray(info?.options) ? info.options[idx] : null;
+  const text = opt ? readabilityPolishText(opt.text || `Option ${idx + 1}`) : `Option ${idx + 1}`;
+  return `${idx + 1}: ${text}`;
+}
+function choiceReviewCorrectIndices(info){
+  if(Array.isArray(info?.correctIndices) && info.correctIndices.length) return info.correctIndices.map(Number).filter(Number.isInteger);
+  if(Number.isInteger(info?.correctIndex)) return [info.correctIndex];
+  if(Number.isInteger(info?.answer) && Array.isArray(info?.options)) return [info.answer];
+  if(Array.isArray(info?.options)) return info.options.map((o,i)=>o?.correct ? i : null).filter(Number.isInteger);
+  return [];
+}
+function choiceReviewSelectedIndices(info){
+  if(Array.isArray(info?.selectedIndices)) return info.selectedIndices.map(Number).filter(Number.isInteger);
+  if(Number.isInteger(info?.selectedIndex)) return [info.selectedIndex];
+  if(typeof info?.userAnswer === "string" && info.userAnswer.includes(",")) return info.userAnswer.split(",").map(Number).filter(Number.isInteger);
+  if(Number.isInteger(info?.userAnswer)) return [info.userAnswer];
+  return [];
+}
+function l0CyclicDistanceReviewLines(info){
+  const cyc = info?.cyclicDistance || info?.payload?.cyclicDistance;
+  if(!cyc) return [];
+  const mod = Number(cyc.modulus || cyc.mod);
+  const a = Number(info.a), b = Number(info.b);
+  if(!Number.isFinite(mod) || !Number.isFinite(a) || !Number.isFinite(b)) return [];
+  const cw = cyclicClockwiseDistance(a, b, mod);
+  const ccw = (mod - cw) % mod;
+  const kind = cyc.kind || "shortest";
+  const answer = Number.isFinite(Number(cyc.answer)) ? Number(cyc.answer) : cyclicDistanceAnswer(kind, mod, a, b);
+  const lines = [`Values: left ${a}, right ${b}.`];
+  if(kind === "shortest") lines.push(`Cycle ${mod}: clockwise ${cw}, counterclockwise ${ccw}; minimum distance = ${answer}.`);
+  else if(kind === "clockwise") lines.push(`Cycle ${mod}: moving clockwise from LEFT to RIGHT takes ${answer} step${answer === 1 ? "" : "s"}.`);
+  else if(kind === "counterclockwise") lines.push(`Cycle ${mod}: moving counterclockwise from LEFT to RIGHT takes ${answer} step${answer === 1 ? "" : "s"}.`);
+  else if(kind === "complement"){
+    const linear = Math.abs(a - b);
+    lines.push(`Cycle ${mod}: ordinary distance ${linear}; the complementary distance around the cycle is ${answer}.`);
+  } else lines.push(`Cycle ${mod}: computed distance = ${answer}.`);
+  return lines;
+}
+function l0SetMembershipChoiceReviewLines(info){
+  const payload = info?.payload?.setMembershipIdentification || info?.setMembershipIdentification;
+  if(!payload) return [];
+  const q = payload.quantifier;
+  const a = Number(info?.a), b = Number(info?.b);
+  if(!Number.isFinite(a) || !Number.isFinite(b)) return [];
+  const m = Number(payload.m || info?.m || (typeof currentMax === "function" ? currentMax() : 12));
+  const options = Array.isArray(info?.options) ? info.options : [];
+  const rows = [];
+  for(let i=0; i<options.length; i++){
+    const key = options[i]?.setKey;
+    if(!key) continue;
+    const leftIn = numberSetHas(key, a, m);
+    const rightIn = numberSetHas(key, b, m);
+    const truth = l0SetQuantifierEval(q, key, a, b, m);
+    rows.push(`${i+1}. ${numberSetShortLabel(key)}: L ${leftIn ? "in" : "out"}, R ${rightIn ? "in" : "out"} → ${truth ? "true" : "false"}`);
+  }
+  if(!rows.length) return [];
+  return ["Set check:", ...rows];
+}
+function l0GenericChoiceReviewDetails(info){
+  const lines = [];
+  const cyclic = l0CyclicDistanceReviewLines(info);
+  if(cyclic.length) lines.push(...cyclic);
+  else if(Number.isFinite(Number(info?.a)) && Number.isFinite(Number(info?.b))) lines.push(`Values: left ${info.a}, right ${info.b}.`);
+  const setLines = l0SetMembershipChoiceReviewLines(info);
+  if(setLines.length) lines.push(...setLines);
+  if(info?.answerLabel && !cyclic.length && !setLines.length) lines.push(`Expected answer: ${readabilityPolishText(info.answerLabel)}.`);
+  const correct = choiceReviewCorrectIndices(info);
+  const selected = choiceReviewSelectedIndices(info);
+  if(correct.length) lines.push(`Correct option${correct.length > 1 ? "s" : ""}: ${correct.map(i => choiceReviewOptionText(info, i)).join(" + ")}.`);
+  lines.push(`You selected: ${selected.length ? selected.map(i => choiceReviewOptionText(info, i)).join(" + ") : "—"}.`);
+  return lines.join("\n");
+}
+function l0GenericChoiceReviewAnswer(info){
+  const correct = choiceReviewCorrectIndices(info);
+  if(!correct.length) return "Correct choice";
+  const texts = correct.map(i => {
+    const opt = Array.isArray(info?.options) ? info.options[i] : null;
+    return readabilityPolishText(opt?.text || `Option ${i + 1}`);
+  });
+  if(texts.length === 1) return `Correct: ${texts[0]}`;
+  return `Correct: ${texts.join(" + ")}`;
+}
+function drawL0GenericChoiceReview(info){
+  const halfW = Math.floor(W/2)-2;
+  if(State.mainCache) ctx.drawImage(State.mainCache,0,0,halfW,H);
+  if(State.secCache) ctx.drawImage(State.secCache,halfW+4,0,halfW,H);
+  if(State.mainCache || State.secCache){ ctx.fillStyle="#333"; ctx.fillRect(halfW+1,0,2,H); }
+  drawBadge("CHOICE", "#ff9f43");
+  drawReviewCard({
+    label:"L0 REVIEW · CHOICE",
+    question:info.question || info.delayedPrompt || "Choose the correct option.",
+    details:l0GenericChoiceReviewDetails(info),
+    answer:l0GenericChoiceReviewAnswer(info),
+    color:"#ff9f43"
+  });
 }
 
 function drawMemoryRepairCard({label="MEMORY REPAIR", title="Retain corrected unit", lines=[], color="#ff9f43"}){
@@ -55804,6 +56844,7 @@ const L1_REVIEW_DETAIL_BUILDERS = {
   abacus_p1_right_lower_p2_left_upper({p1,p2}){ return `Lower row: pair 1 right ${p1.b} ×1 = ${p1.b} · Upper row: pair 2 left ${p2.a} ×5 = ${p2.a*5} · Total ${p1.b + p2.a*5}`; },
   abacus_p2_left_lower_p1_right_upper({p1,p2}){ return `Lower row: pair 2 left ${p2.a} ×1 = ${p2.a} · Upper row: pair 1 right ${p1.b} ×5 = ${p1.b*5} · Total ${p2.a + p1.b*5}`; },
   abacus_p2_right_lower_p1_left_upper({p1,p2}){ return `Lower row: pair 2 right ${p2.b} ×1 = ${p2.b} · Upper row: pair 1 left ${p1.a} ×5 = ${p1.a*5} · Total ${p2.b + p1.a*5}`; },
+  retained_rule_next_value({info}){ return l1RetainedRuleNextValueReviewDetails(info); },
 };
 
 function drawL1Review(info){
@@ -55824,7 +56865,11 @@ function drawL1Review(info){
     const userPart = userText ? ` · You: ${userText}` : "";
     const semantic = info.answerLabel || correctText;
     const inverseDetails = info.op?.id === "inverse_rule_probe" ? inverseRuleReviewDetails(info) : null;
-    const details = inverseDetails || `${baseLine}${transformLine} · Correct meaning: ${semantic}${userPart}`;
+    const ruleDetails = (info.op?.family === "retained_rule_parsing_choice" || info.op?.family === "retained_rule_outlier_choice") ? l1RetainedRuleReviewDetails(info) : null;
+    let details = ruleDetails || inverseDetails || `${baseLine}${transformLine} · Correct meaning: ${semantic}${userPart}`;
+    if(info.episodicReview?.text) details = `${details}
+
+${info.episodicReview.text}`;
     drawReviewCard({
       label: "L1 REVIEW · CORRECT ANSWER",
       question: info.question || "",
@@ -55853,6 +56898,9 @@ function drawL1Review(info){
   if(info.nearMiss && typeof info.nearMiss.reason === "string"){
     details = `${details} · ${info.nearMiss.reason}`;
   }
+  if(info.episodicReview?.text) details = `${details}
+
+${info.episodicReview.text}`;
   drawReviewCard({
     label:Number(info.memoryTargetLevel) === 2 ? "L1 REVIEW · MEMORY REPAIR" : "L1 REVIEW · CORRECT ANSWER",
     question:info.question || "",
@@ -56204,6 +57252,8 @@ function draw(){
           answer:`Correct options: ${correctText}`,
           color:"#ff9f43"
         });
+      } else if(info.responseFormat === "choice" && Array.isArray(info.options)){
+        drawL0GenericChoiceReview(info);
       } else if(Number(info.memoryTargetLevel) === 1){
         const halfW = Math.floor(W/2)-2;
         if(State.mainCache || State.secCache){
@@ -56424,7 +57474,7 @@ function update(){
         // made relation-equivalence trials look like an L1 task even though
         // they use the ordinary Posner L0 pair.
         showMetaQuestion(0, info.delayedPrompt || info.question || "Choose the correct option.", "", info.options);
-        setPrompt(choiceRequiredSelections(info) > 1 ? `PICK ${choiceRequiredSelections(info)}` : (info.inverseOperation ? "INVERSE" : "CHOICE"));
+        setPrompt(choiceRequiredSelections(info) > 1 ? `PICK ${choiceRequiredSelections(info)}` : (choiceOptionsAreNumericOnly(info.options) ? "VALUE" : (info.inverseOperation ? "INVERSE" : "CHOICE")));
       } else if(info.level === 0 || info.kind === "posner"){
         showMetaQuestion(0, info.delayedPrompt, "");
         setPrompt("RELATIONAL");
@@ -60458,6 +61508,7 @@ function buildDiagnosticExport(){
     performanceSnapshot:buildPerformanceSnapshot(),
     preparedTrialPipeline:(typeof preparedTrialRuntimeSnapshot === "function") ? preparedTrialRuntimeSnapshot() : null,
     preparedTrialAudit:(typeof auditPreparedTrialRuntime === "function") ? auditPreparedTrialRuntime() : null,
+    episodicEconomy:(typeof episodicEconomySnapshot === "function") ? episodicEconomySnapshot() : null,
     performanceStability:buildPerformanceStabilitySnapshot(),
     samplerDiagnostics:State.samplerDiagnostics || {},
     relationalConfusion:State.relationalConfusion || {total:0, byKey:{}, recent:[]},
@@ -61205,10 +62256,8 @@ window.addEventListener("keydown", e => {
     if(e.key==="n"||e.key==="N"||e.key==="ArrowRight"){ noteUserInput("key_bool", 0); processInput(0); }
   }
   if(State.status==="INPUT" && State.pendingPanel==="choice"){
-    const k = e.key.toLowerCase();
-    const optionCount = Array.isArray(State.trialInfo?.options) ? State.trialInfo.options.length : 4;
-    const map = {a:0,b:1,c:2,d:3,"1":0,"2":1,"3":2,"4":3};
-    if(Object.prototype.hasOwnProperty.call(map, k) && map[k] < optionCount){ handleChoiceInputIndex(map[k]); }
+    const idx = choiceInputIndexFromKey(e.key, State.trialInfo);
+    if(idx !== null){ handleChoiceInputIndex(idx); }
   }
   if(e.key==="Escape" && !modalIsOpen("guideModal")) $("pauseBtn").click();
 });
@@ -62536,6 +63585,7 @@ function canonicalFeatureName(featureName){
   if(f === "two_property" || f === "two_property_relation" || f === "l2_two_property" || f === "l0_two_property") return "two_property_relation";
   if(f === "cube_3d_spatial_property" || f === "cube_3d_spatial" || f === "cube3d" || f === "cube_spatial") return "cube_3d_spatial_property";
   if(f === "mem" || f === "mem_lure" || f === "mem_interference_lure" || f === "pi_mem") return "mem_interference";
+  if(f === "l1_episodic_economy" || f === "retained_pair_economy" || f === "multi_probe_economy") return "episodic_economy";
   if(f === "proportions" || f === "proportion_adversarial") return "proportion";
   if(f === "inverse_double_constraint") return "inversion";
   if(f === "propagated" || f === "propagated_transform" || f === "transform" || f === "transformation_propagated") return "propagated_transform";
@@ -62743,6 +63793,7 @@ function runFeatureAudit(featureName, opts={}){
     results.l0EpistemicSufficiency = runTimedFeatureSubAudit(feature, "l0EpistemicSufficiency", () => auditL0EpistemicSufficiency());
     results.stateIteration = runTimedFeatureSubAudit(feature, "stateIteration", () => auditStateIteration());
     results.adaptiveBaseline = runTimedFeatureSubAudit(feature, "adaptiveBaseline", () => auditAdaptiveBaseline());
+    results.episodicEconomy = runTimedFeatureSubAudit(feature, "episodicEconomy", () => auditL1EpisodicEconomy());
   } else if(feature === "transforms" || feature === "visuospatial_transform" || feature === "representation_transform"){
     results.visuospatialTransforms = runTimedFeatureSubAudit(feature, "visuospatialTransforms", () => auditVisuospatialTransformCatalogue());
   } else if(feature === "composition" || feature === "composition_budget" || feature === "layering"){
@@ -62753,6 +63804,7 @@ function runFeatureAudit(featureName, opts={}){
     results.verbalCoverage = runTimedFeatureSubAudit(feature, "verbalCoverage", () => auditVerbalCoverage());
   } else if(feature === "adaptive_baseline" || feature === "adaptive" || feature === "mode_d_adaptive"){
     results.adaptiveBaseline = runTimedFeatureSubAudit(feature, "adaptiveBaseline", () => auditAdaptiveBaseline());
+    results.episodicEconomy = runTimedFeatureSubAudit(feature, "episodicEconomy", () => auditL1EpisodicEconomy());
   } else if(feature === "frame_burst" || feature === "l0_frame_burst"){
     results.catalogue = runTimedFeatureSubAudit(feature, "catalogue", () => auditPosnerCatalogue());
     results.frameBurstSelector = runTimedFeatureSubAudit(feature, "frameBurstSelector", () => auditFrameBurstSelector());
@@ -62766,6 +63818,8 @@ function runFeatureAudit(featureName, opts={}){
     results.l0EpistemicSufficiency = runTimedFeatureSubAudit(feature, "l0EpistemicSufficiency", () => auditL0EpistemicSufficiency());
   } else if(feature === "state_iteration"){
     results.stateIteration = runTimedFeatureSubAudit(feature, "stateIteration", () => auditStateIteration());
+  } else if(feature === "episodic_economy" || feature === "l1_episodic_economy" || feature === "retained_pair_economy"){
+    results.episodicEconomy = runTimedFeatureSubAudit(feature, "episodicEconomy", () => auditL1EpisodicEconomy());
   } else if(feature === "state_chain" || feature === "l0_state_chain"){
     results.catalogue = runTimedFeatureSubAudit(feature, "catalogue", () => auditPosnerCatalogue());
     results.stateChainSelector = runTimedFeatureSubAudit(feature, "stateChainSelector", () => auditStateChainSelector());
@@ -65438,7 +66492,7 @@ function loop(ts){
   }
   if(typeof COUNTERFACTUAL_TRANSFORMS !== "undefined"){
     cfAddUnaryTargetTransforms("flip_parity", cfFlip, "had its parity flipped by one step", null, v=>Number.isInteger(v) && v>0 && cfFlip(v)>=0 && cfFlip(v)<=20 && cfFlip(v)!==v);
-    [3,5].forEach(k=>cfAddUnaryTargetTransforms(`mod_${k}_reduce`, v=>v%k, `were reduced to its remainder mod ${k}`, null, v=>Number.isInteger(v) && v>=k && (v%k)!==v));
+    [3,5].forEach(k=>cfAddUnaryTargetTransforms(`mod_${k}_reduce`, v=>v%k, `were reduced to the remainder after division by ${k}`, null, v=>Number.isInteger(v) && v>=k && (v%k)!==v));
     cfAddUnaryTargetTransforms("reflect_around_5", v=>10-v, "were reflected around 5", null, v=>Number.isInteger(v) && 10-v>=0 && 10-v<=20 && 10-v!==v);
     cfAddUnaryTargetTransforms("reflect_around_10", v=>20-v, "were reflected around 10", null, v=>Number.isInteger(v) && 20-v>=0 && 20-v<=20 && 20-v!==v);
     cfAddUnaryTargetTransforms("clip_to_range", v=>cfClip(v,3,9), "were clipped into the range 3–9", null, v=>Number.isInteger(v) && cfClip(v,3,9)!==v);
@@ -65592,7 +66646,7 @@ function loop(ts){
       return choiceResult(idx,["Pair 1 is closer to 5","Pair 2 is closer to 5","Both pairs are equally close to 5","Both pairs straddle 5"],"Which option describes distance to the anchor 5?",{dimension:"anchor_distance"});}},
     {id:"retained_modular_class_match", atomic:"retained_modular_class", fn:(p1,p2)=>{
       const same=p=>((p.a-p.b)%3+3)%3===0; const p1v=same(p1), p2v=same(p2); const idx=p1v&&p2v?0:p1v?1:p2v?2:3;
-      return choiceResult(idx,["Both pairs have the same remainder mod 3 internally","Only Pair 1 has matching remainders mod 3","Only Pair 2 has matching remainders mod 3","Neither pair has matching remainders mod 3"],"Which option describes the internal mod-3 relation?",{dimension:"modular_class"});}},
+      return choiceResult(idx,["Both pairs have the same remainder after division by 3 internally","Only Pair 1 has matching remainders after division by 3","Only Pair 2 has matching remainders after division by 3","Neither pair has matching remainders after division by 3"],"Which option describes the internal remainder-by-3 relation?",{dimension:"modular_class"});}},
     {id:"retained_role_swap_relation_match", atomic:"retained_role_swap", fn:(p1,p2)=>{
       const s=p=>p.a===p.b?0:(p.a<p.b?1:-1); const s1=s(p1), s2=s(p2); const idx=(s1===0&&s2===0)?3:(s1===0||s2===0)?2:(s1===s2?0:1);
       return choiceResult(idx,["The two pairs have the same strict order","The two pairs have reversed strict order","At least one pair is tied","Both pairs are tied"],"How does the left-right order of Pair 1 relate to Pair 2?",{dimension:"role_swap"});}}
@@ -65658,6 +66712,42 @@ function loop(ts){
     }
   }
 })();
+
+
+// v6.5.54set-choice-clarity: several high-ceiling L1 extension families are appended
+// near the end of the bundle, after the initial spec/atomic migration has
+// already run. In fail-closed debtless runtime, unmirrored late additions are
+// invisible to registryLayerEntries("L1"). Register any such L1 entries now and
+// invalidate the runtime index before the first menu render.
+function migrateLateL1AdditionsToRegistry(){
+  const report = {migrated:0, total:(typeof L1_OPS !== "undefined" && Array.isArray(L1_OPS)) ? L1_OPS.length : 0, errors:[]};
+  try{
+    if(typeof L1_OPS === "undefined" || !Array.isArray(L1_OPS) || typeof migrateLegacyCatalogueEntryToSpec !== "function") return report;
+    for(const op of L1_OPS){
+      if(!op || !op.id) continue;
+      if(op.registrySpecId || op._registrySpec) continue;
+      try{
+        const spec = migrateLegacyCatalogueEntryToSpec("L1", op);
+        if(spec) report.migrated++;
+      } catch(e){ report.errors.push({id:op.id, error:String(e?.message || e)}); }
+    }
+    try{
+      if(typeof SPEC_ATOMIC_MIGRATION_SUMMARY !== "undefined"){
+        SPEC_ATOMIC_MIGRATION_SUMMARY.arrays.L1 = L1_OPS.length;
+        SPEC_ATOMIC_MIGRATION_SUMMARY.totalSpecs = Object.keys(SPEC_REGISTRY || {}).length;
+        SPEC_ATOMIC_MIGRATION_SUMMARY.totalAtomics = Object.keys(ATOMIC_REGISTRY || {}).length;
+        const rows = SPEC_ATOMIC_MIGRATION_SUMMARY.layerSummaries;
+        const l1 = Array.isArray(rows) ? rows.find(r => r && r.layer === "L1") : null;
+        if(l1){ l1.total = L1_OPS.length; l1.migrated = Number(l1.migrated || 0) + report.migrated; }
+      }
+    } catch(_){}
+    try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; } catch(_){}
+    try{ if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex(); } catch(e){ report.errors.push({id:"ensureRegistryRuntimeIndex", error:String(e?.message || e)}); }
+    try{ if(typeof window !== "undefined") window.EUCA_LATE_L1_REGISTRY_REPAIR = report; } catch(_){}
+  } catch(e){ report.errors.push({id:"late_l1_registry_repair", error:String(e?.message || e)}); }
+  return report;
+}
+migrateLateL1AdditionsToRegistry();
 
 requestAnimationFrame(loop);
 openModal("overlay"); setStatus("MENU"); updateMenu({force:true});
