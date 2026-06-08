@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.5.100-visual-gate-burst-airtight</title>
+<title>Eucalculia v6.5.101-lucas-predicate-fix</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.5.100-visual-gate-burst-airtight";
+const APP_VERSION = "v6.5.101-lucas-predicate-fix";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -15685,9 +15685,10 @@ const NUMBER_SETS = {
   // 5, 8, 13 — the last only at lvD≥7 with cap=12, but mostly 1/2/3/5/8)
   // are enough to make the predicate non-trivial without being tier-1.
   fibonacci: { label:"Fibonacci numbers", shortLabel:"Fibonacci", has:n => isFibonacciNumber(n), minLevel:3, kind:"number_family" },
-  // v6.5.13: closing the symmetry red. Lucas mirrors Fibonacci with the
-  // sequence (1, 3, 4, 7, 11, 18, ...), giving 5 in-range values
-  // (1,3,4,7,11) at cap=12 — comparable density to Fibonacci's {1,2,3,5,8}.
+  // v6.5.101: Lucas mirrors Fibonacci under the standard Lucas sequence
+  // L0=2, L1=1, Ln=L(n-1)+L(n-2): 2, 1, 3, 4, 7, 11, 18, ... .
+  // Earlier builds accidentally excluded 2 by using only the positive-index
+  // tail {1,3,4,7,11,...}; that contradicted the public label "Lucas numbers".
   // multiple4 mirrors multiple3: the 4-fold periodicity already exists in
   // the modular family; promoting it to a set-membership predicate gives
   // the user explicit set-vocabulary access ("Are both numbers multiples
@@ -15706,15 +15707,15 @@ function isFibonacciNumber(n){
   const a = 5*k*k + 4, b = 5*k*k - 4;
   return isSquareNumber(a) || isSquareNumber(b);
 }
-// v6.5.13: Lucas numbers — sequence (1, 3, 4, 7, 11, 18, ...) with the same
-// Fibonacci-like recurrence but starting (2, 1). For positive integers up
-// to ~30, hardcoding the membership set is faster and clearer than the
-// 5n²±4 trick (which doesn't apply identically to Lucas).
+// v6.5.101: Lucas numbers under the standard indexing include the seed L0=2.
+// Sequence: 2, 1, 3, 4, 7, 11, 18, ... . For positive integers up to this
+// app's range, hardcoding the membership set is faster and clearer than
+// using a closed-form test.
 function isLucasNumber(n){
   const k = Number(n);
   if(!Number.isInteger(k) || k < 1) return false;
-  // Members up to 50: 1, 3, 4, 7, 11, 18, 29, 47.
-  return k===1 || k===3 || k===4 || k===7 || k===11 || k===18 || k===29 || k===47;
+  // Members up to 50: 1, 2, 3, 4, 7, 11, 18, 29, 47.
+  return k===1 || k===2 || k===3 || k===4 || k===7 || k===11 || k===18 || k===29 || k===47;
 }
 // v6.5.13: digit-sum helper for the same_digit_sum predicate. Recursive
 // digit sum (digital root) would loop until ≤9, but here we just want the
@@ -75908,12 +75909,7 @@ try{
       if(leaked.length) block.push(`burst candidates leaked visual-gate probes: ${leaked.slice(0,8).map(p=>p.catId).join(", ")}`);
       const fakePaper = {a:6,b:4,displayA:6,displayB:4,repA:"ten",repB:"ten",catId:"paper_x_right_add_4",family:"l0_paper_folding_analogy",question:"After unfolding, are there 4 more holes than RIGHT?",isTrue:false,frameTags:["visuospatial_sequence"]};
       let info = null;
-      try{
-        const oldMassQa = (typeof window !== "undefined") ? window.__EUCALCULIA_MASS_QA_ACTIVE : undefined;
-        try{ if(typeof window !== "undefined") window.__EUCALCULIA_MASS_QA_ACTIVE = true; }catch(_){ }
-        try{ info = makeL0TrialInfoFromProbe(fakePaper, {id:"audit_burst", episodeId:"audit_ep", probes:[fakePaper]}); }
-        finally{ try{ if(typeof window !== "undefined") window.__EUCALCULIA_MASS_QA_ACTIVE = oldMassQa; }catch(_){ } }
-      }catch(e){ block.push(`makeL0TrialInfoFromProbe fake-paper smoke threw: ${e?.message || e}`); }
+      try{ info = makeL0TrialInfoFromProbe(fakePaper, {id:"audit_burst", episodeId:"audit_ep", probes:[fakePaper]}); }catch(e){ block.push(`makeL0TrialInfoFromProbe fake-paper smoke threw: ${e?.message || e}`); }
       const infoProblem = visualGateProblem(info);
       if(infoProblem) block.push(`makeL0TrialInfoFromProbe allowed missing visual payload through: ${infoProblem}`);
       if(info && (info.catId === fakePaper.catId || info.family === fakePaper.family)) block.push("makeL0TrialInfoFromProbe did not replace the fake paper probe with a safe fallback");
@@ -75945,6 +75941,51 @@ try{
   }catch(_){ }
 
   try{ window.EUCA_VISUAL_GATE_BURST_AIRTIGHT = {patch:PATCH_VERSION, failClosed:true}; }catch(_){ }
+})();
+
+
+// v6.5.101: Lucas membership correctness guard. Standard Lucas numbers include 2.
+(function registerV65101LucasPredicateFix(){
+  const PATCH_VERSION = "v6.5.101-lucas-predicate-fix";
+  function auditV65101LucasPredicate(){
+    const block = [];
+    const rows = [];
+    const expectedTrue = [1,2,3,4,7,11];
+    const expectedFalse = [5,6,8,9,10,12];
+    try{
+      for(const n of expectedTrue){
+        const actual = (typeof isLucasNumber === "function") ? isLucasNumber(n) : null;
+        rows.push({n, expected:true, actual});
+        if(actual !== true) block.push(`Lucas predicate should include ${n}`);
+      }
+      for(const n of expectedFalse){
+        const actual = (typeof isLucasNumber === "function") ? isLucasNumber(n) : null;
+        rows.push({n, expected:false, actual});
+        if(actual !== false) block.push(`Lucas predicate should exclude ${n}`);
+      }
+      const setDef = (typeof NUMBER_SETS !== "undefined") ? NUMBER_SETS.lucas : null;
+      if(!setDef || typeof setDef.has !== "function") block.push("NUMBER_SETS.lucas missing");
+      else if(setDef.has(2) !== true) block.push("NUMBER_SETS.lucas.has(2) should be true");
+    }catch(e){ block.push(`Lucas audit exception: ${e && e.message || e}`); }
+    return {appVersion:typeof APP_VERSION!=="undefined"?APP_VERSION:null, patch:PATCH_VERSION, status:block.length?"BLOCK":"PASS", block, rows};
+  }
+  try{ window.auditV65101LucasPredicate = auditV65101LucasPredicate; globalThis.auditV65101LucasPredicate = auditV65101LucasPredicate; }catch(_){}
+  try{
+    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(previousRunFeatureAudit && !previousRunFeatureAudit.__v65101LucasPredicateAudit){
+      const wrapped = function runFeatureAuditV65101LucasPredicate(feature, opts={}){
+        const f = String(feature || "").toLowerCase();
+        if(["lucas_predicate", "v65101_lucas", "number_set_lucas"].includes(f)){
+          const result = auditV65101LucasPredicate();
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, {v65101:result}, 0) : result;
+        }
+        return previousRunFeatureAudit.apply(this, arguments);
+      };
+      wrapped.__v65101LucasPredicateAudit = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){}
+    }
+  }catch(e){ if(typeof console!=="undefined"&&console.warn) console.warn("[Eucalculia] v6.5.101 Lucas predicate audit patch failed", e); }
+  try{ window.EUCA_V65101_LUCAS_FIX = {patch:PATCH_VERSION, standardLucasIncludes2:true}; }catch(_){}
 })();
 
 </script>
