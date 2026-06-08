@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.6.2-experimental-densification-gatefix</title>
+<title>Eucalculia v6.6.4-experimental-densification-semantic-guard</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3012,7 +3012,7 @@ select.cs-native {
 </div>
 <p>L0 categories are not all equally likely from the beginning. The app uses soft relational frontiers: direct comparisons appear first, then joint numerical properties, explicit set-membership questions, role/property binding, metric and factor relations, and finally compound relations. User-facing wording avoids raw internal labels such as “case”, “in/out” or “vacuous truth”. Boolean gates are introduced by their rule first; for example the NAND rule is shown as “Answer YES unless both conditions are true.” The current value range still matters, but recent accuracy, response time, relational-frame weaknesses and recent sampling concentration also shape which categories are emphasized.</p>
 <p><strong>Update Chains:</strong> after frame-burst performance is stable, a sparse advanced L0 family may appear. A burst asks several questions about the same fixed LEFT/RIGHT state. An Update Chain instead tells you to replace LEFT or RIGHT internally and then answer a YES/NO question about the updated state. For example: “Replace LEFT with the gap between LEFT and RIGHT. Is LEFT now even?” A later probe may then use that updated LEFT: “Now replace RIGHT with LEFT + 2. Is RIGHT now greater than original RIGHT?” These items remain L0: no numpad is used, and the answer channel stays YES/NO. They are initially kept out of MEM/META history so mutable-state practice does not interfere with ordinary retained-pair integration. A sparse advanced subfamily, <strong>truth-gated update</strong>, also lives here: an internal relation about the current state selects the update branch before the final YES/NO check. For example: “If GAP is prime, replace LEFT with GAP; otherwise, replace RIGHT with GAP. After the update, is LEFT greater than RIGHT?” This is operational metarelational control inside the same Update Chain architecture, not a separate mode.</p>
-<p><strong>Paper folding checks:</strong> in late L0, the question frame may show a folded-paper sequence, including horizontal, vertical, partial and diagonal folds. Mentally unfold the sheet and count the resulting punched holes, then compare that punched-hole count with the flashed LEFT/RIGHT values. The answer is still YES or NO; the punched-hole count is not typed. The paper-folding analogy family now uses the same shared numeric-rule catalogue as the induction-chain rule checks, adapted to the paper format: LEFT/RIGHT provide the source values and the unfolded punched-hole count is the derived third value.</p>
+<p><strong>Paper folding checks:</strong> in late L0, the question frame may show a folded-paper sequence, including horizontal, vertical, partial and diagonal folds. Mentally unfold the sheet and count the resulting holes, then compare that hole count with the flashed LEFT/RIGHT values. The answer is still YES or NO; the hole count is not typed. The paper-folding analogy family now uses the same shared numeric-rule catalogue as the induction-chain rule checks, adapted to the paper format: LEFT/RIGHT provide the source values and the unfolded hole count is the derived third value.</p>
 <p><strong>Shepard cube checks:</strong> in late L0, the question frame may show two cube figures. Decide whether the right figure is a rotation of the left figure or a mirror image, then apply the corresponding numerical rule to the flashed LEFT/RIGHT values. These items combine mental rotation with conditional rule selection, but they remain ordinary L0 relational trials.</p>
 <p><strong>Directed graph checks:</strong> in late L0, the question frame may show two small directed graphs. Decide whether the graphs have the same structure or differ by a small structural edit, then apply the corresponding numerical rule to the flashed LEFT/RIGHT values. These items use graph-structure validation as the conditional source, but remain ordinary L0 YES/NO trials.</p>
 <p><strong>Relation-equivalence 4-select:</strong> in late L0, some trials ask you to select exactly two true statements from four. The statements are surface-different formulations of the same relation, such as closer/farther from 5, direct LEFT/RIGHT converse order, signed order reversal, or order reversal after a transformation. The trial auto-submits after the second selected option.</p>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.6.2-experimental-densification-gatefix";
+const APP_VERSION = "v6.6.4-experimental-densification-semantic-guard";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -16832,186 +16832,186 @@ function l0AnalogySharedUnaryRuleCatalog(){
   for(let k=1; k<=8; k++){
     add(`pair_add_${k}`, `Add ${k}.`, "linear_step", n => n + k, {
       distractorType:"linear_near_miss",
-      paperPromptLeft:`are the punched holes ${k === 1 ? "one" : k} more than LEFT?`,
-      paperPromptRight:`are the punched holes ${k === 1 ? "one" : k} more than RIGHT?`,
-      paperNegLeft:`are the punched holes not ${k === 1 ? "one" : k} more than LEFT?`,
-      paperNegRight:`are the punched holes not ${k === 1 ? "one" : k} more than RIGHT?`
+      paperPromptLeft:`are the holes ${k === 1 ? "one" : k} more than LEFT?`,
+      paperPromptRight:`are the holes ${k === 1 ? "one" : k} more than RIGHT?`,
+      paperNegLeft:`are the holes not ${k === 1 ? "one" : k} more than LEFT?`,
+      paperNegRight:`are the holes not ${k === 1 ? "one" : k} more than RIGHT?`
     });
     add(`pair_subtract_${k}`, `Subtract ${k}.`, "linear_step", n => n - k, {
       distractorType:"linear_direction_flip",
-      paperPromptLeft:`are the punched holes ${k === 1 ? "one" : k} less than LEFT?`,
-      paperPromptRight:`are the punched holes ${k === 1 ? "one" : k} less than RIGHT?`,
-      paperNegLeft:`are the punched holes not ${k === 1 ? "one" : k} less than LEFT?`,
-      paperNegRight:`are the punched holes not ${k === 1 ? "one" : k} less than RIGHT?`
+      paperPromptLeft:`are the holes ${k === 1 ? "one" : k} less than LEFT?`,
+      paperPromptRight:`are the holes ${k === 1 ? "one" : k} less than RIGHT?`,
+      paperNegLeft:`are the holes not ${k === 1 ? "one" : k} less than LEFT?`,
+      paperNegRight:`are the holes not ${k === 1 ? "one" : k} less than RIGHT?`
     });
   }
   add("pair_double", "Double the value.", "multiplicative", n => n * 2, {
     distractorType:"operation_flip",
-    paperPromptLeft:"are the punched holes twice LEFT?",
-    paperPromptRight:"are the punched holes twice RIGHT?",
-    paperNegLeft:"are the punched holes not twice LEFT?",
-    paperNegRight:"are the punched holes not twice RIGHT?"
+    paperPromptLeft:"are the holes twice LEFT?",
+    paperPromptRight:"are the holes twice RIGHT?",
+    paperNegLeft:"are the holes not twice LEFT?",
+    paperNegRight:"are the holes not twice RIGHT?"
   });
   add("pair_triple", "Triple the value.", "multiplicative", n => n * 3, {
     distractorType:"factor_flip",
-    paperPromptLeft:"are the punched holes three times LEFT?",
-    paperPromptRight:"are the punched holes three times RIGHT?",
-    paperNegLeft:"are the punched holes not three times LEFT?",
-    paperNegRight:"are the punched holes not three times RIGHT?"
+    paperPromptLeft:"are the holes three times LEFT?",
+    paperPromptRight:"are the holes three times RIGHT?",
+    paperNegLeft:"are the holes not three times LEFT?",
+    paperNegRight:"are the holes not three times RIGHT?"
   });
   add("pair_half", "Take half of the value.", "multiplicative", n => n % 2 === 0 ? n / 2 : null, {
     distractorType:"operation_flip",
-    paperPromptLeft:"are the punched holes half of LEFT?",
-    paperPromptRight:"are the punched holes half of RIGHT?",
-    paperNegLeft:"are the punched holes not half of LEFT?",
-    paperNegRight:"are the punched holes not half of RIGHT?"
+    paperPromptLeft:"are the holes half of LEFT?",
+    paperPromptRight:"are the holes half of RIGHT?",
+    paperNegLeft:"are the holes not half of LEFT?",
+    paperNegRight:"are the holes not half of RIGHT?"
   });
   add("pair_third", "Take one third of the value.", "multiplicative", n => n % 3 === 0 ? n / 3 : null, {
     distractorType:"factor_flip",
-    paperPromptLeft:"are the punched holes one third of LEFT?",
-    paperPromptRight:"are the punched holes one third of RIGHT?",
-    paperNegLeft:"are the punched holes not one third of LEFT?",
-    paperNegRight:"are the punched holes not one third of RIGHT?"
+    paperPromptLeft:"are the holes one third of LEFT?",
+    paperPromptRight:"are the holes one third of RIGHT?",
+    paperNegLeft:"are the holes not one third of LEFT?",
+    paperNegRight:"are the holes not one third of RIGHT?"
   });
   for(const k of [1,2,3]){
     add(`pair_double_plus_${k}`, `Double the value, then add ${k}.`, "affine", n => 2*n + k, {
       distractorType:"affine_offset_flip",
-      paperPromptLeft:`are the punched holes twice LEFT plus ${k}?`,
-      paperPromptRight:`are the punched holes twice RIGHT plus ${k}?`,
-      paperNegLeft:`are the punched holes not twice LEFT plus ${k}?`,
-      paperNegRight:`are the punched holes not twice RIGHT plus ${k}?`
+      paperPromptLeft:`are the holes twice LEFT plus ${k}?`,
+      paperPromptRight:`are the holes twice RIGHT plus ${k}?`,
+      paperNegLeft:`are the holes not twice LEFT plus ${k}?`,
+      paperNegRight:`are the holes not twice RIGHT plus ${k}?`
     });
     add(`pair_double_minus_${k}`, `Double the value, then subtract ${k}.`, "affine", n => 2*n - k, {
       distractorType:"affine_offset_flip",
-      paperPromptLeft:`are the punched holes twice LEFT minus ${k}?`,
-      paperPromptRight:`are the punched holes twice RIGHT minus ${k}?`,
-      paperNegLeft:`are the punched holes not twice LEFT minus ${k}?`,
-      paperNegRight:`are the punched holes not twice RIGHT minus ${k}?`
+      paperPromptLeft:`are the holes twice LEFT minus ${k}?`,
+      paperPromptRight:`are the holes twice RIGHT minus ${k}?`,
+      paperNegLeft:`are the holes not twice LEFT minus ${k}?`,
+      paperNegRight:`are the holes not twice RIGHT minus ${k}?`
     });
   }
   add("pair_triple_plus_1", "Triple the value, then add 1.", "affine", n => 3*n + 1, {
     distractorType:"affine_factor_flip",
-    paperPromptLeft:"are the punched holes three times LEFT plus one?",
-    paperPromptRight:"are the punched holes three times RIGHT plus one?",
-    paperNegLeft:"are the punched holes not three times LEFT plus one?",
-    paperNegRight:"are the punched holes not three times RIGHT plus one?"
+    paperPromptLeft:"are the holes three times LEFT plus one?",
+    paperPromptRight:"are the holes three times RIGHT plus one?",
+    paperNegLeft:"are the holes not three times LEFT plus one?",
+    paperNegRight:"are the holes not three times RIGHT plus one?"
   });
   add("pair_triple_minus_1", "Triple the value, then subtract 1.", "affine", n => 3*n - 1, {
     distractorType:"affine_factor_flip",
-    paperPromptLeft:"are the punched holes three times LEFT minus one?",
-    paperPromptRight:"are the punched holes three times RIGHT minus one?",
-    paperNegLeft:"are the punched holes not three times LEFT minus one?",
-    paperNegRight:"are the punched holes not three times RIGHT minus one?"
+    paperPromptLeft:"are the holes three times LEFT minus one?",
+    paperPromptRight:"are the holes three times RIGHT minus one?",
+    paperNegLeft:"are the holes not three times LEFT minus one?",
+    paperNegRight:"are the holes not three times RIGHT minus one?"
   });
   add("pair_square", "Square the value.", "power_root", n => n*n, {
     distractorType:"power_root_flip",
-    paperPromptLeft:"are the punched holes LEFT squared?",
-    paperPromptRight:"are the punched holes RIGHT squared?",
-    paperNegLeft:"are the punched holes not LEFT squared?",
-    paperNegRight:"are the punched holes not RIGHT squared?"
+    paperPromptLeft:"are the holes LEFT squared?",
+    paperPromptRight:"are the holes RIGHT squared?",
+    paperNegLeft:"are the holes not LEFT squared?",
+    paperNegRight:"are the holes not RIGHT squared?"
   });
   add("pair_square_root", "Take the square root.", "power_root", n => { const r=Math.sqrt(n); return Number.isInteger(r) ? r : null; }, {
     distractorType:"power_root_flip",
-    paperPromptLeft:"are the punched holes the square root of LEFT?",
-    paperPromptRight:"are the punched holes the square root of RIGHT?",
-    paperNegLeft:"are the punched holes not the square root of LEFT?",
-    paperNegRight:"are the punched holes not the square root of RIGHT?"
+    paperPromptLeft:"are the holes the square root of LEFT?",
+    paperPromptRight:"are the holes the square root of RIGHT?",
+    paperNegLeft:"are the holes not the square root of LEFT?",
+    paperNegRight:"are the holes not the square root of RIGHT?"
   });
   const anchorLabel = anchor => anchor === 5 ? "five" : String(anchor);
   for(const anchor of [5,7,9,10,12,20]){
     add(`pair_fill_to_${anchor}`, `Count up to ${anchor}.`, "anchor_completion", n => anchor - n, {
       distractorType:"anchor_flip",
-      paperPromptLeft:`are the punched holes what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
-      paperPromptRight:`are the punched holes what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`,
-      paperNegLeft:`are the punched holes not what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
-      paperNegRight:`are the punched holes not what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`
+      paperPromptLeft:`are the holes what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
+      paperPromptRight:`are the holes what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`,
+      paperNegLeft:`are the holes not what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
+      paperNegRight:`are the holes not what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`
     });
   }
   add("pair_mirror_1_12", "Reflect it across the midpoint of the 1–12 range.", "anchor_completion", n => 13 - n, {
     distractorType:"mirror_anchor_flip",
-    paperPromptLeft:"are the punched holes the mirror of LEFT on the 1–12 line?",
-    paperPromptRight:"are the punched holes the mirror of RIGHT on the 1–12 line?",
-    paperNegLeft:"are the punched holes not the mirror of LEFT on the 1–12 line?",
-    paperNegRight:"are the punched holes not the mirror of RIGHT on the 1–12 line?"
+    paperPromptLeft:"are the holes the mirror of LEFT on the 1–12 line?",
+    paperPromptRight:"are the holes the mirror of RIGHT on the 1–12 line?",
+    paperNegLeft:"are the holes not the mirror of LEFT on the 1–12 line?",
+    paperNegRight:"are the holes not the mirror of RIGHT on the 1–12 line?"
   });
   for(let k=1; k<=5; k++){
     add(`pair_clock_forward_${k}`, l0ClockClockwiseLabel(k), "clock_move", n => l0AnalogyClock(n, k), {
       distractorType:"clock_direction_flip",
       paperEnabled:k !== 1,
       canApply:n => l0ClockMoveCrossesBoundary(n, k),
-      paperPromptLeft:`on a 12-clock, are the punched holes what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
-      paperPromptRight:`on a 12-clock, are the punched holes what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`,
-      paperNegLeft:`on a 12-clock, are the punched holes not what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
-      paperNegRight:`on a 12-clock, are the punched holes not what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`
+      paperPromptLeft:`on a 12-clock, are the holes what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
+      paperPromptRight:`on a 12-clock, are the holes what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`,
+      paperNegLeft:`on a 12-clock, are the holes not what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
+      paperNegRight:`on a 12-clock, are the holes not what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`
     });
     add(`pair_clock_back_${k}`, l0ClockCounterLabel(k), "clock_move", n => l0AnalogyClock(n, -k), {
       distractorType:"clock_direction_flip",
       paperEnabled:k !== 1,
       canApply:n => l0ClockMoveCrossesBoundary(n, -k),
-      paperPromptLeft:`on a 12-clock, are the punched holes what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperPromptRight:`on a 12-clock, are the punched holes what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperNegLeft:`on a 12-clock, are the punched holes not what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperNegRight:`on a 12-clock, are the punched holes not what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`
+      paperPromptLeft:`on a 12-clock, are the holes what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
+      paperPromptRight:`on a 12-clock, are the holes what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`,
+      paperNegLeft:`on a 12-clock, are the holes not what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
+      paperNegRight:`on a 12-clock, are the holes not what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`
     });
   }
   add("pair_clock_opposite", "Use the opposite hour on a 12-clock.", "clock_opposite", n => l0AnalogyClock(n, 6), {
     distractorType:"clock_opposite_flip",
-    paperPromptLeft:"on a 12-clock, are the punched holes the opposite hour from LEFT?",
-    paperPromptRight:"on a 12-clock, are the punched holes the opposite hour from RIGHT?",
-    paperNegLeft:"on a 12-clock, are the punched holes not the opposite hour from LEFT?",
-    paperNegRight:"on a 12-clock, are the punched holes not the opposite hour from RIGHT?",
+    paperPromptLeft:"on a 12-clock, are the holes the opposite hour from LEFT?",
+    paperPromptRight:"on a 12-clock, are the holes the opposite hour from RIGHT?",
+    paperNegLeft:"on a 12-clock, are the holes not the opposite hour from LEFT?",
+    paperNegRight:"on a 12-clock, are the holes not the opposite hour from RIGHT?",
     canApply:n => l0AnalogyInRange(n, 12)
   });
   for(const anchor of [5,10,12]){
     add(`pair_distance_from_${anchor}`, `Use the distance from ${anchor}.`, "anchor_distance", n => Math.abs(n - anchor), {
       distractorType:"anchor_distance_flip",
-      paperPromptLeft:`are the punched holes the distance from LEFT to ${anchor}?`,
-      paperPromptRight:`are the punched holes the distance from RIGHT to ${anchor}?`,
-      paperNegLeft:`are the punched holes not the distance from LEFT to ${anchor}?`,
-      paperNegRight:`are the punched holes not the distance from RIGHT to ${anchor}?`
+      paperPromptLeft:`are the holes the distance from LEFT to ${anchor}?`,
+      paperPromptRight:`are the holes the distance from RIGHT to ${anchor}?`,
+      paperNegLeft:`are the holes not the distance from LEFT to ${anchor}?`,
+      paperNegRight:`are the holes not the distance from RIGHT to ${anchor}?`
     });
   }
   add("pair_5_plus_distance_from_5", "Move from 5 by the same distance upward.", "anchor_distance", n => 5 + Math.abs(n - 5), {
     distractorType:"anchor_direction_flip",
-    paperPromptLeft:"are the punched holes 5 plus LEFT's distance from 5?",
-    paperPromptRight:"are the punched holes 5 plus RIGHT's distance from 5?",
-    paperNegLeft:"are the punched holes not 5 plus LEFT's distance from 5?",
-    paperNegRight:"are the punched holes not 5 plus RIGHT's distance from 5?"
+    paperPromptLeft:"are the holes 5 plus LEFT's distance from 5?",
+    paperPromptRight:"are the holes 5 plus RIGHT's distance from 5?",
+    paperNegLeft:"are the holes not 5 plus LEFT's distance from 5?",
+    paperNegRight:"are the holes not 5 plus RIGHT's distance from 5?"
   });
   add("pair_10_minus_distance_from_10", "Move below 10 by the same distance.", "anchor_distance", n => 10 - Math.abs(n - 10), {
     distractorType:"anchor_direction_flip",
-    paperPromptLeft:"are the punched holes 10 minus LEFT's distance from 10?",
-    paperPromptRight:"are the punched holes 10 minus RIGHT's distance from 10?",
-    paperNegLeft:"are the punched holes not 10 minus LEFT's distance from 10?",
-    paperNegRight:"are the punched holes not 10 minus RIGHT's distance from 10?"
+    paperPromptLeft:"are the holes 10 minus LEFT's distance from 10?",
+    paperPromptRight:"are the holes 10 minus RIGHT's distance from 10?",
+    paperNegLeft:"are the holes not 10 minus LEFT's distance from 10?",
+    paperNegRight:"are the holes not 10 minus RIGHT's distance from 10?"
   });
   add("pair_next_even", "Go to the next even number.", "parity_step", n => n + (n % 2 === 0 ? 2 : 1), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the punched holes the next even number after LEFT?",
-    paperPromptRight:"are the punched holes the next even number after RIGHT?",
-    paperNegLeft:"are the punched holes not the next even number after LEFT?",
-    paperNegRight:"are the punched holes not the next even number after RIGHT?"
+    paperPromptLeft:"are the holes the next even number after LEFT?",
+    paperPromptRight:"are the holes the next even number after RIGHT?",
+    paperNegLeft:"are the holes not the next even number after LEFT?",
+    paperNegRight:"are the holes not the next even number after RIGHT?"
   });
   add("pair_previous_even", "Go to the previous even number.", "parity_step", n => n - (n % 2 === 0 ? 2 : 1), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the punched holes the previous even number before LEFT?",
-    paperPromptRight:"are the punched holes the previous even number before RIGHT?",
-    paperNegLeft:"are the punched holes not the previous even number before LEFT?",
-    paperNegRight:"are the punched holes not the previous even number before RIGHT?"
+    paperPromptLeft:"are the holes the previous even number before LEFT?",
+    paperPromptRight:"are the holes the previous even number before RIGHT?",
+    paperNegLeft:"are the holes not the previous even number before LEFT?",
+    paperNegRight:"are the holes not the previous even number before RIGHT?"
   });
   add("pair_next_odd", "Go to the next odd number.", "parity_step", n => n + (n % 2 === 0 ? 1 : 2), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the punched holes the next odd number after LEFT?",
-    paperPromptRight:"are the punched holes the next odd number after RIGHT?",
-    paperNegLeft:"are the punched holes not the next odd number after LEFT?",
-    paperNegRight:"are the punched holes not the next odd number after RIGHT?"
+    paperPromptLeft:"are the holes the next odd number after LEFT?",
+    paperPromptRight:"are the holes the next odd number after RIGHT?",
+    paperNegLeft:"are the holes not the next odd number after LEFT?",
+    paperNegRight:"are the holes not the next odd number after RIGHT?"
   });
   add("pair_previous_odd", "Go to the previous odd number.", "parity_step", n => n - (n % 2 === 0 ? 1 : 2), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the punched holes the previous odd number before LEFT?",
-    paperPromptRight:"are the punched holes the previous odd number before RIGHT?",
-    paperNegLeft:"are the punched holes not the previous odd number before LEFT?",
-    paperNegRight:"are the punched holes not the previous odd number before RIGHT?"
+    paperPromptLeft:"are the holes the previous odd number before LEFT?",
+    paperPromptRight:"are the holes the previous odd number before RIGHT?",
+    paperNegLeft:"are the holes not the previous odd number before LEFT?",
+    paperNegRight:"are the holes not the previous odd number before RIGHT?"
   });
   for(const k of [3,4,5]){
     add(`pair_next_multiple_${k}`, `Go to the next higher multiple of ${k}.`, "multiple_step", n => {
@@ -17022,10 +17022,10 @@ function l0AnalogySharedUnaryRuleCatalog(){
       return x <= 12 ? x : null;
     }, {
       distractorType:"multiple_direction_flip",
-      paperPromptLeft:`are the punched holes the next higher multiple of ${k} after LEFT?`,
-      paperPromptRight:`are the punched holes the next higher multiple of ${k} after RIGHT?`,
-      paperNegLeft:`are the punched holes not the next higher multiple of ${k} after LEFT?`,
-      paperNegRight:`are the punched holes not the next higher multiple of ${k} after RIGHT?`,
+      paperPromptLeft:`are the holes the next higher multiple of ${k} after LEFT?`,
+      paperPromptRight:`are the holes the next higher multiple of ${k} after RIGHT?`,
+      paperNegLeft:`are the holes not the next higher multiple of ${k} after LEFT?`,
+      paperNegRight:`are the holes not the next higher multiple of ${k} after RIGHT?`,
       canApply:n => {
         n = l0AnalogyInt(n);
         if(n === null) return false;
@@ -17035,39 +17035,39 @@ function l0AnalogySharedUnaryRuleCatalog(){
     });
     add(`pair_previous_multiple_${k}`, `Go to the previous multiple of ${k}.`, "multiple_step", n => n - (n % k || k), {
       distractorType:"multiple_direction_flip",
-      paperPromptLeft:`are the punched holes the previous multiple of ${k} before LEFT?`,
-      paperPromptRight:`are the punched holes the previous multiple of ${k} before RIGHT?`,
-      paperNegLeft:`are the punched holes not the previous multiple of ${k} before LEFT?`,
-      paperNegRight:`are the punched holes not the previous multiple of ${k} before RIGHT?`
+      paperPromptLeft:`are the holes the previous multiple of ${k} before LEFT?`,
+      paperPromptRight:`are the holes the previous multiple of ${k} before RIGHT?`,
+      paperNegLeft:`are the holes not the previous multiple of ${k} before LEFT?`,
+      paperNegRight:`are the holes not the previous multiple of ${k} before RIGHT?`
     });
   }
   add("pair_next_prime", "Go to the next prime number.", "prime_step", n => l0AnalogyNextPrime(n), {
     distractorType:"prime_direction_flip",
-    paperPromptLeft:"are the punched holes the next prime number after LEFT?",
-    paperPromptRight:"are the punched holes the next prime number after RIGHT?",
-    paperNegLeft:"are the punched holes not the next prime number after LEFT?",
-    paperNegRight:"are the punched holes not the next prime number after RIGHT?"
+    paperPromptLeft:"are the holes the next prime number after LEFT?",
+    paperPromptRight:"are the holes the next prime number after RIGHT?",
+    paperNegLeft:"are the holes not the next prime number after LEFT?",
+    paperNegRight:"are the holes not the next prime number after RIGHT?"
   });
   add("pair_previous_prime", "Go to the previous prime number.", "prime_step", n => l0AnalogyPrevPrime(n), {
     distractorType:"prime_direction_flip",
-    paperPromptLeft:"are the punched holes the previous prime number before LEFT?",
-    paperPromptRight:"are the punched holes the previous prime number before RIGHT?",
-    paperNegLeft:"are the punched holes not the previous prime number before LEFT?",
-    paperNegRight:"are the punched holes not the previous prime number before RIGHT?"
+    paperPromptLeft:"are the holes the previous prime number before LEFT?",
+    paperPromptRight:"are the holes the previous prime number before RIGHT?",
+    paperNegLeft:"are the holes not the previous prime number before LEFT?",
+    paperNegRight:"are the holes not the previous prime number before RIGHT?"
   });
   add("pair_next_square", "Go to the next square number.", "square_step", n => l0AnalogyNextSquare(n), {
     distractorType:"square_direction_flip",
-    paperPromptLeft:"are the punched holes the next square number after LEFT?",
-    paperPromptRight:"are the punched holes the next square number after RIGHT?",
-    paperNegLeft:"are the punched holes not the next square number after LEFT?",
-    paperNegRight:"are the punched holes not the next square number after RIGHT?"
+    paperPromptLeft:"are the holes the next square number after LEFT?",
+    paperPromptRight:"are the holes the next square number after RIGHT?",
+    paperNegLeft:"are the holes not the next square number after LEFT?",
+    paperNegRight:"are the holes not the next square number after RIGHT?"
   });
   add("pair_previous_square", "Go to the previous square number.", "square_step", n => l0AnalogyPrevSquare(n), {
     distractorType:"square_direction_flip",
-    paperPromptLeft:"are the punched holes the previous square number before LEFT?",
-    paperPromptRight:"are the punched holes the previous square number before RIGHT?",
-    paperNegLeft:"are the punched holes not the previous square number before LEFT?",
-    paperNegRight:"are the punched holes not the previous square number before RIGHT?"
+    paperPromptLeft:"are the holes the previous square number before LEFT?",
+    paperPromptRight:"are the holes the previous square number before RIGHT?",
+    paperNegLeft:"are the holes not the previous square number before LEFT?",
+    paperNegRight:"are the holes not the previous square number before RIGHT?"
   });
   return (l0AnalogySharedUnaryRuleCatalog._cache = rules);
 }
@@ -17075,9 +17075,9 @@ function l0PaperAnalogyExplain(op, a, b, x){
   const expected = op && typeof op.computeTargetX === "function" ? op.computeTargetX(a,b) : null;
   const hole = Number.isInteger(x) ? x : "?";
   if(op && op.kind === "property"){
-    return `Unfolded punched-hole count: ${hole}. Check: ${op.label}. Verdict → ${op.predicate(a,b,x) ? "YES" : "NO"}.`;
+    return `Hole count after unfolding: ${hole}. Check: ${op.label}. Verdict → ${op.predicate(a,b,x) ? "YES" : "NO"}.`;
   }
-  return `Unfolded punched-hole count: ${hole}. Expected: ${Number.isInteger(expected) ? expected : "not defined"} (${op?.label || "rule"}). Match → ${Number.isInteger(x) && x === expected ? "YES" : "NO"}.`;
+  return `Hole count after unfolding: ${hole}. Expected: ${Number.isInteger(expected) ? expected : "not defined"} (${op?.label || "rule"}). Match → ${Number.isInteger(x) && x === expected ? "YES" : "NO"}.`;
 }
 function l0AnalogySharedPaperRuleCatalog(){
   if(l0AnalogySharedPaperRuleCatalog._cache) return l0AnalogySharedPaperRuleCatalog._cache;
@@ -17134,31 +17134,31 @@ function l0AnalogySharedPaperRuleCatalog(){
     predicate:(a,b,x)=> x === compute(a,b),
     applicable:(a,b,maxX)=> l0AnalogyInRange(compute(a,b), maxX)
   });
-  addExact("paper_x_eq_diff", "X = |RIGHT − LEFT|", "are the punched holes the gap between LEFT and RIGHT?", "are the punched holes not the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a), {family:"dyadic_gap"});
-  addExact("paper_x_eq_sum", "X = LEFT + RIGHT", "are the punched holes the total of LEFT and RIGHT?", "are the punched holes not the total of LEFT and RIGHT?", (a,b)=>a+b, {family:"dyadic_sum"});
-  addExact("paper_x_eq_avg", "X = average of LEFT and RIGHT", "are the punched holes the exact middle value between LEFT and RIGHT?", "are the punched holes not the exact middle value between LEFT and RIGHT?", (a,b)=>(a+b)%2===0 ? (a+b)/2 : null, {family:"dyadic_midpoint"});
-  addExact("paper_x_continues_progression", "X = RIGHT + (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the punched holes the next value after the same step?", "starting with LEFT then RIGHT, are the punched holes not the next value after the same step?", (a,b)=>2*b-a, {family:"dyadic_step"});
-  addExact("paper_x_precedes_progression", "X = LEFT − (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the punched holes the value just before LEFT using the same step?", "starting with LEFT then RIGHT, are the punched holes not the value just before LEFT using the same step?", (a,b)=>2*a-b, {family:"dyadic_step"});
-  addExact("paper_x_eq_max", "X = max(LEFT, RIGHT)", "are the punched holes equal to the larger of LEFT and RIGHT?", "are the punched holes not equal to the larger of LEFT and RIGHT?", (a,b)=>Math.max(a,b), {family:"role_value"});
-  addExact("paper_x_eq_min", "X = min(LEFT, RIGHT)", "are the punched holes equal to the smaller of LEFT and RIGHT?", "are the punched holes not equal to the smaller of LEFT and RIGHT?", (a,b)=>Math.min(a,b), {family:"role_value"});
-  addExact("paper_x_eq_max_plus_1", "X = larger value + 1", "are the punched holes one more than the larger value?", "are the punched holes not one more than the larger value?", (a,b)=>Math.max(a,b)+1, {family:"role_value"});
-  addExact("paper_x_eq_min_plus_1", "X = smaller value + 1", "are the punched holes one more than the smaller value?", "are the punched holes not one more than the smaller value?", (a,b)=>Math.min(a,b)+1, {family:"role_value"});
-  addExact("paper_x_eq_max_minus_1", "X = larger value − 1", "are the punched holes one less than the larger value?", "are the punched holes not one less than the larger value?", (a,b)=>Math.max(a,b)-1, {family:"role_value"});
-  addExact("paper_x_eq_gap_plus_1", "X = gap + 1", "are the punched holes one more than the gap between LEFT and RIGHT?", "are the punched holes not one more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+1, {family:"dyadic_gap"});
-  addExact("paper_x_eq_gap_plus_2", "X = gap + 2", "are the punched holes two more than the gap between LEFT and RIGHT?", "are the punched holes not two more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+2, {family:"dyadic_gap"});
-  addExact("paper_x_eq_double_gap", "X = 2 × gap", "are the punched holes twice the gap between LEFT and RIGHT?", "are the punched holes not twice the gap between LEFT and RIGHT?", (a,b)=>2*Math.abs(b-a), {family:"dyadic_gap"});
-  addExact("paper_x_eq_half_gap", "X = gap ÷ 2", "are the punched holes half the gap between LEFT and RIGHT?", "are the punched holes not half the gap between LEFT and RIGHT?", (a,b)=>{ const g=Math.abs(b-a); return g%2===0 ? g/2 : null; }, {family:"dyadic_gap"});
-  addExact("paper_x_eq_sum_minus_1", "X = LEFT + RIGHT − 1", "are the punched holes one less than the total of LEFT and RIGHT?", "are the punched holes not one less than the total of LEFT and RIGHT?", (a,b)=>a+b-1, {family:"dyadic_sum"});
-  addExact("paper_x_eq_sum_plus_1", "X = LEFT + RIGHT + 1", "are the punched holes one more than the total of LEFT and RIGHT?", "are the punched holes not one more than the total of LEFT and RIGHT?", (a,b)=>a+b+1, {family:"dyadic_sum"});
-  addExact("paper_x_eq_product", "X = LEFT × RIGHT", "are the punched holes LEFT times RIGHT?", "are the punched holes not LEFT times RIGHT?", (a,b)=>a*b, {family:"dyadic_product"});
-  addExact("paper_x_eq_larger_minus_smaller_plus_1", "X = larger − smaller + 1", "are the punched holes one more than the distance from the smaller value to the larger value?", "are the punched holes not one more than the distance from the smaller value to the larger value?", (a,b)=>Math.max(a,b)-Math.min(a,b)+1, {family:"role_gap"});
+  addExact("paper_x_eq_diff", "X = |RIGHT − LEFT|", "are the holes the gap between LEFT and RIGHT?", "are the holes not the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a), {family:"dyadic_gap"});
+  addExact("paper_x_eq_sum", "X = LEFT + RIGHT", "are the holes the total of LEFT and RIGHT?", "are the holes not the total of LEFT and RIGHT?", (a,b)=>a+b, {family:"dyadic_sum"});
+  addExact("paper_x_eq_avg", "X = average of LEFT and RIGHT", "are the holes the exact middle value between LEFT and RIGHT?", "are the holes not the exact middle value between LEFT and RIGHT?", (a,b)=>(a+b)%2===0 ? (a+b)/2 : null, {family:"dyadic_midpoint"});
+  addExact("paper_x_continues_progression", "X = RIGHT + (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the holes the next value after the same step?", "starting with LEFT then RIGHT, are the holes not the next value after the same step?", (a,b)=>2*b-a, {family:"dyadic_step"});
+  addExact("paper_x_precedes_progression", "X = LEFT − (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the holes the value just before LEFT using the same step?", "starting with LEFT then RIGHT, are the holes not the value just before LEFT using the same step?", (a,b)=>2*a-b, {family:"dyadic_step"});
+  addExact("paper_x_eq_max", "X = max(LEFT, RIGHT)", "are the holes equal to the larger of LEFT and RIGHT?", "are the holes not equal to the larger of LEFT and RIGHT?", (a,b)=>Math.max(a,b), {family:"role_value"});
+  addExact("paper_x_eq_min", "X = min(LEFT, RIGHT)", "are the holes equal to the smaller of LEFT and RIGHT?", "are the holes not equal to the smaller of LEFT and RIGHT?", (a,b)=>Math.min(a,b), {family:"role_value"});
+  addExact("paper_x_eq_max_plus_1", "X = larger value + 1", "are the holes one more than the larger value?", "are the holes not one more than the larger value?", (a,b)=>Math.max(a,b)+1, {family:"role_value"});
+  addExact("paper_x_eq_min_plus_1", "X = smaller value + 1", "are the holes one more than the smaller value?", "are the holes not one more than the smaller value?", (a,b)=>Math.min(a,b)+1, {family:"role_value"});
+  addExact("paper_x_eq_max_minus_1", "X = larger value − 1", "are the holes one less than the larger value?", "are the holes not one less than the larger value?", (a,b)=>Math.max(a,b)-1, {family:"role_value"});
+  addExact("paper_x_eq_gap_plus_1", "X = gap + 1", "are the holes one more than the gap between LEFT and RIGHT?", "are the holes not one more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+1, {family:"dyadic_gap"});
+  addExact("paper_x_eq_gap_plus_2", "X = gap + 2", "are the holes two more than the gap between LEFT and RIGHT?", "are the holes not two more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+2, {family:"dyadic_gap"});
+  addExact("paper_x_eq_double_gap", "X = 2 × gap", "are the holes twice the gap between LEFT and RIGHT?", "are the holes not twice the gap between LEFT and RIGHT?", (a,b)=>2*Math.abs(b-a), {family:"dyadic_gap"});
+  addExact("paper_x_eq_half_gap", "X = gap ÷ 2", "are the holes half the gap between LEFT and RIGHT?", "are the holes not half the gap between LEFT and RIGHT?", (a,b)=>{ const g=Math.abs(b-a); return g%2===0 ? g/2 : null; }, {family:"dyadic_gap"});
+  addExact("paper_x_eq_sum_minus_1", "X = LEFT + RIGHT − 1", "are the holes one less than the total of LEFT and RIGHT?", "are the holes not one less than the total of LEFT and RIGHT?", (a,b)=>a+b-1, {family:"dyadic_sum"});
+  addExact("paper_x_eq_sum_plus_1", "X = LEFT + RIGHT + 1", "are the holes one more than the total of LEFT and RIGHT?", "are the holes not one more than the total of LEFT and RIGHT?", (a,b)=>a+b+1, {family:"dyadic_sum"});
+  addExact("paper_x_eq_product", "X = LEFT × RIGHT", "are the holes LEFT times RIGHT?", "are the holes not LEFT times RIGHT?", (a,b)=>a*b, {family:"dyadic_product"});
+  addExact("paper_x_eq_larger_minus_smaller_plus_1", "X = larger − smaller + 1", "are the holes one more than the distance from the smaller value to the larger value?", "are the holes not one more than the distance from the smaller value to the larger value?", (a,b)=>Math.max(a,b)-Math.min(a,b)+1, {family:"role_gap"});
   const property = (id, label, prompt, negPrompt, predicate, compute, applicable) => add({
     id, label, prompt, negPrompt, family:"property_alignment", kind:"property",
     computeTargetX:compute,
     predicate,
     applicable
   });
-  property("paper_x_shares_parity", "LEFT, RIGHT and X have the same parity", "do LEFT, RIGHT, and the punched holes all have the same even/odd type?", "are LEFT, RIGHT, and the punched holes not all the same even/odd type?",
+  property("paper_x_shares_parity", "LEFT, RIGHT and X have the same parity", "do LEFT, RIGHT, and the holes all have the same even/odd type?", "are LEFT, RIGHT, and the holes not all the same even/odd type?",
     (a,b,x)=> (a%2===b%2) && (x%2===a%2),
     (a,b)=> {
       if(a%2 !== b%2) return null;
@@ -17167,12 +17167,12 @@ function l0AnalogySharedPaperRuleCatalog(){
     },
     (a,b,maxX)=> a%2===b%2 && Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===a%2)
   );
-  property("paper_x_same_parity_left", "X has the same parity as LEFT", "do the punched holes have the same even/odd type as LEFT?", "do the punched holes not have the same even/odd type as LEFT?",
+  property("paper_x_same_parity_left", "X has the same parity as LEFT", "do the holes have the same even/odd type as LEFT?", "do the holes not have the same even/odd type as LEFT?",
     (a,b,x)=> x%2===a%2,
     (a,b)=> { for(let x=1; x<=12; x++) if(x%2===a%2 && x!==a) return x; return a; },
     (a,b,maxX)=> Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===a%2)
   );
-  property("paper_x_same_parity_right", "X has the same parity as RIGHT", "do the punched holes have the same even/odd type as RIGHT?", "do the punched holes not have the same even/odd type as RIGHT?",
+  property("paper_x_same_parity_right", "X has the same parity as RIGHT", "do the holes have the same even/odd type as RIGHT?", "do the holes not have the same even/odd type as RIGHT?",
     (a,b,x)=> x%2===b%2,
     (a,b)=> { for(let x=1; x<=12; x++) if(x%2===b%2 && x!==b) return x; return b; },
     (a,b,maxX)=> Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===b%2)
@@ -18216,6 +18216,8 @@ function l0PaperFoldingAnalogyCats(){
     tier: 4,
     stage: 5,
     family: "l0_paper_folding_analogy",
+    checkVisual: true,
+    questionVisualGate: true,
     frameTags:["visuospatial_sequence","mental_imagery","source_relation","metric_relation","relational_integration"],
     paperFoldingAnalogyId: op.id,
     canUse: (m)=> {
@@ -18552,6 +18554,8 @@ function l0ShepardConditionalCats(){
     tier: 4,
     stage: 5,
     family: "l0_shepard_conditional",
+    checkVisual: true,
+    questionVisualGate: true,
     frameTags:["mental_rotation","conditional_relation","source_relation","comparison","relational_integration"],
     shepardConditionalId: op.id,
     canUse:(m)=> {
@@ -19596,6 +19600,8 @@ function l0VennGateCats(){
     tier:4,
     stage:5,
     family:"l0_graph_conditional",
+    checkVisual: true,
+    questionVisualGate: true,
     frameTags:["relation_processing","set_relation","class_inclusion","categorical_relation","conditional_relation","role_binding","relational_integration","local_relation_gate","local_set_relation_gate"],
     atomicsUsed:["venn_categorical_gate","venn_gate_builder","venn_gate_opacity_guard","venn_gate_load_metric","venn_gate_family","venn_gate_rc_tier"].concat(cond.compound?["venn_compound_categorical_gate"]:[]).concat((cond.regions===7 || /^elem_/.test(cond.id))?["venn_element_membership_gate"]:[]),
     vennConditionId:cond.id,
@@ -19690,6 +19696,8 @@ function l0GraphConditionalCats(){
     tier: 4,
     stage: 5,
     family: "l0_graph_conditional",
+    checkVisual: true,
+    questionVisualGate: true,
     frameTags:["relation_processing","graph_structure","conditional_relation","source_relation","structural_mapping","role_binding","relational_integration"],
     graphConditionalId: op.id,
     canUse:(m)=> {
@@ -19755,6 +19763,8 @@ function l0GraphRelationGateCats(){
     tier: 4,
     stage: 5,
     family: "l0_graph_conditional",
+    checkVisual: true,
+    questionVisualGate: true,
     frameTags:["relation_processing","graph_structure","conditional_relation","role_binding","relational_integration","local_relation_gate"],
     atomicsUsed:["graph_relational_gate_condition","graph_relation_gate_builder","graph_relational_gate_family","graph_relational_gate_rc_tier"],
     graphRelationConditionId: cond.id,
@@ -59863,60 +59873,60 @@ function l0ReviewExplanationLines(info){
     const x = info?.paperFolding?.x;
     const op = l0PaperFoldingAnalogyById(id);
     if(op && typeof op.explain === "function") add(op.explain(a, b, x));
-    else add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. ${op?.label || "Check the stated rule."} Verdict → ${op && op.predicate(a,b,x) ? "YES" : "NO"}.`);
+    else add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. ${op?.label || "Check the stated rule."} Verdict → ${op && op.predicate(a,b,x) ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_a_plus_1"){
     const x = info?.paperFolding?.x;
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (LEFT+1): ${a+1}. Match → ${x === a+1 ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (LEFT+1): ${a+1}. Match → ${x === a+1 ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_b_plus_1"){
     const x = info?.paperFolding?.x;
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (RIGHT+1): ${b+1}. Match → ${x === b+1 ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (RIGHT+1): ${b+1}. Match → ${x === b+1 ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_a_plus_2"){
     const x = info?.paperFolding?.x;
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (LEFT+2): ${a+2}. Match → ${x === a+2 ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (LEFT+2): ${a+2}. Match → ${x === a+2 ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_double_a"){
     const x = info?.paperFolding?.x;
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (2 × LEFT): ${2*a}. Match → ${x === 2*a ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (2 × LEFT): ${2*a}. Match → ${x === 2*a ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_double_b"){
     const x = info?.paperFolding?.x;
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (2 × RIGHT): ${2*b}. Match → ${x === 2*b ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (2 × RIGHT): ${2*b}. Match → ${x === 2*b ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_diff"){
     const x = info?.paperFolding?.x;
     const d = Math.abs(b-a);
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Gap between ${a} and ${b}: ${d}. Match → ${x === d ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Gap between ${a} and ${b}: ${d}. Match → ${x === d ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_sum"){
     const x = info?.paperFolding?.x;
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Sum of ${a} + ${b} = ${a+b}. Match → ${x === a+b ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Sum of ${a} + ${b} = ${a+b}. Match → ${x === a+b ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_avg"){
     const x = info?.paperFolding?.x;
     if((a+b) % 2 === 0){
       const avg = (a+b)/2;
-      add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Halfway between ${a} and ${b}: ${avg}. Match → ${x === avg ? "YES" : "NO"}.`);
+      add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Halfway between ${a} and ${b}: ${avg}. Match → ${x === avg ? "YES" : "NO"}.`);
     } else {
-      add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. ${a} and ${b} have no exact halfway point (sum ${a+b} is odd) → NO.`);
+      add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. ${a} and ${b} have no exact halfway point (sum ${a+b} is odd) → NO.`);
     }
   }
   else if(id === "paper_x_continues_progression"){
     const x = info?.paperFolding?.x;
     const next = 2*b - a;
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Step from ${a} to ${b} is ${b-a}; continuing: ${next}. Match → ${x === next ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Step from ${a} to ${b} is ${b-a}; continuing: ${next}. Match → ${x === next ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_max"){
     const x = info?.paperFolding?.x;
     const mx = Math.max(a, b);
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Larger of ${a} and ${b}: ${mx}. Match → ${x === mx ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Larger of ${a} and ${b}: ${mx}. Match → ${x === mx ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_min"){
     const x = info?.paperFolding?.x;
     const mn = Math.min(a, b);
-    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Smaller of ${a} and ${b}: ${mn}. Match → ${x === mn ? "YES" : "NO"}.`);
+    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Smaller of ${a} and ${b}: ${mn}. Match → ${x === mn ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_shares_parity"){
     const x = info?.paperFolding?.x;
@@ -59924,7 +59934,7 @@ function l0ReviewExplanationLines(info){
     if(a % 2 === b % 2){
       const shared = parityWord(a);
       const xPar = Number.isInteger(x) ? parityWord(x) : "?";
-      add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"} (${xPar}). ${a} and ${b} are both ${shared}. All three of same parity → ${(Number.isInteger(x) && x % 2 === a % 2) ? "YES" : "NO"}.`);
+      add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"} (${xPar}). ${a} and ${b} are both ${shared}. All three of same parity → ${(Number.isInteger(x) && x % 2 === a % 2) ? "YES" : "NO"}.`);
     } else {
       add(`${a} is ${parityWord(a)}; ${b} is ${parityWord(b)}. Parity differs between LEFT and RIGHT → NO.`);
     }
@@ -74359,12 +74369,12 @@ try{
   // Paper-fold property families: rotate prime/square status wording without changing the visual contract.
   addFriendly("paper_x_prime_like_left", [
     "After unfolding, does the hole count have the same prime/non-prime status as LEFT?",
-    "Are LEFT and the unfolded punched-hole count both prime or both not prime?",
+    "Are LEFT and the unfolded hole count both prime or both not prime?",
     "Check the unfolded holes against LEFT: do they match on being prime versus non-prime?"
   ]);
   addFriendly("paper_x_square_like_right", [
     "After unfolding, does the hole count have the same square-number status as RIGHT?",
-    "Are RIGHT and the unfolded punched-hole count both square numbers or both not square numbers?",
+    "Are RIGHT and the unfolded hole count both square numbers or both not square numbers?",
     "Check the unfolded holes against RIGHT: do they match on being square versus not square?"
   ]);
 
@@ -75963,7 +75973,7 @@ try{
 // Shepard pair, graph gate, Venn gate, balance card).  Older code detected such
 // probes by the *presence* of the payload.  If a payload was lost upstream, the
 // item could still reach INPUT/REVIEW as an ordinary encoded pair.  The review
-// then printed impossible placeholders such as "Unfolded punched-hole count: ?".
+// then printed impossible placeholders such as "Hole count after unfolding: ?".
 // This guard makes the contract fail-closed: a category that requires a source
 // visual must either carry a valid payload or be discarded before presentation.
 (function visualQuestionGatePayloadGuardPatch(){
@@ -76002,7 +76012,7 @@ try{
   }
   function l0VisualGatePublicLabelV6599(kind){
     return ({
-      paperFolding:"folded-paper source",
+      paperFolding:"folded-paper hole source",
       shepardConditional:"shape-pair source",
       graphConditional:"graph-pair source",
       graphRelationGate:"marked-graph source",
@@ -76239,6 +76249,694 @@ try{
     }
   }catch(_){ }
   try{ window.EUCA_VISUAL_GATE_PAYLOAD_GUARD = {patch:PATCH_VERSION, failClosed:true}; }catch(_){ }
+})();
+
+
+// -----------------------------------------------------------------------------
+// v6.5.100 / v6.6.3: visual-gate burst airtight guard
+// -----------------------------------------------------------------------------
+// The previous visual-gate payload guard correctly detected missing visual
+// payloads, but the L0 frame-burst path can assemble probes from a fixed pair
+// without running the standalone generator that creates those payloads.
+// This patch closes the route at all three relevant seams:
+//   1) visual-gate cats are marked as checkVisual/questionVisualGate so the
+//      existing burst candidate filters exclude them;
+//   2) setupPosnerCore temporarily clears that exclusion flag while building a
+//      standalone trial, preserving the existing special generator path;
+//   3) fixed-pair probe conversion fails closed if a visual-gate payload ever
+//      leaks through future code.
+(function(){
+  const PATCH_VERSION = "v6.6.4-experimental-densification-semantic-guard";
+  const gateArr = (x)=> Array.isArray(x) ? x : [];
+  const gateStr = (x)=> String(x == null ? "" : x);
+  function gateCatById(id){
+    try{ if(typeof dPosnerCatById === "function") return dPosnerCatById(id); }catch(_){ }
+    try{ return (POSNER_CATS || []).find(c => c && c.id === id) || null; }catch(_){ return null; }
+  }
+  function questionVisualGateKind(objOrCat){
+    const obj = objOrCat || {};
+    const id = gateStr(obj.catId || obj.id);
+    const fam = gateStr(obj.family);
+    if(obj.questionVisualGate || obj.paperFoldingAnalogyId || obj.paperFolding || fam === "l0_paper_folding_analogy" || /^paper_/.test(id)) return "paperFolding";
+    if(obj.shepardConditionalId || obj.shepardConditional || fam === "l0_shepard_conditional" || /^shepard_/.test(id)) return "shepardConditional";
+    if(obj.vennConditionId || obj.vennGate || fam === "l0_venn_gate" || /^venn_gate_/.test(id)) return "vennGate";
+    if(obj.graphRelationConditionId || obj.graphRelationGate || fam === "l0_graph_relation_gate" || /^graph_rel_/.test(id)) return "graphRelationGate";
+    if(obj.graphConditionalId || obj.graphConditional || fam === "l0_graph_conditional" || /^graph_cond_/.test(id)) return "graphConditional";
+    return null;
+  }
+  function isQuestionVisualGateCat(cat){ return !!questionVisualGateKind(cat); }
+  function hasQuestionVisualGateProbe(probe){
+    if(!probe) return false;
+    const cat = gateCatById(probe.catId || probe.id);
+    try{
+      if(typeof l0QuestionVisualGateKind === "function" && l0QuestionVisualGateKind(probe, cat)) return true;
+    }catch(_){ }
+    return !!(questionVisualGateKind(probe) || questionVisualGateKind(cat));
+  }
+  function visualGateProblem(obj){
+    if(!obj) return null;
+    const cat = gateCatById(obj.catId || obj.id);
+    try{
+      if(typeof l0QuestionVisualGatePayloadProblem === "function") return l0QuestionVisualGatePayloadProblem(obj, cat);
+    }catch(_){ }
+    if(hasQuestionVisualGateProbe(obj)){
+      const kind = questionVisualGateKind(obj) || questionVisualGateKind(cat);
+      if(kind && !obj[kind]) return `${kind}_payload_missing`;
+    }
+    return null;
+  }
+  function recordBurstVisualGate(problem, catId, route){
+    try{
+      const pm = State.productionMonitor || (State.productionMonitor = {});
+      const box = pm.visualGateBurstGuard || (pm.visualGateBurstGuard = {version:PATCH_VERSION,total:0,byProblem:{},byCat:{},byRoute:{},recent:[]});
+      box.total = (Number(box.total)||0) + 1;
+      const p = gateStr(problem || "visual_gate_leak");
+      const c = gateStr(catId || "unknown");
+      const r = gateStr(route || "unknown");
+      box.byProblem[p] = (Number(box.byProblem[p])||0) + 1;
+      box.byCat[c] = (Number(box.byCat[c])||0) + 1;
+      box.byRoute[r] = (Number(box.byRoute[r])||0) + 1;
+      box.recent = gateArr(box.recent).concat([{ts:Date.now(), problem:p, catId:c, route:r}]).slice(-40);
+    }catch(_){ }
+  }
+  function enforceQuestionVisualGateFlags(){
+    let touched = 0;
+    try{
+      for(const c of gateArr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+        if(!isQuestionVisualGateCat(c)) continue;
+        c.questionVisualGate = true;
+        // This flag is consumed by the existing burst candidate path. It is
+        // temporarily cleared only inside setupPosnerCore so standalone trials
+        // keep using their dedicated generator/payload path.
+        c.checkVisual = true;
+        touched++;
+      }
+    }catch(_){ }
+    return touched;
+  }
+  function withStandaloneVisualGateFlagsDisabled(fn){
+    const changed = [];
+    try{
+      for(const c of gateArr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+        if(!c || !c.questionVisualGate) continue;
+        changed.push([c, c.checkVisual]);
+        c.checkVisual = false;
+      }
+    }catch(_){ }
+    try{ return fn(); }
+    finally{
+      for(const [c, old] of changed){ try{ c.checkVisual = old; }catch(_){ } }
+    }
+  }
+
+  enforceQuestionVisualGateFlags();
+  try{ window.enforceQuestionVisualGateFlags = enforceQuestionVisualGateFlags; globalThis.enforceQuestionVisualGateFlags = enforceQuestionVisualGateFlags; }catch(_){ }
+  try{ window.l0IsQuestionVisualGateCat = isQuestionVisualGateCat; globalThis.l0IsQuestionVisualGateCat = isQuestionVisualGateCat; }catch(_){ }
+
+  try{
+    if(typeof setupPosnerCore === "function" && !setupPosnerCore.__visualGateBurstAirtightWrapped){
+      const previousSetup = setupPosnerCore;
+      const wrapped = function setupPosnerCoreVisualGateBurstAirtight(){
+        enforceQuestionVisualGateFlags();
+        const pos = withStandaloneVisualGateFlagsDisabled(()=>previousSetup.apply(this, arguments));
+        enforceQuestionVisualGateFlags();
+        return pos;
+      };
+      wrapped.__visualGateBurstAirtightWrapped = true;
+      setupPosnerCore = wrapped;
+      try{ window.setupPosnerCore = setupPosnerCore; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof instantiateL0ProbeOnFixedPair === "function" && !instantiateL0ProbeOnFixedPair.__visualGateBurstAirtightWrapped){
+      const previousInstantiate = instantiateL0ProbeOnFixedPair;
+      const wrapped = function instantiateL0ProbeOnFixedPairVisualGateBurstAirtight(cat, vnt, pair, m){
+        if(isQuestionVisualGateCat(cat)){
+          recordBurstVisualGate("blocked_fixed_pair_visual_gate_cat", cat?.id, "instantiateL0ProbeOnFixedPair");
+          return null;
+        }
+        const probe = previousInstantiate.apply(this, arguments);
+        if(hasQuestionVisualGateProbe(probe) || visualGateProblem(probe)){
+          recordBurstVisualGate(visualGateProblem(probe) || "blocked_fixed_pair_visual_gate_probe", probe?.catId || cat?.id, "instantiateL0ProbeOnFixedPair_post");
+          return null;
+        }
+        return probe;
+      };
+      wrapped.__visualGateBurstAirtightWrapped = true;
+      instantiateL0ProbeOnFixedPair = wrapped;
+      try{ window.instantiateL0ProbeOnFixedPair = instantiateL0ProbeOnFixedPair; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof buildL0BurstCandidates === "function" && !buildL0BurstCandidates.__visualGateBurstAirtightWrapped){
+      const previousBuildCandidates = buildL0BurstCandidates;
+      const wrapped = function buildL0BurstCandidatesVisualGateBurstAirtight(pair){
+        enforceQuestionVisualGateFlags();
+        const out = gateArr(previousBuildCandidates.apply(this, arguments));
+        return out.filter(p => {
+          const problem = visualGateProblem(p);
+          if(hasQuestionVisualGateProbe(p) || problem){
+            recordBurstVisualGate(problem || "blocked_burst_candidate_visual_gate", p?.catId, "buildL0BurstCandidates");
+            return false;
+          }
+          return true;
+        });
+      };
+      wrapped.__visualGateBurstAirtightWrapped = true;
+      buildL0BurstCandidates = wrapped;
+      try{ window.buildL0BurstCandidates = buildL0BurstCandidates; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof buildL0FrameBurst === "function" && !buildL0FrameBurst.__visualGateBurstAirtightWrapped){
+      const previousBuildBurst = buildL0FrameBurst;
+      const wrapped = function buildL0FrameBurstVisualGateBurstAirtight(basePos, n=null){
+        if(hasQuestionVisualGateProbe(basePos) || visualGateProblem(basePos)){
+          recordBurstVisualGate(visualGateProblem(basePos) || "blocked_visual_gate_anchor", basePos?.catId, "buildL0FrameBurst_anchor");
+          return null;
+        }
+        const burst = previousBuildBurst.apply(this, arguments);
+        const probes = gateArr(burst && burst.probes);
+        const leak = probes.find(p => hasQuestionVisualGateProbe(p) || visualGateProblem(p));
+        if(leak){
+          recordBurstVisualGate(visualGateProblem(leak) || "blocked_visual_gate_burst_sequence", leak.catId, "buildL0FrameBurst_sequence");
+          return null;
+        }
+        return burst;
+      };
+      wrapped.__visualGateBurstAirtightWrapped = true;
+      buildL0FrameBurst = wrapped;
+      try{ window.buildL0FrameBurst = buildL0FrameBurst; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof makeL0TrialInfoFromProbe === "function" && !makeL0TrialInfoFromProbe.__visualGateBurstAirtightWrapped){
+      const previousMakeInfo = makeL0TrialInfoFromProbe;
+      const wrapped = function makeL0TrialInfoFromProbeVisualGateBurstAirtight(probe, burst=null){
+        const preProblem = visualGateProblem(probe);
+        if(preProblem){
+          recordBurstVisualGate(preProblem, probe?.catId, "makeL0TrialInfoFromProbe_pre");
+          try{
+            const target = (typeof probe?.isTrue === "boolean") ? probe.isTrue : true;
+            const fb = fallbackPosnerTrial(currentMax(), target, {cat:probe?.catId || "visual_gate", reason:preProblem, route:"makeL0TrialInfoFromProbe"});
+            const info = previousMakeInfo.call(this, fb, null);
+            info.isFrameBurst = false;
+            info.burst = null;
+            info.burstId = null;
+            info.episodeId = null;
+            info.probeIndex = 0;
+            info.probeCount = 1;
+            return info;
+          }catch(_){ return previousMakeInfo.apply(this, arguments); }
+        }
+        const info = previousMakeInfo.apply(this, arguments);
+        const postProblem = visualGateProblem(info);
+        if(postProblem){
+          recordBurstVisualGate(postProblem, info?.catId || probe?.catId, "makeL0TrialInfoFromProbe_post");
+          try{
+            const target = (typeof probe?.isTrue === "boolean") ? probe.isTrue : true;
+            const fb = fallbackPosnerTrial(currentMax(), target, {cat:info?.catId || probe?.catId || "visual_gate", reason:postProblem, route:"makeL0TrialInfoFromProbe_post"});
+            const safe = previousMakeInfo.call(this, fb, null);
+            safe.isFrameBurst = false;
+            safe.burst = null;
+            safe.burstId = null;
+            safe.episodeId = null;
+            safe.probeIndex = 0;
+            safe.probeCount = 1;
+            return safe;
+          }catch(_){ }
+        }
+        return info;
+      };
+      wrapped.__visualGateBurstAirtightWrapped = true;
+      makeL0TrialInfoFromProbe = wrapped;
+      try{ window.makeL0TrialInfoFromProbe = makeL0TrialInfoFromProbe; }catch(_){ }
+    }
+  }catch(_){ }
+
+  function auditVisualGateBurstPathAirtight(opts={}){
+    const block = [], warnings = [], rows = [];
+    try{
+      const cats = gateArr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).filter(isQuestionVisualGateCat);
+      if(!cats.length) block.push("no question-visual gate cats found");
+      enforceQuestionVisualGateFlags();
+      for(const cat of cats){
+        const kind = questionVisualGateKind(cat);
+        rows.push({id:cat.id, kind, checkVisual:!!cat.checkVisual, questionVisualGate:!!cat.questionVisualGate});
+        if(cat.checkVisual !== true) block.push(`${cat.id}: checkVisual not enforced for burst exclusion`);
+        const vnt = gateArr(cat.variants)[0] || {};
+        let probe = null;
+        try{ probe = instantiateL0ProbeOnFixedPair(cat, vnt, {a:6,b:4,displayA:6,displayB:4,repA:"ten",repB:"ten"}, 12); }
+        catch(e){ warnings.push(`${cat.id}: instantiate threw while testing fixed-pair exclusion: ${e?.message || e}`); }
+        if(probe) block.push(`${cat.id}: fixed-pair instantiate still produced a visual-gate probe`);
+      }
+      const base = {a:6,b:4,displayA:6,displayB:4,repA:"ten",repB:"ten",catId:"gap_gt2",family:"l0.numeric_pair.metric",question:"Is the gap more than 2?",isTrue:false,frameTags:["metric_relation"]};
+      let candidates = [];
+      try{ candidates = gateArr(buildL0BurstCandidates(base)); }catch(e){ warnings.push(`buildL0BurstCandidates smoke threw: ${e?.message || e}`); }
+      const leaked = candidates.filter(p => hasQuestionVisualGateProbe(p) || visualGateProblem(p));
+      if(leaked.length) block.push(`burst candidates leaked visual-gate probes: ${leaked.slice(0,8).map(p=>p.catId).join(", ")}`);
+      const fakePaper = {a:6,b:4,displayA:6,displayB:4,repA:"ten",repB:"ten",catId:"paper_x_right_add_4",family:"l0_paper_folding_analogy",question:"After unfolding, are there 4 more holes than RIGHT?",isTrue:false,frameTags:["visuospatial_sequence"]};
+      let info = null;
+      try{ info = makeL0TrialInfoFromProbe(fakePaper, {id:"audit_burst", episodeId:"audit_ep", probes:[fakePaper]}); }catch(e){ block.push(`makeL0TrialInfoFromProbe fake-paper smoke threw: ${e?.message || e}`); }
+      const infoProblem = visualGateProblem(info);
+      if(infoProblem) block.push(`makeL0TrialInfoFromProbe allowed missing visual payload through: ${infoProblem}`);
+      if(info && (info.catId === fakePaper.catId || info.family === fakePaper.family)) block.push("makeL0TrialInfoFromProbe did not replace the fake paper probe with a safe fallback");
+      rows.push({route:"buildL0BurstCandidates", candidates:candidates.length, leaked:leaked.length});
+      rows.push({route:"makeL0TrialInfoFromProbe", fakePaperOutputCat:info?.catId || null, fakePaperProblem:infoProblem || null});
+    }catch(e){ block.push(`audit exception: ${e?.message || e}`); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_VERSION), rows, warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), rows, warnings, block};
+  }
+  try{ window.auditVisualGateBurstPathAirtight = auditVisualGateBurstPathAirtight; globalThis.auditVisualGateBurstPathAirtight = auditVisualGateBurstPathAirtight; }catch(_){ }
+
+  try{
+    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(previousRunFeatureAudit && !previousRunFeatureAudit.__visualGateBurstAirtightWrapped){
+      const wrapped = function runFeatureAuditVisualGateBurstAirtight(feature, opts={}){
+        const f = gateStr(feature).toLowerCase().trim();
+        if(["visual_gate_payloads","question_visual_gate_payloads","visual_question_gate_payloads","paper_payload_guard","gate_payloads","visual_gate_burst_path","burst_visual_gate_payloads"].includes(f)){
+          const previous = previousRunFeatureAudit.apply(this, arguments);
+          const burstPath = auditVisualGateBurstPathAirtight(opts);
+          const results = Object.assign({}, previous && previous.results ? previous.results : {previous}, {burstPath});
+          const status = burstPath.status === "BLOCK" ? "BLOCK" : ((previous && previous.status === "BLOCK") ? "BLOCK" : ((burstPath.status === "WARN" || previous?.status === "WARN") ? "WARN" : "PASS"));
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status, results};
+        }
+        return previousRunFeatureAudit.apply(this, arguments);
+      };
+      wrapped.__visualGateBurstAirtightWrapped = true;
+      runFeatureAudit = wrapped;
+      try{ window.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{ window.EUCA_VISUAL_GATE_BURST_AIRTIGHT = {patch:PATCH_VERSION, failClosed:true}; }catch(_){ }
+})();
+
+
+// -----------------------------------------------------------------------------
+// v6.6.4: experimental densification semantic guard
+// -----------------------------------------------------------------------------
+// The v6.6.0-v6.6.3 experimental branch added correctly wired generators, but
+// wiring audits are not enough for generative content.  This patch fixes three
+// semantic degeneracies found empirically and adds a content-level audit:
+//   - relation-preservation over distance-to-10 must sample a non-monotone
+//     domain, otherwise the answer collapses to NO;
+//   - sequential sufficiency must allow early determination and genuine
+//     underdetermination, not only "after clue 3";
+//   - truth-target choice distractors must be semantically invalid for the
+//     requested truth target, so the displayed answer is unique.
+(function experimentalDensificationSemanticGuardV664(){
+  const PATCH_VERSION = "v6.6.4-experimental-densification-semantic-guard";
+  const arr = x => Array.isArray(x) ? x : [];
+  const clamp = (x,lo,hi)=> Math.max(lo, Math.min(hi, x));
+  const ri = (lo,hi)=> {
+    lo = Math.ceil(Number(lo)); hi = Math.floor(Number(hi));
+    if(!Number.isFinite(lo) || !Number.isFinite(hi) || hi < lo) return lo || 0;
+    if(typeof rint === "function"){
+      try{ return rint(lo,hi); }catch(_){ }
+    }
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+  };
+  const pick = xs => arr(xs)[ri(0, Math.max(0, arr(xs).length - 1))];
+  const uniq = xs => Array.from(new Set(arr(xs).filter(x => x !== undefined && x !== null)));
+  function catById(id){
+    try{ if(typeof dPosnerCatById === "function") return dPosnerCatById(id); }catch(_){ }
+    try{ return (POSNER_CATS || []).find(c => c && c.id === id) || null; }catch(_){ return null; }
+  }
+  function pushUniqueValue(vals, v, lo=0, hi=30){
+    v = Number(v);
+    if(Number.isInteger(v) && v >= lo && v <= hi && !vals.includes(v)) vals.push(v);
+  }
+  function safeVisuals(a,b,cat){
+    try{
+      const v = typeof pickValueComparisonVisuals === "function" ? pickValueComparisonVisuals(a,b,cat || {}, false) : null;
+      if(v && v[0] && v[1]) return v;
+    }catch(_){ }
+    function mk(x){
+      try{
+        const reps = typeof allowedReps === "function" ? allowedReps(x) : ["digit"];
+        const rep = arr(reps)[0] || "digit";
+        return typeof makeVisualInstance === "function" ? makeVisualInstance(x, rep) : {rep, seed:null, spec:null};
+      }catch(_){ return {rep:"digit", seed:null, spec:null}; }
+    }
+    return [mk(a), mk(b)];
+  }
+  function boolTrial(cat, m, a, b, question, isTrue, payload={}, extra={}){
+    const [va,vb] = safeVisuals(a,b,cat);
+    return {
+      a, b, repA:va.rep, repB:vb.rep,
+      stimSeedA:Number.isFinite(va.seed) ? Number(va.seed) : null,
+      stimSeedB:Number.isFinite(vb.seed) ? Number(vb.seed) : null,
+      stimSpecA:typeof cloneStimReplaySpec === "function" ? cloneStimReplaySpec(va.rep, va.spec) : (va.spec || null),
+      stimSpecB:typeof cloneStimReplaySpec === "function" ? cloneStimReplaySpec(vb.rep, vb.spec) : (vb.spec || null),
+      question, delayedPrompt:question, isTrue:!!isTrue, targetOutcome:!!isTrue,
+      responseFormat:"bool", catId:cat.id, family:cat.family || "experimental_densification",
+      frameTags:uniq(["metric_relation","transformation_relation"].concat(arr(cat.frameTags))),
+      mechanismTags:uniq(["working_state","sequential_rule_load"].concat(arr(cat.mechanismTags))),
+      executiveTags:uniq(["updating","rule_switch"].concat(arr(cat.executiveTags))),
+      conflictTypes:uniq(arr(cat.conflictTypes)),
+      payload:{...(payload || {}), experimentVersion:PATCH_VERSION, semanticGuardVersion:PATCH_VERSION},
+      atomicsUsed:arr(cat.atomicsUsed).slice(),
+      experienceAxis:cat.experienceAxis || "state_transform",
+      ...extra
+    };
+  }
+  function choiceTrial(cat, m, a, b, question, optionTexts, correctIndex, payload={}, distractorTypes=[]){
+    const opts = arr(optionTexts).map((txt,i)=>{
+      const dt = i === correctIndex ? "correct" : (distractorTypes[i] || "semantic_near_miss");
+      try{ if(typeof l0ChoiceOption === "function") return l0ChoiceOption(txt, i===correctIndex, dt); }catch(_){ }
+      return {text:String(txt), correct:i===correctIndex, distractorType:dt};
+    });
+    let trial = null;
+    try{ trial = buildL0ChoiceTrialFromOptions(cat, m, a, b, question, opts, correctIndex, payload); }catch(_){ trial = null; }
+    if(trial){
+      trial.frameTags = uniq(["metric_relation","transformation_relation"].concat(arr(cat.frameTags)));
+      trial.mechanismTags = uniq(["working_state","sequential_rule_load"].concat(arr(cat.mechanismTags)));
+      trial.executiveTags = uniq(["updating","rule_switch"].concat(arr(cat.executiveTags)));
+      trial.conflictTypes = uniq(arr(cat.conflictTypes));
+      trial.atomicsUsed = arr(cat.atomicsUsed).slice();
+      trial.experienceAxis = cat.experienceAxis || "state_transform";
+      trial.payload = {...(trial.payload || {}), ...(payload || {}), experimentVersion:PATCH_VERSION, semanticGuardVersion:PATCH_VERSION};
+    }
+    return trial;
+  }
+  function targetBool(cat){
+    try{ if(typeof answerBudgetPickBoolTarget === "function") return !!answerBudgetPickBoolTarget(cat.id); }catch(_){ }
+    return Math.random() < 0.5;
+  }
+  function buildBoolForTarget(cat, m, maker, attempts=160){
+    const target = targetBool(cat);
+    let opposite = null;
+    for(let i=0;i<attempts;i++){
+      const tr = maker(i);
+      if(!tr) continue;
+      if(!!tr.isTrue === target) return tr;
+      opposite = opposite || tr;
+    }
+    return opposite;
+  }
+
+  function truthTargetHoldsV664(mode, left, candidate){
+    const v = Number(candidate), a = Number(left);
+    if(!Number.isInteger(v) || !Number.isFinite(a)) return false;
+    const p1 = v % 2 === 0;
+    const p2 = v + a > 10;
+    return mode === "both" ? (p1 && p2) : (mode === "exactly_one" ? (p1 !== p2) : (!p1 && !p2));
+  }
+  function modeText(mode){ return mode === "both" ? "both statements true" : (mode === "exactly_one" ? "exactly one statement true" : "both statements false"); }
+
+  function truthTargetTrialV664(cat,m){
+    for(let tries=0; tries<140; tries++){
+      const a = ri(1, Math.max(10, Math.min(12, Number(m)||12)));
+      const b = ri(1, Math.max(10, Math.min(12, Number(m)||12)));
+      const mode = pick(["both","exactly_one","neither"]);
+      const valid = [], invalid = [];
+      for(let v=0; v<=14; v++) (truthTargetHoldsV664(mode,a,v) ? valid : invalid).push(v);
+      if(!valid.length || invalid.length < 3) continue;
+      const ans = pick(valid);
+      const opts = [ans];
+      for(const v of [ans-1, ans+1, a, b, 0, 5, 10, 12, 14, 1, 3, 7]){
+        if(opts.length >= 4) break;
+        if(v !== ans && invalid.includes(v)) pushUniqueValue(opts, v, 0, 14);
+      }
+      const shuffledInvalid = invalid.slice().sort(()=>Math.random()-0.5);
+      for(const v of shuffledInvalid){ if(opts.length >= 4) break; pushUniqueValue(opts, v, 0, 14); }
+      if(opts.length !== 4) continue;
+      const correctCount = opts.filter(v => truthTargetHoldsV664(mode,a,v)).length;
+      if(correctCount !== 1 || !truthTargetHoldsV664(mode,a,ans)) continue;
+      const ci = opts.indexOf(ans);
+      const mt = modeText(mode);
+      const q = `Choose the candidate that makes ${mt}: “candidate is even” and “candidate + LEFT is greater than 10”.`;
+      const review = [`LEFT is ${a}. Candidate ${ans}: even is ${ans%2===0}; ${ans}+${a}=${ans+a}, greater than 10 is ${ans+a>10}.`, `Target: ${mt}.`, `Among the displayed options, only ${ans} satisfies that truth target.`];
+      const tr = choiceTrial(cat,m,a,b,q,opts.map(String),ci,{kind:"truth_target_choice", mode, left:a, correctValue:ans, candidateValues:opts.slice(), reviewLines:review}, opts.map((_,i)=>i===ci?"correct":"truth_target_non_candidate"));
+      if(tr){ tr.payload.candidateValuesDisplayed = tr.options.map(o => Number(String(o.text).match(/-?\d+/)?.[0])); }
+      return tr;
+    }
+    return null;
+  }
+
+  function sequentialSufficiencyTrialV664(cat,m){
+    const templates = ["after1","after2","after3","not"].sort(()=>Math.random()-0.5);
+    for(const kind of templates){
+      for(let tries=0; tries<80; tries++){
+        const domainMax = 12;
+        let hidden = ri(1, domainMax), clues = [], earliest = -1;
+        if(kind === "after1"){
+          clues = [
+            {label:`Clue 1: the value is between ${hidden} and ${hidden}.`, filter:n=>n===hidden},
+            {label:`Clue 2: the value has the same parity as ${hidden}.`, filter:n=>(n%2)===(hidden%2)},
+            {label:`Clue 3: the value is ${hidden > 6 ? "greater than" : "not greater than"} 6.`, filter:n=>(n>6)===(hidden>6)}
+          ];
+        } else if(kind === "after2"){
+          const neighbor = hidden < domainMax ? hidden + 1 : hidden - 1;
+          const lo = Math.min(hidden, neighbor), hi = Math.max(hidden, neighbor);
+          clues = [
+            {label:`Clue 1: the value is between ${lo} and ${hi}.`, filter:n=>n>=lo && n<=hi},
+            {label:`Clue 2: the value is ${hidden%2===0 ? "even" : "odd"}.`, filter:n=>(n%2)===(hidden%2)},
+            {label:`Clue 3: the value is ${hidden > 6 ? "greater than" : "not greater than"} 6.`, filter:n=>(n>6)===(hidden>6)}
+          ];
+        } else if(kind === "after3"){
+          hidden = pick([3,4,5,6,7,8,9,10]);
+          const lo = clamp(hidden-2, 1, domainMax-3), hi = lo + 3;
+          clues = [
+            {label:`Clue 1: the value is between ${lo} and ${hi}.`, filter:n=>n>=lo && n<=hi},
+            {label:`Clue 2: the value is ${hidden%2===0 ? "even" : "odd"}.`, filter:n=>(n%2)===(hidden%2)},
+            {label:`Clue 3: the value is exactly ${hidden}.`, filter:n=>n===hidden}
+          ];
+        } else {
+          hidden = pick([1,3,5,7,9,11]);
+          const lo = hidden <= 5 ? 1 : 7, hi = lo + 5;
+          clues = [
+            {label:`Clue 1: the value is between ${lo} and ${hi}.`, filter:n=>n>=lo && n<=hi},
+            {label:`Clue 2: the value is odd.`, filter:n=>n%2===1},
+            {label:`Clue 3: the value is ${hidden <= 5 ? "less than 6" : "greater than 6"}.`, filter:n=> hidden <= 5 ? n<6 : n>6}
+          ];
+        }
+        let possible = Array.from({length:domainMax},(_,i)=>i+1), counts=[];
+        for(let i=0;i<clues.length;i++){
+          possible = possible.filter(clues[i].filter); counts.push(possible.length);
+          if(possible.length === 1 && earliest < 0) earliest = i;
+        }
+        const correct = earliest < 0 ? 3 : earliest;
+        if(kind === "after1" && correct !== 0) continue;
+        if(kind === "after2" && correct !== 1) continue;
+        if(kind === "after3" && correct !== 2) continue;
+        if(kind === "not" && correct !== 3) continue;
+        const opts = ["after clue 1", "after clue 2", "after clue 3", "not determined by these clues"];
+        const q = `A hidden value is from 1 to 12. What is the earliest clue after which the value is determined?`;
+        const review = [`${clues.map(c=>c.label).join(" ")}`, `Remaining possibilities after each clue: ${counts.join(" → ")}.`, correct === 3 ? `No clue leaves exactly one possible value, so the value is not determined.` : `First point with exactly one possible value: after clue ${correct+1}.`];
+        return choiceTrial(cat,m,hidden,counts[0],q,opts,correct,{kind:"sequential_sufficiency", hidden, clueKind:kind, clues:clues.map(c=>c.label), counts, earliestIndex:correct, reviewLines:review}, ["premature_stop","late_stop","underdetermined_lure"]);
+      }
+    }
+    return null;
+  }
+
+  const FIXED_TRANSFORMS_V664 = [
+    {id:"complement10", label:"complement-to-10", text:n=>`10 − ${n}`, map:n=>10-n, fixed:5, domain:[0,10]},
+    {id:"distance10", label:"distance-from-10", text:n=>`|${n} − 10|`, map:n=>Math.abs(n-10), fixed:5, domain:[0,14]},
+    {id:"complement12", label:"complement-to-12", text:n=>`12 − ${n}`, map:n=>12-n, fixed:6, domain:[0,12]},
+    {id:"distance6", label:"distance-from-6", text:n=>`|${n} − 6|`, map:n=>Math.abs(n-6), fixed:3, domain:[0,12]}
+  ];
+  function fixedPointTrialV664(cat,m){
+    return buildBoolForTarget(cat,m,()=>{
+      const trf = pick(FIXED_TRANSFORMS_V664);
+      const want = targetBool(cat);
+      const [lo,hi] = trf.domain;
+      let a = want ? trf.fixed : ri(Math.max(1,lo), Math.min(hi, Math.max(10, Number(m)||12)));
+      if(!want && a === trf.fixed) a = a < hi ? a + 1 : a - 1;
+      const b = ri(1, Math.min(12, Math.max(1, Number(m)||12)));
+      const mapped = trf.map(a);
+      const ok = mapped === a;
+      const q = `Under ${trf.label}, does LEFT map to itself?`;
+      const review = [`${trf.label} maps LEFT ${a} to ${trf.text(a)} = ${mapped}.`, `A fixed point stays unchanged.`, `${mapped} ${mapped===a ? "equals" : "does not equal"} ${a} → ${ok ? "YES" : "NO"}.`];
+      return boolTrial(cat,m,a,b,q,ok,{kind:"fixed_point", transform:trf.id, fixedPoint:trf.fixed, reviewLines:review});
+    });
+  }
+
+  function relationPreservationTrialV664(cat,m){
+    return buildBoolForTarget(cat,m,()=>{
+      const a = ri(1,20), b = ri(1,20);
+      if(a === b) return null;
+      const da = Math.abs(a-10), db = Math.abs(b-10);
+      if(da === db) return null;
+      const rawLeftGreater = a > b, transLeftGreater = da > db;
+      const same = rawLeftGreater === transLeftGreater;
+      const q = `Compare the raw pair, then compare the distance-from-10 pair. Is the LEFT-greater relation the same?`;
+      const review = [`Raw comparison: LEFT ${a} ${a>b?">":"<"} RIGHT ${b}.`, `Distance-from-10: LEFT ${da}, RIGHT ${db}; LEFT ${da>db?">":"<"} RIGHT.`, `Because values may be on either side of 10, this transform can preserve or reverse order. Here it is ${same ? "preserved" : "changed"} → ${same?"YES":"NO"}.`];
+      return boolTrial(cat,m,a,b,q,same,{kind:"relation_preservation_channel", transform:"distance10_nonmonotone_domain", rawLeftGreater, transLeftGreater, reviewLines:review});
+    });
+  }
+
+  function updateTextV664(u, before){
+    try{ return typeof u.text === "function" ? u.text(before) : String(u.text || u.id || "update"); }catch(_){ return String(u?.id || "update"); }
+  }
+  function applyUpdateV664(st, upd){
+    try{ if(typeof l0StateChainApplyUpdate === "function") return l0StateChainApplyUpdate(st, upd); }catch(_){ }
+    try{
+      const before = {...st};
+      const val = Number(upd.fn(before));
+      if(!Number.isFinite(val)) return null;
+      const after = {...before}; after[upd.side] = val;
+      return {before, after, value:val, side:upd.side, text:updateTextV664(upd,before)};
+    }catch(_){ return null; }
+  }
+  function buildRetrospectiveTraceV664(a,b){
+    const source = arr(typeof L0_STATE_CHAIN_UPDATES !== "undefined" ? L0_STATE_CHAIN_UPDATES : []);
+    if(!source.length) return null;
+    for(let tries=0; tries<80; tries++){
+      let st = {left:a, right:b, originalLeft:a, originalRight:b};
+      const steps=[], states=[{left:a,right:b,total:a+b,label:"start"}];
+      const firsts = source.filter(u => u && u.stage === 0).slice().sort(()=>Math.random()-0.5);
+      let app1=null, u1=null;
+      for(const u of firsts){
+        const app = applyUpdateV664(st,u); if(!app) continue;
+        const L=Number(app.after.left), R=Number(app.after.right);
+        if(Number.isFinite(L) && Number.isFinite(R) && L>=0 && R>=0 && L<=24 && R<=24){ app1=app; u1=u; break; }
+      }
+      if(!app1) continue;
+      steps.push({id:u1.id, side:u1.side, before:app1.before, after:app1.after, value:app1.value, text:updateTextV664(u1,app1.before)});
+      st = {...app1.after}; states.push({left:st.left,right:st.right,total:st.left+st.right,label:"after step 1"});
+      const seconds = source.filter(u => u && u.side === "left" && (u.stage == null || u.stage <= 1)).slice().sort(()=>Math.random()-0.5);
+      let app2=null, u2=null;
+      for(const u of seconds){
+        const app = applyUpdateV664(st,u); if(!app) continue;
+        const L=Number(app.after.left), R=Number(app.after.right);
+        if(!Number.isFinite(L) || !Number.isFinite(R) || L<0 || R<0 || L>24 || R>24) continue;
+        if(Number(app.after.left) === Number(st.left)) continue;
+        app2=app; u2=u; break;
+      }
+      if(!app2) continue;
+      steps.push({id:u2.id, side:u2.side, before:app2.before, after:app2.after, value:app2.value, text:updateTextV664(u2,app2.before)});
+      st = {...app2.after}; states.push({left:st.left,right:st.right,total:st.left+st.right,label:"after step 2"});
+      return {start:{left:a,right:b}, steps, states};
+    }
+    return null;
+  }
+  function traceSummaryV664(trace){
+    return arr(trace?.steps).map((s,i)=>`Step ${i+1}: ${String(s.text || s.id).replace(/\.$/,"")} → LEFT ${s.after.left}, RIGHT ${s.after.right}.`).join(" ");
+  }
+  function retrospectiveChainTrialV664(cat,m){
+    for(let tries=0; tries<120; tries++){
+      const hi = Math.max(10, Math.min(12, Number(m)||12));
+      const a = ri(1,hi), b = ri(1,hi);
+      const trace = buildRetrospectiveTraceV664(a,b); if(!trace) continue;
+      const ans = Number(trace.states[1].left), current = Number(trace.states[2].left);
+      if(ans === current) continue;
+      const opts = [ans];
+      for(const v of [current, trace.states[0].left, trace.states[1].right, trace.states[2].right, ans+1, ans-1, current+1, current-1]) pushUniqueValue(opts,v,0,24);
+      if(opts.length < 4) continue;
+      const finalOpts = opts.slice(0,4); if(!finalOpts.includes(ans)) continue;
+      const q = `After two updates, what was LEFT one step ago?`;
+      const review = [traceSummaryV664(trace), `One step ago means after step 1, before the final LEFT-changing update.`, `LEFT after step 1 was ${ans}; current LEFT after step 2 is ${current}.`];
+      return choiceTrial(cat,m,a,b,q,finalOpts.map(String),finalOpts.indexOf(ans),{kind:"retrospective_state_readout", trace, previousLeft:ans, currentLeft:current, finalStepSide:trace.steps[1]?.side || null, reviewLines:review}, []);
+    }
+    return null;
+  }
+
+  const replacements = {
+    exp_truth_target_choice: truthTargetTrialV664,
+    exp_sequential_sufficiency_stop: sequentialSufficiencyTrialV664,
+    exp_fixed_point_complement10_left: fixedPointTrialV664,
+    exp_deep_chain_retrospective_left: retrospectiveChainTrialV664,
+    exp_relation_preservation_distance10: relationPreservationTrialV664
+  };
+  for(const [id,fn] of Object.entries(replacements)){
+    try{
+      const cat = catById(id);
+      if(cat){ cat.buildChoiceTrial = fn; cat.semanticGuardVersion = PATCH_VERSION; }
+      const spec = typeof SPEC_REGISTRY !== "undefined" ? SPEC_REGISTRY[id] : null;
+      if(spec){ spec.semanticGuardVersion = PATCH_VERSION; }
+    }catch(_){ }
+  }
+  try{
+    const fp = catById("exp_fixed_point_complement10_left");
+    if(fp){
+      fp.variants = [{q:"Under the stated transform, does LEFT map to itself?"},{q:"Is LEFT a fixed point of the named transform?"},{q:"Apply the transform to LEFT: does it stay unchanged?"}];
+      fp.atomicsUsed = uniq(arr(fp.atomicsUsed).concat(["transform_distance_10","transform_reflect_12"]));
+    }
+  }catch(_){ }
+
+  function sampleExperimentalCat(id, n=160){
+    const cat = catById(id), rows=[];
+    if(!cat || typeof cat.buildChoiceTrial !== "function") return {id, status:"missing", rows, distinctAnswers:0, bool:{yes:0,no:0}};
+    for(let i=0;i<n;i++){
+      let tr=null;
+      try{ tr = cat.buildChoiceTrial(cat, 12); }catch(e){ rows.push({error:String(e?.message || e)}); continue; }
+      if(!tr) continue;
+      const answerKey = tr.responseFormat === "bool" ? (tr.isTrue ? "YES" : "NO") : String(tr.answerLabel ?? tr.correctIndex ?? tr.answer ?? "?");
+      rows.push({answerKey, responseFormat:tr.responseFormat, catId:tr.catId, payload:tr.payload || {}, options:tr.options || null, isTrue:tr.isTrue});
+    }
+    const counts = {};
+    for(const r of rows){ if(r.answerKey) counts[r.answerKey] = (counts[r.answerKey] || 0) + 1; }
+    return {id, status:rows.length ? "sampled" : "empty", rows, counts, distinctAnswers:Object.keys(counts).length, bool:{yes:rows.filter(r=>r.answerKey==="YES").length, no:rows.filter(r=>r.answerKey==="NO").length}};
+  }
+  function auditTruthTargetUniqueV664(rows){
+    const bad=[];
+    for(const r of rows){
+      const p = r.payload || {}; if(p.kind !== "truth_target_choice") continue;
+      const vals = arr(r.options).map(o => Number(String(o?.text || "").match(/-?\d+/)?.[0]));
+      const good = vals.filter(v => truthTargetHoldsV664(p.mode, p.left, v));
+      if(good.length !== 1) bad.push({mode:p.mode, left:p.left, vals, good});
+    }
+    return bad;
+  }
+  function auditExperimentalDensificationSemanticsV664(opts={}){
+    const samples = Math.max(40, Math.min(400, Number(opts.samplesPerCat || opts.samples || 180)));
+    const ids = ["exp_relation_preservation_distance10","exp_sequential_sufficiency_stop","exp_truth_target_choice","exp_fixed_point_complement10_left","exp_deep_chain_retrospective_left"];
+    const block=[], warnings=[], rows=[];
+    for(const id of ids){
+      const s = sampleExperimentalCat(id, samples);
+      rows.push({id, sampled:s.rows.length, distinctAnswers:s.distinctAnswers, counts:s.counts, bool:s.bool});
+      if(s.rows.length < Math.min(20, samples/3)) block.push(`${id}: too few generated samples (${s.rows.length}/${samples})`);
+      if(id === "exp_relation_preservation_distance10"){
+        if(s.bool.yes === 0 || s.bool.no === 0) block.push(`${id}: constant bool distribution YES=${s.bool.yes} NO=${s.bool.no}`);
+      }
+      if(id === "exp_sequential_sufficiency_stop"){
+        const keys = Object.keys(s.counts || {});
+        if(keys.length < 3) block.push(`${id}: low sufficiency-answer entropy (${keys.join(", ")})`);
+        if(!(s.counts["not determined by these clues"] > 0)) block.push(`${id}: never generated a genuine underdetermined clue sequence`);
+      }
+      if(id === "exp_truth_target_choice"){
+        const bad = auditTruthTargetUniqueV664(s.rows);
+        if(bad.length) block.push(`${id}: ${bad.length} displayed trials had ${bad[0]?.good?.length ?? "not-one"} correct options`);
+      }
+      if(id === "exp_fixed_point_complement10_left"){
+        const transforms = new Set(s.rows.map(r=>r.payload?.transform).filter(Boolean));
+        if(transforms.size < 3) warnings.push(`${id}: fixed-point transform rotation low (${Array.from(transforms).join(", ")})`);
+        if(s.bool.yes === 0 || s.bool.no === 0) block.push(`${id}: constant fixed-point answer distribution YES=${s.bool.yes} NO=${s.bool.no}`);
+      }
+      if(id === "exp_deep_chain_retrospective_left"){
+        const bad = s.rows.filter(r => r.payload?.kind === "retrospective_state_readout" && Number(r.payload.previousLeft) === Number(r.payload.currentLeft));
+        if(bad.length) block.push(`${id}: ${bad.length} trials did not require retrospective LEFT memory`);
+      }
+    }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_VERSION), samplesPerCat:samples, rows, warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), samplesPerCat:samples, rows, warnings, block};
+  }
+  try{ window.auditExperimentalDensificationSemanticsV664 = auditExperimentalDensificationSemanticsV664; globalThis.auditExperimentalDensificationSemanticsV664 = auditExperimentalDensificationSemanticsV664; }catch(_){ }
+
+  try{
+    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(previousRunFeatureAudit && !previousRunFeatureAudit.__v664ExperimentalSemanticWrapped){
+      const wrapped = function runFeatureAuditV664ExperimentalSemantic(feature, opts={}){
+        const f = String(feature || "").toLowerCase().trim();
+        if(["experimental_densification","densification","determined_densification","v660","experimental_branch","experimental_semantics","generative_content"].includes(f)){
+          const previous = previousRunFeatureAudit.apply(this, arguments);
+          const semantic = auditExperimentalDensificationSemanticsV664(opts);
+          const results = Object.assign({}, previous && previous.results ? previous.results : {previous}, {experimentalSemanticContent:semantic});
+          const status = semantic.status === "BLOCK" ? "BLOCK" : ((previous && previous.status === "BLOCK") ? "BLOCK" : ((semantic.status === "WARN" || previous?.status === "WARN") ? "WARN" : "PASS"));
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status, results};
+        }
+        return previousRunFeatureAudit.apply(this, arguments);
+      };
+      wrapped.__v664ExperimentalSemanticWrapped = true;
+      runFeatureAudit = wrapped;
+      try{ window.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ window.EUCA_V664_EXPERIMENTAL_SEMANTIC_GUARD = {patch:PATCH_VERSION, semanticContentAudit:true}; }catch(_){ }
 })();
 
 </script>
