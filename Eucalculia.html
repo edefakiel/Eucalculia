@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.5.101-lucas-predicate-fix</title>
+<title>Eucalculia v6.5.102-epistemic-domain-balance</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.5.101-lucas-predicate-fix";
+const APP_VERSION = "v6.5.102-epistemic-domain-balance";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -23290,7 +23290,9 @@ function l0EpistemicApplyRule(ruleOrId, left, m=null){
   const rule = typeof ruleOrId === "string" ? l0EpistemicRuleById(ruleOrId, m) : ruleOrId;
   if(!rule || typeof rule.apply !== "function") return null;
   const max = Math.max(1, Number(m || currentMax()) || 12);
-  const v = Number(rule.apply(Number(left)));
+  const raw = rule.apply(Number(left));
+  if(raw === null || raw === undefined || raw === false || raw === "") return null;
+  const v = Number(raw);
   return Number.isInteger(v) && v >= 1 && v <= max ? v : null;
 }
 function l0EpistemicRangeLabel(range){
@@ -47552,11 +47554,14 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
     const rule = typeof ruleOrId === "string" ? l0EpistemicRuleById(ruleOrId, m) : ruleOrId;
     if(!rule || typeof rule.apply !== "function") return null;
     const max = Math.max(1, Number(m || currentMax()) || 12);
-    const v = Number(rule.apply(Number(left)));
-    // Epistemic transform rules may legitimately produce 0 (modular residue,
-    // complement exhaustion, or distance-to-anchor at the anchor). Visual
-    // selection already filters representations that cannot encode zero.
-    return Number.isInteger(v) && v >= 0 && v <= max ? v : null;
+    const raw = rule.apply(Number(left));
+    if(raw === null || raw === undefined || raw === false || raw === "") return null;
+    const v = Number(raw);
+    // Epistemic probes share the active Eucalculia value domain: 1..max.
+    // Rules whose raw arithmetic would leave the domain (for example a zero
+    // modular residue or an inapplicable half-step) are excluded from possible
+    // worlds rather than rendered as a foreign zero value.
+    return Number.isInteger(v) && v >= 1 && v <= max ? v : null;
   };
   l0EpistemicCandidateWorlds = function l0EpistemicCandidateWorldsV6547(scenario, m=null){
     const max = Math.max(1, Number(m || currentMax()) || 12);
@@ -47565,7 +47570,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
     const seen = new Set();
     const addWorld = (left, right, ruleId=null) => {
       const L = Number(left), R = Number(right);
-      if(!Number.isInteger(L) || !Number.isInteger(R) || L < 1 || R < 0 || L > max || R > max) return;
+      if(!Number.isInteger(L) || !Number.isInteger(R) || L < 1 || R < 1 || L > max || R > max) return;
       const key = `${L}|${R}|${ruleId || ""}`;
       if(seen.has(key)) return;
       seen.add(key);
@@ -47600,7 +47605,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
   function ep47UniqWorlds(worlds){
     const out=[], seen=new Set();
     for(const w of Array.isArray(worlds) ? worlds : []){
-      if(!Number.isInteger(w?.left) || !Number.isInteger(w?.right)) continue;
+      if(!Number.isInteger(w?.left) || !Number.isInteger(w?.right) || w.left < 1 || w.right < 1) continue;
       const key = ep47WorldKey(w);
       if(seen.has(key)) continue;
       seen.add(key); out.push(ep47CloneWorld(w));
@@ -47609,7 +47614,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
   }
   function ep47AllWorlds(max){
     const out=[];
-    for(let L=1; L<=max; L++) for(let R=0; R<=max; R++) out.push({left:L, right:R, ruleId:null});
+    for(let L=1; L<=max; L++) for(let R=1; R<=max; R++) out.push({left:L, right:R, ruleId:null});
     return out;
   }
   function ep47OutcomeFromWorlds(worlds, target, actual){
@@ -47753,7 +47758,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
     const maxRight = Math.min(max, 12);
     const actualPool = [];
     for(let L=1; L<=Math.min(max, 12); L++){
-      for(let R=0; R<=maxRight; R++){
+      for(let R=1; R<=maxRight; R++){
         if(Math.abs(L - R) <= Math.max(4, Math.ceil(max / 2))) actualPool.push({left:L, right:R, ruleId:null});
       }
     }
@@ -48016,7 +48021,18 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
     return out;
   }
   function ep47CanonicalCandidatesForOutcome(outcome, max){
-    return ep47BasePartialScenarioSeeds(max).filter(c => c?.evald?.ok && c.evald.outcome === outcome);
+    const base = ep47BasePartialScenarioSeeds(max).filter(c => c?.evald?.ok && c.evald.outcome === outcome);
+    const richer = (typeof l0EpistemicCandidatesForOutcome === "function" ? l0EpistemicCandidatesForOutcome(outcome, max) : [])
+      .filter(c => c && c.evald?.ok && c.evald.outcome === outcome);
+    const seen = new Set();
+    const merged = [];
+    for(const c of base.concat(richer)){
+      const key = `${c.kind || "scenario"}:${c.cause || "cause"}:${c.actual?.left}/${c.actual?.right}:${c.actual?.ruleId || ""}:${l0EpistemicTargetProfile(c.target)}:${c.knowledgeStatsKey || l0EpistemicKnowledgeStatsKey(c)}`;
+      if(seen.has(key)) continue;
+      seen.add(key);
+      merged.push(c);
+    }
+    return ep47ShortlistRows(merged, r => `${r.kind || "scenario"}:${r.evald?.outcome}:${r.cause || "cause"}`, 420);
   }
   function ep47PickCanonicalOutcomeTarget(max){
     const available = [0,1,2,3].filter(i => ep47CanonicalCandidatesForOutcome(i, max).length > 0);
@@ -75988,6 +76004,107 @@ try{
   try{ window.EUCA_V65101_LUCAS_FIX = {patch:PATCH_VERSION, standardLucasIncludes2:true}; }catch(_){}
 })();
 
+
+
+// ── v6.5.102-epistemic-domain-balance: epistemic value-domain and knowability balance guard ──
+(function(){
+  if(typeof window !== "undefined" && window.__EUCA_V6611_EPISTEMIC_DOMAIN_BALANCE__) return;
+  if(typeof window !== "undefined") window.__EUCA_V6611_EPISTEMIC_DOMAIN_BALANCE__ = true;
+
+  function ep611Walk(obj, fn, seen=new Set()){
+    if(!obj || typeof obj !== "object") return;
+    if(seen.has(obj)) return;
+    seen.add(obj);
+    fn(obj);
+    if(Array.isArray(obj)){ for(const v of obj) ep611Walk(v, fn, seen); return; }
+    for(const v of Object.values(obj)) ep611Walk(v, fn, seen);
+  }
+  function ep611TrialHasZeroValue(trial){
+    const hits=[];
+    const checkWorld = (w, path) => {
+      if(w && typeof w === "object" && Number.isInteger(w.left) && Number.isInteger(w.right) && (w.left < 1 || w.right < 1)) hits.push({path,left:w.left,right:w.right,ruleId:w.ruleId||null});
+    };
+    checkWorld({left:trial?.a, right:trial?.b, ruleId:trial?.epistemicSufficiency?.actualWorld?.ruleId || null}, "trial");
+    const ep = trial?.epistemicSufficiency || trial?.payload?.epistemicSufficiency;
+    ep611Walk(ep, obj => checkWorld(obj, "payload"));
+    return hits;
+  }
+  function auditEpistemicDomainBalanceV6611(opts={}){
+    const block=[], warnings=[];
+    const samples = Math.max(80, Number(opts.samples)||240);
+    const max = Math.max(8, Number(opts.max)||12);
+    const savedLevel = State?.levelByMode?.D;
+    const savedMode = State?.mode;
+    const savedMix = CONFIG?.l0EpistemicExpandedFormatMix;
+    try{
+      if(!State.levelByMode) State.levelByMode = {D:max};
+      State.levelByMode.D = Math.max(CONFIG.l0EpistemicExpandedMinLevel || 6, Number(State.levelByMode.D || 0), 6);
+      State.mode = "D";
+      if(typeof L0_EPISTEMIC_CANDIDATE_CACHE !== "undefined" && L0_EPISTEMIC_CANDIDATE_CACHE?.clear) L0_EPISTEMIC_CANDIDATE_CACHE.clear();
+
+      const ruleChecks = [];
+      for(const [id,left] of [["half",3],["mod_3",3],["mod_5",5],["gap_to_5",5],["fill_10",10],["fill_12",12]]){
+        const v = typeof l0EpistemicApplyRule === "function" ? l0EpistemicApplyRule(id, left, max) : null;
+        ruleChecks.push({id,left,value:v});
+        if(v === 0) block.push(`zero_rule_output:${id}:${left}`);
+      }
+
+      const canonicalCounts = {};
+      CONFIG.l0EpistemicExpandedFormatMix = {canonical_outcome:1, agent_capacity:0, conditional_observation:0, closure_identification:0};
+      for(const outcome of [0,1,2,3]){
+        let ok=0;
+        for(let i=0;i<32;i++){
+          const t = buildL0EpistemicSufficiencyProbe(outcome);
+          if(!t){ block.push(`canonical_missing:${outcome}`); continue; }
+          const ep = t.epistemicSufficiency || t.payload?.epistemicSufficiency;
+          const out = Number(ep?.outcomeIndex);
+          canonicalCounts[out] = (canonicalCounts[out]||0)+1;
+          if(out !== outcome) block.push(`canonical_wrong_outcome:${outcome}:${out}`);
+          const zeros = ep611TrialHasZeroValue(t);
+          if(zeros.length) block.push(`canonical_zero_value:${outcome}:${JSON.stringify(zeros[0])}`);
+          ok++;
+        }
+        if(!ok) block.push(`canonical_no_samples:${outcome}`);
+      }
+      if(!canonicalCounts[0] || !canonicalCounts[1]) block.push("canonical_can_know_outcomes_missing");
+
+      CONFIG.l0EpistemicExpandedFormatMix = savedMix;
+      const formatCounts={}, outcomeCounts={}, zeroExamples=[];
+      for(let i=0;i<samples;i++){
+        const t = buildL0EpistemicSufficiencyProbe();
+        if(!t){ block.push("default_probe_missing"); continue; }
+        const ep = t.epistemicSufficiency || t.payload?.epistemicSufficiency;
+        const fmt = `${ep?.formatKey || "?"}:${ep?.responseSubformat || ""}`;
+        formatCounts[fmt]=(formatCounts[fmt]||0)+1;
+        const outKey = ep?.outcomeKey || String(ep?.outcomeIndex ?? "?");
+        outcomeCounts[outKey]=(outcomeCounts[outKey]||0)+1;
+        const zeros = ep611TrialHasZeroValue(t);
+        if(zeros.length && zeroExamples.length < 8) zeroExamples.push({catId:t.catId, format:fmt, actual:ep?.actualWorld, zero:zeros[0], question:String(t.question||"").slice(0,220)});
+      }
+      if(zeroExamples.length) block.push(`zero_values_in_default_sampling:${zeroExamples.length}`);
+      const canKnowCanonical = (canonicalCounts[0]||0) + (canonicalCounts[1]||0);
+      const cannotCanonical = (canonicalCounts[2]||0) + (canonicalCounts[3]||0);
+      if(canKnowCanonical < cannotCanonical * 0.65) block.push(`canonical_can_know_underrepresented:${canKnowCanonical}:${cannotCanonical}`);
+      return auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {max, samples, ruleChecks, canonicalCounts, formatCounts, outcomeCounts, zeroExamples, block, warnings});
+    }catch(e){
+      return auditResult("BLOCK", {error:String(e?.message || e), block:["epistemic_domain_balance_exception"]});
+    }finally{
+      try{ CONFIG.l0EpistemicExpandedFormatMix = savedMix; }catch(_){}
+      try{ if(savedLevel !== undefined) State.levelByMode.D = savedLevel; }catch(_){}
+      try{ State.mode = savedMode; }catch(_){}
+    }
+  }
+  const _ep611OldRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+  if(_ep611OldRunFeatureAudit){
+    runFeatureAudit = function runFeatureAuditV6611(feature, opts={}){
+      const key = String(feature || "").toLowerCase();
+      if(["epistemic_domain_balance","epistemic_sufficiency_semantics","epistemic"].includes(key)) return auditEpistemicDomainBalanceV6611(opts);
+      return _ep611OldRunFeatureAudit(feature, opts);
+    };
+    try{ window.runFeatureAudit = runFeatureAudit; }catch(_){}
+  }
+  try{ window.auditEpistemicDomainBalanceV6611 = auditEpistemicDomainBalanceV6611; }catch(_){}
+})();
 </script>
 </body>
 </html>
