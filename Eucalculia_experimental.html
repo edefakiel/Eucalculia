@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.5.98-cognitive-signature-review-clarity</title>
+<title>Eucalculia v6.6.2-experimental-densification-gatefix</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3012,7 +3012,7 @@ select.cs-native {
 </div>
 <p>L0 categories are not all equally likely from the beginning. The app uses soft relational frontiers: direct comparisons appear first, then joint numerical properties, explicit set-membership questions, role/property binding, metric and factor relations, and finally compound relations. User-facing wording avoids raw internal labels such as “case”, “in/out” or “vacuous truth”. Boolean gates are introduced by their rule first; for example the NAND rule is shown as “Answer YES unless both conditions are true.” The current value range still matters, but recent accuracy, response time, relational-frame weaknesses and recent sampling concentration also shape which categories are emphasized.</p>
 <p><strong>Update Chains:</strong> after frame-burst performance is stable, a sparse advanced L0 family may appear. A burst asks several questions about the same fixed LEFT/RIGHT state. An Update Chain instead tells you to replace LEFT or RIGHT internally and then answer a YES/NO question about the updated state. For example: “Replace LEFT with the gap between LEFT and RIGHT. Is LEFT now even?” A later probe may then use that updated LEFT: “Now replace RIGHT with LEFT + 2. Is RIGHT now greater than original RIGHT?” These items remain L0: no numpad is used, and the answer channel stays YES/NO. They are initially kept out of MEM/META history so mutable-state practice does not interfere with ordinary retained-pair integration. A sparse advanced subfamily, <strong>truth-gated update</strong>, also lives here: an internal relation about the current state selects the update branch before the final YES/NO check. For example: “If GAP is prime, replace LEFT with GAP; otherwise, replace RIGHT with GAP. After the update, is LEFT greater than RIGHT?” This is operational metarelational control inside the same Update Chain architecture, not a separate mode.</p>
-<p><strong>Paper folding checks:</strong> in late L0, the question frame may show a folded-paper sequence, including horizontal, vertical, partial and diagonal folds. Mentally unfold the sheet and count the resulting holes, then compare that hole count with the flashed LEFT/RIGHT values. The answer is still YES or NO; the hole count is not typed. The paper-folding analogy family now uses the same shared numeric-rule catalogue as the induction-chain rule checks, adapted to the paper format: LEFT/RIGHT provide the source values and the unfolded hole count is the derived third value.</p>
+<p><strong>Paper folding checks:</strong> in late L0, the question frame may show a folded-paper sequence, including horizontal, vertical, partial and diagonal folds. Mentally unfold the sheet and count the resulting punched holes, then compare that punched-hole count with the flashed LEFT/RIGHT values. The answer is still YES or NO; the punched-hole count is not typed. The paper-folding analogy family now uses the same shared numeric-rule catalogue as the induction-chain rule checks, adapted to the paper format: LEFT/RIGHT provide the source values and the unfolded punched-hole count is the derived third value.</p>
 <p><strong>Shepard cube checks:</strong> in late L0, the question frame may show two cube figures. Decide whether the right figure is a rotation of the left figure or a mirror image, then apply the corresponding numerical rule to the flashed LEFT/RIGHT values. These items combine mental rotation with conditional rule selection, but they remain ordinary L0 relational trials.</p>
 <p><strong>Directed graph checks:</strong> in late L0, the question frame may show two small directed graphs. Decide whether the graphs have the same structure or differ by a small structural edit, then apply the corresponding numerical rule to the flashed LEFT/RIGHT values. These items use graph-structure validation as the conditional source, but remain ordinary L0 YES/NO trials.</p>
 <p><strong>Relation-equivalence 4-select:</strong> in late L0, some trials ask you to select exactly two true statements from four. The statements are surface-different formulations of the same relation, such as closer/farther from 5, direct LEFT/RIGHT converse order, signed order reversal, or order reversal after a transformation. The trial auto-submits after the second selected option.</p>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.5.98-cognitive-signature-review-clarity";
+const APP_VERSION = "v6.6.2-experimental-densification-gatefix";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -16832,186 +16832,186 @@ function l0AnalogySharedUnaryRuleCatalog(){
   for(let k=1; k<=8; k++){
     add(`pair_add_${k}`, `Add ${k}.`, "linear_step", n => n + k, {
       distractorType:"linear_near_miss",
-      paperPromptLeft:`are the holes ${k === 1 ? "one" : k} more than LEFT?`,
-      paperPromptRight:`are the holes ${k === 1 ? "one" : k} more than RIGHT?`,
-      paperNegLeft:`are the holes not ${k === 1 ? "one" : k} more than LEFT?`,
-      paperNegRight:`are the holes not ${k === 1 ? "one" : k} more than RIGHT?`
+      paperPromptLeft:`are the punched holes ${k === 1 ? "one" : k} more than LEFT?`,
+      paperPromptRight:`are the punched holes ${k === 1 ? "one" : k} more than RIGHT?`,
+      paperNegLeft:`are the punched holes not ${k === 1 ? "one" : k} more than LEFT?`,
+      paperNegRight:`are the punched holes not ${k === 1 ? "one" : k} more than RIGHT?`
     });
     add(`pair_subtract_${k}`, `Subtract ${k}.`, "linear_step", n => n - k, {
       distractorType:"linear_direction_flip",
-      paperPromptLeft:`are the holes ${k === 1 ? "one" : k} less than LEFT?`,
-      paperPromptRight:`are the holes ${k === 1 ? "one" : k} less than RIGHT?`,
-      paperNegLeft:`are the holes not ${k === 1 ? "one" : k} less than LEFT?`,
-      paperNegRight:`are the holes not ${k === 1 ? "one" : k} less than RIGHT?`
+      paperPromptLeft:`are the punched holes ${k === 1 ? "one" : k} less than LEFT?`,
+      paperPromptRight:`are the punched holes ${k === 1 ? "one" : k} less than RIGHT?`,
+      paperNegLeft:`are the punched holes not ${k === 1 ? "one" : k} less than LEFT?`,
+      paperNegRight:`are the punched holes not ${k === 1 ? "one" : k} less than RIGHT?`
     });
   }
   add("pair_double", "Double the value.", "multiplicative", n => n * 2, {
     distractorType:"operation_flip",
-    paperPromptLeft:"are the holes twice LEFT?",
-    paperPromptRight:"are the holes twice RIGHT?",
-    paperNegLeft:"are the holes not twice LEFT?",
-    paperNegRight:"are the holes not twice RIGHT?"
+    paperPromptLeft:"are the punched holes twice LEFT?",
+    paperPromptRight:"are the punched holes twice RIGHT?",
+    paperNegLeft:"are the punched holes not twice LEFT?",
+    paperNegRight:"are the punched holes not twice RIGHT?"
   });
   add("pair_triple", "Triple the value.", "multiplicative", n => n * 3, {
     distractorType:"factor_flip",
-    paperPromptLeft:"are the holes three times LEFT?",
-    paperPromptRight:"are the holes three times RIGHT?",
-    paperNegLeft:"are the holes not three times LEFT?",
-    paperNegRight:"are the holes not three times RIGHT?"
+    paperPromptLeft:"are the punched holes three times LEFT?",
+    paperPromptRight:"are the punched holes three times RIGHT?",
+    paperNegLeft:"are the punched holes not three times LEFT?",
+    paperNegRight:"are the punched holes not three times RIGHT?"
   });
   add("pair_half", "Take half of the value.", "multiplicative", n => n % 2 === 0 ? n / 2 : null, {
     distractorType:"operation_flip",
-    paperPromptLeft:"are the holes half of LEFT?",
-    paperPromptRight:"are the holes half of RIGHT?",
-    paperNegLeft:"are the holes not half of LEFT?",
-    paperNegRight:"are the holes not half of RIGHT?"
+    paperPromptLeft:"are the punched holes half of LEFT?",
+    paperPromptRight:"are the punched holes half of RIGHT?",
+    paperNegLeft:"are the punched holes not half of LEFT?",
+    paperNegRight:"are the punched holes not half of RIGHT?"
   });
   add("pair_third", "Take one third of the value.", "multiplicative", n => n % 3 === 0 ? n / 3 : null, {
     distractorType:"factor_flip",
-    paperPromptLeft:"are the holes one third of LEFT?",
-    paperPromptRight:"are the holes one third of RIGHT?",
-    paperNegLeft:"are the holes not one third of LEFT?",
-    paperNegRight:"are the holes not one third of RIGHT?"
+    paperPromptLeft:"are the punched holes one third of LEFT?",
+    paperPromptRight:"are the punched holes one third of RIGHT?",
+    paperNegLeft:"are the punched holes not one third of LEFT?",
+    paperNegRight:"are the punched holes not one third of RIGHT?"
   });
   for(const k of [1,2,3]){
     add(`pair_double_plus_${k}`, `Double the value, then add ${k}.`, "affine", n => 2*n + k, {
       distractorType:"affine_offset_flip",
-      paperPromptLeft:`are the holes twice LEFT plus ${k}?`,
-      paperPromptRight:`are the holes twice RIGHT plus ${k}?`,
-      paperNegLeft:`are the holes not twice LEFT plus ${k}?`,
-      paperNegRight:`are the holes not twice RIGHT plus ${k}?`
+      paperPromptLeft:`are the punched holes twice LEFT plus ${k}?`,
+      paperPromptRight:`are the punched holes twice RIGHT plus ${k}?`,
+      paperNegLeft:`are the punched holes not twice LEFT plus ${k}?`,
+      paperNegRight:`are the punched holes not twice RIGHT plus ${k}?`
     });
     add(`pair_double_minus_${k}`, `Double the value, then subtract ${k}.`, "affine", n => 2*n - k, {
       distractorType:"affine_offset_flip",
-      paperPromptLeft:`are the holes twice LEFT minus ${k}?`,
-      paperPromptRight:`are the holes twice RIGHT minus ${k}?`,
-      paperNegLeft:`are the holes not twice LEFT minus ${k}?`,
-      paperNegRight:`are the holes not twice RIGHT minus ${k}?`
+      paperPromptLeft:`are the punched holes twice LEFT minus ${k}?`,
+      paperPromptRight:`are the punched holes twice RIGHT minus ${k}?`,
+      paperNegLeft:`are the punched holes not twice LEFT minus ${k}?`,
+      paperNegRight:`are the punched holes not twice RIGHT minus ${k}?`
     });
   }
   add("pair_triple_plus_1", "Triple the value, then add 1.", "affine", n => 3*n + 1, {
     distractorType:"affine_factor_flip",
-    paperPromptLeft:"are the holes three times LEFT plus one?",
-    paperPromptRight:"are the holes three times RIGHT plus one?",
-    paperNegLeft:"are the holes not three times LEFT plus one?",
-    paperNegRight:"are the holes not three times RIGHT plus one?"
+    paperPromptLeft:"are the punched holes three times LEFT plus one?",
+    paperPromptRight:"are the punched holes three times RIGHT plus one?",
+    paperNegLeft:"are the punched holes not three times LEFT plus one?",
+    paperNegRight:"are the punched holes not three times RIGHT plus one?"
   });
   add("pair_triple_minus_1", "Triple the value, then subtract 1.", "affine", n => 3*n - 1, {
     distractorType:"affine_factor_flip",
-    paperPromptLeft:"are the holes three times LEFT minus one?",
-    paperPromptRight:"are the holes three times RIGHT minus one?",
-    paperNegLeft:"are the holes not three times LEFT minus one?",
-    paperNegRight:"are the holes not three times RIGHT minus one?"
+    paperPromptLeft:"are the punched holes three times LEFT minus one?",
+    paperPromptRight:"are the punched holes three times RIGHT minus one?",
+    paperNegLeft:"are the punched holes not three times LEFT minus one?",
+    paperNegRight:"are the punched holes not three times RIGHT minus one?"
   });
   add("pair_square", "Square the value.", "power_root", n => n*n, {
     distractorType:"power_root_flip",
-    paperPromptLeft:"are the holes LEFT squared?",
-    paperPromptRight:"are the holes RIGHT squared?",
-    paperNegLeft:"are the holes not LEFT squared?",
-    paperNegRight:"are the holes not RIGHT squared?"
+    paperPromptLeft:"are the punched holes LEFT squared?",
+    paperPromptRight:"are the punched holes RIGHT squared?",
+    paperNegLeft:"are the punched holes not LEFT squared?",
+    paperNegRight:"are the punched holes not RIGHT squared?"
   });
   add("pair_square_root", "Take the square root.", "power_root", n => { const r=Math.sqrt(n); return Number.isInteger(r) ? r : null; }, {
     distractorType:"power_root_flip",
-    paperPromptLeft:"are the holes the square root of LEFT?",
-    paperPromptRight:"are the holes the square root of RIGHT?",
-    paperNegLeft:"are the holes not the square root of LEFT?",
-    paperNegRight:"are the holes not the square root of RIGHT?"
+    paperPromptLeft:"are the punched holes the square root of LEFT?",
+    paperPromptRight:"are the punched holes the square root of RIGHT?",
+    paperNegLeft:"are the punched holes not the square root of LEFT?",
+    paperNegRight:"are the punched holes not the square root of RIGHT?"
   });
   const anchorLabel = anchor => anchor === 5 ? "five" : String(anchor);
   for(const anchor of [5,7,9,10,12,20]){
     add(`pair_fill_to_${anchor}`, `Count up to ${anchor}.`, "anchor_completion", n => anchor - n, {
       distractorType:"anchor_flip",
-      paperPromptLeft:`are the holes what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
-      paperPromptRight:`are the holes what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`,
-      paperNegLeft:`are the holes not what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
-      paperNegRight:`are the holes not what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`
+      paperPromptLeft:`are the punched holes what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
+      paperPromptRight:`are the punched holes what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`,
+      paperNegLeft:`are the punched holes not what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
+      paperNegRight:`are the punched holes not what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`
     });
   }
   add("pair_mirror_1_12", "Reflect it across the midpoint of the 1–12 range.", "anchor_completion", n => 13 - n, {
     distractorType:"mirror_anchor_flip",
-    paperPromptLeft:"are the holes the mirror of LEFT on the 1–12 line?",
-    paperPromptRight:"are the holes the mirror of RIGHT on the 1–12 line?",
-    paperNegLeft:"are the holes not the mirror of LEFT on the 1–12 line?",
-    paperNegRight:"are the holes not the mirror of RIGHT on the 1–12 line?"
+    paperPromptLeft:"are the punched holes the mirror of LEFT on the 1–12 line?",
+    paperPromptRight:"are the punched holes the mirror of RIGHT on the 1–12 line?",
+    paperNegLeft:"are the punched holes not the mirror of LEFT on the 1–12 line?",
+    paperNegRight:"are the punched holes not the mirror of RIGHT on the 1–12 line?"
   });
   for(let k=1; k<=5; k++){
     add(`pair_clock_forward_${k}`, l0ClockClockwiseLabel(k), "clock_move", n => l0AnalogyClock(n, k), {
       distractorType:"clock_direction_flip",
       paperEnabled:k !== 1,
       canApply:n => l0ClockMoveCrossesBoundary(n, k),
-      paperPromptLeft:`on a 12-clock, are the holes what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
-      paperPromptRight:`on a 12-clock, are the holes what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`,
-      paperNegLeft:`on a 12-clock, are the holes not what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
-      paperNegRight:`on a 12-clock, are the holes not what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`
+      paperPromptLeft:`on a 12-clock, are the punched holes what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
+      paperPromptRight:`on a 12-clock, are the punched holes what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`,
+      paperNegLeft:`on a 12-clock, are the punched holes not what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
+      paperNegRight:`on a 12-clock, are the punched holes not what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`
     });
     add(`pair_clock_back_${k}`, l0ClockCounterLabel(k), "clock_move", n => l0AnalogyClock(n, -k), {
       distractorType:"clock_direction_flip",
       paperEnabled:k !== 1,
       canApply:n => l0ClockMoveCrossesBoundary(n, -k),
-      paperPromptLeft:`on a 12-clock, are the holes what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperPromptRight:`on a 12-clock, are the holes what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperNegLeft:`on a 12-clock, are the holes not what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperNegRight:`on a 12-clock, are the holes not what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`
+      paperPromptLeft:`on a 12-clock, are the punched holes what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
+      paperPromptRight:`on a 12-clock, are the punched holes what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`,
+      paperNegLeft:`on a 12-clock, are the punched holes not what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
+      paperNegRight:`on a 12-clock, are the punched holes not what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`
     });
   }
   add("pair_clock_opposite", "Use the opposite hour on a 12-clock.", "clock_opposite", n => l0AnalogyClock(n, 6), {
     distractorType:"clock_opposite_flip",
-    paperPromptLeft:"on a 12-clock, are the holes the opposite hour from LEFT?",
-    paperPromptRight:"on a 12-clock, are the holes the opposite hour from RIGHT?",
-    paperNegLeft:"on a 12-clock, are the holes not the opposite hour from LEFT?",
-    paperNegRight:"on a 12-clock, are the holes not the opposite hour from RIGHT?",
+    paperPromptLeft:"on a 12-clock, are the punched holes the opposite hour from LEFT?",
+    paperPromptRight:"on a 12-clock, are the punched holes the opposite hour from RIGHT?",
+    paperNegLeft:"on a 12-clock, are the punched holes not the opposite hour from LEFT?",
+    paperNegRight:"on a 12-clock, are the punched holes not the opposite hour from RIGHT?",
     canApply:n => l0AnalogyInRange(n, 12)
   });
   for(const anchor of [5,10,12]){
     add(`pair_distance_from_${anchor}`, `Use the distance from ${anchor}.`, "anchor_distance", n => Math.abs(n - anchor), {
       distractorType:"anchor_distance_flip",
-      paperPromptLeft:`are the holes the distance from LEFT to ${anchor}?`,
-      paperPromptRight:`are the holes the distance from RIGHT to ${anchor}?`,
-      paperNegLeft:`are the holes not the distance from LEFT to ${anchor}?`,
-      paperNegRight:`are the holes not the distance from RIGHT to ${anchor}?`
+      paperPromptLeft:`are the punched holes the distance from LEFT to ${anchor}?`,
+      paperPromptRight:`are the punched holes the distance from RIGHT to ${anchor}?`,
+      paperNegLeft:`are the punched holes not the distance from LEFT to ${anchor}?`,
+      paperNegRight:`are the punched holes not the distance from RIGHT to ${anchor}?`
     });
   }
   add("pair_5_plus_distance_from_5", "Move from 5 by the same distance upward.", "anchor_distance", n => 5 + Math.abs(n - 5), {
     distractorType:"anchor_direction_flip",
-    paperPromptLeft:"are the holes 5 plus LEFT's distance from 5?",
-    paperPromptRight:"are the holes 5 plus RIGHT's distance from 5?",
-    paperNegLeft:"are the holes not 5 plus LEFT's distance from 5?",
-    paperNegRight:"are the holes not 5 plus RIGHT's distance from 5?"
+    paperPromptLeft:"are the punched holes 5 plus LEFT's distance from 5?",
+    paperPromptRight:"are the punched holes 5 plus RIGHT's distance from 5?",
+    paperNegLeft:"are the punched holes not 5 plus LEFT's distance from 5?",
+    paperNegRight:"are the punched holes not 5 plus RIGHT's distance from 5?"
   });
   add("pair_10_minus_distance_from_10", "Move below 10 by the same distance.", "anchor_distance", n => 10 - Math.abs(n - 10), {
     distractorType:"anchor_direction_flip",
-    paperPromptLeft:"are the holes 10 minus LEFT's distance from 10?",
-    paperPromptRight:"are the holes 10 minus RIGHT's distance from 10?",
-    paperNegLeft:"are the holes not 10 minus LEFT's distance from 10?",
-    paperNegRight:"are the holes not 10 minus RIGHT's distance from 10?"
+    paperPromptLeft:"are the punched holes 10 minus LEFT's distance from 10?",
+    paperPromptRight:"are the punched holes 10 minus RIGHT's distance from 10?",
+    paperNegLeft:"are the punched holes not 10 minus LEFT's distance from 10?",
+    paperNegRight:"are the punched holes not 10 minus RIGHT's distance from 10?"
   });
   add("pair_next_even", "Go to the next even number.", "parity_step", n => n + (n % 2 === 0 ? 2 : 1), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the holes the next even number after LEFT?",
-    paperPromptRight:"are the holes the next even number after RIGHT?",
-    paperNegLeft:"are the holes not the next even number after LEFT?",
-    paperNegRight:"are the holes not the next even number after RIGHT?"
+    paperPromptLeft:"are the punched holes the next even number after LEFT?",
+    paperPromptRight:"are the punched holes the next even number after RIGHT?",
+    paperNegLeft:"are the punched holes not the next even number after LEFT?",
+    paperNegRight:"are the punched holes not the next even number after RIGHT?"
   });
   add("pair_previous_even", "Go to the previous even number.", "parity_step", n => n - (n % 2 === 0 ? 2 : 1), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the holes the previous even number before LEFT?",
-    paperPromptRight:"are the holes the previous even number before RIGHT?",
-    paperNegLeft:"are the holes not the previous even number before LEFT?",
-    paperNegRight:"are the holes not the previous even number before RIGHT?"
+    paperPromptLeft:"are the punched holes the previous even number before LEFT?",
+    paperPromptRight:"are the punched holes the previous even number before RIGHT?",
+    paperNegLeft:"are the punched holes not the previous even number before LEFT?",
+    paperNegRight:"are the punched holes not the previous even number before RIGHT?"
   });
   add("pair_next_odd", "Go to the next odd number.", "parity_step", n => n + (n % 2 === 0 ? 1 : 2), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the holes the next odd number after LEFT?",
-    paperPromptRight:"are the holes the next odd number after RIGHT?",
-    paperNegLeft:"are the holes not the next odd number after LEFT?",
-    paperNegRight:"are the holes not the next odd number after RIGHT?"
+    paperPromptLeft:"are the punched holes the next odd number after LEFT?",
+    paperPromptRight:"are the punched holes the next odd number after RIGHT?",
+    paperNegLeft:"are the punched holes not the next odd number after LEFT?",
+    paperNegRight:"are the punched holes not the next odd number after RIGHT?"
   });
   add("pair_previous_odd", "Go to the previous odd number.", "parity_step", n => n - (n % 2 === 0 ? 1 : 2), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the holes the previous odd number before LEFT?",
-    paperPromptRight:"are the holes the previous odd number before RIGHT?",
-    paperNegLeft:"are the holes not the previous odd number before LEFT?",
-    paperNegRight:"are the holes not the previous odd number before RIGHT?"
+    paperPromptLeft:"are the punched holes the previous odd number before LEFT?",
+    paperPromptRight:"are the punched holes the previous odd number before RIGHT?",
+    paperNegLeft:"are the punched holes not the previous odd number before LEFT?",
+    paperNegRight:"are the punched holes not the previous odd number before RIGHT?"
   });
   for(const k of [3,4,5]){
     add(`pair_next_multiple_${k}`, `Go to the next higher multiple of ${k}.`, "multiple_step", n => {
@@ -17022,10 +17022,10 @@ function l0AnalogySharedUnaryRuleCatalog(){
       return x <= 12 ? x : null;
     }, {
       distractorType:"multiple_direction_flip",
-      paperPromptLeft:`are the holes the next higher multiple of ${k} after LEFT?`,
-      paperPromptRight:`are the holes the next higher multiple of ${k} after RIGHT?`,
-      paperNegLeft:`are the holes not the next higher multiple of ${k} after LEFT?`,
-      paperNegRight:`are the holes not the next higher multiple of ${k} after RIGHT?`,
+      paperPromptLeft:`are the punched holes the next higher multiple of ${k} after LEFT?`,
+      paperPromptRight:`are the punched holes the next higher multiple of ${k} after RIGHT?`,
+      paperNegLeft:`are the punched holes not the next higher multiple of ${k} after LEFT?`,
+      paperNegRight:`are the punched holes not the next higher multiple of ${k} after RIGHT?`,
       canApply:n => {
         n = l0AnalogyInt(n);
         if(n === null) return false;
@@ -17035,39 +17035,39 @@ function l0AnalogySharedUnaryRuleCatalog(){
     });
     add(`pair_previous_multiple_${k}`, `Go to the previous multiple of ${k}.`, "multiple_step", n => n - (n % k || k), {
       distractorType:"multiple_direction_flip",
-      paperPromptLeft:`are the holes the previous multiple of ${k} before LEFT?`,
-      paperPromptRight:`are the holes the previous multiple of ${k} before RIGHT?`,
-      paperNegLeft:`are the holes not the previous multiple of ${k} before LEFT?`,
-      paperNegRight:`are the holes not the previous multiple of ${k} before RIGHT?`
+      paperPromptLeft:`are the punched holes the previous multiple of ${k} before LEFT?`,
+      paperPromptRight:`are the punched holes the previous multiple of ${k} before RIGHT?`,
+      paperNegLeft:`are the punched holes not the previous multiple of ${k} before LEFT?`,
+      paperNegRight:`are the punched holes not the previous multiple of ${k} before RIGHT?`
     });
   }
   add("pair_next_prime", "Go to the next prime number.", "prime_step", n => l0AnalogyNextPrime(n), {
     distractorType:"prime_direction_flip",
-    paperPromptLeft:"are the holes the next prime number after LEFT?",
-    paperPromptRight:"are the holes the next prime number after RIGHT?",
-    paperNegLeft:"are the holes not the next prime number after LEFT?",
-    paperNegRight:"are the holes not the next prime number after RIGHT?"
+    paperPromptLeft:"are the punched holes the next prime number after LEFT?",
+    paperPromptRight:"are the punched holes the next prime number after RIGHT?",
+    paperNegLeft:"are the punched holes not the next prime number after LEFT?",
+    paperNegRight:"are the punched holes not the next prime number after RIGHT?"
   });
   add("pair_previous_prime", "Go to the previous prime number.", "prime_step", n => l0AnalogyPrevPrime(n), {
     distractorType:"prime_direction_flip",
-    paperPromptLeft:"are the holes the previous prime number before LEFT?",
-    paperPromptRight:"are the holes the previous prime number before RIGHT?",
-    paperNegLeft:"are the holes not the previous prime number before LEFT?",
-    paperNegRight:"are the holes not the previous prime number before RIGHT?"
+    paperPromptLeft:"are the punched holes the previous prime number before LEFT?",
+    paperPromptRight:"are the punched holes the previous prime number before RIGHT?",
+    paperNegLeft:"are the punched holes not the previous prime number before LEFT?",
+    paperNegRight:"are the punched holes not the previous prime number before RIGHT?"
   });
   add("pair_next_square", "Go to the next square number.", "square_step", n => l0AnalogyNextSquare(n), {
     distractorType:"square_direction_flip",
-    paperPromptLeft:"are the holes the next square number after LEFT?",
-    paperPromptRight:"are the holes the next square number after RIGHT?",
-    paperNegLeft:"are the holes not the next square number after LEFT?",
-    paperNegRight:"are the holes not the next square number after RIGHT?"
+    paperPromptLeft:"are the punched holes the next square number after LEFT?",
+    paperPromptRight:"are the punched holes the next square number after RIGHT?",
+    paperNegLeft:"are the punched holes not the next square number after LEFT?",
+    paperNegRight:"are the punched holes not the next square number after RIGHT?"
   });
   add("pair_previous_square", "Go to the previous square number.", "square_step", n => l0AnalogyPrevSquare(n), {
     distractorType:"square_direction_flip",
-    paperPromptLeft:"are the holes the previous square number before LEFT?",
-    paperPromptRight:"are the holes the previous square number before RIGHT?",
-    paperNegLeft:"are the holes not the previous square number before LEFT?",
-    paperNegRight:"are the holes not the previous square number before RIGHT?"
+    paperPromptLeft:"are the punched holes the previous square number before LEFT?",
+    paperPromptRight:"are the punched holes the previous square number before RIGHT?",
+    paperNegLeft:"are the punched holes not the previous square number before LEFT?",
+    paperNegRight:"are the punched holes not the previous square number before RIGHT?"
   });
   return (l0AnalogySharedUnaryRuleCatalog._cache = rules);
 }
@@ -17075,9 +17075,9 @@ function l0PaperAnalogyExplain(op, a, b, x){
   const expected = op && typeof op.computeTargetX === "function" ? op.computeTargetX(a,b) : null;
   const hole = Number.isInteger(x) ? x : "?";
   if(op && op.kind === "property"){
-    return `Hole count after unfolding: ${hole}. Check: ${op.label}. Verdict → ${op.predicate(a,b,x) ? "YES" : "NO"}.`;
+    return `Unfolded punched-hole count: ${hole}. Check: ${op.label}. Verdict → ${op.predicate(a,b,x) ? "YES" : "NO"}.`;
   }
-  return `Hole count after unfolding: ${hole}. Expected: ${Number.isInteger(expected) ? expected : "not defined"} (${op?.label || "rule"}). Match → ${Number.isInteger(x) && x === expected ? "YES" : "NO"}.`;
+  return `Unfolded punched-hole count: ${hole}. Expected: ${Number.isInteger(expected) ? expected : "not defined"} (${op?.label || "rule"}). Match → ${Number.isInteger(x) && x === expected ? "YES" : "NO"}.`;
 }
 function l0AnalogySharedPaperRuleCatalog(){
   if(l0AnalogySharedPaperRuleCatalog._cache) return l0AnalogySharedPaperRuleCatalog._cache;
@@ -17134,31 +17134,31 @@ function l0AnalogySharedPaperRuleCatalog(){
     predicate:(a,b,x)=> x === compute(a,b),
     applicable:(a,b,maxX)=> l0AnalogyInRange(compute(a,b), maxX)
   });
-  addExact("paper_x_eq_diff", "X = |RIGHT − LEFT|", "are the holes the gap between LEFT and RIGHT?", "are the holes not the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a), {family:"dyadic_gap"});
-  addExact("paper_x_eq_sum", "X = LEFT + RIGHT", "are the holes the total of LEFT and RIGHT?", "are the holes not the total of LEFT and RIGHT?", (a,b)=>a+b, {family:"dyadic_sum"});
-  addExact("paper_x_eq_avg", "X = average of LEFT and RIGHT", "are the holes the exact middle value between LEFT and RIGHT?", "are the holes not the exact middle value between LEFT and RIGHT?", (a,b)=>(a+b)%2===0 ? (a+b)/2 : null, {family:"dyadic_midpoint"});
-  addExact("paper_x_continues_progression", "X = RIGHT + (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the holes the next value after the same step?", "starting with LEFT then RIGHT, are the holes not the next value after the same step?", (a,b)=>2*b-a, {family:"dyadic_step"});
-  addExact("paper_x_precedes_progression", "X = LEFT − (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the holes the value just before LEFT using the same step?", "starting with LEFT then RIGHT, are the holes not the value just before LEFT using the same step?", (a,b)=>2*a-b, {family:"dyadic_step"});
-  addExact("paper_x_eq_max", "X = max(LEFT, RIGHT)", "are the holes equal to the larger of LEFT and RIGHT?", "are the holes not equal to the larger of LEFT and RIGHT?", (a,b)=>Math.max(a,b), {family:"role_value"});
-  addExact("paper_x_eq_min", "X = min(LEFT, RIGHT)", "are the holes equal to the smaller of LEFT and RIGHT?", "are the holes not equal to the smaller of LEFT and RIGHT?", (a,b)=>Math.min(a,b), {family:"role_value"});
-  addExact("paper_x_eq_max_plus_1", "X = larger value + 1", "are the holes one more than the larger value?", "are the holes not one more than the larger value?", (a,b)=>Math.max(a,b)+1, {family:"role_value"});
-  addExact("paper_x_eq_min_plus_1", "X = smaller value + 1", "are the holes one more than the smaller value?", "are the holes not one more than the smaller value?", (a,b)=>Math.min(a,b)+1, {family:"role_value"});
-  addExact("paper_x_eq_max_minus_1", "X = larger value − 1", "are the holes one less than the larger value?", "are the holes not one less than the larger value?", (a,b)=>Math.max(a,b)-1, {family:"role_value"});
-  addExact("paper_x_eq_gap_plus_1", "X = gap + 1", "are the holes one more than the gap between LEFT and RIGHT?", "are the holes not one more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+1, {family:"dyadic_gap"});
-  addExact("paper_x_eq_gap_plus_2", "X = gap + 2", "are the holes two more than the gap between LEFT and RIGHT?", "are the holes not two more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+2, {family:"dyadic_gap"});
-  addExact("paper_x_eq_double_gap", "X = 2 × gap", "are the holes twice the gap between LEFT and RIGHT?", "are the holes not twice the gap between LEFT and RIGHT?", (a,b)=>2*Math.abs(b-a), {family:"dyadic_gap"});
-  addExact("paper_x_eq_half_gap", "X = gap ÷ 2", "are the holes half the gap between LEFT and RIGHT?", "are the holes not half the gap between LEFT and RIGHT?", (a,b)=>{ const g=Math.abs(b-a); return g%2===0 ? g/2 : null; }, {family:"dyadic_gap"});
-  addExact("paper_x_eq_sum_minus_1", "X = LEFT + RIGHT − 1", "are the holes one less than the total of LEFT and RIGHT?", "are the holes not one less than the total of LEFT and RIGHT?", (a,b)=>a+b-1, {family:"dyadic_sum"});
-  addExact("paper_x_eq_sum_plus_1", "X = LEFT + RIGHT + 1", "are the holes one more than the total of LEFT and RIGHT?", "are the holes not one more than the total of LEFT and RIGHT?", (a,b)=>a+b+1, {family:"dyadic_sum"});
-  addExact("paper_x_eq_product", "X = LEFT × RIGHT", "are the holes LEFT times RIGHT?", "are the holes not LEFT times RIGHT?", (a,b)=>a*b, {family:"dyadic_product"});
-  addExact("paper_x_eq_larger_minus_smaller_plus_1", "X = larger − smaller + 1", "are the holes one more than the distance from the smaller value to the larger value?", "are the holes not one more than the distance from the smaller value to the larger value?", (a,b)=>Math.max(a,b)-Math.min(a,b)+1, {family:"role_gap"});
+  addExact("paper_x_eq_diff", "X = |RIGHT − LEFT|", "are the punched holes the gap between LEFT and RIGHT?", "are the punched holes not the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a), {family:"dyadic_gap"});
+  addExact("paper_x_eq_sum", "X = LEFT + RIGHT", "are the punched holes the total of LEFT and RIGHT?", "are the punched holes not the total of LEFT and RIGHT?", (a,b)=>a+b, {family:"dyadic_sum"});
+  addExact("paper_x_eq_avg", "X = average of LEFT and RIGHT", "are the punched holes the exact middle value between LEFT and RIGHT?", "are the punched holes not the exact middle value between LEFT and RIGHT?", (a,b)=>(a+b)%2===0 ? (a+b)/2 : null, {family:"dyadic_midpoint"});
+  addExact("paper_x_continues_progression", "X = RIGHT + (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the punched holes the next value after the same step?", "starting with LEFT then RIGHT, are the punched holes not the next value after the same step?", (a,b)=>2*b-a, {family:"dyadic_step"});
+  addExact("paper_x_precedes_progression", "X = LEFT − (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the punched holes the value just before LEFT using the same step?", "starting with LEFT then RIGHT, are the punched holes not the value just before LEFT using the same step?", (a,b)=>2*a-b, {family:"dyadic_step"});
+  addExact("paper_x_eq_max", "X = max(LEFT, RIGHT)", "are the punched holes equal to the larger of LEFT and RIGHT?", "are the punched holes not equal to the larger of LEFT and RIGHT?", (a,b)=>Math.max(a,b), {family:"role_value"});
+  addExact("paper_x_eq_min", "X = min(LEFT, RIGHT)", "are the punched holes equal to the smaller of LEFT and RIGHT?", "are the punched holes not equal to the smaller of LEFT and RIGHT?", (a,b)=>Math.min(a,b), {family:"role_value"});
+  addExact("paper_x_eq_max_plus_1", "X = larger value + 1", "are the punched holes one more than the larger value?", "are the punched holes not one more than the larger value?", (a,b)=>Math.max(a,b)+1, {family:"role_value"});
+  addExact("paper_x_eq_min_plus_1", "X = smaller value + 1", "are the punched holes one more than the smaller value?", "are the punched holes not one more than the smaller value?", (a,b)=>Math.min(a,b)+1, {family:"role_value"});
+  addExact("paper_x_eq_max_minus_1", "X = larger value − 1", "are the punched holes one less than the larger value?", "are the punched holes not one less than the larger value?", (a,b)=>Math.max(a,b)-1, {family:"role_value"});
+  addExact("paper_x_eq_gap_plus_1", "X = gap + 1", "are the punched holes one more than the gap between LEFT and RIGHT?", "are the punched holes not one more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+1, {family:"dyadic_gap"});
+  addExact("paper_x_eq_gap_plus_2", "X = gap + 2", "are the punched holes two more than the gap between LEFT and RIGHT?", "are the punched holes not two more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+2, {family:"dyadic_gap"});
+  addExact("paper_x_eq_double_gap", "X = 2 × gap", "are the punched holes twice the gap between LEFT and RIGHT?", "are the punched holes not twice the gap between LEFT and RIGHT?", (a,b)=>2*Math.abs(b-a), {family:"dyadic_gap"});
+  addExact("paper_x_eq_half_gap", "X = gap ÷ 2", "are the punched holes half the gap between LEFT and RIGHT?", "are the punched holes not half the gap between LEFT and RIGHT?", (a,b)=>{ const g=Math.abs(b-a); return g%2===0 ? g/2 : null; }, {family:"dyadic_gap"});
+  addExact("paper_x_eq_sum_minus_1", "X = LEFT + RIGHT − 1", "are the punched holes one less than the total of LEFT and RIGHT?", "are the punched holes not one less than the total of LEFT and RIGHT?", (a,b)=>a+b-1, {family:"dyadic_sum"});
+  addExact("paper_x_eq_sum_plus_1", "X = LEFT + RIGHT + 1", "are the punched holes one more than the total of LEFT and RIGHT?", "are the punched holes not one more than the total of LEFT and RIGHT?", (a,b)=>a+b+1, {family:"dyadic_sum"});
+  addExact("paper_x_eq_product", "X = LEFT × RIGHT", "are the punched holes LEFT times RIGHT?", "are the punched holes not LEFT times RIGHT?", (a,b)=>a*b, {family:"dyadic_product"});
+  addExact("paper_x_eq_larger_minus_smaller_plus_1", "X = larger − smaller + 1", "are the punched holes one more than the distance from the smaller value to the larger value?", "are the punched holes not one more than the distance from the smaller value to the larger value?", (a,b)=>Math.max(a,b)-Math.min(a,b)+1, {family:"role_gap"});
   const property = (id, label, prompt, negPrompt, predicate, compute, applicable) => add({
     id, label, prompt, negPrompt, family:"property_alignment", kind:"property",
     computeTargetX:compute,
     predicate,
     applicable
   });
-  property("paper_x_shares_parity", "LEFT, RIGHT and X have the same parity", "do LEFT, RIGHT, and the holes all have the same even/odd type?", "are LEFT, RIGHT, and the holes not all the same even/odd type?",
+  property("paper_x_shares_parity", "LEFT, RIGHT and X have the same parity", "do LEFT, RIGHT, and the punched holes all have the same even/odd type?", "are LEFT, RIGHT, and the punched holes not all the same even/odd type?",
     (a,b,x)=> (a%2===b%2) && (x%2===a%2),
     (a,b)=> {
       if(a%2 !== b%2) return null;
@@ -17167,12 +17167,12 @@ function l0AnalogySharedPaperRuleCatalog(){
     },
     (a,b,maxX)=> a%2===b%2 && Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===a%2)
   );
-  property("paper_x_same_parity_left", "X has the same parity as LEFT", "do the holes have the same even/odd type as LEFT?", "do the holes not have the same even/odd type as LEFT?",
+  property("paper_x_same_parity_left", "X has the same parity as LEFT", "do the punched holes have the same even/odd type as LEFT?", "do the punched holes not have the same even/odd type as LEFT?",
     (a,b,x)=> x%2===a%2,
     (a,b)=> { for(let x=1; x<=12; x++) if(x%2===a%2 && x!==a) return x; return a; },
     (a,b,maxX)=> Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===a%2)
   );
-  property("paper_x_same_parity_right", "X has the same parity as RIGHT", "do the holes have the same even/odd type as RIGHT?", "do the holes not have the same even/odd type as RIGHT?",
+  property("paper_x_same_parity_right", "X has the same parity as RIGHT", "do the punched holes have the same even/odd type as RIGHT?", "do the punched holes not have the same even/odd type as RIGHT?",
     (a,b,x)=> x%2===b%2,
     (a,b)=> { for(let x=1; x<=12; x++) if(x%2===b%2 && x!==b) return x; return b; },
     (a,b,maxX)=> Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===b%2)
@@ -59863,60 +59863,60 @@ function l0ReviewExplanationLines(info){
     const x = info?.paperFolding?.x;
     const op = l0PaperFoldingAnalogyById(id);
     if(op && typeof op.explain === "function") add(op.explain(a, b, x));
-    else add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. ${op?.label || "Check the stated rule."} Verdict → ${op && op.predicate(a,b,x) ? "YES" : "NO"}.`);
+    else add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. ${op?.label || "Check the stated rule."} Verdict → ${op && op.predicate(a,b,x) ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_a_plus_1"){
     const x = info?.paperFolding?.x;
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (LEFT+1): ${a+1}. Match → ${x === a+1 ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (LEFT+1): ${a+1}. Match → ${x === a+1 ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_b_plus_1"){
     const x = info?.paperFolding?.x;
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (RIGHT+1): ${b+1}. Match → ${x === b+1 ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (RIGHT+1): ${b+1}. Match → ${x === b+1 ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_a_plus_2"){
     const x = info?.paperFolding?.x;
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (LEFT+2): ${a+2}. Match → ${x === a+2 ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (LEFT+2): ${a+2}. Match → ${x === a+2 ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_double_a"){
     const x = info?.paperFolding?.x;
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (2 × LEFT): ${2*a}. Match → ${x === 2*a ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (2 × LEFT): ${2*a}. Match → ${x === 2*a ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_double_b"){
     const x = info?.paperFolding?.x;
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Expected (2 × RIGHT): ${2*b}. Match → ${x === 2*b ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Expected (2 × RIGHT): ${2*b}. Match → ${x === 2*b ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_diff"){
     const x = info?.paperFolding?.x;
     const d = Math.abs(b-a);
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Gap between ${a} and ${b}: ${d}. Match → ${x === d ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Gap between ${a} and ${b}: ${d}. Match → ${x === d ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_sum"){
     const x = info?.paperFolding?.x;
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Sum of ${a} + ${b} = ${a+b}. Match → ${x === a+b ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Sum of ${a} + ${b} = ${a+b}. Match → ${x === a+b ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_avg"){
     const x = info?.paperFolding?.x;
     if((a+b) % 2 === 0){
       const avg = (a+b)/2;
-      add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Halfway between ${a} and ${b}: ${avg}. Match → ${x === avg ? "YES" : "NO"}.`);
+      add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Halfway between ${a} and ${b}: ${avg}. Match → ${x === avg ? "YES" : "NO"}.`);
     } else {
-      add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. ${a} and ${b} have no exact halfway point (sum ${a+b} is odd) → NO.`);
+      add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. ${a} and ${b} have no exact halfway point (sum ${a+b} is odd) → NO.`);
     }
   }
   else if(id === "paper_x_continues_progression"){
     const x = info?.paperFolding?.x;
     const next = 2*b - a;
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Step from ${a} to ${b} is ${b-a}; continuing: ${next}. Match → ${x === next ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Step from ${a} to ${b} is ${b-a}; continuing: ${next}. Match → ${x === next ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_max"){
     const x = info?.paperFolding?.x;
     const mx = Math.max(a, b);
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Larger of ${a} and ${b}: ${mx}. Match → ${x === mx ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Larger of ${a} and ${b}: ${mx}. Match → ${x === mx ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_eq_min"){
     const x = info?.paperFolding?.x;
     const mn = Math.min(a, b);
-    add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"}. Smaller of ${a} and ${b}: ${mn}. Match → ${x === mn ? "YES" : "NO"}.`);
+    add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"}. Smaller of ${a} and ${b}: ${mn}. Match → ${x === mn ? "YES" : "NO"}.`);
   }
   else if(id === "paper_x_shares_parity"){
     const x = info?.paperFolding?.x;
@@ -59924,7 +59924,7 @@ function l0ReviewExplanationLines(info){
     if(a % 2 === b % 2){
       const shared = parityWord(a);
       const xPar = Number.isInteger(x) ? parityWord(x) : "?";
-      add(`Hole count after unfolding: ${Number.isInteger(x) ? x : "?"} (${xPar}). ${a} and ${b} are both ${shared}. All three of same parity → ${(Number.isInteger(x) && x % 2 === a % 2) ? "YES" : "NO"}.`);
+      add(`Unfolded punched-hole count: ${Number.isInteger(x) ? x : "?"} (${xPar}). ${a} and ${b} are both ${shared}. All three of same parity → ${(Number.isInteger(x) && x % 2 === a % 2) ? "YES" : "NO"}.`);
     } else {
       add(`${a} is ${parityWord(a)}; ${b} is ${parityWord(b)}. Parity differs between LEFT and RIGHT → NO.`);
     }
@@ -74359,12 +74359,12 @@ try{
   // Paper-fold property families: rotate prime/square status wording without changing the visual contract.
   addFriendly("paper_x_prime_like_left", [
     "After unfolding, does the hole count have the same prime/non-prime status as LEFT?",
-    "Are LEFT and the unfolded hole count both prime or both not prime?",
+    "Are LEFT and the unfolded punched-hole count both prime or both not prime?",
     "Check the unfolded holes against LEFT: do they match on being prime versus non-prime?"
   ]);
   addFriendly("paper_x_square_like_right", [
     "After unfolding, does the hole count have the same square-number status as RIGHT?",
-    "Are RIGHT and the unfolded hole count both square numbers or both not square numbers?",
+    "Are RIGHT and the unfolded punched-hole count both square numbers or both not square numbers?",
     "Check the unfolded holes against RIGHT: do they match on being square versus not square?"
   ]);
 
@@ -75358,6 +75358,887 @@ try{
     }
   }catch(_){ }
   try{ window.EUCA_V6598C_REGISTRY_SIGNATURE_CLEANUP = {patch:PATCH_VERSION, specsTouched, atomicsAdded}; }catch(_){ }
+})();
+
+
+
+// ============================================================================
+// v6.6.1 — EXPERIMENTAL DENSIFICATION BRANCH RUNFIX
+// ---------------------------------------------------------------------------
+// Determined, non-arbitrary expansion: reuse existing value domains,
+// state-chain transforms, predicates, witness search, relation equality,
+// epistemic sufficiency and inverse/abductive frames.  This branch explicitly
+// does NOT add Stroop-like perceptual conflict tasks: executive pressure is
+// expressed through updating, trace readout, quantified transformed values,
+// invariance, fixed points, sufficiency stopping and exact explanatory fit.
+// ============================================================================
+(function registerV660ExperimentalDensification(){
+  const PATCH_VERSION = "v6.6.1-experimental-densification-runfix";
+  const arr = x => Array.isArray(x) ? x : [];
+  const uniqLocal = xs => Array.from(new Set(arr(xs).map(x => String(x || "").trim()).filter(Boolean)));
+  const clampLocal = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  const rint = (lo, hi) => Math.floor(lo + Math.random() * (hi - lo + 1));
+  const title = id => String(id || "atomic").replace(/_/g," ");
+  function regAtomic(id, kind, label){
+    try{ if(typeof safeRegisterAtomic === "function") return safeRegisterAtomic(id, {kind, label, desc:label, source:PATCH_VERSION}); }catch(_){ }
+    try{ if(typeof registerAtomic === "function" && !ATOMIC_REGISTRY[id]) return registerAtomic({id, kind, label, phrase:()=>label, evaluate:()=>null, reviewLine:()=>label, source:PATCH_VERSION}); }catch(_){ }
+    return null;
+  }
+  const ATOMS = {
+    trace_process_readout:"trace_process_readout",
+    trace_peak_total_readout:"trace_peak_total_readout",
+    trace_monotonicity_readout:"trace_monotonicity_readout",
+    trace_quantified_predicate:"trace_quantified_predicate",
+    transformed_value_quantifier:"transformed_value_quantifier",
+    invariant_under_transform:"invariant_under_transform",
+    fixed_point_test:"fixed_point_test",
+    truth_target_choice:"truth_target_choice",
+    sequential_sufficiency_stop:"sequential_sufficiency_stop",
+    abductive_exact_fit:"abductive_exact_fit",
+    derived_endpoint_witness:"derived_endpoint_witness",
+    retrospective_state_readout:"retrospective_state_readout",
+    relation_preservation_channel:"relation_preservation_channel",
+    transform_complement_10:"transform_complement_10",
+    transform_distance_10:"transform_distance_10",
+    transform_double:"transform_double",
+    transform_plus_2:"transform_plus_2",
+    transform_reflect_12:"transform_reflect_12"
+  };
+  const atomLabels = {
+    trace_process_readout:"Read a property of an update trace, not only its final state",
+    trace_peak_total_readout:"Identify the peak total inside a state trace",
+    trace_monotonicity_readout:"Evaluate monotonic change across a state trace",
+    trace_quantified_predicate:"Apply a quantifier across trace events",
+    transformed_value_quantifier:"Apply a quantifier after a motivated transform",
+    invariant_under_transform:"Decide which relation survives a transform",
+    fixed_point_test:"Test whether a value maps to itself under a transform",
+    truth_target_choice:"Choose the value that makes composed truth targets hold",
+    sequential_sufficiency_stop:"Decide when sequential evidence becomes sufficient",
+    abductive_exact_fit:"Select the operation that exactly explains an observed result",
+    derived_endpoint_witness:"Search a witness interval whose endpoints are derived",
+    retrospective_state_readout:"Recall an earlier state after later updates",
+    relation_preservation_channel:"Compare whether a relation is preserved across channels",
+    transform_complement_10:"Use complement-to-10 as a determined transform",
+    transform_distance_10:"Use distance-from-10 as a determined transform",
+    transform_double:"Use doubling as a determined transform",
+    transform_plus_2:"Use plus-two as a determined transform",
+    transform_reflect_12:"Use reflection across the 1–12 range as a determined transform",
+    working_memory_update:"Maintain and update a working state",
+    sequential_rule_load:"Apply a rule across a short sequence",
+    relation_equivalence:"Judge whether two relations are equivalent",
+    equivalence_relation:"Test sameness under a stated relation",
+    threshold_relation:"Compare a value against a threshold",
+    boolean_compound_truth:"Evaluate a composed truth condition",
+    class_inclusion:"Test membership in a stated class"
+  };
+  for(const [id,label] of Object.entries(atomLabels)) regAtomic(id, id.startsWith("transform_") ? "operation" : "relation", label);
+
+  function isPrimeLocal(n){
+    n = Number(n);
+    if(typeof isPrime === "function") try{ return !!isPrime(n); }catch(_){ }
+    if(!Number.isInteger(n) || n < 2) return false;
+    for(let d=2; d*d<=n; d++) if(n%d===0) return false;
+    return true;
+  }
+  function isSquareLocal(n){
+    n = Number(n);
+    if(typeof isSquareNumber === "function") try{ return !!isSquareNumber(n); }catch(_){ }
+    if(!Number.isInteger(n) || n < 0) return false;
+    const r = Math.round(Math.sqrt(n)); return r*r === n;
+  }
+  const PREDS = [
+    {id:"even", label:"even", holds:n=>n % 2 === 0, atom:"pred_is_even"},
+    {id:"odd", label:"odd", holds:n=>Math.abs(n % 2) === 1, atom:"pred_is_odd"},
+    {id:"prime", label:"prime", holds:n=>isPrimeLocal(n), atom:"pred_is_prime"},
+    {id:"square", label:"a square number", holds:n=>isSquareLocal(n), atom:"pred_is_square"},
+    {id:"multiple3", label:"a multiple of 3", holds:n=>n % 3 === 0, atom:"pred_multiple_3"}
+  ];
+  for(const p of PREDS) regAtomic(p.atom, "predicate", `Check whether a value is ${p.label}`);
+
+  const TRANSFORMS = [
+    {id:"complement10", label:"complement to 10", text:"replace n with 10 − n", atom:ATOMS.transform_complement_10, map:n=>10-n, domain:n=>Number.isFinite(n) && n>=0 && n<=10},
+    {id:"distance10", label:"distance from 10", text:"replace n with |n − 10|", atom:ATOMS.transform_distance_10, map:n=>Math.abs(n-10), domain:n=>Number.isFinite(n) && n>=0 && n<=20},
+    {id:"plus2", label:"add 2", text:"replace n with n + 2", atom:ATOMS.transform_plus_2, map:n=>n+2, domain:n=>Number.isFinite(n) && n<=20},
+    {id:"double", label:"double", text:"replace n with 2 × n", atom:ATOMS.transform_double, map:n=>2*n, domain:n=>Number.isFinite(n) && n<=12},
+    {id:"reflect12", label:"reflect in the 1–12 range", text:"replace n with 13 − n", atom:ATOMS.transform_reflect_12, map:n=>13-n, domain:n=>Number.isFinite(n) && n>=1 && n<=12}
+  ];
+  const T = id => TRANSFORMS.find(t => t.id === id) || TRANSFORMS[0];
+  function repFor(a,b,cat){
+    try{ const v = pickValueComparisonVisuals(a,b,cat || {}, false); if(v && v[0] && v[1]) return v; }catch(_){ }
+    const mk = (x) => {
+      try{ const rep = (typeof allowedReps === "function" ? allowedReps(x) : ["digit"])[0] || "digit"; return makeVisualInstance(x, rep); }catch(_){ return {rep:"digit", seed:null, spec:null}; }
+    };
+    return [mk(a), mk(b)];
+  }
+  function boolTrial(cat, m, a, b, question, isTrue, payload={}, extra={}){
+    const [va,vb] = repFor(a,b,cat);
+    return {
+      a, b, repA:va.rep, repB:vb.rep,
+      stimSeedA:Number.isFinite(va.seed) ? Number(va.seed) : null,
+      stimSeedB:Number.isFinite(vb.seed) ? Number(vb.seed) : null,
+      stimSpecA:typeof cloneStimReplaySpec === "function" ? cloneStimReplaySpec(va.rep, va.spec) : (va.spec || null),
+      stimSpecB:typeof cloneStimReplaySpec === "function" ? cloneStimReplaySpec(vb.rep, vb.spec) : (vb.spec || null),
+      question, delayedPrompt:question, isTrue:!!isTrue, targetOutcome:!!isTrue,
+      responseFormat:"bool", catId:cat.id, family:cat.family || "experimental_densification",
+      frameTags:uniqLocal(["metric_relation","transformation_relation"].concat(cat.frameTags || [])),
+      mechanismTags:uniqLocal(["working_state","sequential_rule_load"].concat(cat.mechanismTags || [])),
+      executiveTags:uniqLocal(["updating","rule_switch"].concat(cat.executiveTags || [])),
+      conflictTypes:uniqLocal(cat.conflictTypes || []),
+      payload:{...(payload || {}), experimentVersion:PATCH_VERSION},
+      atomicsUsed:arr(cat.atomicsUsed).slice(),
+      experienceAxis:cat.experienceAxis || "state_transform",
+      ...extra
+    };
+  }
+  function choiceTrial(cat, m, a, b, question, optionTexts, correctIndex, payload={}, distractorTypes=[]){
+    const opts = optionTexts.map((txt,i)=>{
+      const dt = i === correctIndex ? "correct" : (distractorTypes[i] || "semantic_near_miss");
+      return (typeof l0ChoiceOption === "function") ? l0ChoiceOption(txt, i===correctIndex, dt) : {text:String(txt), correct:i===correctIndex, distractorType:dt};
+    });
+    let trial = null;
+    try{ trial = buildL0ChoiceTrialFromOptions(cat, m, a, b, question, opts, correctIndex, payload); }catch(_){ trial = null; }
+    if(trial){
+      trial.frameTags = uniqLocal(["metric_relation","transformation_relation"].concat(cat.frameTags || []));
+      trial.mechanismTags = uniqLocal(["working_state","sequential_rule_load"].concat(cat.mechanismTags || []));
+      trial.executiveTags = uniqLocal(["updating","rule_switch"].concat(cat.executiveTags || []));
+      trial.conflictTypes = uniqLocal(cat.conflictTypes || []);
+      trial.atomicsUsed = arr(cat.atomicsUsed).slice();
+      trial.experienceAxis = cat.experienceAxis || "state_transform";
+      trial.payload = {...(trial.payload || {}), ...(payload || {}), experimentVersion:PATCH_VERSION};
+    }
+    return trial;
+  }
+  function sampleBool(cat, m, maker, attempts=90){
+    const target = (typeof answerBudgetPickBoolTarget === "function") ? !!answerBudgetPickBoolTarget(cat.id) : Math.random() < 0.5;
+    let fallback = null;
+    for(let i=0;i<attempts;i++){
+      const tr = maker(target, i);
+      if(!tr) continue;
+      fallback = fallback || tr;
+      if(!!tr.isTrue === target) return tr;
+    }
+    return fallback;
+  }
+  function pushUnique(vals, v, lo=0, hi=30){
+    v = Number(v);
+    if(Number.isInteger(v) && v >= lo && v <= hi && !vals.includes(v)) vals.push(v);
+  }
+  function basePair(m, min=1){
+    const hi = Math.max(min, Math.min(12, Number(m)||12));
+    return [rint(min, hi), rint(min, hi)];
+  }
+  function stepLabel(i){ return i === 0 ? "start" : `after step ${i}`; }
+
+  function updateText(u, before){
+    try{ return typeof u.text === "function" ? u.text(before) : String(u.text || u.id || "update"); }catch(_){ return String(u?.id || "update"); }
+  }
+  function applyUpdateLocal(st, upd){
+    try{ if(typeof l0StateChainApplyUpdate === "function") return l0StateChainApplyUpdate(st, upd); }catch(_){ }
+    try{
+      const before = {...st};
+      const val = Number(upd.fn(before));
+      if(!Number.isFinite(val)) return null;
+      const after = {...before};
+      after[upd.side] = val;
+      return {before, after, value:val, side:upd.side, text:updateText(upd,before)};
+    }catch(_){ return null; }
+  }
+  function buildTrace(a,b,depth=2){
+    const source = arr(typeof L0_STATE_CHAIN_UPDATES !== "undefined" ? L0_STATE_CHAIN_UPDATES : []);
+    if(!source.length) return null;
+    let st = {left:a, right:b, originalLeft:a, originalRight:b};
+    const steps = [], states = [{left:a,right:b,total:a+b,label:"start"}];
+    for(let i=0;i<depth;i++){
+      let candidates = source.filter(u => i === 0 ? u.stage === 0 : u.stage <= 1);
+      if(i > 0 && steps.length){
+        const prev = steps[steps.length-1];
+        const dep = candidates.filter(u => u.uses && u.uses === prev.side && u.side !== prev.side);
+        if(dep.length) candidates = dep;
+      }
+      candidates = candidates.slice().sort(()=>Math.random()-0.5);
+      let picked = null;
+      for(const u of candidates){
+        const app = applyUpdateLocal(st, u);
+        if(!app) continue;
+        const L = Number(app.after.left), R = Number(app.after.right);
+        if(!Number.isFinite(L) || !Number.isFinite(R) || L < 0 || R < 0 || L > 24 || R > 24) continue;
+        picked = {u, app}; break;
+      }
+      if(!picked) return null;
+      steps.push({id:picked.u.id, side:picked.u.side, before:picked.app.before, after:picked.app.after, value:picked.app.value, text:updateText(picked.u,picked.app.before)});
+      st = {...picked.app.after};
+      states.push({left:st.left, right:st.right, total:st.left+st.right, label:`after step ${i+1}`});
+    }
+    return {start:{left:a,right:b}, steps, states};
+  }
+  function traceSummary(trace){
+    return arr(trace?.steps).map((s,i)=>`Step ${i+1}: ${String(s.text || s.id).replace(/\.$/,"")} → LEFT ${s.after.left}, RIGHT ${s.after.right}.`).join(" ");
+  }
+  function tracePeakTrial(cat,m){
+    for(let tries=0; tries<80; tries++){
+      const [a,b] = basePair(m); const trace = buildTrace(a,b,2); if(!trace) continue;
+      const totals = trace.states.map(s=>s.total); const max = Math.max(...totals);
+      if(totals.filter(x=>x===max).length !== 1) continue;
+      const correct = totals.indexOf(max);
+      const opts = trace.states.map((s,i)=>`${stepLabel(i)}: total ${s.total}`);
+      while(opts.length < 4) opts.push("none of these");
+      const q = `Apply the two updates. At which point is LEFT + RIGHT largest?`;
+      const review = [traceSummary(trace), `Totals: ${trace.states.map((s,i)=>`${stepLabel(i)}=${s.total}`).join(" · ")}.`, `Largest total: ${max} at ${stepLabel(correct)}.`];
+      return choiceTrial(cat,m,a,b,q,opts,correct,{kind:"trace_peak_total", trace, reviewLines:review, correctText:opts[correct]}, ["time_order_flip","step_confusion","none"]);
+    }
+    return null;
+  }
+  function traceQuantifierTrial(cat,m){
+    return sampleBool(cat,m,()=>{
+      const [a,b] = basePair(m); const trace = buildTrace(a,b,2); if(!trace) return null;
+      const vals = trace.steps.map(s=>Number(s.value));
+      const evenCount = vals.filter(v=>v%2===0).length;
+      const q = `Apply both updates. Did exactly one update produce an even new value?`;
+      const review = [traceSummary(trace), `New values produced by the updates: ${vals.join(" and ")}.`, `Even produced values: ${evenCount}; exactly one → ${evenCount===1 ? "YES" : "NO"}.`];
+      return boolTrial(cat,m,a,b,q,evenCount===1,{kind:"trace_quantifier_even", trace, reviewLines:review});
+    });
+  }
+  function transformQuantifierTrial(cat,m){
+    return sampleBool(cat,m,(target)=>{
+      const tr = T(Math.random()<0.5 ? "distance10" : "complement10");
+      const pred = PREDS[rint(0,2)];
+      const hi = tr.id === "complement10" ? Math.min(10,Number(m)||12) : Math.min(12,Number(m)||12);
+      const a = rint(1,hi), b = rint(1,hi);
+      if(!tr.domain(a) || !tr.domain(b)) return null;
+      const ta = tr.map(a), tb = tr.map(b);
+      const both = pred.holds(ta) && pred.holds(tb);
+      const q = `First ${tr.text} for LEFT and RIGHT. Are both transformed values ${pred.label}?`;
+      const review = [`Transform: LEFT ${a} → ${ta}; RIGHT ${b} → ${tb}.`, `${ta} is ${pred.holds(ta)?"":"not "}${pred.label}; ${tb} is ${pred.holds(tb)?"":"not "}${pred.label}.`, `Both transformed values ${pred.label} → ${both ? "YES" : "NO"}.`];
+      return boolTrial(cat,m,a,b,q,both,{kind:"transformed_quantifier", transform:tr.id, predicate:pred.id, reviewLines:review});
+    });
+  }
+  function invariantTrial(cat,m){
+    for(let tries=0; tries<80; tries++){
+      const a = rint(1,10), b = rint(1,10);
+      if(a===b || a===5 || b===5 || a+b===10) continue;
+      const ta = 10-a, tb = 10-b;
+      const opts = [
+        "the gap between the two values",
+        "which side is larger",
+        "the sum of the two values",
+        "each value itself"
+      ];
+      const q = `Apply complement-to-10 to both values. Which relation is preserved?`;
+      const review = [`Original: LEFT ${a}, RIGHT ${b}; transformed: LEFT ${ta}, RIGHT ${tb}.`, `Original gap |${a}−${b}|=${Math.abs(a-b)}; transformed gap |${ta}−${tb}|=${Math.abs(ta-tb)}.`, `The gap is preserved; order is reversed and the sum changes from ${a+b} to ${ta+tb}.`];
+      return choiceTrial(cat,m,a,b,q,opts,0,{kind:"invariant_under_transform", transform:"complement10", reviewLines:review}, ["order_inversion_lure","sum_lure","identity_lure"]);
+    }
+    return null;
+  }
+  function fixedPointTrial(cat,m){
+    return sampleBool(cat,m,(target,i)=>{
+      const a = target ? 5 : [1,2,3,4,6,7,8,9,10][rint(0,8)];
+      const b = rint(1,Math.min(10,Number(m)||10));
+      const mapped = 10-a;
+      const ok = mapped === a;
+      const q = `Under complement-to-10, does LEFT map to itself?`;
+      const review = [`Complement-to-10 maps LEFT ${a} to 10 − ${a} = ${mapped}.`, `A fixed point stays unchanged.`, `${mapped} ${mapped===a ? "equals" : "does not equal"} ${a} → ${ok ? "YES" : "NO"}.`];
+      return boolTrial(cat,m,a,b,q,ok,{kind:"fixed_point", transform:"complement10", reviewLines:review});
+    });
+  }
+  function truthTargetTrial(cat,m){
+    for(let tries=0; tries<80; tries++){
+      const [a,b] = basePair(m); const mode = ["both","exactly_one","neither"][rint(0,2)];
+      const candidates = [];
+      for(let v=0; v<=14; v++){
+        const p1 = v % 2 === 0;
+        const p2 = v + a > 10;
+        const ok = mode === "both" ? (p1 && p2) : (mode === "exactly_one" ? (p1 !== p2) : (!p1 && !p2));
+        if(ok) candidates.push(v);
+      }
+      if(!candidates.length) continue;
+      const ans = candidates[rint(0,candidates.length-1)];
+      const opts = [ans];
+      for(const v of [ans-1, ans+1, a, b, 0, 5, 10, 12]) pushUnique(opts,v,0,14);
+      for(let v=0; opts.length<4 && v<=14; v++) pushUnique(opts,v,0,14);
+      const sliced = opts.slice(0,4);
+      if(!sliced.includes(ans)) continue;
+      const ci = sliced.indexOf(ans);
+      const modeText = mode === "both" ? "both statements true" : (mode === "exactly_one" ? "exactly one statement true" : "both statements false");
+      const q = `Choose the candidate that makes ${modeText}: “candidate is even” and “candidate + LEFT is greater than 10”.`;
+      const review = [`LEFT is ${a}. Candidate ${ans}: even is ${ans%2===0}; ${ans}+${a}=${ans+a}, greater than 10 is ${ans+a>10}.`, `Target: ${modeText}.`, `Only the displayed correct candidate satisfies that truth target.`];
+      return choiceTrial(cat,m,a,b,q,sliced.map(String),ci,{kind:"truth_target_choice", mode, reviewLines:review}, []);
+    }
+    return null;
+  }
+  function sequentialSufficiencyTrial(cat,m){
+    for(let tries=0; tries<120; tries++){
+      const domainMax = 12;
+      const hidden = rint(1,domainMax);
+      const parity = hidden % 2 === 0 ? "even" : "odd";
+      const gt = hidden > 6;
+      const clues = [
+        {label:`Clue 1: the value is ${parity}.`, filter:n=>(n%2===0) === (parity==="even")},
+        {label:`Clue 2: the value is ${gt ? "greater than" : "not greater than"} 6.`, filter:n=>(n>6)===gt},
+        {label:`Clue 3: the value is exactly ${hidden}.`, filter:n=>n===hidden}
+      ];
+      let possible = Array.from({length:domainMax},(_,i)=>i+1), earliest = -1, counts=[];
+      for(let i=0;i<clues.length;i++){
+        possible = possible.filter(clues[i].filter); counts.push(possible.length);
+        if(possible.length === 1 && earliest < 0) earliest = i;
+      }
+      if(earliest < 0) continue;
+      const a = hidden, b = counts[0];
+      const opts = ["after clue 1", "after clue 2", "after clue 3", "not determined by these clues"];
+      const q = `A hidden value is from 1 to 12. What is the earliest clue after which the value is determined?`;
+      const review = [`${clues.map(c=>c.label).join(" ")}`, `Remaining possibilities after each clue: ${counts.join(" → ")}.`, `First point with exactly one possible value: after clue ${earliest+1}.`];
+      return choiceTrial(cat,m,a,b,q,opts,earliest,{kind:"sequential_sufficiency", hidden, clues:clues.map(c=>c.label), counts, reviewLines:review}, ["premature_stop","late_stop","underdetermined_lure"]);
+    }
+    return null;
+  }
+  function abductiveTrial(cat,m){
+    const ops = [
+      {id:"plus2", label:"add 2", atom:ATOMS.transform_plus_2, map:n=>n+2},
+      {id:"double", label:"double", atom:ATOMS.transform_double, map:n=>2*n},
+      {id:"distance10", label:"distance from 10", atom:ATOMS.transform_distance_10, map:n=>Math.abs(n-10)},
+      {id:"complement10", label:"complement to 10", atom:ATOMS.transform_complement_10, map:n=>10-n}
+    ];
+    for(let tries=0; tries<120; tries++){
+      const start = rint(1,10); const op = ops[rint(0,ops.length-1)]; const result = op.map(start);
+      if(result < 0 || result > 20) continue;
+      const matches = ops.filter(o=>o.map(start)===result);
+      if(matches.length !== 1) continue;
+      const q = `LEFT was transformed into RIGHT. Which operation explains the result exactly?`;
+      const opts = ops.map(o=>o.label); const ci = ops.findIndex(o=>o.id===op.id);
+      const review = [`Start: LEFT ${start}. Observed result: RIGHT ${result}.`, `${op.label}: ${start} → ${result}.`, `The other candidate operations do not produce ${result} from ${start}.`];
+      return choiceTrial(cat,m,start,result,q,opts,ci,{kind:"abductive_best_explanation", op:op.id, reviewLines:review}, ops.map((_,i)=>i===ci?"correct":"operation_lure"));
+    }
+    return null;
+  }
+  function witnessDerivedEndpointTrial(cat,m){
+    for(let tries=0; tries<80; tries++){
+      const a = rint(1,10), b = rint(1,10);
+      const ea = Math.abs(a-10), eb = Math.abs(b-10);
+      const lo = Math.min(ea,eb), hi = Math.max(ea,eb);
+      const vals = [];
+      for(let v=lo; v<=hi; v++) if(v%2===0) vals.push(v);
+      if(!vals.length) continue;
+      const ans = Math.max(...vals);
+      const opts = [ans];
+      for(const v of [ans-2, ans+2, lo, hi, a, b]) pushUnique(opts,v,0,12);
+      for(let v=0; opts.length<4 && v<=12; v+=2) pushUnique(opts,v,0,12);
+      const finalOpts = opts.slice(0,4); if(!finalOpts.includes(ans)) continue;
+      const q = `Use each value’s distance from 10 as the interval endpoints. What is the largest even value in that inclusive interval?`;
+      const review = [`Derived endpoints: LEFT |${a}−10|=${ea}; RIGHT |${b}−10|=${eb}.`, `Inclusive interval: ${lo} through ${hi}.`, `Even values there: ${vals.join(", ")}; largest is ${ans}.`];
+      return choiceTrial(cat,m,a,b,q,finalOpts.map(String),finalOpts.indexOf(ans),{kind:"derived_endpoint_witness", reviewLines:review}, []);
+    }
+    return null;
+  }
+  function retrospectiveChainTrial(cat,m){
+    for(let tries=0; tries<80; tries++){
+      const [a,b] = basePair(m); const trace = buildTrace(a,b,2); if(!trace) continue;
+      const ans = Number(trace.states[1].left);
+      const opts = [ans];
+      for(const v of [trace.states[2].left, trace.states[0].left, trace.states[1].right, trace.states[2].right, ans+1, ans-1]) pushUnique(opts,v,0,24);
+      if(opts.length < 4) continue;
+      const finalOpts = opts.slice(0,4); if(!finalOpts.includes(ans)) continue;
+      const q = `After two updates, what was LEFT one step ago?`;
+      const review = [traceSummary(trace), `One step ago means after step 1, before step 2.`, `LEFT after step 1 was ${ans}.`];
+      return choiceTrial(cat,m,a,b,q,finalOpts.map(String),finalOpts.indexOf(ans),{kind:"retrospective_state_readout", trace, reviewLines:review}, []);
+    }
+    return null;
+  }
+  function relationPreservationTrial(cat,m){
+    return sampleBool(cat,m,()=>{
+      const a = rint(1,10), b = rint(1,10); if(a===b) return null;
+      const da = Math.abs(a-10), db = Math.abs(b-10);
+      if(da === db) return null;
+      const rawLeftGreater = a > b, transLeftGreater = da > db;
+      const same = rawLeftGreater === transLeftGreater;
+      const q = `Compare the raw pair, then compare the distance-from-10 pair. Is the LEFT-greater relation the same?`;
+      const review = [`Raw comparison: LEFT ${a} ${a>b?">":"<"} RIGHT ${b}.`, `Distance-from-10: LEFT ${da}, RIGHT ${db}; LEFT ${da>db?">":"<"} RIGHT.`, `The LEFT-greater relation is ${same ? "preserved" : "changed"} → ${same?"YES":"NO"}.`];
+      return boolTrial(cat,m,a,b,q,same,{kind:"relation_preservation_channel", reviewLines:review});
+    });
+  }
+
+  function expReviewLines(ctx){
+    const info = ctx?.info || ctx?.trialInfo || ctx || {};
+    const p = info.payload || {};
+    if(Array.isArray(p.reviewLines) && p.reviewLines.length) return p.reviewLines.slice(0,3);
+    return ["Experimental densification item.", "The answer follows from the displayed values and the stated transform/rule.", `Correct answer: ${info.isTrue ? "YES" : (info.answerLabel || (info.answer ?? "shown"))}.`];
+  }
+  function specFor(cat){
+    const prompts = arr(cat.variants).map(v => ({q:v.q || v.text || cat.id}));
+    return {
+      id:cat.id, legacyId:cat.id, layer:"L0", responseFormat:cat.responseFormat || "yesno",
+      family:cat.family || "experimental_densification", canonicalFamily:cat.family || "experimental_densification",
+      minLevel:cat.tier || 5, minM:cat.minM || 10,
+      atomicsUsed:arr(cat.atomicsUsed).slice(), prompts,
+      promptBuilder:()=>prompts[0]?.q || cat.id,
+      verifier:()=>null,
+      reviewBuilder:(state)=>expReviewLines(state),
+      replayContract:{kind:"value_pair_rule", deterministic:true, randomReferent:false},
+      labelOntology:{family:cat.family || "experimental_densification", responseFormat:cat.responseFormat || "yesno"}
+    };
+  }
+  const cats = [
+    {id:"exp_trace_peak_total", tier:5, minM:10, family:"experimental_trace_process", responseFormat:"choice", experienceAxis:"procedural_state", frameTags:["working_state","updating","sequential_rule","metric_relation"], atomicsUsed:[ATOMS.trace_process_readout,ATOMS.trace_peak_total_readout,"working_memory_update","sequential_rule_load"], variants:[{q:"At which point was the update-chain total largest?"},{q:"During the two updates, when did LEFT + RIGHT peak?"},{q:"After applying the updates, identify the step with the highest total."}], buildChoiceTrial:tracePeakTrial},
+    {id:"exp_trace_exactly_one_even_update", tier:5, minM:10, family:"experimental_trace_process", responseFormat:"yesno", experienceAxis:"procedural_state", frameTags:["working_state","updating","sequential_rule","quantifier_relation"], atomicsUsed:[ATOMS.trace_process_readout,ATOMS.trace_quantified_predicate,"quantifier_exactly_one","pred_is_even","working_memory_update"], variants:[{q:"Did exactly one update produce an even new value?"},{q:"Across the update chain, was one produced value even and the other not?"},{q:"Check both update outputs: exactly one even?"}], buildChoiceTrial:traceQuantifierTrial},
+    {id:"exp_transform_quantifier_both", tier:5, minM:10, family:"experimental_transform_quantifier", responseFormat:"yesno", experienceAxis:"state_transform", frameTags:["transformation_relation","quantifier_relation","class_inclusion"], atomicsUsed:[ATOMS.transformed_value_quantifier,ATOMS.transform_distance_10,ATOMS.transform_complement_10,"quantifier_both","pred_is_prime","pred_is_even"], variants:[{q:"After the stated transform, do both values satisfy the property?"},{q:"Transform LEFT and RIGHT first; are both transformed results in the named class?"},{q:"Apply the transform, then test both transformed values."}], buildChoiceTrial:transformQuantifierTrial},
+    {id:"exp_invariant_complement10_gap", tier:5, minM:10, family:"experimental_invariance", responseFormat:"choice", experienceAxis:"state_transform", frameTags:["transformation_relation","equivalence_relation","metric_relation"], atomicsUsed:[ATOMS.invariant_under_transform,ATOMS.transform_complement_10,"metric_gap_distance","relation_equivalence"], variants:[{q:"Under complement-to-10, which relation is preserved?"},{q:"After both values are complemented to 10, what survives unchanged?"},{q:"Which relation remains invariant under the complement-to-10 map?"}], buildChoiceTrial:invariantTrial},
+    {id:"exp_fixed_point_complement10_left", tier:4, minM:10, family:"experimental_fixed_point", responseFormat:"yesno", experienceAxis:"state_transform", frameTags:["transformation_relation","equivalence_relation"], atomicsUsed:[ATOMS.fixed_point_test,ATOMS.transform_complement_10,"equivalence_relation"], variants:[{q:"Does LEFT map to itself under complement-to-10?"},{q:"Is LEFT a fixed point of the complement-to-10 rule?"},{q:"If LEFT becomes 10 − LEFT, does it stay unchanged?"}], buildChoiceTrial:fixedPointTrial},
+    {id:"exp_truth_target_choice", tier:6, minM:10, family:"experimental_truth_target", responseFormat:"choice", experienceAxis:"set_logic", frameTags:["quantifier_relation","class_inclusion","metric_relation"], atomicsUsed:[ATOMS.truth_target_choice,"pred_is_even","threshold_relation","boolean_compound_truth"], variants:[{q:"Choose the candidate that makes the target truth pattern hold."},{q:"Which value makes the two stated claims both true, exactly-one true, or both false?"},{q:"Select the number that satisfies the requested truth target."}], buildChoiceTrial:truthTargetTrial},
+    {id:"exp_sequential_sufficiency_stop", tier:6, minM:10, family:"experimental_epistemic_sufficiency", responseFormat:"choice", experienceAxis:"epistemic", frameTags:["class_inclusion","threshold_relation","source_relation"], atomicsUsed:[ATOMS.sequential_sufficiency_stop,"epistemic_sufficiency","class_inclusion","threshold_relation"], variants:[{q:"What is the earliest clue that determines the hidden value?"},{q:"As clues arrive one by one, when is there enough information?"},{q:"Choose the first point where the answer is forced."}], buildChoiceTrial:sequentialSufficiencyTrial},
+    {id:"exp_abductive_exact_operation", tier:5, minM:10, family:"experimental_abduction", responseFormat:"choice", experienceAxis:"source_rule", frameTags:["source_relation","transformation_relation","metric_relation"], atomicsUsed:[ATOMS.abductive_exact_fit,ATOMS.transform_plus_2,ATOMS.transform_double,ATOMS.transform_distance_10,ATOMS.transform_complement_10], variants:[{q:"Which operation exactly explains LEFT becoming RIGHT?"},{q:"Select the rule that maps the start value to the observed result."},{q:"What transformation best explains the displayed input-output pair?"}], buildChoiceTrial:abductiveTrial},
+    {id:"exp_witness_derived_endpoint_even", tier:5, minM:10, family:"experimental_witness_derived", responseFormat:"choice", experienceAxis:"witness_search", frameTags:["metric_relation","class_inclusion","transformation_relation"], atomicsUsed:[ATOMS.derived_endpoint_witness,ATOMS.transform_distance_10,"pred_is_even","witness_boundary_plain_language"], variants:[{q:"Use derived endpoints, then choose the largest even witness."},{q:"After deriving the interval endpoints, what is the largest even value inside?"},{q:"Find the even witness from an interval made by transformed values."}], buildChoiceTrial:witnessDerivedEndpointTrial},
+    {id:"exp_deep_chain_retrospective_left", tier:6, minM:10, family:"experimental_deep_state_chain", responseFormat:"choice", experienceAxis:"procedural_state", frameTags:["working_state","updating","sequential_rule","source_relation"], atomicsUsed:[ATOMS.retrospective_state_readout,"working_memory_update","sequential_rule_load",ATOMS.trace_process_readout], variants:[{q:"After two updates, what was LEFT one step ago?"},{q:"Track the chain and report the previous LEFT value."},{q:"Which value did LEFT have before the final update?"}], buildChoiceTrial:retrospectiveChainTrial},
+    {id:"exp_relation_preservation_distance10", tier:5, minM:10, family:"experimental_relation_preservation", responseFormat:"yesno", experienceAxis:"relation_equivalence", frameTags:["comparison","transformation_relation","relation_equivalence"], atomicsUsed:[ATOMS.relation_preservation_channel,ATOMS.transform_distance_10,"role_larger","relation_equivalence"], variants:[{q:"Is the LEFT-greater relation preserved after distance-from-10?"},{q:"Compare raw values and distance-from-10 values: same larger side?"},{q:"Does the order relation survive the distance-from-10 remapping?"}], buildChoiceTrial:relationPreservationTrial}
+  ];
+  function registerCat(cat){
+    try{
+      if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return false;
+      const existing = POSNER_CATS.find(c=>c && c.id === cat.id);
+      if(!existing) POSNER_CATS.push(cat);
+      const live = existing || cat;
+      const spec = (typeof SPEC_REGISTRY !== "undefined" && SPEC_REGISTRY[cat.id]) || (typeof registerSpec === "function" ? registerSpec(specFor(live)) : null);
+      if(spec){
+        live._registrySpec = spec; live.registrySpecId = spec.id; live.canonicalSpecId = spec.id;
+        try{ if(typeof attachRegistryRuntimeEntry === "function") attachRegistryRuntimeEntry("L0", live, spec); }catch(_){ }
+      }
+      return !existing;
+    }catch(e){ try{ if(console && console.warn) console.warn("[Eucalculia v6.6.1] experimental cat registration failed", cat?.id, e); }catch(_){} return false; }
+  }
+  let addedCats = 0;
+  for(const c of cats) if(registerCat(c)) addedCats++;
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+  try{ if(typeof _availablePosnerCatsCache !== "undefined" && _availablePosnerCatsCache.clear) _availablePosnerCatsCache.clear(); }catch(_){ }
+  try{ if(typeof _samplerInvalidateAvailCache === "function") _samplerInvalidateAvailCache("v660_experimental_densification"); }catch(_){ }
+
+  // Lift recursive-style process readouts into live L0 state chains without
+  // changing their public mechanics.  The injected probe is still YES/NO and
+  // refers only to the updates already performed in that chain.
+  function stateTraceReadoutFromChain(chain){
+    const probes = arr(chain?.probes);
+    if(probes.length < 2) return null;
+    const states = [];
+    const first = probes[0];
+    if(first?.workingStateBefore) states.push({left:first.workingStateBefore.left, right:first.workingStateBefore.right, total:Number(first.workingStateBefore.left)+Number(first.workingStateBefore.right), label:"start"});
+    for(let i=0;i<probes.length;i++){
+      const st = probes[i].workingStateAfter;
+      if(st) states.push({left:st.left, right:st.right, total:Number(st.left)+Number(st.right), label:`after step ${i+1}`});
+    }
+    if(states.length < 3) return null;
+    const options = [
+      {
+        id:"trace_total_ever_exceeds_10",
+        q:"Across the update chain so far, did LEFT + RIGHT ever exceed 10?",
+        value:states.some(s=>s.total>10),
+        atoms:[ATOMS.trace_process_readout,ATOMS.trace_peak_total_readout,"threshold_relation"],
+        line:()=>`Totals across the chain: ${states.map(s=>`${s.label}=${s.total}`).join(" · ")}.`
+      },
+      {
+        id:"trace_left_monotone",
+        q:"Across the update chain so far, did LEFT move monotonically?",
+        value:(()=>{ const xs=states.map(s=>Number(s.left)); const inc=xs.every((v,i)=>i===0||v>=xs[i-1]); const dec=xs.every((v,i)=>i===0||v<=xs[i-1]); return inc||dec; })(),
+        atoms:[ATOMS.trace_process_readout,ATOMS.trace_monotonicity_readout],
+        line:()=>`LEFT values: ${states.map(s=>s.left).join(" → ")}. Monotone means never reversing direction.`
+      },
+      {
+        id:"trace_order_reversed_once",
+        q:"Across the update chain so far, did the LEFT/RIGHT order reverse at least once?",
+        value:(()=>{ const sig=states.map(s=>s.left===s.right?0:(s.left>s.right?1:-1)).filter(x=>x!==0); return sig.slice(1).some((x,i)=>x!==sig[i]); })(),
+        atoms:[ATOMS.trace_process_readout,ATOMS.relation_preservation_channel,"role_larger"],
+        line:()=>`Order signs across non-tied states: ${states.map(s=>s.left===s.right?"tie":(s.left>s.right?"LEFT>RIGHT":"LEFT<RIGHT")).join(" · ")}.`
+      }
+    ];
+    return options[rint(0,options.length-1)];
+  }
+  try{
+    if(typeof buildL0StateChain === "function" && !buildL0StateChain.__v660TraceProcessWrapped){
+      const previousBuildL0StateChain = buildL0StateChain;
+      const wrapped = function buildL0StateChainV660(basePos, n=null){
+        const chain = previousBuildL0StateChain.apply(this, arguments);
+        try{
+          if(chain && Array.isArray(chain.probes) && chain.probes.length >= 2 && Math.random() < 0.55){
+            const readout = stateTraceReadoutFromChain(chain);
+            const target = chain.probes[chain.probes.length - 1];
+            if(readout && target){
+              target.question = readout.q;
+              target.delayedPrompt = readout.q;
+              target.isTrue = !!readout.value;
+              target.questionId = readout.id;
+              target.frameTags = uniqLocal(arr(target.frameTags).concat(["working_state","updating","sequential_rule","comparison","metric_relation"]));
+              target.mechanismTags = uniqLocal(arr(target.mechanismTags).concat([ATOMS.trace_process_readout]));
+              target.executiveTags = uniqLocal(arr(target.executiveTags).concat(["updating","rule_switch"]));
+              target.stateChainTraceReadout = {id:readout.id, states, reviewLines:[readout.line(), `Readout: ${readout.q.replace(/\?$/,"")}.`, `Answer: ${readout.value ? "YES" : "NO"}.`], atomicsUsed:readout.atoms};
+            }
+          }
+        }catch(_){ }
+        return chain;
+      };
+      wrapped.__v660TraceProcessWrapped = true;
+      buildL0StateChain = wrapped;
+      try{ window.buildL0StateChain = buildL0StateChain; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    if(typeof makeL0TrialInfoFromStateChainProbe === "function" && !makeL0TrialInfoFromStateChainProbe.__v660TraceReadoutWrapped){
+      const previousMake = makeL0TrialInfoFromStateChainProbe;
+      const wrapped = function makeL0TrialInfoFromStateChainProbeV660(probe, chain=null){
+        const info = previousMake.apply(this, arguments);
+        try{
+          if(probe && probe.stateChainTraceReadout){
+            info.stateChainTraceReadout = probe.stateChainTraceReadout;
+            info.atomicsUsed = uniqLocal(arr(info.atomicsUsed).concat(arr(probe.stateChainTraceReadout.atomicsUsed)));
+            info.canonicalAtomicSignature = (typeof cognitiveAtomicIds === "function" ? cognitiveAtomicIds(info.atomicsUsed) : info.atomicsUsed).join("+");
+          }
+        }catch(_){ }
+        return info;
+      };
+      wrapped.__v660TraceReadoutWrapped = true;
+      makeL0TrialInfoFromStateChainProbe = wrapped;
+      try{ window.makeL0TrialInfoFromStateChainProbe = makeL0TrialInfoFromStateChainProbe; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    if(typeof l0ReviewExplanationLines === "function" && !l0ReviewExplanationLines.__v660TraceAndExperimentalWrapped){
+      const previousReview = l0ReviewExplanationLines;
+      const wrapped = function l0ReviewExplanationLinesV660(info){
+        try{
+          if(info?.stateChainTraceReadout?.reviewLines) return info.stateChainTraceReadout.reviewLines.slice(0,3);
+          if(info?.payload?.experimentVersion === PATCH_VERSION && Array.isArray(info.payload.reviewLines)) return info.payload.reviewLines.slice(0,3);
+        }catch(_){ }
+        return previousReview.apply(this, arguments);
+      };
+      wrapped.__v660TraceAndExperimentalWrapped = true;
+      l0ReviewExplanationLines = wrapped;
+      try{ window.l0ReviewExplanationLines = l0ReviewExplanationLines; }catch(_){ }
+    }
+  }catch(_){ }
+
+  function auditExperimentalDensificationV660(opts={}){
+    const block=[], warnings=[], rows=[];
+    try{
+      for(const c of cats){
+        const live = (typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).find(x=>x && x.id===c.id);
+        const spec = typeof SPEC_REGISTRY !== "undefined" ? SPEC_REGISTRY[c.id] : null;
+        rows.push({id:c.id, live:!!live, spec:!!spec, atomics:arr(spec?.atomicsUsed || live?.atomicsUsed).length, responseFormat:c.responseFormat});
+        if(!live) block.push(`${c.id}: missing live POSNER cat`);
+        if(!spec) block.push(`${c.id}: missing registry spec`);
+        if(live && typeof live.buildChoiceTrial !== "function") block.push(`${c.id}: missing custom builder`);
+        if(spec && (!Array.isArray(spec.atomicsUsed) || spec.atomicsUsed.length < 2)) block.push(`${c.id}: low atomic declaration`);
+      }
+      const stroopMention = JSON.stringify(rows).toLowerCase().includes("stroop");
+      if(stroopMention) block.push("experimental branch must not add Stroop content");
+      if(!(typeof buildL0StateChain === "function" && buildL0StateChain.__v660TraceProcessWrapped)) warnings.push("state-chain trace-process wrapper not detected");
+    }catch(e){ block.push(`audit exception: ${e?.message || e}`); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_VERSION), addedCats, rows, warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), addedCats, rows, warnings, block};
+  }
+  try{ window.auditExperimentalDensificationV660 = auditExperimentalDensificationV660; globalThis.auditExperimentalDensificationV660 = auditExperimentalDensificationV660; }catch(_){ }
+  try{
+    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(previousRunFeatureAudit && !previousRunFeatureAudit.__v660ExperimentalWrapped){
+      const wrapped = function runFeatureAuditV660(feature, opts={}){
+        const f = String(feature || "").toLowerCase().trim();
+        if(["experimental_densification","densification","determined_densification","v660","experimental_branch"].includes(f)){
+          const results = {experimentalDensification:auditExperimentalDensificationV660(opts)};
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.experimentalDensification.status, results};
+        }
+        return previousRunFeatureAudit.apply(this, arguments);
+      };
+      wrapped.__v660ExperimentalWrapped = true;
+      runFeatureAudit = wrapped;
+      try{ window.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    if(typeof CONFIG === "object" && CONFIG){
+      CONFIG.l0StateChainInitialProbability = Math.max(Number(CONFIG.l0StateChainInitialProbability)||0, 0.065);
+      CONFIG.l0StateChain3Probability = Math.max(Number(CONFIG.l0StateChain3Probability)||0, 0.50);
+    }
+  }catch(_){ }
+  try{ window.EUCA_V660_EXPERIMENTAL_DENSIFICATION = {patch:PATCH_VERSION, addedCats, ids:cats.map(c=>c.id), stroop:false}; }catch(_){ }
+})();
+
+
+// =============================================================================
+// VISUAL QUESTION-GATE PAYLOAD GUARD (v6.5.99 / v6.6.2)
+// =============================================================================
+// Some L0 families are not ordinary LEFT/RIGHT questions: the delayed prompt is
+// only well-defined together with a question-source visual (folded paper,
+// Shepard pair, graph gate, Venn gate, balance card).  Older code detected such
+// probes by the *presence* of the payload.  If a payload was lost upstream, the
+// item could still reach INPUT/REVIEW as an ordinary encoded pair.  The review
+// then printed impossible placeholders such as "Unfolded punched-hole count: ?".
+// This guard makes the contract fail-closed: a category that requires a source
+// visual must either carry a valid payload or be discarded before presentation.
+(function visualQuestionGatePayloadGuardPatch(){
+  const PATCH_VERSION = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "visual-gate-payload-guard";
+  function vgArr(v){ return Array.isArray(v) ? v : []; }
+  function vgStr(v){ return String(v || ""); }
+  function vgCatById(id){
+    try{ if(typeof dPosnerCatById === "function") return dPosnerCatById(id); }catch(_){ }
+    try{ return (POSNER_CATS || []).find(c => c && c.id === id) || null; }catch(_){ return null; }
+  }
+  function vgRenderedSvgOK(fn){
+    try{
+      const svg = fn();
+      return typeof svg === "string" && svg.includes("<svg") && svg.includes("</svg>") && !/NaN|undefined|null\b/.test(svg);
+    }catch(_){ return false; }
+  }
+  function l0NormalizePaperFoldingPayloadV6599(pf){
+    if(!pf || typeof pf !== "object") return pf || null;
+    const x = Number(pf.x);
+    if(Number.isInteger(x)) pf.x = x;
+    if(Array.isArray(pf.ops)) pf.ops = pf.ops.slice();
+    return pf;
+  }
+  function l0QuestionVisualGateKindV6599(obj, cat=null){
+    if(!obj && !cat) return null;
+    const id = vgStr(obj?.catId || obj?.id || cat?.id);
+    const fam = vgStr(obj?.family || cat?.family);
+    const c = cat || vgCatById(id) || {};
+    if(obj?.paperFolding || c.paperFoldingAnalogyId || fam === "l0_paper_folding_analogy" || /^paper_/.test(id)) return "paperFolding";
+    if(obj?.shepardConditional || c.shepardConditionalId || fam === "l0_shepard_conditional" || /^shepard_/.test(id)) return "shepardConditional";
+    if(obj?.vennGate || c.vennConditionId || fam === "l0_venn_gate" || /^venn_gate_/.test(id)) return "vennGate";
+    if(obj?.graphRelationGate || c.graphRelationConditionId || fam === "l0_graph_relation_gate" || /^graph_rel_/.test(id)) return "graphRelationGate";
+    if(obj?.graphConditional || (c.graphConditionalId && !c.graphRelationConditionId && !c.vennConditionId) || fam === "l0_graph_conditional" || /^graph_cond_/.test(id)) return "graphConditional";
+    if(obj?.balanceSpec || fam.includes("balance") || /^balance_/.test(id)) return "balanceSpec";
+    return null;
+  }
+  function l0VisualGatePublicLabelV6599(kind){
+    return ({
+      paperFolding:"folded-paper source",
+      shepardConditional:"shape-pair source",
+      graphConditional:"graph-pair source",
+      graphRelationGate:"marked-graph source",
+      vennGate:"set-diagram source",
+      balanceSpec:"balance-card source"
+    })[kind] || "visual question source";
+  }
+  function l0NormalizeQuestionVisualPayloadsV6599(obj){
+    if(!obj || typeof obj !== "object") return obj;
+    if(obj.paperFolding) obj.paperFolding = l0NormalizePaperFoldingPayloadV6599(obj.paperFolding);
+    return obj;
+  }
+  function l0QuestionVisualGatePayloadProblemV6599(obj, cat=null){
+    if(!obj && !cat) return null;
+    const kind = l0QuestionVisualGateKindV6599(obj, cat);
+    if(!kind) return null;
+    const payload = obj ? obj[kind] : null;
+    if(kind === "paperFolding"){
+      const pf = l0NormalizePaperFoldingPayloadV6599(payload);
+      if(!pf) return "paper_folding_payload_missing";
+      if(!Number.isInteger(Number(pf.x))) return "paper_folding_hole_count_missing";
+      if(typeof isValidPaperFoldingVisualPayload === "function"){
+        if(!isValidPaperFoldingVisualPayload(pf)) return "paper_folding_visual_payload_invalid";
+      } else if(!vgArr(pf.ops).length) return "paper_folding_ops_missing";
+      return null;
+    }
+    if(kind === "shepardConditional"){
+      const sc = payload;
+      if(!sc) return "shepard_payload_missing";
+      if(!vgArr(sc.figureLeft).length || !vgArr(sc.figureRight).length) return "shepard_figures_missing";
+      if(!sc.activeBranch) return "shepard_branch_missing";
+      if(typeof shepardRenderPairSVG === "function" && !vgRenderedSvgOK(()=>shepardRenderPairSVG(sc.figureLeft, sc.figureRight))) return "shepard_visual_payload_invalid";
+      return null;
+    }
+    if(kind === "graphConditional"){
+      const gc = payload;
+      if(!gc) return "graph_conditional_payload_missing";
+      if(!gc.graphLeft || !gc.graphRight) return "graph_conditional_graphs_missing";
+      if(!gc.activeBranch) return "graph_conditional_branch_missing";
+      if(typeof graphConditionalRenderPairSVG === "function" && !vgRenderedSvgOK(()=>graphConditionalRenderPairSVG(gc.graphLeft, gc.graphRight))) return "graph_conditional_visual_payload_invalid";
+      return null;
+    }
+    if(kind === "graphRelationGate"){
+      const gr = payload;
+      if(!gr) return "graph_relation_gate_payload_missing";
+      if(!gr.graph) return "graph_relation_gate_graph_missing";
+      if(!Number.isInteger(Number(gr.markA)) || !Number.isInteger(Number(gr.markB)) || Number(gr.markA) === Number(gr.markB)) return "graph_relation_gate_marks_invalid";
+      if(!gr.activeBranch) return "graph_relation_gate_branch_missing";
+      if(typeof graphRelationGateRenderSVG === "function" && !vgRenderedSvgOK(()=>graphRelationGateRenderSVG(gr.graph, Number(gr.markA), Number(gr.markB)))) return "graph_relation_gate_visual_payload_invalid";
+      return null;
+    }
+    if(kind === "vennGate"){
+      const vg = payload;
+      if(!vg) return "venn_gate_payload_missing";
+      if(!vg.geom || !vg.config) return "venn_gate_geometry_missing";
+      if(!vg.activeBranch) return "venn_gate_branch_missing";
+      if(typeof vennGateRenderSVG === "function"){
+        const cond = (typeof vennGateConditionById === "function") ? vennGateConditionById(vg.conditionId) : null;
+        if(!vgRenderedSvgOK(()=>vennGateRenderSVG(vg.geom, vg.config, cond))) return "venn_gate_visual_payload_invalid";
+      }
+      return null;
+    }
+    if(kind === "balanceSpec"){
+      const bs = payload;
+      if(!bs) return "balance_payload_missing";
+      if(!(typeof bs.svg === "string" && bs.svg.includes("<svg")) && !Array.isArray(bs.review)) return "balance_payload_invalid";
+      return null;
+    }
+    return null;
+  }
+  function l0BuildVisualPayloadFromGeneratedV6599(cat, gen){
+    if(!cat || !gen) return null;
+    if(cat.paperFoldingAnalogyId){
+      const seq = gen._paperFoldingSeq;
+      return {catId:cat.id, family:cat.family || "l0_paper_folding_analogy", paperFolding: seq ? {ops:seq.ops, x:seq.x, variant:seq.variant, shortcutValue:seq.shortcutValue, shortcutDiverges:seq.shortcutDiverges, analogyId:gen._paperFoldingAnalogyId || cat.paperFoldingAnalogyId} : null};
+    }
+    if(cat.shepardConditionalId){
+      return {catId:cat.id, family:cat.family || "l0_shepard_conditional", shepardConditional:{catId:gen._shepardConditionalId, figureId:gen._shepardFigureId, figureLeft:gen._shepardFigureLeft, figureRight:gen._shepardFigureRight, relation:gen._shepardRelation, activeBranch:gen._shepardActiveBranch}};
+    }
+    if(cat.vennConditionId){
+      return {catId:cat.id, family:cat.family || "l0_venn_gate", vennGate:{conditionId:gen._vennConditionId, config:gen._vennConfig, geom:gen._vennGeom, activeBranch:gen._graphActiveBranch, predicateId:gen._graphConditionalId || cat.graphConditionalId}};
+    }
+    if(cat.graphRelationConditionId){
+      return {catId:cat.id, family:cat.family || "l0_graph_relation_gate", graphRelationGate:{conditionId:gen._graphRelationConditionId, graph:gen._graphRelationGraph, markA:gen._graphRelationMarkA, markB:gen._graphRelationMarkB, activeBranch:gen._graphActiveBranch, predicateId:gen._graphConditionalId || cat.graphConditionalId}};
+    }
+    if(cat.graphConditionalId){
+      return {catId:cat.id, family:cat.family || "l0_graph_conditional", graphConditional:{catId:gen._graphConditionalId, graphId:gen._graphId, graphLeft:gen._graphLeft, graphRight:gen._graphRight, relation:gen._graphRelation, activeBranch:gen._graphActiveBranch}};
+    }
+    return null;
+  }
+  function l0RecordVisualGatePayloadProblemV6599(problem, catId){
+    if(!problem) return;
+    try{
+      const pm = State.productionMonitor || (State.productionMonitor = {});
+      const box = pm.visualGatePayloadGuard || (pm.visualGatePayloadGuard = {version:PATCH_VERSION, total:0, byProblem:{}, byCat:{}, recent:[]});
+      box.total = (Number(box.total) || 0) + 1;
+      box.byProblem[problem] = (Number(box.byProblem[problem]) || 0) + 1;
+      const id = vgStr(catId || "unknown");
+      box.byCat[id] = (Number(box.byCat[id]) || 0) + 1;
+      box.recent = vgArr(box.recent).concat([{ts:Date.now(), problem, catId:id}]).slice(-30);
+    }catch(_){ }
+  }
+
+  try{ window.l0NormalizeQuestionVisualPayloads = l0NormalizeQuestionVisualPayloadsV6599; globalThis.l0NormalizeQuestionVisualPayloads = l0NormalizeQuestionVisualPayloadsV6599; }catch(_){ }
+  try{ window.l0QuestionVisualGateKind = l0QuestionVisualGateKindV6599; globalThis.l0QuestionVisualGateKind = l0QuestionVisualGateKindV6599; }catch(_){ }
+  try{ window.l0QuestionVisualGatePayloadProblem = l0QuestionVisualGatePayloadProblemV6599; globalThis.l0QuestionVisualGatePayloadProblem = l0QuestionVisualGatePayloadProblemV6599; }catch(_){ }
+  try{ window.l0VisualGatePublicLabel = l0VisualGatePublicLabelV6599; globalThis.l0VisualGatePublicLabel = l0VisualGatePublicLabelV6599; }catch(_){ }
+
+  try{
+    if(typeof l0ProbeHasQuestionVisualSource === "function" && !l0ProbeHasQuestionVisualSource.__visualGatePayloadGuardWrapped){
+      const previousHasVisualSource = l0ProbeHasQuestionVisualSource;
+      const wrapped = function l0ProbeHasQuestionVisualSourceV6599(probe){
+        return !!(previousHasVisualSource.apply(this, arguments) || l0QuestionVisualGateKindV6599(probe, vgCatById(probe?.catId || probe?.id)));
+      };
+      wrapped.__visualGatePayloadGuardWrapped = true;
+      l0ProbeHasQuestionVisualSource = wrapped;
+      try{ window.l0ProbeHasQuestionVisualSource = l0ProbeHasQuestionVisualSource; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof setupPosnerCore === "function" && !setupPosnerCore.__visualGatePayloadGuardWrapped){
+      const previousSetupPosnerCore = setupPosnerCore;
+      const wrapped = function setupPosnerCoreV6599(){
+        const pos = previousSetupPosnerCore.apply(this, arguments);
+        try{
+          if(!pos) return pos;
+          l0NormalizeQuestionVisualPayloadsV6599(pos);
+          const cat = vgCatById(pos.catId || pos.id) || null;
+          const problem = l0QuestionVisualGatePayloadProblemV6599(pos, cat);
+          if(problem){
+            l0RecordVisualGatePayloadProblemV6599(problem, pos.catId || cat?.id);
+            const target = (typeof pos.targetOutcome === "boolean") ? pos.targetOutcome : (typeof pos.isTrue === "boolean" ? pos.isTrue : Math.random() < 0.5);
+            return fallbackPosnerTrial(currentMax(), target, {cat:pos.catId || cat?.id || "visual_gate", reason:problem});
+          }
+        }catch(e){
+          try{ l0RecordVisualGatePayloadProblemV6599("visual_gate_guard_exception", pos?.catId || "unknown"); }catch(_){ }
+        }
+        return pos;
+      };
+      wrapped.__visualGatePayloadGuardWrapped = true;
+      setupPosnerCore = wrapped;
+      try{ window.setupPosnerCore = setupPosnerCore; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof l0PlainTrialInfoFromPos === "function" && !l0PlainTrialInfoFromPos.__visualGatePayloadGuardWrapped){
+      const previousPlain = l0PlainTrialInfoFromPos;
+      const wrapped = function l0PlainTrialInfoFromPosV6599(pos, displayA, displayB, autoPhase){
+        try{ l0NormalizeQuestionVisualPayloadsV6599(pos); }catch(_){ }
+        const info = previousPlain.apply(this, arguments);
+        try{ l0NormalizeQuestionVisualPayloadsV6599(info); }catch(_){ }
+        return info;
+      };
+      wrapped.__visualGatePayloadGuardWrapped = true;
+      l0PlainTrialInfoFromPos = wrapped;
+      try{ window.l0PlainTrialInfoFromPos = l0PlainTrialInfoFromPos; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof l0ReviewExplanationLines === "function" && !l0ReviewExplanationLines.__visualGatePayloadGuardWrapped){
+      const previousReviewLines = l0ReviewExplanationLines;
+      const wrapped = function l0ReviewExplanationLinesV6599(info){
+        const kind = l0QuestionVisualGateKindV6599(info, vgCatById(info?.catId || info?.id));
+        const problem = l0QuestionVisualGatePayloadProblemV6599(info, vgCatById(info?.catId || info?.id));
+        if(problem){
+          return [
+            `${l0VisualGatePublicLabelV6599(kind)} was unavailable for this legacy trial.`,
+            "Newer builds discard this visual-gate item before it reaches play."
+          ];
+        }
+        const lines = previousReviewLines.apply(this, arguments) || [];
+        if(kind && lines.length && !String(lines[0]).toLowerCase().includes("source")){
+          return [`Question source: ${l0VisualGatePublicLabelV6599(kind)}.`, ...lines].slice(0, Math.max(3, lines.length + 1));
+        }
+        return lines;
+      };
+      wrapped.__visualGatePayloadGuardWrapped = true;
+      l0ReviewExplanationLines = wrapped;
+      try{ window.l0ReviewExplanationLines = l0ReviewExplanationLines; }catch(_){ }
+    }
+  }catch(_){ }
+
+  function auditQuestionVisualGatePayloadContractsV6599(opts={}){
+    const block=[], warnings=[], rows=[];
+    try{
+      const cats = (POSNER_CATS || []).filter(c => c && l0QuestionVisualGateKindV6599(null, c));
+      const m = Math.max(10, Math.floor(Number(opts.m) || 12));
+      const maxPerKind = Math.max(999, Math.floor(Number(opts.maxPerKind) || 999));
+      const seenKind = {};
+      for(const cat of cats){
+        const kind = l0QuestionVisualGateKindV6599(null, cat);
+        seenKind[kind] = (seenKind[kind] || 0) + 1;
+        if(seenKind[kind] > maxPerKind) continue;
+        if(typeof cat.gen !== "function" && typeof cat.buildChoiceTrial !== "function"){
+          warnings.push(`${cat.id}: visual-gate cat has no sampled generator contract`);
+          continue;
+        }
+        if(typeof cat.gen !== "function") continue;
+        for(const want of [true,false]){
+          let gen = null;
+          try{ gen = cat.gen(m, want); }catch(e){ block.push(`${cat.id}: gen threw for want=${want}: ${e?.message || e}`); continue; }
+          if(!gen){ warnings.push(`${cat.id}: gen returned null for want=${want}`); continue; }
+          const probe = l0BuildVisualPayloadFromGeneratedV6599(cat, gen);
+          const problem = l0QuestionVisualGatePayloadProblemV6599(probe, cat);
+          rows.push({id:cat.id, kind, want, problem:problem || null});
+          if(problem) block.push(`${cat.id}: ${problem} for want=${want}`);
+        }
+      }
+      const fakePaperProblem = l0QuestionVisualGatePayloadProblemV6599({catId:"paper_x_right_add_4", family:"l0_paper_folding_analogy", a:6, b:6}, vgCatById("paper_x_right_add_4"));
+      if(fakePaperProblem !== "paper_folding_payload_missing") block.push(`missing-paper guard did not fail closed: ${fakePaperProblem}`);
+      const fakeShepardProblem = l0QuestionVisualGatePayloadProblemV6599({catId:"shepard_same_double", family:"l0_shepard_conditional"}, null);
+      if(!fakeShepardProblem) block.push("missing-Shepard guard did not fail closed");
+    }catch(e){ block.push(`audit exception: ${e?.message || e}`); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_VERSION), checked:rows.length, rows:rows.slice(0,160), warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), checked:rows.length, rows, warnings, block};
+  }
+  try{ window.auditQuestionVisualGatePayloadContractsV6599 = auditQuestionVisualGatePayloadContractsV6599; globalThis.auditQuestionVisualGatePayloadContractsV6599 = auditQuestionVisualGatePayloadContractsV6599; }catch(_){ }
+  try{
+    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(previousRunFeatureAudit && !previousRunFeatureAudit.__visualGatePayloadGuardWrapped){
+      const wrapped = function runFeatureAuditVisualGatePayloads(feature, opts={}){
+        const f = String(feature || "").toLowerCase().trim();
+        if(["visual_gate_payloads","question_visual_gate_payloads","visual_question_gate_payloads","paper_payload_guard","gate_payloads"].includes(f)){
+          const results = {questionVisualGatePayloads:auditQuestionVisualGatePayloadContractsV6599(opts)};
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.questionVisualGatePayloads.status, results};
+        }
+        return previousRunFeatureAudit.apply(this, arguments);
+      };
+      wrapped.__visualGatePayloadGuardWrapped = true;
+      runFeatureAudit = wrapped;
+      try{ window.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ window.EUCA_VISUAL_GATE_PAYLOAD_GUARD = {patch:PATCH_VERSION, failClosed:true}; }catch(_){ }
 })();
 
 </script>
