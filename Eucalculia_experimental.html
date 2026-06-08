@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.6.12-experimental-densification-semantic-wording-fix</title>
+<title>Eucalculia v6.6.14-experimental-densification-coherence-grounding</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.6.12-experimental-densification-semantic-wording-fix";
+const APP_VERSION = "v6.6.14-experimental-densification-coherence-grounding";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -64832,7 +64832,26 @@ function auditLinguisticFreezeReadiness(parts={}){
 }
 function compactLinguisticQA(qa){ const q=qa||runLinguisticQA({includeRows:false}); return {appVersion:q.appVersion,status:q.status,inventory:q.inventory,hygiene:{ok:q.hygiene?.ok,blockingCount:q.hygiene?.blockingCount,warningCount:q.hygiene?.warningCount,byRule:q.hygiene?.byRule,blocking:q.hygiene?.blocking?.slice(0,30)},contracts:{ok:q.contracts?.ok,blockingCount:q.contracts?.blockingCount,warningCount:q.contracts?.warningCount,coverage:q.contracts?.coverage,gameCoverage:q.contracts?.gameCoverage,auditorWarningCount:q.contracts?.auditorWarningCount,blocking:q.contracts?.blocking?.slice(0,30),warnings:q.contracts?.warnings?.slice(0,40),auditorWarnings:q.contracts?.auditorWarnings?.slice(0,40)},anaphora:{ok:q.anaphora?.ok,status:q.anaphora?.status,total:q.anaphora?.total,acceptedCount:q.anaphora?.acceptedCount,weakCount:q.anaphora?.weakCount,unsafeCount:q.anaphora?.unsafeCount,byContract:q.anaphora?.byContract,weak:q.anaphora?.weak?.slice(0,40),unsafe:q.anaphora?.unsafe?.slice(0,20)},diversity:{ok:q.diversity?.ok,status:q.diversity?.status,totalGroups:q.diversity?.totalGroups,totalVariants:q.diversity?.totalVariants,rawUnique:q.diversity?.rawUnique,displayUnique:q.diversity?.displayUnique,displayUniqueRatio:q.diversity?.displayUniqueRatio,totalLowVariety:q.diversity?.totalLowVariety,blocking:q.diversity?.blocking?.slice(0,20),lowVariety:q.diversity?.lowVariety?.slice(0,40)},clarity:{ok:q.clarity?.ok,actionableCount:q.clarity?.actionableCount,meanScore:q.clarity?.meanScore,weakest:q.clarity?.weakest?.slice(0,50)},semantic:{ok:q.semantic?.ok,failed:q.semantic?.failed,failures:q.semantic?.failures?.slice(0,20)},freeze:q.freeze}; }
 async function copyLinguisticQAReport(opts={}){ const qa=runLinguisticQA({includeRows:false}); const payload=JSON.stringify(opts.full?qa:compactLinguisticQA(qa),null,2); try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(payload); return {ok:true,bytes:payload.length}; } }catch(e){ return {ok:false,reason:e?.message||String(e),payload}; } return {ok:false,reason:"clipboard_unavailable",payload}; }
-function openLinguisticQADeck(opts={}){ const qa=runLinguisticQA({includeRows:false}); const compact=compactLinguisticQA(qa); const w=window.open("","_blank"); if(!w) return {ok:false,reason:"popup_blocked",compact}; const d=w.document; d.open(); d.write("<!doctype html><title>Eucalculia QA</title><body></body>"); d.close(); d.body.style.cssText="background:#0b0b10;color:#eee;font-family:system-ui;padding:24px;"; const h=d.createElement("h1"); h.textContent=`Eucalculia linguistic QA · ${compact.appVersion}`; d.body.appendChild(h); const pre=d.createElement("pre"); pre.style.cssText="white-space:pre-wrap;background:#15151d;border:1px solid #333;border-radius:14px;padding:16px;"; pre.textContent=JSON.stringify(compact,null,2); d.body.appendChild(pre); return {ok:true,compact}; }
+function openLinguisticQADeck(opts={}){
+  const qa = runLinguisticQA({includeRows:false});
+  const compact = compactLinguisticQA(qa);
+  const w = window.open("", "_blank");
+  if(!w) return {ok:false, reason:"popup_blocked", compact};
+  const d = w.document;
+  d.open();
+  d.write("<!doctype html><title>Eucalculia QA</title><body></body>");
+  d.close();
+  d.body.style.cssText = "background:#0b0b10;color:#eee;font-family:system-ui;padding:24px;";
+  const h = d.createElement("h1");
+  h.textContent = `Eucalculia linguistic QA · ${compact.appVersion}`;
+  d.body.appendChild(h);
+  const pre = d.createElement("pre");
+  pre.style.cssText = "white-space:pre-wrap;background:#15151d;border:1px solid #333;border-radius:14px;padding:16px;";
+  pre.textContent = JSON.stringify(compact, null, 2);
+  d.body.appendChild(pre);
+  return {ok:true, compact};
+}
+
 function runLinguisticQA(opts={}){ const rows=collectPromptSurfaceRows(); const inventory=auditPromptSurfaceInventory({includeRows:opts.includeRows===true,limitRows:opts.limitRows||500}); const hygiene=auditPromptHygieneStrict({rows}); const contracts=auditPromptLanguageContracts({rows}); const anaphora=auditAnaphoraContracts({rows}); const diversity=auditPromptVariantDiversity(); const clarity=auditPromptClarityHeuristics({rows}); const semantic=typeof auditSemanticPromptContracts==="function"?auditSemanticPromptContracts():{ok:true,status:"missing"}; const freeze=auditLinguisticFreezeReadiness({rows,hygiene,contracts,anaphora,diversity,clarity}); const ok=hygiene.ok&&contracts.ok&&anaphora.ok&&semantic.ok&&diversity.ok; return {appVersion:(typeof APP_VERSION!=="undefined"?APP_VERSION:null), ok, status:!hygiene.ok?"hygiene_blocked":(!contracts.ok?"contract_blocked":(!anaphora.ok?"anaphora_blocked":(!semantic.ok?"semantic_blocked":(!diversity.ok?"diversity_blocked":(freeze.ok?"freeze_ready":"review_needed"))))), inventory, hygiene, contracts, anaphora, diversity, clarity, semantic, freeze}; }
 
 
@@ -77470,7 +77489,7 @@ try{
 
 
 
-// ── v6.6.12-experimental-densification-semantic-wording-fix: epistemic value-domain and knowability balance guard ──
+// ── v6.6.14-experimental-densification-coherence-grounding: epistemic value-domain and knowability balance guard ──
 (function(){
   if(typeof window !== "undefined" && window.__EUCA_V6611_EPISTEMIC_DOMAIN_BALANCE__) return;
   if(typeof window !== "undefined") window.__EUCA_V6611_EPISTEMIC_DOMAIN_BALANCE__ = true;
@@ -77618,6 +77637,8 @@ try{
       cats.forEach(cat=>{
         if(Array.isArray(cat.variants)) cat.variants.forEach(v=>scanVariant("cat", cat.id, v));
       });
+      // Empirical semantic sanity check for the transformed/review example pattern:
+      // one condition true, one false must not be labelled by an AND wording as "broken".
       const a=5,b=6;
       const largerEven = Math.max(a,b) % 2 === 0;
       const gapGt2 = Math.abs(a-b) > 2;
@@ -77644,6 +77665,366 @@ try{
     }
   }catch(e){ try{ console.warn("compound semantic wording guard failed", e); }catch(_){ } }
 })();
+
+
+// ============================================================================
+// v6.6.13 / v6.5.104: symmetric direct-question wording guard
+// ---------------------------------------------------------------------------
+// Removes the generic directional wrapper from symmetric L0 questions where roles
+// are not semantically active, and pins the public wording requested for the
+// less-than-5-or-prime composition item.
+(function registerSymmetricDirectWordingFix(){
+  const WANTED_LT5_OR_PRIME = "Do both values satisfy at least one condition: less than 5 or prime?";
+  const PREFIX = /^\s*Keep the roles fixed:\s*LEFT stays left and RIGHT stays right\.\s*/i;
+  function textOf(v){
+    if(v == null) return "";
+    if(typeof v === "string") return v;
+    return String(v.q || v.template || v.text || v.label || v.title || "");
+  }
+  function setText(v, q){
+    if(v == null || typeof v === "string") return {q:String(q||"")};
+    const row = Object.assign({}, v);
+    if("q" in row || !("template" in row) && !("text" in row)) row.q = String(q||"");
+    else if("template" in row) row.template = String(q||"");
+    else if("text" in row) row.text = String(q||"");
+    return row;
+  }
+  function isSymmetricDirectCore(q){
+    const s = String(q || "").replace(/\s+/g," ").trim();
+    return /^(Do|Are|Is it NOT true that)\b/i.test(s)
+      && /\b(both values|neither value|neither values|at least one value|exactly one value|not both values)\b/i.test(s)
+      && !/\b(left stays left|right stays right|replace LEFT|replace RIGHT|larger|smaller|greater than|less than RIGHT|RIGHT is greater|LEFT is greater|same side|opposite side|clockwise|counterclockwise)\b/i.test(s);
+  }
+  function normalizeVariant(v){
+    const q0 = textOf(v);
+    const q = q0.replace(PREFIX, "");
+    if(q !== q0 && isSymmetricDirectCore(q)) return setText(v, q);
+    return v;
+  }
+  function installCatPrompt(cat, q){
+    if(!cat) return;
+    const row = {q, linguisticFrame:"symmetric_compound_public"};
+    cat.variants = [row];
+    try{ cat.prompt = q; }catch(_){ }
+    try{ cat.label = q; }catch(_){ }
+    try{ cat._registrySpec && (cat._registrySpec.prompts = [row]); }catch(_){ }
+    try{ cat._registrySpec && (cat._registrySpec.promptBuilder = ()=>q); }catch(_){ }
+    try{ cat._registrySpec && cat._registrySpec.labelOntology && (cat._registrySpec.labelOntology.canonicalLabel = q); }catch(_){ }
+  }
+  function normalizeSymmetricFriendlyVariants(){
+    let stripped = 0;
+    try{
+      const fv = (typeof FRIENDLY_POSNER_VARIANTS !== "undefined") ? FRIENDLY_POSNER_VARIANTS : null;
+      if(fv){
+        for(const id of Object.keys(fv)){
+          const arr = Array.isArray(fv[id]) ? fv[id] : [];
+          const next = arr.map(v => {
+            const before = textOf(v);
+            const nv = normalizeVariant(v);
+            if(textOf(nv) !== before) stripped++;
+            return nv;
+          });
+          fv[id] = next;
+        }
+        fv.decl_both_lt5_or_prime = [{q:WANTED_LT5_OR_PRIME, linguisticFrame:"symmetric_compound_public"}];
+      }
+    }catch(_){ }
+    try{
+      const cats = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS : [];
+      for(const cat of cats){
+        if(!cat) continue;
+        if(cat.id === "decl_both_lt5_or_prime") installCatPrompt(cat, WANTED_LT5_OR_PRIME);
+        if(Array.isArray(cat.variants)){
+          cat.variants = cat.variants.map(v => {
+            const before = textOf(v);
+            const nv = normalizeVariant(v);
+            if(textOf(nv) !== before) stripped++;
+            return nv;
+          });
+        }
+      }
+    }catch(_){ }
+    try{
+      const spec = (typeof SPEC_REGISTRY !== "undefined") ? SPEC_REGISTRY.decl_both_lt5_or_prime : null;
+      if(spec){
+        spec.prompts = [{q:WANTED_LT5_OR_PRIME, linguisticFrame:"symmetric_compound_public"}];
+        spec.promptBuilder = ()=>WANTED_LT5_OR_PRIME;
+        if(spec.labelOntology) spec.labelOntology.canonicalLabel = WANTED_LT5_OR_PRIME;
+      }
+    }catch(_){ }
+    return stripped;
+  }
+  function auditSymmetricDirectWording(opts={}){
+    const problems=[], samples=[];
+    try{ normalizeSymmetricFriendlyVariants(); }catch(e){ problems.push("normalization_threw:" + (e && e.message || e)); }
+    const fv = (typeof FRIENDLY_POSNER_VARIANTS !== "undefined") ? FRIENDLY_POSNER_VARIANTS : null;
+    const cat = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS.find(c=>c && c.id === "decl_both_lt5_or_prime") : null;
+    const spec = (typeof SPEC_REGISTRY !== "undefined") ? SPEC_REGISTRY.decl_both_lt5_or_prime : null;
+    const texts = [];
+    if(fv && Array.isArray(fv.decl_both_lt5_or_prime)) texts.push(...fv.decl_both_lt5_or_prime.map(textOf));
+    if(cat && Array.isArray(cat.variants)) texts.push(...cat.variants.map(textOf));
+    if(spec && Array.isArray(spec.prompts)) texts.push(...spec.prompts.map(textOf));
+    if(spec && typeof spec.promptBuilder === "function") texts.push(String(spec.promptBuilder()));
+    if(!texts.some(t => t === WANTED_LT5_OR_PRIME)) problems.push("requested_prompt_missing");
+    for(const t of texts){
+      if(/Keep the roles fixed/i.test(t)) problems.push("role_wrapper_on_lt5_or_prime:" + t);
+      if(/Do both values satisfy less than 5 or prime\?/i.test(t)) problems.push("old_prompt_still_visible:" + t);
+      samples.push(t);
+    }
+    try{
+      const fv2 = (typeof FRIENDLY_POSNER_VARIANTS !== "undefined") ? FRIENDLY_POSNER_VARIANTS : null;
+      if(fv2){
+        for(const [id, arr] of Object.entries(fv2)){
+          for(const v of (Array.isArray(arr)?arr:[])){
+            const q0 = textOf(v);
+            const q = q0.replace(PREFIX, "");
+            if(q !== q0 && isSymmetricDirectCore(q)) problems.push("generic_role_wrapper_on_symmetric:" + id + ":" + q0);
+          }
+        }
+      }
+    }catch(_){ }
+    return {feature:"symmetric_direct_wording", status:problems.length?"BLOCK":"PASS", ok:!problems.length, appVersion:(typeof APP_VERSION!=="undefined"?APP_VERSION:null), wanted:WANTED_LT5_OR_PRIME, samples:[...new Set(samples)].slice(0,20), problems};
+  }
+  try{
+    const stripped = normalizeSymmetricFriendlyVariants();
+    window.EUCA_SYMMETRIC_DIRECT_WORDING_FIX = {version:(typeof APP_VERSION!=="undefined"?APP_VERSION:null), wanted:WANTED_LT5_OR_PRIME, stripped};
+    window.auditSymmetricDirectWording = auditSymmetricDirectWording;
+    const prev = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(prev){
+      runFeatureAudit = function runFeatureAuditSymmetricDirectWording(feature, opts={}){
+        const f = String(feature||"").toLowerCase();
+        if(f === "symmetric_direct_wording" || f === "v6613_symmetric_wording" || f === "v65104_symmetric_wording") return auditSymmetricDirectWording(opts);
+        return prev(feature, opts);
+      };
+      try{ window.runFeatureAudit = runFeatureAudit; globalThis.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(e){ try{ console.warn("[Eucalculia] symmetric direct wording fix failed", e); }catch(_){ } }
+})();
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v6.6.14 / v6.5.105 — L1 coherence grounding refinement
+// Retires abstract schema-level implication/compatibility prompts from active L1
+// sampling and replaces them with a retained-pair truth-pattern task that uses
+// the actual remembered values. The old global implication items were logically
+// valid but pedagogically under-grounded: the answer was mostly a relation between
+// claim schemas, not a readout from the retained episode.
+// ─────────────────────────────────────────────────────────────────────────────
+(function installV6614CoherenceGroundingRefinement(){
+  const ABSTRACT_COHERENCE_IDS = new Set([
+    "coherence_compatibility",
+    "coherence_implication",
+    "coherence_mutually_exclusive_subset",
+    "coherence_redundant_claim"
+  ]);
+  const NEW_ID = "coherence_truth_pattern";
+  const TRUTH_PATTERN_LABELS = [
+    "Both claims are true",
+    "Only Claim A is true",
+    "Only Claim B is true",
+    "Neither claim is true"
+  ];
+  const TARGETS = ["both_true", "a_only", "b_only", "neither"];
+  const TARGET_TO_INDEX = {both_true:0, a_only:1, b_only:2, neither:3};
+  const TARGET_NEEDS = {
+    both_true: {a:true,  b:true},
+    a_only:   {a:true,  b:false},
+    b_only:   {a:false, b:true},
+    neither:  {a:false, b:false}
+  };
+  let truthPatternBag = [];
+
+  function localShuffle(xs){
+    const a = (Array.isArray(xs) ? xs : []).slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+  function nextTruthPatternTarget(){
+    if(!truthPatternBag.length) truthPatternBag = localShuffle(TARGETS);
+    return truthPatternBag.shift() || "both_true";
+  }
+  function claimTextPublic(c,p1,p2){
+    try{ return String(c && typeof c.text === "function" ? c.text(p1,p2) : (c && c.id) || "claim"); }
+    catch(_){ return String((c && c.id) || "claim"); }
+  }
+  function claimValue(c,p1,p2){
+    try{
+      const v = c && typeof c.eval === "function" ? c.eval(p1,p2) : null;
+      return (v === null || v === undefined) ? null : !!v;
+    }catch(_){ return null; }
+  }
+  function evaluatedClaimsForPair(p1,p2){
+    const out = [];
+    try{
+      const catalogue = (typeof COHERENCE_CLAIMS !== "undefined" && Array.isArray(COHERENCE_CLAIMS)) ? COHERENCE_CLAIMS : [];
+      for(const c of catalogue){
+        const v = claimValue(c,p1,p2);
+        if(v === null) continue;
+        out.push({claim:c, value:v, id:c.id, group:c.group || c.id, type:c.type || "claim"});
+      }
+    }catch(_){ }
+    return out;
+  }
+  function buildTruthPatternForTarget(p1,p2,target){
+    const need = TARGET_NEEDS[target];
+    if(!need) return null;
+    const rows = evaluatedClaimsForPair(p1,p2);
+    if(rows.length < 2) return null;
+    const aPool = localShuffle(rows.filter(r => r.value === need.a));
+    const bPool = localShuffle(rows.filter(r => r.value === need.b));
+    for(const A of aPool){
+      for(const B of bPool){
+        if(!A || !B) continue;
+        if(A.id === B.id) continue;
+        if(A.group && B.group && A.group === B.group) continue;
+        const idx = TARGET_TO_INDEX[target];
+        if(!Number.isInteger(idx)) continue;
+        return {A, B, correctIndex:idx, target};
+      }
+    }
+    return null;
+  }
+  function generateCoherenceTruthPatternV6614(p1,p2,m,opts={}){
+    const first = opts.target || nextTruthPatternTarget();
+    const order = [first].concat(localShuffle(TARGETS.filter(t => t !== first)));
+    for(const target of order){
+      for(let attempt=0; attempt<80; attempt++){
+        const inst = buildTruthPatternForTarget(p1,p2,target);
+        if(!inst) continue;
+        const A = inst.A, B = inst.B;
+        const av = !!A.value, bv = !!B.value;
+        const expectedIndex = av && bv ? 0 : (av && !bv ? 1 : (!av && bv ? 2 : 3));
+        if(expectedIndex !== inst.correctIndex) continue;
+        return {
+          correctIndex: inst.correctIndex,
+          choiceLabels: TRUTH_PATTERN_LABELS.slice(),
+          question: `Claim A: ${claimTextPublic(A.claim,p1,p2)}\nClaim B: ${claimTextPublic(B.claim,p1,p2)}\nFor the retained pairs, which truth pattern holds?`,
+          coherenceTelemetry: {
+            family:"coherence",
+            mode:"truth_pattern_retained_pairs",
+            claimIds:[A.id,B.id],
+            claimValues:[av,bv],
+            target:inst.target,
+            groundedInRetainedPairs:true
+          }
+        };
+      }
+    }
+    return null;
+  }
+  function registerCoherenceGroundingAtomic(){
+    try{
+      if(typeof registerAtomic === "function" && typeof ATOMIC_REGISTRY !== "undefined" && !ATOMIC_REGISTRY.coherence_truth_pattern){
+        registerAtomic({id:"coherence_truth_pattern", kind:"coherence", label:"Retained-pair claim truth pattern", evaluate:()=>true, phrase:()=>"retained-pair claim truth pattern"});
+      }
+    }catch(_){ }
+  }
+  function retireAbstractCoherenceOps(){
+    let removed = 0;
+    try{
+      if(Array.isArray(L1_OPS)){
+        for(let i=L1_OPS.length-1;i>=0;i--){
+          const op = L1_OPS[i];
+          if(op && ABSTRACT_COHERENCE_IDS.has(op.id)){
+            L1_OPS.splice(i,1);
+            removed++;
+          }
+        }
+      }
+    }catch(_){ }
+    try{
+      if(typeof SPEC_REGISTRY !== "undefined"){
+        for(const id of ABSTRACT_COHERENCE_IDS){
+          if(SPEC_REGISTRY[id]){
+            SPEC_REGISTRY[id].disabled = true;
+            SPEC_REGISTRY[id].retiredReason = "schema_level_coherence_not_grounded_in_retained_pair_memory_v6614";
+            SPEC_REGISTRY[id].minLevel = 999;
+          }
+        }
+      }
+    }catch(_){ }
+    return removed;
+  }
+  function installTruthPatternOp(){
+    try{
+      if(!Array.isArray(L1_OPS)) return false;
+      if(L1_OPS.some(op => op && op.id === NEW_ID)) return true;
+      L1_OPS.push({
+        id:NEW_ID,
+        symmetric:true,
+        family:"coherence",
+        minLevel:5,
+        minM:6,
+        relationalAccessMinLevel:3,
+        relationalAccessMinM:4,
+        responseFormat:"choice",
+        choiceLabels:TRUTH_PATTERN_LABELS.slice(),
+        atomicsUsed:["coherence_truth_pattern","retained_pair_binding","class_inclusion"],
+        frameTags:["set_vs_magnitude","class_inclusion","integration_load","logical_relation","retained_pair_binding"],
+        fn:(p1,p2,m)=>generateCoherenceTruthPatternV6614(p1,p2,m)
+      });
+      return true;
+    }catch(_){ return false; }
+  }
+  function auditCoherenceGroundingV6614(opts={}){
+    const problems = [], samples = [], counts = {both_true:0, a_only:0, b_only:0, neither:0};
+    const abstractPresent = [];
+    try{
+      if(Array.isArray(L1_OPS)){
+        for(const op of L1_OPS){
+          if(op && ABSTRACT_COHERENCE_IDS.has(op.id)) abstractPresent.push(op.id);
+        }
+      }
+    }catch(e){ problems.push("l1_ops_scan_failed:" + (e && e.message || e)); }
+    if(abstractPresent.length) problems.push("abstract_schema_level_coherence_ops_still_active:" + [...new Set(abstractPresent)].join(","));
+    let truthOp = null;
+    try{ truthOp = Array.isArray(L1_OPS) ? L1_OPS.find(op=>op && op.id === NEW_ID) : null; }catch(_){ }
+    if(!truthOp || typeof truthOp.fn !== "function") problems.push("coherence_truth_pattern_op_missing");
+    const trials = Number(opts.samples || 96);
+    if(truthOp && typeof truthOp.fn === "function"){
+      for(let i=0;i<trials;i++){
+        const p1 = {a:1+(i%8), b:1+((i*3)%8)};
+        const p2 = {a:1+((i*5)%8), b:1+((i*7)%8)};
+        const inst = truthOp.fn(p1,p2,8);
+        if(!inst){ problems.push("truth_pattern_generation_failed_at_sample_" + i); break; }
+        const q = String(inst.question || "");
+        if(!/For the retained pairs/i.test(q)) problems.push("truth_pattern_question_not_grounded:" + q);
+        if(/Which implication relation is valid|What logical relation holds between A and B\?/i.test(q)) problems.push("abstract_relation_wording_leaked:" + q);
+        const vals = inst.coherenceTelemetry && inst.coherenceTelemetry.claimValues;
+        if(!Array.isArray(vals) || vals.length !== 2){ problems.push("missing_claim_truth_telemetry"); break; }
+        const expected = vals[0] && vals[1] ? 0 : (vals[0] && !vals[1] ? 1 : (!vals[0] && vals[1] ? 2 : 3));
+        if(expected !== inst.correctIndex) problems.push("wrong_truth_pattern_index:" + i + ":" + expected + "!=" + inst.correctIndex);
+        const target = inst.coherenceTelemetry && inst.coherenceTelemetry.target;
+        if(target && counts[target] != null) counts[target]++;
+        if(samples.length < 6) samples.push({q, correctIndex:inst.correctIndex, labels:inst.choiceLabels, telemetry:inst.coherenceTelemetry});
+      }
+      const seen = Object.values(counts).filter(n=>n>0).length;
+      if(seen < 4) problems.push("truth_pattern_distribution_missing_targets:" + JSON.stringify(counts));
+    }
+    return {feature:"coherence_grounding", status:problems.length?"BLOCK":"PASS", ok:!problems.length, appVersion:(typeof APP_VERSION!=="undefined"?APP_VERSION:null), retired:[...ABSTRACT_COHERENCE_IDS], installed:!!truthOp, counts, samples, problems};
+  }
+  try{
+    registerCoherenceGroundingAtomic();
+    const removed = retireAbstractCoherenceOps();
+    const installed = installTruthPatternOp();
+    window.EUCA_COHERENCE_GROUNDING_REFINEMENT = {version:(typeof APP_VERSION!=="undefined"?APP_VERSION:null), removed, installed, newOp:NEW_ID};
+    window.generateCoherenceTruthPatternV6614 = generateCoherenceTruthPatternV6614;
+    window.auditCoherenceGroundingV6614 = auditCoherenceGroundingV6614;
+    const prev = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(prev){
+      runFeatureAudit = function runFeatureAuditCoherenceGrounding(feature, opts={}){
+        const f = String(feature||"").toLowerCase();
+        if(f === "coherence_grounding" || f === "l1_coherence_grounding" || f === "v6614_coherence_grounding" || f === "v65105_coherence_grounding") return auditCoherenceGroundingV6614(opts);
+        return prev(feature, opts);
+      };
+      try{ window.runFeatureAudit = runFeatureAudit; globalThis.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(e){ try{ console.warn("[Eucalculia] coherence grounding refinement failed", e); }catch(_){ } }
+})();
+
 </script>
 
 </body>
