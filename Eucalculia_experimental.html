@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.5.85-nand-clear-gate-contract</title>
+<title>Eucalculia v6.5.96-audit-hotfix</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -2805,7 +2805,7 @@ select.cs-native {
 
 <div class="overlay-footer">
   <p class="credit">by <strong>Alberto Flaño Lombardo</strong> · <a href="https://www.linkedin.com/in/alberto-flaño-lombardo-762618259" target="_blank" rel="noopener">linkedin</a></p>
-  <p class="version" data-app-version>v6.5.85-nand-clear-gate-contract</p>
+  <p class="version" data-app-version>v6.5.96-audit-hotfix</p>
 </div>
 </div>
 </div>
@@ -2814,7 +2814,7 @@ select.cs-native {
 </div>
 <template id="guideTemplate">
 <div id="guideCard">
-<h2 id="guideTitle">Eucalculia v6.5.85-nand-clear-gate-contract Guide</h2>
+<h2 id="guideTitle">Eucalculia v6.5.91-recursive-source-cleanup Guide</h2>
 
 <div class="guide-section">
 <h3>What Eucalculia trains</h3>
@@ -3010,7 +3010,7 @@ select.cs-native {
 <div class="tier-item"><b>Exact division:</b> evaluate whether one value can be divided by the other with no remainder.</div>
 <div class="tier-item"><b>Difference equals smaller, larger = 2 × smaller + 1, difference &gt; half the larger:</b> evaluate a relation between a derived gap and a role-bound value.</div>
 </div>
-<p>L0 categories are not all equally likely from the beginning. The app uses soft relational frontiers: direct comparisons appear first, then joint numerical properties, explicit set-membership questions, role/property binding, metric and factor relations, and finally compound relations. User-facing wording avoids raw internal labels such as “case”, “in/out” or “vacuous truth”. Boolean gates are introduced with plain-language names first; for example NAND is shown as “NAND / NOT-BOTH” and immediately defined as “YES unless both conditions are true”. The current value range still matters, but recent accuracy, response time, relational-frame weaknesses and recent sampling concentration also shape which categories are emphasized.</p>
+<p>L0 categories are not all equally likely from the beginning. The app uses soft relational frontiers: direct comparisons appear first, then joint numerical properties, explicit set-membership questions, role/property binding, metric and factor relations, and finally compound relations. User-facing wording avoids raw internal labels such as “case”, “in/out” or “vacuous truth”. Boolean gates are introduced by their rule first; for example the NAND rule is shown as “Answer YES unless both conditions are true.” The current value range still matters, but recent accuracy, response time, relational-frame weaknesses and recent sampling concentration also shape which categories are emphasized.</p>
 <p><strong>Update Chains:</strong> after frame-burst performance is stable, a sparse advanced L0 family may appear. A burst asks several questions about the same fixed LEFT/RIGHT state. An Update Chain instead tells you to replace LEFT or RIGHT internally and then answer a YES/NO question about the updated state. For example: “Replace LEFT with the gap between LEFT and RIGHT. Is LEFT now even?” A later probe may then use that updated LEFT: “Now replace RIGHT with LEFT + 2. Is RIGHT now greater than original RIGHT?” These items remain L0: no numpad is used, and the answer channel stays YES/NO. They are initially kept out of MEM/META history so mutable-state practice does not interfere with ordinary retained-pair integration. A sparse advanced subfamily, <strong>truth-gated update</strong>, also lives here: an internal relation about the current state selects the update branch before the final YES/NO check. For example: “If GAP is prime, replace LEFT with GAP; otherwise, replace RIGHT with GAP. After the update, is LEFT greater than RIGHT?” This is operational metarelational control inside the same Update Chain architecture, not a separate mode.</p>
 <p><strong>Paper folding checks:</strong> in late L0, the question frame may show a folded-paper sequence, including horizontal, vertical, partial and diagonal folds. Mentally unfold the sheet and count the resulting holes, then compare that hole count with the flashed LEFT/RIGHT values. The answer is still YES or NO; the hole count is not typed. The paper-folding analogy family now uses the same shared numeric-rule catalogue as the induction-chain rule checks, adapted to the paper format: LEFT/RIGHT provide the source values and the unfolded hole count is the derived third value.</p>
 <p><strong>Shepard cube checks:</strong> in late L0, the question frame may show two cube figures. Decide whether the right figure is a rotation of the left figure or a mirror image, then apply the corresponding numerical rule to the flashed LEFT/RIGHT values. These items combine mental rotation with conditional rule selection, but they remain ordinary L0 relational trials.</p>
@@ -3300,14 +3300,16 @@ select.cs-native {
 </div>
 <button class="btn primary" id="continueBtn">Continue Training</button>
 <button class="btn" id="restBtn" style="margin-top:8px;">Take a Break</button>
-<div data-app-version style="margin-top:10px;text-align:center;font-size:0.55rem;color:#444;letter-spacing:0.5px;">v6.5.85-nand-clear-gate-contract</div>
+<div data-app-version style="margin-top:10px;text-align:center;font-size:0.55rem;color:#444;letter-spacing:0.5px;">v6.5.91-recursive-source-cleanup</div>
 </div>
 </div>
 
 <script>
 
+// =====================
+
 // ============================================================================
-// EUCALCULIA v6.5.85-nand-clear-gate-contract — explicit NAND gate clarity without removing boolean gates
+// EUCALCULIA v6.5.91-recursive-source-cleanup — recursive source cleanup, audit convergence, bridge/registry coherence
 // ============================================================================
 // v6.5.26x: paper-folding boundary punches may unfold into multiple complete holes; no residual half-holes.
 // This build consolidates the 6.4.2 telemetry-cleanup fork and the 6.4.3
@@ -3321,10 +3323,10 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.5.85-nand-clear-gate-contract";
+const APP_VERSION = "v6.5.96-audit-hotfix";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
-  const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.85-nand-clear-gate-contract";
+  const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.96-audit-hotfix";
   try { document.title = `Eucalculia ${v}`; } catch(_){}
   try {
     document.querySelectorAll(".overlay-footer .version, [data-app-version]").forEach(el => { el.textContent = v; });
@@ -4837,6 +4839,11 @@ const State = {
   // (abandons per-value ET mastery in D — values are not the unit of learning
   // in relational mode; relations are).
   dL0Window: [],   // [{correct:bool, rt:int, levelAtTrial:int}, ...] last ~60
+  // Rolling windows for META frontier readiness. Unlike lifetime l1Stats/l2Stats,
+  // these measure recent competence so a bad early L1/L2 streak cannot create a
+  // practical soft-lock. They are deliberately compact and persisted per profile.
+  dL1Window: [],   // [{correct, rt, opId, family, levelAtTrial, ts}, ...] last ~120
+  dL2Window: [],   // [{correct, rt, catId, family, levelAtTrial, ts}, ...] last ~120
 };
 
 const $ = id => document.getElementById(id);
@@ -6146,6 +6153,8 @@ function pruneRuntimeGrowingStructures(reason="trial"){
     if(Array.isArray(rc.syncTasks) && rc.syncTasks.length > 40) rc.syncTasks.splice(0, rc.syncTasks.length - 40);
     if(Array.isArray(State.trialTelemetryBuffer) && !publicForensicPersistenceEnabled() && State.trialTelemetryBuffer.length > 80) State.trialTelemetryBuffer.splice(0, State.trialTelemetryBuffer.length - 80);
     if(Array.isArray(State.dL0Window) && State.dL0Window.length > 120) State.dL0Window.splice(0, State.dL0Window.length - 120);
+    if(Array.isArray(State.dL1Window) && State.dL1Window.length > 120) State.dL1Window.splice(0, State.dL1Window.length - 120);
+    if(Array.isArray(State.dL2Window) && State.dL2Window.length > 120) State.dL2Window.splice(0, State.dL2Window.length - 120);
     return true;
   }catch(_){ return false; }
 }
@@ -10890,14 +10899,14 @@ function readabilityPolishText(text){
     .replace(/\bMETA³ question\b/gi, "Level 3 question")
     .replace(/\bMETA² questions\b/gi, "previous choice questions")
     .replace(/\bMETA² question\b/gi, "previous choice question")
-    .replace(/\bMETA questions\b/gi, "previous calculation questions")
-    .replace(/\bMETA question\b/gi, "previous calculation question")
+    .replace(/\bMETA questions\b/gi, "previous questions")
+    .replace(/\bMETA question\b/gi, "previous question")
     .replace(/\bMETA answers\b/gi, "previous answers")
     .replace(/\bMETA answer\b/gi, "previous answer")
     .replace(/\bMETA results\b/gi, "previous answers")
     .replace(/\bMETA result\b/gi, "previous answer")
-    .replace(/\bMETA calculation\b/gi, "calculation")
-    .replace(/\bMETA task\b/gi, "calculation task")
+    .replace(/\bMETA calculation\b/gi, "previous calculation")
+    .replace(/\bMETA task\b/gi, "previous task")
     .replace(/\bMETA[- ]answer relations\b/gi, "previous-answer relations")
     .replace(/\bMETA[- ]answer relation\b/gi, "previous-answer relation")
     .replace(/\bMETA² conclusions\b/gi, "choice-question conclusions")
@@ -11050,6 +11059,14 @@ function readabilityPolishText(text){
     .replace(/^Is the left number not greater than the right\?$/i, "Is the right number at least as large as the left number?")
     .replace(/^Is the right number not greater than the left\?$/i, "Is the left number at least as large as the right number?")
     .replace(/^Was it not true that (.+)\?$/i, "Was the opposite true: $1?")
+    .replace(/outside (\d+)[–-](\d+)/gi, "outside the inclusive range $1–$2")
+    .replace(/inside (\d+)[–-](\d+)/gi, "inside the inclusive range $1–$2")
+    .replace(/from (\d+) to (\d+)/gi, "from $1 through $2")
+    .replace(/\bfall outside the inclusive range\b/gi, "are outside the inclusive range")
+    .replace(/\bthe rule does not hold\b/gi, "the rule is false")
+    .replace(/\bcondition does not hold\b/gi, "condition is false")
+    .replace(/\bcondition holds\b/gi, "condition is true")
+    .replace(/\bholds\b/gi, "is true")
     .replace(/\brough\b/gi, "approximate")
     .replace(/\s+/g, " ")
     .trim();
@@ -16137,7 +16154,7 @@ const L0_BOOLEAN_COMPOUND_SPECS = [
   { id:"left_even_xor_right_gt5", connective:"xor", left:"left_even", right:"right_gt5", tier:4, minLevel:5, stage:4, minM:6,
     prompt:"Is exactly one true: left is even; right is greater than 5?" },
   { id:"left_even_nand_right_gt5", connective:"nand", left:"left_even", right:"right_gt5", tier:4, minLevel:5, stage:4, minM:6,
-    prompt:"NAND / NOT-BOTH check. Answer YES unless both are true: left is even; right is greater than 5." },
+    prompt:"Answer YES unless both conditions are true: left is even; right is greater than 5." },
   { id:"left_prime_nor_right_odd", connective:"nor", left:"left_prime", right:"right_odd", tier:4, minLevel:5, stage:4, minM:3,
     prompt:"Are both conditions false: left is prime; right is odd?" },
   { id:"larger_even_or_gap_gt2", connective:"or", left:"larger_even", right:"gap_gt2", tier:4, minLevel:4, stage:4, minM:5,
@@ -16163,7 +16180,7 @@ function l0BooleanConnectiveReviewLine(spec, p, q, result){
     case "and": return `Rule: answer YES only if both conditions are true → ${out}.`;
     case "or": return `Rule: answer YES if at least one condition is true → ${out}.`;
     case "xor": return `Rule: answer YES if exactly one condition is true → ${out}.`;
-    case "nand": return `NAND / NOT-BOTH rule: answer YES unless both conditions are true → ${out}.`;
+    case "nand": return `Rule: answer YES unless both conditions are true → ${out}.`;
     case "nor": return `Rule: answer YES only if both conditions are false → ${out}.`;
     default: return `Rule result for the two conditions → ${out}.`;
   }
@@ -22153,19 +22170,19 @@ function recursiveTracePredicate(spec, result){
 }
 const RECURSIVE_TRACE_CAT_SPECS = [
   {id:"rec_halving_depth_gt1", opId:"halving_to_odd", seedSource:"LEFT", tier:4, minM:8, predicate:"depth_gt", threshold:1,
-   q:"Halve LEFT until it becomes odd. More than one step?"},
+   q:"Starting from LEFT, keep halving while the value is even. Were there more than one halving step?"},
   {id:"rec_halving_final_gt3", opId:"halving_to_odd", seedSource:"LEFT", tier:4, minM:8, predicate:"final_gt", threshold:3,
-   q:"Halve LEFT until it becomes odd. Is the final value greater than 3?"},
+   q:"Starting from LEFT, keep halving while the value is even. Is the final odd value greater than 3?"},
   {id:"rec_subtract5_depth_gt2", opId:"subtract_5_until_below_5", seedSource:"SUM", tier:4, minM:8, predicate:"depth_gt", threshold:2,
-   q:"Start from LEFT+RIGHT. Subtract 5 until below 5. More than two steps?"},
+   q:"Start from LEFT+RIGHT. Repeatedly subtract 5 until the value is below 5. Were there more than two subtract-5 steps?"},
   {id:"rec_subtract5_final_even", opId:"subtract_5_until_below_5", seedSource:"SUM", tier:4, minM:8, predicate:"final_even",
-   q:"Start from LEFT+RIGHT. Subtract 5 until below 5. Is the final value even?"},
+   q:"Start from LEFT+RIGHT. Repeatedly subtract 5 until the value is below 5. Is the final value even?"},
   {id:"rec_digit_pair_final_even", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"final_even",
-   q:"Build LEFT-RIGHT as a two-digit number. Repeatedly sum digits until one digit remains. Is the final digit even?"},
+   q:"Make a two-digit number with LEFT as tens and RIGHT as ones. Repeatedly sum digits until one digit remains. Is the final digit even?"},
   {id:"rec_digit_pair_depth_gt1", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"depth_gt", threshold:1,
-   q:"Build LEFT-RIGHT as a two-digit number. Repeatedly sum digits until one digit remains. More than one step?"},
+   q:"Make a two-digit number with LEFT as tens and RIGHT as ones. Repeatedly sum digits until one digit remains. Were there more than one digit-sum step?"},
   {id:"rec_safe_branch_depth_gt4", opId:"even_halve_else_minus_one_to_one", seedSource:"SUM", tier:4, minM:8, predicate:"depth_gt", threshold:4,
-   q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. More than four steps?"}
+   q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. Were there more than four steps?"}
 ];
 function recursiveTraceSpecById(id){ return RECURSIVE_TRACE_CAT_SPECS.find(s => s.id === id) || null; }
 function recursiveTraceResultForSpec(spec, a, b){
@@ -25736,12 +25753,16 @@ const L0_STRUCTURAL_DIVISIBILITY_CATS = [
     verify(a,b){ return isPrime(a+b); } },
 
   { id:"triangle_inequality_strict", tier:4, stage:4, minM:6, family:"metric",
-    frameTags:["metric_relation","threshold_relation","comparison","triangle_side_check"],
+    semanticEquivalentTo:"smaller_more_than_half_larger", deprecatedDegeneratePairTriangle:true,
+    frameTags:["metric_relation","threshold_relation","comparison","triangle_side_check","semantic_duplicate","degenerate_pair_triangle"],
     variants:[
       {q:"Triangle check.\nSides are: smaller, smaller, larger.\nIs smaller + smaller more than larger?", linguisticFrame:"procedural_explicit"},
       {q:"Copy the smaller value as the third side.\nCan sides smaller, smaller, and larger make a triangle?", linguisticFrame:"procedural_explicit"},
       {q:"For sides smaller, smaller, larger: do the two smaller sides add to more than the larger side?", linguisticFrame:"procedural_explicit"},
     ],
+    // v6.5.90: pair-derived triangle was an isosceles reskin of smaller > half larger.
+    // Keep the legacy id for old logs/registry parity, but do not serve it.
+    canUse(){ return false; },
     gen(m,t){ return genPairByPredicate(m,t,(a,b)=> a!==b && 2*smallerValue(a,b) > largerValue(a,b), {allowEqual:false}); },
     verify(a,b){ return a!==b && 2*smallerValue(a,b) > largerValue(a,b); } },
 
@@ -26073,13 +26094,11 @@ const FRIENDLY_POSNER_VARIANTS = {
   same_distance_5:[{q:"Are the two numbers the same distance from 5?"},{q:"Are they equally far from 5?"},{q:"Are they at different distances from 5?", negate:true}],
   left_farther_from_5:[{q:"Is the left number farther from 5 than the right number?"},{q:"Is the right number closer to 5 than the left?"},{q:"Is the right number farther from 5 than the left?", swap:true}],
   right_farther_from_5:[{q:"Is the right number farther from 5 than the left number?"},{q:"Is the left number closer to 5 than the right?"},{q:"Is the left number farther from 5 than the right?", swap:true}],
-  diff_one:[{q:"Do the two numbers differ by 1?"},{q:"Is the difference between the two numbers 1?"},{q:"Do the two numbers differ by something other than 1?", negate:true}],
   same_rep:[{q:"Are both numbers shown in the same visual format?"},{q:"Are the two displays the same kind of notation?"},{q:"Are the two numbers shown in different visual formats?", negate:true}],
   same_value_different_format:[{q:"Same value, different representation type?"},{q:"Same number shown in two different visual formats?"}],
   different_value_same_format:[{q:"Different values, same representation type?"},{q:"Different numerical values in the same visual format?"}],
   same_value_same_format:[{q:"Same value and same representation type?"},{q:"Same numerical value in the same visual format?"}],
   different_value_different_format:[{q:"Different values and different representation types?"},{q:"Different numerical values in different visual formats?"}],
-  same_parity:[{q:"Are both numbers the same type: both even or both odd?"},{q:"Are the two numbers both even or both odd?"},{q:"Are the two numbers of different parities (one even, one odd)?", negate:true}],
   both_gt_5:[{q:"Are both numbers greater than 5?"},{q:"Are both numbers above 5?"},{q:"Is at least one of the two numbers 5 or less?", negate:true}],
   both_small:[{q:"Are both numbers 4 or less?"},{q:"Are both values no higher than 4?"},{q:"Is at least one of the two numbers greater than 4?", negate:true}],
   sum_gt_10:[{q:"Do the two numbers add up to more than 10?"},{q:"Is their total greater than 10?"},{q:"Do the two numbers add up to 10 or less?", negate:true}],
@@ -26097,8 +26116,6 @@ const FRIENDLY_POSNER_VARIANTS = {
   at_least_one_square:[{q:"Is at least one value a square number?"},{q:"Is one or both numbers a perfect square?"}],
   exactly_one_square:[{q:"Is exactly one value a square number?"},{q:"Is one value square and the other not square?"}],
   both_odd:[{q:"Is each value odd?"},{q:"Do both values have odd parity?"},{q:"Is at least one of the two numbers even?", negate:true}],
-  same_half:[{q:"Are both numbers greater than {H}, or are neither greater than {H}?"}],
-  opposite_halves:[{q:"Is exactly one number greater than {H}?"}],
   one_step_equal:[{q:"If the smaller value increased by 1, would both values match?"},{q:"Could one one-step change make the values equal?"},{q:"If the smaller value increased by 1, would they still differ?", negate:true}],
   left_plus_one_gt_right:[{q:"If the left value increased by 1, would it be greater than the right?"},{q:"If the right value increased by 1, would it be greater than the left?", swap:true},{q:"If the left value increased by 1, would it still be at most the right value?", negate:true}],
   left_plus_one_sum_gt_10:[{q:"If the left value increased by 1, would the total be more than 10?"},{q:"If the right value increased by 1, would the total be more than 10?", swap:true},{q:"If the left value increased by 1, would the total still be 10 or less?", negate:true}],
@@ -26113,11 +26130,8 @@ const FRIENDLY_POSNER_VARIANTS = {
   smaller_divides_larger:[{q:"Can the larger number be divided by the smaller number with no remainder?"},{q:"Is the larger number an exact multiple of the smaller number?"},{q:"Does the larger number leave a remainder when divided by the smaller?", negate:true}],
   larger_square:[{q:"Is the larger number a square number?"},{q:"Is the bigger number a perfect square?"},{q:"Is the larger number not a perfect square?", negate:true}],
   left_closer_5:[{q:"Is the left number closer to 5 than the right number?"},{q:"Is the right number closer to 5 than the left number?", swap:true},{q:"Is the left number not closer to 5 than the right number?", negate:true}],
-  larger_closer_center:[{q:"Is the larger number closer to {N} than the smaller number?"},{q:"Is the larger number not closer to {N} than the smaller number?", negate:true}],
-  smaller_closer_center:[{q:"Is the smaller number closer to {N} than the larger number?"},{q:"Is the smaller number not closer to {N} than the larger number?", negate:true}],
   gap_equals_smaller:[{q:"Is the difference equal to the smaller number?"},{q:"Does the larger number equal twice the smaller number?"},{q:"Is the difference different from the smaller number?", negate:true}],
   larger_one_more_double_smaller:[{q:"Is the larger number one more than twice the smaller number?"},{q:"Does the larger number equal 2 × the smaller number + 1?"},{q:"Is the larger number something other than one more than twice the smaller?", negate:true}],
-  closer_center_even:[{q:"Is the number closer to {N} even?"},{q:"Is the number closer to {N} odd?", negate:true}],
   larger_prime_smaller_even:[{q:"Is the larger number prime and the smaller number even?"},{q:"Is the bigger number prime and the smaller number even?"},{q:"Is at least one of these false: the larger is prime, or the smaller is even?", negate:true}],
   one_divides:[{q:"Can one number be divided by the other with no remainder?"},{q:"Is one number an exact multiple of the other?"},{q:"Does each number leave a remainder when divided by the other?", negate:true}],
   left_divides_right:[{q:"Can the right number be divided by the left number with no remainder?"},{q:"Can the left number be divided by the right number with no remainder?", swap:true},{q:"Does the right number leave a remainder when divided by the left?", negate:true}],
@@ -26129,14 +26143,9 @@ const FRIENDLY_POSNER_VARIANTS = {
   conditional_left_even_right_gt5:[{q:"If the left number is even, is the right number greater than 5; if left is odd, is right 5 or less?"},{q:"Does right go above 5 exactly when left is even?"}],
   analog_distance_10_5:[{q:"Does the left number's distance from 10 equal the right number's distance from 5?"},{q:"Do the left-to-10 and right-to-5 distances match?"},{q:"Are the left-to-10 and right-to-5 distances different?", negate:true}],
   left_plus_gap_eq_10:[{q:"Does LEFT plus the gap between LEFT and RIGHT equal 10?"},{q:"Compute the gap between LEFT and RIGHT. If you add that gap to LEFT, is the result 10?"},{q:"Is LEFT plus the gap between LEFT and RIGHT not equal to 10?", negate:true}],
-  smaller_plus2_reaches_larger:[{q:"If the smaller number increased by 2, would it reach or pass the larger number?"},{q:"Add 2 to the smaller number. Is it now at least as large as the other?"},{q:"If the smaller number increased by 2, would it still be less than the larger?", negate:true}],
-  double_smaller_gt_larger:[{q:"If the smaller number were doubled, would it be greater than the larger number?"},{q:"Double the smaller number. Is it now greater than the other?"},{q:"If the smaller number were doubled, would it be at most the larger?", negate:true}],
-  larger_minus1_still_gt:[{q:"If the larger number went down by 1, would it still be greater?"},{q:"Subtract 1 from the larger number. Is it still larger than the other?"},{q:"If the larger number went down by 1, would it no longer be greater?", negate:true}],
-  left_gt_and_both_even:[{q:"Are both true: the left number is greater, and both numbers are even?"}],
-  larger_even_and_gap_gt2:[{q:"Are both true: the larger number is even, and the difference is more than 2?"}],
   bool_left_prime_or_right_gt5:[{q:"Is the left number prime, or is the right number greater than 5 (or both)?"},{q:"Is at least one of these true: the left is prime, or the right is greater than 5?"},{q:"Is the left a prime number, or does the right exceed 5?"}],
   bool_left_even_xor_right_gt5:[{q:"Is exactly one true: the left number is even, or the right number is greater than 5?"},{q:"Is exactly one of these true: the left is even; the right exceeds 5?"}],
-  bool_left_even_nand_right_gt5:[{q:"NAND / NOT-BOTH check. Answer YES unless both are true: LEFT is even; RIGHT is greater than 5."}],
+  bool_left_even_nand_right_gt5:[{q:"Answer YES unless both conditions are true: LEFT is even; RIGHT is greater than 5."}],
   bool_left_prime_nor_right_odd:[{q:"Are both false: left is prime, right is odd?"},{q:"Is the left non-prime AND the right even?"}],
   bool_larger_even_or_gap_gt2:[{q:"Is the larger value even, or is the gap more than 2 (or both)?"},{q:"Is at least one true: the bigger number is even, or the difference is more than 2?"}],
   bool_larger_even_xor_gap_gt2:[{q:"Is exactly one true: the larger value is even, or the absolute difference is more than 2?"},{q:"Is exactly one of these true: the bigger number is even; the absolute difference exceeds 2?"}],
@@ -27329,6 +27338,59 @@ function dCurrentL0Window(windowSize=null){
   const n = windowSize || Math.max(15, Math.ceil(currentMax() * 1.2), D_AUTO.l1MinTrials);
   return atLevel.slice(-n);
 }
+function dCurrentMetaWindow(level, windowSize=null){
+  const arr = level === 1 ? (State.dL1Window || []) : level === 2 ? (State.dL2Window || []) : [];
+  const minTrials = level === 1 ? D_AUTO.l2MinTrials : D_AUTO.l3MinTrials;
+  const n = Math.max(1, Number(windowSize) || minTrials || 1);
+  return arr.filter(Boolean).slice(-n);
+}
+function dCurrentL1Window(windowSize=null){ return dCurrentMetaWindow(1, windowSize); }
+function dCurrentL2Window(windowSize=null){ return dCurrentMetaWindow(2, windowSize); }
+function summarizeMetaReadinessWindow(win){
+  const rows = (win || []).filter(Boolean);
+  const t = rows.length;
+  const c = rows.filter(e => !!e.correct).length;
+  const acc = t ? c/t : 0;
+  const avgRT = recentCorrectRT(rows);
+  const families = new Set(rows.map(e => e.family || null).filter(Boolean)).size;
+  return {t,c,acc,avgRT,families};
+}
+function l1FamilyForReadinessInfo(info){
+  const op = info?.op || null;
+  const opId = op?.id || info?.opId || null;
+  return op?.family || (opId && typeof l1FamilyForOp === "function" ? l1FamilyForOp(opId) : null) || info?.family || null;
+}
+function l2FamilyForReadinessInfo(info){
+  const id = info?.catId || info?.cat?.id || null;
+  return info?.catFamily || info?.family || info?.cat?.family || (id && typeof l2FamilyFromCatId === "function" ? l2FamilyFromCatId(id) : null) || null;
+}
+function recordMetaReadinessOutcome(level, correct, rt, info){
+  if(level !== 1 && level !== 2) return false;
+  if(info?.countsForMetaHistory === false || info?.isMemInterferenceLure) return false;
+  if(level === 1 && !info?.op) return false;
+  if(level === 2 && !(info?.catId || info?.cat || info?.catFamily || info?.family)) return false;
+  const row = {
+    correct:!!correct,
+    rt:Number.isFinite(rt) ? Math.round(rt) : 0,
+    levelAtTrial:Number(State.levelByMode?.D) || 0,
+    ts:Date.now(),
+    responseFormat:info?.responseFormat || null
+  };
+  if(level === 1){
+    row.opId = info?.op?.id || info?.opId || null;
+    row.family = l1FamilyForReadinessInfo(info);
+    if(!Array.isArray(State.dL1Window)) State.dL1Window = [];
+    State.dL1Window.push(row);
+    if(State.dL1Window.length > 120) State.dL1Window.splice(0, State.dL1Window.length - 120);
+  } else {
+    row.catId = info?.catId || info?.cat?.id || null;
+    row.family = l2FamilyForReadinessInfo(info);
+    if(!Array.isArray(State.dL2Window)) State.dL2Window = [];
+    State.dL2Window.push(row);
+    if(State.dL2Window.length > 120) State.dL2Window.splice(0, State.dL2Window.length - 120);
+  }
+  return true;
+}
 function dPosnerCatById(id){ return (typeof registryEntryById === "function" ? registryEntryById("L0", id, POSNER_CATS || []) : null) || (POSNER_CATS || []).find(c => c.id === id) || null; }
 function inferredGeneratedPosnerStage(cat){
   const id = String(cat?.id || "");
@@ -27527,50 +27589,49 @@ function dL0Readiness(){
     breadth, maxV};
 }
 function dL1Readiness(){
-  const buckets = Object.values(State.meta.l1Stats || {});
-  const t = buckets.reduce((sum,s)=>sum+(s?.t||0),0);
-  const c = buckets.reduce((sum,s)=>sum+(s?.c||0),0);
-  const rt = buckets.flatMap(s => Array.isArray(s?.rt) ? s.rt.slice(-12) : []);
-  const acc = t ? c/t : 0;
-  const avgRT = rt.length ? rt.reduce((a,b)=>a+b,0)/rt.length : 0;
-  const families = new Set(Object.keys(State.meta.l1Stats || {}).map(id => {
-    const op = (L1_OPS || []).find(o => o.id === id);
-    return op?.family || null;
-  }).filter(Boolean)).size;
-  // v6.5.1: pyramid base cap. L2 active requires levelByMode.D >= 1; preview
-  // requires base >= 0 (always true, but kept for symmetry). Without this,
-  // a user with base level 0 could already be receiving L2 trials, which is
-  // exactly the pathology the beta-tester report identified.
+  const activeWin = dCurrentL1Window(D_AUTO.l2MinTrials);
+  const previewWin = dCurrentL1Window(D_AUTO.l2PreviewMinTrials);
+  const a = summarizeMetaReadinessWindow(activeWin);
+  const p = summarizeMetaReadinessWindow(previewWin);
+  const lifetimeBuckets = Object.values(State.meta.l1Stats || {});
+  const lifetimeT = lifetimeBuckets.reduce((sum,s)=>sum+(s?.t||0),0);
+  const lifetimeC = lifetimeBuckets.reduce((sum,s)=>sum+(s?.c||0),0);
+  const lifetimeAcc = lifetimeT ? lifetimeC/lifetimeT : 0;
+  // v6.5.93: L1→L2 readiness is windowed, like L0→L1. The previous
+  // version used lifetime L1 accuracy, so a bad early L1 streak could dilute
+  // recovery for dozens of later correct answers and block even preview.
+  // Readiness now measures recent competence; lifetime stats remain for logs.
+  const families = a.families;
+  const previewFamilies = p.families;
+  const acc = a.acc;
+  const avgRT = a.avgRT;
+  const t = a.t;
+  const c = a.c;
   const baseCapActive = dPyramidMetaCap("active") >= 2;   // base+1 ≥ 2 → base ≥ 1
   const baseCapPreview = dPyramidMetaCap("preview") >= 2; // base+2 ≥ 2 → base ≥ 0
-  // v6.5.9: families gate is now PROPORTIONAL to the L1 catalogue
-  // accessible at the current stage cap. Previously fixed at 2 of 21
-  // families (~9.5%), which let users unlock L2 with extreme breadth
-  // imbalance. Reparation 4 from the audit doc: never use absolute
-  // breadth thresholds, always proportional to available count. The
-  // floor of D_AUTO.l2Families and D_AUTO.l2PreviewFamilies preserves a
-  // minimum even when very few L1 families are accessible.
   const eligibleFamilies = countL1FamiliesAtCurrentStageCap();
   const familiesActiveNeed = Math.min(8, Math.max(D_AUTO.l2Families || 2, Math.ceil(eligibleFamilies * 0.40)));
   const familiesPreviewNeed = Math.min(6, Math.max((D_AUTO.l2PreviewFamilies ?? D_AUTO.l2Families ?? 2), Math.ceil(eligibleFamilies * 0.25)));
-  const active = t >= D_AUTO.l2MinTrials && acc >= D_AUTO.l2Acc && (!avgRT || avgRT <= D_AUTO.l2RT) && families >= familiesActiveNeed && baseCapActive;
+  const active = a.t >= D_AUTO.l2MinTrials && a.acc >= D_AUTO.l2Acc && (!a.avgRT || a.avgRT <= D_AUTO.l2RT) && a.families >= familiesActiveNeed && baseCapActive;
   const previewRT = CONFIG.rtL1Good * (D_AUTO.l2PreviewRTFactor || 1.30);
-  const preview = !active && t >= D_AUTO.l2PreviewMinTrials && acc >= D_AUTO.l2PreviewAcc && (!avgRT || avgRT <= previewRT) && families >= familiesPreviewNeed && baseCapPreview;
+  const preview = !active && p.t >= D_AUTO.l2PreviewMinTrials && p.acc >= D_AUTO.l2PreviewAcc && (!p.avgRT || p.avgRT <= previewRT) && p.families >= familiesPreviewNeed && baseCapPreview;
   const lockedReason =
-    t < D_AUTO.l2PreviewMinTrials ? `needs ${D_AUTO.l2PreviewMinTrials} L1 trials for preview (current: ${t})` :
-    families < familiesPreviewNeed ? `needs L1 breadth across ${familiesPreviewNeed} families for preview (current: ${families} of ${eligibleFamilies} accessible)` :
-    acc < D_AUTO.l2PreviewAcc ? `needs L1 accuracy ${Math.round(D_AUTO.l2PreviewAcc*100)}% for preview (current: ${Math.round(acc*100)}%)` :
-    avgRT > previewRT ? `needs L1 RT ≤${Math.round(previewRT)}ms for preview (current: ${Math.round(avgRT)}ms)` :
+    p.t < D_AUTO.l2PreviewMinTrials ? `needs ${D_AUTO.l2PreviewMinTrials} recent L1 trials for preview (current: ${p.t})` :
+    p.families < familiesPreviewNeed ? `needs recent L1 breadth across ${familiesPreviewNeed} families for preview (current: ${p.families} of ${eligibleFamilies} accessible)` :
+    p.acc < D_AUTO.l2PreviewAcc ? `needs recent L1 accuracy ${Math.round(D_AUTO.l2PreviewAcc*100)}% for preview (current: ${Math.round(p.acc*100)}%)` :
+    p.avgRT > previewRT ? `needs recent L1 RT ≤${Math.round(previewRT)}ms for preview (current: ${Math.round(p.avgRT)}ms)` :
     !baseCapPreview ? `pyramidal cap: base level must rise before L2 unlocks` :
-    `needs more L1 evidence`;
+    `needs more recent L1 evidence`;
   const reason = dAutoReason(
     active,
     preview,
-    `L1 accuracy ${Math.round(acc*100)}%, ${t} trials, ${families}/${eligibleFamilies} families`,
-    `L1 accuracy ${Math.round(acc*100)}%, ${t} trials; probing Meta²`,
+    `recent L1 accuracy ${Math.round(a.acc*100)}%, ${a.t} trials, ${a.families}/${eligibleFamilies} families`,
+    `recent L1 accuracy ${Math.round(p.acc*100)}%, ${p.t} trials; probing Meta²`,
     lockedReason
   );
-  return {state:active?"active":preview?"preview":"locked", active, preview, available:active||preview, t, c, acc, avgRT, families, eligibleFamilies, reason};
+  return {state:active?"active":preview?"preview":"locked", active, preview, available:active||preview, t, c, acc, avgRT, families, eligibleFamilies, reason,
+    previewT:p.t, previewAcc:p.acc, previewRT:p.avgRT, previewFamilies:p.families,
+    lifetimeT, lifetimeC, lifetimeAcc};
 }
 
 // v6.5.9: count L1 families that are currently accessible given the user's
@@ -27606,40 +27667,43 @@ function dL2FamilyEvidence(){
 }
 
 function dL2Readiness(){
+  const activeWin = dCurrentL2Window(D_AUTO.l3MinTrials);
+  const previewWin = dCurrentL2Window(D_AUTO.l3PreviewMinTrials);
+  const a = summarizeMetaReadinessWindow(activeWin);
+  const p = summarizeMetaReadinessWindow(previewWin);
   const s = State.meta.l2Stats || {t:0,c:0,rt:[]};
-  const sum = statSummaryFromBucket(s);
-  const families = dL2FamilyEvidence();
-  // v6.5.10: proportional families gate (Reparation 4 from audit doc),
-  // analog of v6.5.9 fix to dL1Readiness. Previously absolute at 2 of 4
-  // accessible families (50% — not catastrophic but still a fixed
-  // threshold that doesn't scale if/when the L2 catalogue grows. The
-  // floor of D_AUTO.l3Families preserves a minimum.
+  const lifetime = statSummaryFromBucket(s);
+  const families = a.families;
+  const previewFamilies = p.families;
   const eligibleL2Families = countL2FamiliesAtCurrentStageCap();
   const familiesActiveNeed = Math.min(6, Math.max(D_AUTO.l3Families || 2, Math.ceil(eligibleL2Families * 0.50)));
   const familiesPreviewNeed = Math.min(4, Math.max((D_AUTO.l3PreviewFamilies ?? D_AUTO.l3Families ?? 1), Math.ceil(eligibleL2Families * 0.30)));
   const hasActiveFamilies = families >= familiesActiveNeed;
-  const hasPreviewFamilies = families >= familiesPreviewNeed;
-  // v6.5.1: pyramid base cap. L3 active requires levelByMode.D >= 2; preview
-  // requires base >= 1.
+  const hasPreviewFamilies = previewFamilies >= familiesPreviewNeed;
+  // v6.5.93: L2→L3 uses the same recent-window principle as L1→L2.
+  // Lifetime L2 stats remain visible in diagnostics but no longer create a
+  // practical soft-lock after early META² errors.
   const baseCapActive = dPyramidMetaCap("active") >= 3;   // base+1 ≥ 3 → base ≥ 2
   const baseCapPreview = dPyramidMetaCap("preview") >= 3; // base+2 ≥ 3 → base ≥ 1
-  const active = sum.t >= D_AUTO.l3MinTrials && sum.acc >= D_AUTO.l3Acc && (!sum.avgRT || sum.avgRT <= D_AUTO.l3RT) && hasActiveFamilies && baseCapActive;
+  const active = a.t >= D_AUTO.l3MinTrials && a.acc >= D_AUTO.l3Acc && (!a.avgRT || a.avgRT <= D_AUTO.l3RT) && hasActiveFamilies && baseCapActive;
   const previewRT = CONFIG.rtL2Good * (D_AUTO.l3PreviewRTFactor || 1.30);
-  const preview = !active && sum.t >= D_AUTO.l3PreviewMinTrials && sum.acc >= D_AUTO.l3PreviewAcc && (!sum.avgRT || sum.avgRT <= previewRT) && hasPreviewFamilies && baseCapPreview;
+  const preview = !active && p.t >= D_AUTO.l3PreviewMinTrials && p.acc >= D_AUTO.l3PreviewAcc && (!p.avgRT || p.avgRT <= previewRT) && hasPreviewFamilies && baseCapPreview;
   const lockedReason =
-    sum.t < D_AUTO.l3PreviewMinTrials ? `needs ${D_AUTO.l3PreviewMinTrials} L2 trials for preview (current: ${sum.t})` :
-    families < familiesPreviewNeed ? `needs L2 breadth across ${familiesPreviewNeed} families for preview (current: ${families} of ${eligibleL2Families} accessible)` :
-    sum.acc < D_AUTO.l3PreviewAcc ? `needs L2 accuracy ${Math.round(D_AUTO.l3PreviewAcc*100)}% for preview (current: ${Math.round(sum.acc*100)}%)` :
+    p.t < D_AUTO.l3PreviewMinTrials ? `needs ${D_AUTO.l3PreviewMinTrials} recent L2 trials for preview (current: ${p.t})` :
+    previewFamilies < familiesPreviewNeed ? `needs recent L2 breadth across ${familiesPreviewNeed} families for preview (current: ${previewFamilies} of ${eligibleL2Families} accessible)` :
+    p.acc < D_AUTO.l3PreviewAcc ? `needs recent L2 accuracy ${Math.round(D_AUTO.l3PreviewAcc*100)}% for preview (current: ${Math.round(p.acc*100)}%)` :
     !baseCapPreview ? `pyramidal cap: base level must rise before L3 unlocks` :
-    `needs L2 RT ≤${Math.round(previewRT)}ms for preview (current: ${Math.round(sum.avgRT)}ms)`;
+    `needs recent L2 RT ≤${Math.round(previewRT)}ms for preview (current: ${Math.round(p.avgRT)}ms)`;
   const reason = dAutoReason(
     active,
     preview,
-    `L2 accuracy ${Math.round(sum.acc*100)}%, ${sum.t} trials, ${families}/${eligibleL2Families} families`,
-    `L2 accuracy ${Math.round(sum.acc*100)}%, ${sum.t} trials, ${families} families; probing Meta³`,
+    `recent L2 accuracy ${Math.round(a.acc*100)}%, ${a.t} trials, ${families}/${eligibleL2Families} families`,
+    `recent L2 accuracy ${Math.round(p.acc*100)}%, ${p.t} trials, ${previewFamilies} families; probing Meta³`,
     lockedReason
   );
-  return {...sum, families, eligibleL2Families, state:active?"active":preview?"preview":"locked", active, preview, available:active||preview, reason};
+  return {t:a.t, c:a.c, acc:a.acc, avgRT:a.avgRT, families, eligibleL2Families, state:active?"active":preview?"preview":"locked", active, preview, available:active||preview, reason,
+    previewT:p.t, previewAcc:p.acc, previewRT:p.avgRT, previewFamilies,
+    lifetimeT:lifetime.t, lifetimeC:lifetime.c, lifetimeAcc:lifetime.acc, lifetimeAvgRT:lifetime.avgRT};
 }
 
 // v6.5.10: count L2 families that are currently accessible given the user's
@@ -30762,8 +30826,17 @@ function maybeApplyL0Transform(probe, ctx){
   const wantBoth = cfg.bothProb > 0 && Math.random() < cfg.bothProb;
 
   // Find which side(s) admit a transformation under the tier ceiling.
-  const aSel = selectL0TransformForSide(probe.repA, probe.a, cfg.maxTier, {relationalPairHook:true});
-  const bSel = selectL0TransformForSide(probe.repB, probe.b, cfg.maxTier, {relationalPairHook:true});
+  // A representation transform is not decorative: the downstream relation must
+  // actually consume the transformed side as a live operand.  Otherwise prompts
+  // such as "Replace LEFT with empty cells of LEFT's ten-frame. If RIGHT
+  // decreased by 2..." leak a coincidental number while the transform itself is
+  // irrelevant to scoring.  Use the base question to restrict candidate sides
+  // before sampling.
+  const transformBaseQ = String(probe.question || "").replace(/^Considering\s+[^:]+:\s*/i, "");
+  const sideUsageForTransform = l0TransformBaseQuestionSideUsage(transformBaseQ);
+  if(!sideUsageForTransform.known) return { probe, applied: false };
+  const aSel = sideUsageForTransform.a ? selectL0TransformForSide(probe.repA, probe.a, cfg.maxTier, {relationalPairHook:true}) : null;
+  const bSel = sideUsageForTransform.b ? selectL0TransformForSide(probe.repB, probe.b, cfg.maxTier, {relationalPairHook:true}) : null;
 
   let chosen;
   if(wantBoth && aSel && bSel){
@@ -30776,6 +30849,9 @@ function maybeApplyL0Transform(probe, ctx){
   } else if(bSel){
     chosen = { kind: "single", side: "b", sel: bSel };
   } else {
+    return { probe, applied: false };
+  }
+  if(chosen.kind === "single" && !l0TransformChosenSideIsLive(transformBaseQ, chosen)){
     return { probe, applied: false };
   }
 
@@ -35536,6 +35612,11 @@ function l1OpHasValidAnswer(op, p1, p2, m=currentMax()){
     if(!r || typeof r !== "object") return false;
     return l1ValidAnswer(r.answer) && typeof r.question === "string" && r.question.length > 0;
   }
+  if(op.responseFormat === "bool" || op.responseFormat === "yesno"){
+    const r = op.fn(p1, p2, m);
+    if(r && typeof r === "object") return (r.answer === 0 || r.answer === 1 || typeof r.answer === "boolean") && typeof r.question === "string" && r.question.length > 0;
+    return r === 0 || r === 1 || typeof r === "boolean";
+  }
   let ans = op.fn(p1, p2, m);
   // Guard before Math.abs: Math.abs(null) is 0 in JavaScript, which would
   // incorrectly mark a deliberately non-applicable operation as valid.
@@ -36459,7 +36540,16 @@ function witnessFindNearMiss(lo, hi, predicates, solutionSet, failureLabels){
     }
   }
   if(!best) return null;
-  return { value:best.value, reason:`${best.value} is in range but is not ${failureLabels[best.failedIndex]}` };
+  const pred = predicates[best.failedIndex] || {};
+  let reason;
+  if(pred.predId === "not_in_set") reason = `${best.value} is in range but is prime.`;
+  else if(pred.predId === "multiple_of_6") reason = `${best.value} is in range but is not a multiple of 6.`;
+  else if(pred.predId === "equal_to_anchor") reason = `${best.value} is in range but is not equal to the required anchor.`;
+  else{
+    const fail = String(failureLabels[best.failedIndex] || "the required property");
+    reason = `${best.value} is in range but does not satisfy: ${fail}.`;
+  }
+  return { value:best.value, reason };
 }
 
 // ---- Qualifiers -----------------------------------------------------------
@@ -36550,17 +36640,21 @@ const WITNESS_QUALIFIERS = {
 function witnessBuildPrompt(qualifierId, anchors, unaryPredLabels, binaryPredLabels, binaryNounLabel){
   const qual = WITNESS_QUALIFIERS[qualifierId];
   let mainNoun;
-  if(unaryPredLabels.length > 0) mainNoun = unaryPredLabels.join(" ");
+  if(unaryPredLabels.length > 0) mainNoun = unaryPredLabels.join(" and ");
   else if(binaryNounLabel)       mainNoun = binaryNounLabel;
   else                           return "?";
+  let trailing = "";
+  if(unaryPredLabels.length > 0 && binaryPredLabels.length > 0){
+    trailing = ` and ${binaryPredLabels.join(" and ")}`;
+  }
+  if((qualifierId === "upper_boundary" || qualifierId === "lower_boundary") && anchors && anchors.length >= 2){
+    const dir = qualifierId === "upper_boundary" ? "largest" : "smallest";
+    return `In the inclusive range from ${anchors[0].label} through ${anchors[1].label}, what is the ${dir} value that is ${mainNoun}${trailing}?`;
+  }
   const lead = qual.leadWord
     ? `${qual.leadWord} ${mainNoun}`
     : (mainNoun.charAt(0).toUpperCase() + mainNoun.slice(1));
   const rangeStr = qual.rangeClause(anchors);
-  let trailing = "";
-  if(unaryPredLabels.length > 0 && binaryPredLabels.length > 0){
-    trailing = ` ${binaryPredLabels.join(" and ")}`;
-  }
   return `${lead} ${rangeStr}${trailing}?`;
 }
 
@@ -36738,6 +36832,7 @@ function generateWitnessInterval(p1, p2, opts){
 
 function _coh_isPrime(n)  { return witnessIsPrime(n); }
 function _coh_isSquareNumber(n) { return witnessIsSquare(n); }
+function _coh_isSquare(n) { return _coh_isSquareNumber(n); }
 function _coh_gcd(a, b)   { return witnessGcd(a, b); }
 
 function _coh_pmin(p) { return Math.min(p.a, p.b); }
@@ -38921,12 +39016,19 @@ const L1_OPS = [
 
   { id:"side_total_diff", symmetric:true, family:"position", minLevel:2,
     variants:[
-      { q:"Difference between left-side and right-side totals?" },
-      { q:"Distance between the left total and the right total?" },
-      { q:"How far apart are the two side totals?" },
-      { q:"Gap between left-column and right-column totals?" },
-      { q:"By how much does the left-side total differ from the right-side total?", linguisticFrame:"comparative_scope" },
+      { q:"Add Pair 1 LEFT + Pair 2 LEFT. Add Pair 1 RIGHT + Pair 2 RIGHT. What is the gap between those two totals?" },
+      { q:"Compare the two column totals: LEFT total = Pair 1 LEFT + Pair 2 LEFT; RIGHT total = Pair 1 RIGHT + Pair 2 RIGHT. What is their difference?", linguisticFrame:"comparative_scope" },
+      { q:"First total the two LEFT values. Then total the two RIGHT values. How far apart are those totals?", linguisticFrame:"comparative_scope" },
     ],
+    promptBuilder:function(){ return this.variants[0].q; },
+    reviewBuilder:function(state={}){
+      const p1 = state.pair1 || state.p1 || {a:state.a, b:state.b};
+      const p2 = state.pair2 || state.p2 || {a:state.c, b:state.d};
+      if(!Number.isFinite(Number(p1?.a)) || !Number.isFinite(Number(p1?.b)) || !Number.isFinite(Number(p2?.a)) || !Number.isFinite(Number(p2?.b))) return ["Add both LEFT values and both RIGHT values, then compare the two totals."];
+      const left = Number(p1.a) + Number(p2.a);
+      const right = Number(p1.b) + Number(p2.b);
+      return [`LEFT total: ${p1.a}+${p2.a} = ${left}.`, `RIGHT total: ${p1.b}+${p2.b} = ${right}.`, `Gap: |${left}−${right}| = ${Math.abs(left-right)}.`];
+    },
     fn:(p1,p2)=> Math.abs((p1.a+p2.a)-(p1.b+p2.b)) },
 
   // v6.5.9: pair_total_diff — análogo "horizontal" de side_total_diff.
@@ -40648,6 +40750,19 @@ function l1BridgeChoiceResult(question, labels, correctIndex, payload={}, frameT
     distractorTypes:labels.map((_,i)=>i===correctIndex ? "correct" : "source_confusion")
   };
 }
+function l1BridgeBoolResult(question, answer, payload={}, frameTags=[]){
+  if(typeof answer !== "boolean") return null;
+  return {
+    question,
+    answer:answer ? 1 : 0,
+    answerKind:"bool",
+    responseFormat:"bool",
+    answerLabel:answer ? "YES" : "NO",
+    payload:{bridge:true, ...(payload || {})},
+    frameTags:uniq(["episodic_binding","truth_value_readout","memory_rehearsal", ...frameTags]),
+    mechanismTags:["retained_pair_rehearsal", "binary_truth_recall"]
+  };
+}
 const L1_MEMORY_BRIDGE_OPS = [
   { id:"bridge_identify_pair1", symmetric:true, family:"memory_bridge", responseFormat:"choice", minLevel:0,
     frameTags:["episodic_binding","role_binding","memory_rehearsal"],
@@ -40660,17 +40775,16 @@ const L1_MEMORY_BRIDGE_OPS = [
     fn:(p1,p2,m)=>l1BridgeChoiceResult("Which value was on LEFT in Pair 2?", l1BridgeValueLabels(p2?.a, [p2?.b,p1?.a,p1?.b], m), 0, {bridgeType:"pair2_left_value"}, ["left_right_binding"]) },
   { id:"bridge_larger_left_pair", symmetric:true, family:"memory_bridge", responseFormat:"choice", minLevel:0,
     frameTags:["episodic_binding","role_binding","comparative_scope","memory_rehearsal"],
-    choiceLabels:["Pair 1", "Pair 2", "Both had the same LEFT value", "Cannot tell"],
-    fn:(p1,p2,m)=>{ const idx = p1.a > p2.a ? 0 : (p2.a > p1.a ? 1 : 2); return l1BridgeChoiceResult("Which pair had the larger LEFT value?", ["Pair 1", "Pair 2", "Both had the same LEFT value", "Cannot tell"], idx, {bridgeType:"left_column_compare"}, ["comparative_scope"]); } },
+    choiceLabels:["Pair 1", "Pair 2", "Both had the same LEFT value"],
+    fn:(p1,p2,m)=>{ const idx = p1.a > p2.a ? 0 : (p2.a > p1.a ? 1 : 2); return l1BridgeChoiceResult("Which pair had the larger LEFT value?", ["Pair 1", "Pair 2", "Both had the same LEFT value"], idx, {bridgeType:"left_column_compare"}, ["comparative_scope"]); } },
   { id:"bridge_pair_larger_sum", symmetric:true, family:"memory_bridge", responseFormat:"choice", minLevel:0,
     frameTags:["episodic_binding","metric_relation","memory_rehearsal"],
-    choiceLabels:["Pair 1", "Pair 2", "Both pair totals were equal", "Cannot tell"],
-    fn:(p1,p2,m)=>{ const s1=l1Sum(p1), s2=l1Sum(p2); const idx = s1 > s2 ? 0 : (s2 > s1 ? 1 : 2); return l1BridgeChoiceResult("Which retained pair had the larger total?", ["Pair 1", "Pair 2", "Both pair totals were equal", "Cannot tell"], idx, {bridgeType:"pair_sum_compare"}, ["metric_relation"]); } },
-  { id:"bridge_pair1_l0_answer", symmetric:true, family:"memory_bridge", responseFormat:"choice", minLevel:0,
+    choiceLabels:["Pair 1", "Pair 2", "Both pair totals were equal"],
+    fn:(p1,p2,m)=>{ const s1=l1Sum(p1), s2=l1Sum(p2); const idx = s1 > s2 ? 0 : (s2 > s1 ? 1 : 2); return l1BridgeChoiceResult("Which retained pair had the larger total?", ["Pair 1", "Pair 2", "Both pair totals were equal"], idx, {bridgeType:"pair_sum_compare"}, ["metric_relation"]); } },
+  { id:"bridge_pair1_l0_answer", symmetric:true, family:"memory_bridge", responseFormat:"bool", minLevel:0,
     frameTags:["episodic_binding","truth_value_readout","memory_rehearsal"],
-    choiceLabels:["YES", "NO", "The values were equal", "Cannot tell"],
     canUse:(p1)=> typeof p1?.isTrue === "boolean",
-    fn:(p1,p2,m)=>l1BridgeChoiceResult("What was the answer to Pair 1's original L0 question?", ["YES", "NO", "The values were equal", "Cannot tell"], p1.isTrue ? 0 : 1, {bridgeType:"pair1_l0_answer", sourceQuestion:p1.question || null}, ["truth_value_readout"]) }
+    fn:(p1,p2,m)=>l1BridgeBoolResult("Was Pair 1's original L0 answer YES?", !!p1.isTrue, {bridgeType:"pair1_l0_answer", sourceQuestion:p1.question || null, binaryRecall:true}, ["truth_value_readout"]) }
 ];
 L1_OPS.push(...L1_MEMORY_BRIDGE_OPS);
 
@@ -42070,6 +42184,34 @@ function registerAtomic(atomic){
   }
   ATOMIC_REGISTRY[atomic.id] = atomic;
   return atomic;
+}
+
+// v6.5.96-audit-hotfix: public global atomic registration helper.
+// Some late extension blocks intentionally call safeRegisterAtomic from global
+// scope. Older builds only defined it inside earlier IIFEs, so those calls could
+// throw ReferenceError inside a broad try/catch and silently skip atomics.
+function safeRegisterAtomic(idOrAtomic, maybeAtomic={}){
+  try{
+    const atomic = (typeof idOrAtomic === "string")
+      ? {...(maybeAtomic || {}), id:idOrAtomic}
+      : (idOrAtomic || {});
+    if(!atomic || typeof atomic.id !== "string" || !atomic.id.length) return null;
+    if(typeof ATOMIC_REGISTRY !== "undefined" && ATOMIC_REGISTRY && ATOMIC_REGISTRY[atomic.id]){
+      return ATOMIC_REGISTRY[atomic.id];
+    }
+    const label = String(atomic.label || atomic.desc || atomic.description || atomic.id).trim() || String(atomic.id);
+    return registerAtomic({
+      ...atomic,
+      label,
+      phrase: typeof atomic.phrase === "function" ? atomic.phrase : (() => label),
+      evaluate: typeof atomic.evaluate === "function" ? atomic.evaluate : (() => null),
+      reviewLine: typeof atomic.reviewLine === "function" ? atomic.reviewLine : (() => label),
+      source: atomic.source || "safeRegisterAtomic"
+    });
+  }catch(e){
+    try { if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia] safeRegisterAtomic failed", e); } catch(_){}
+    return null;
+  }
 }
 
 function registerSpec(spec){
@@ -44166,6 +44308,36 @@ function setupL1(){
     }
     return weight * frameWeaknessWeight(opFrameTags) * executiveWeaknessWeight(executiveTagsFromFrameTags(opFrameTags, {kind:"meta1", op})) * executiveGranularWeaknessWeightForInfo({kind:"meta1", op, frameTags:opFrameTags}) * l1FamilyStageWeight(op) * l1RelationalEarlyAccessWeight(op) * l1FamilyHistoricCorrection(op.family) * pairingPatternWeaknessWeight(op.pairingPattern) * cyclicTopologyDamp * l1MemoryBridgeSamplingWeight(op) * (typeof l1EffectiveCoverageGovernanceWeight === "function" ? l1EffectiveCoverageGovernanceWeight(op) : 1);
   }, {temperature:D_AUTO.adaptiveWeightTemperature, maxRatio:D_AUTO.adaptiveMaxWeightRatio}) || choice(opBank);
+
+  if(op.responseFormat === "bool" || op.responseFormat === "yesno"){
+    const fnResult = op.fn(rawP1, rawP2, m);
+    const answer = fnResult && typeof fnResult === "object" ? fnResult.answer : fnResult;
+    if(!(answer === 0 || answer === 1 || typeof answer === "boolean")) return null;
+    const numericAnswer = answer === true ? 1 : (answer === false ? 0 : Number(answer));
+    const question = (fnResult && typeof fnResult === "object" && typeof fnResult.question === "string" && fnResult.question)
+      ? fnResult.question
+      : (typeof op.questionFor === "function" ? op.questionFor(rawP1, rawP2, m) : (op.variants?.[0]?.q || ""));
+    if(!question) return null;
+    return {
+      op,
+      pair1:l1MemoryPairFromL0Pair(rawP1),
+      pair2:l1MemoryPairFromL0Pair(rawP2),
+      rawPair1:l1MemoryPairFromL0Pair(rawP1),
+      rawPair2:l1MemoryPairFromL0Pair(rawP2),
+      directionSwapped:false,
+      answer:numericAnswer,
+      answerKind:"bool",
+      responseFormat:"bool",
+      answerLabel:numericAnswer ? "YES" : "NO",
+      question,
+      payload:(fnResult && typeof fnResult === "object" ? fnResult.payload : null) || null,
+      frameTags:uniq([...(op.frameTags || []), ...((fnResult && typeof fnResult === "object" && Array.isArray(fnResult.frameTags)) ? fnResult.frameTags : [])]),
+      mechanismTags:uniq((fnResult && typeof fnResult === "object" && Array.isArray(fnResult.mechanismTags)) ? fnResult.mechanismTags : []),
+      extensionFamily:op.family || null,
+      extensionOpType:op.id || null,
+      ...linguisticFramePayload(fnResult && typeof fnResult === "object" ? fnResult : op)
+    };
+  }
 
   // v6.3.5.40: Choice-format L1 entries. A catalog op may declare
   //   responseFormat: "choice"
@@ -46834,7 +47006,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
       if(!Number.isFinite(v)) return false;
       if(kind === "even") return v % 2 === 0;
       if(kind === "odd") return Math.abs(v % 2) === 1;
-      if(kind === "prime") return isPrimeInt ? isPrimeInt(v) : (v>1 && Array.from({length:Math.floor(Math.sqrt(v))-1},(_,i)=>i+2).every(d=>v%d!==0));
+      if(kind === "prime") return (typeof isPrimeInt === "function") ? isPrimeInt(v) : (typeof isPrime === "function" ? isPrime(v) : (v>1 && Array.from({length:Math.max(0, Math.floor(Math.sqrt(v))-1)},(_,i)=>i+2).every(d=>v%d!==0)));
       if(kind === "multiple_of_3") return v % 3 === 0;
       if(kind === "multiple_of_k") return Number(spec.k) && v % Number(spec.k) === 0;
       if(kind === "gt") return v > Number(spec.threshold || 0);
@@ -47046,7 +47218,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
       {id:"rec_euclid_final_eq2", opId:"euclidean_gcd", seedSource:"EUCLID_PAIR", tier:5, minM:8, predicate:"final_eq", value:2, maxTraceDepth:3, q:"Use Euclid on the ordered pair (larger, smaller). Is the gcd 2?"},
       {id:"rec_euclid_final_in_34", opId:"euclidean_gcd", seedSource:"EUCLID_PAIR", tier:5, minM:9, predicate:"final_in_set", values:[3,4], maxTraceDepth:3, q:"Use Euclid on the ordered pair (larger, smaller). Is the gcd 3 or 4?"},
       {id:"rec_euclid_max_gt10", opId:"euclidean_gcd", seedSource:"EUCLID_PAIR", tier:5, minM:10, predicate:"max_reached", threshold:10, maxTraceDepth:3, q:"Use Euclid on the ordered pair (larger, smaller). Does any component in the trace exceed 10?"},
-      {id:"rec_collatz_within5", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"terminates_within_k", k:5, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:9, q:"Run Collatz from LEFT. Does it reach 1 within five steps?"},
+      {id:"rec_collatz_within5", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"terminates_within_k", k:5, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:9, q:"Collatz rule from LEFT: even → halve; odd → 3n+1. Does it reach 1 within five steps?"},
       {id:"rec_collatz_max_gt20", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"max_reached", threshold:20, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:5, q:"Run Collatz from LEFT. Does the trace ever exceed 20?"},
       {id:"rec_collatz_triple_twice", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"branch_usage_count", branchId:"triple_plus_one", threshold:2, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:9, q:"Run Collatz from LEFT. Is the 3v+1 branch used at least twice?"},
       {id:"rec_fa_parity_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"parity"}, maxTraceDepth:4, q:"Feed digits LEFT then RIGHT to the parity automaton. Does it finish in the even state?"},
@@ -54237,6 +54409,11 @@ function recordAtomicEvidenceDiagnostic(info, correct, rt){
   if(!mon.loadByLevel[lk]) mon.loadByLevel[lk] = {t:0, loadSum:0, maxLoad:0};
   mon.loadByLevel[lk].t++; mon.loadByLevel[lk].loadSum += atomics.length; mon.loadByLevel[lk].maxLoad = Math.max(mon.loadByLevel[lk].maxLoad||0, atomics.length);
 }
+
+function recordAtomicEvidence(info, correct, rt){
+  return recordAtomicEvidenceDiagnostic(info, correct, rt);
+}
+
 function atomicEvidenceSnapshot(limit=20){
   const mon = ensureAtomicEvidenceMonitor();
   const rows = obj => Object.entries(obj || {}).map(([key,b]) => ({key, t:b.t||0, accuracy:b.t ? (b.c||0)/Math.max(1,b.t) : null, recentRT:Array.isArray(b.rt)&&b.rt.length ? Math.round(b.rt.slice(-20).reduce((a,x)=>a+x,0)/Math.min(20,b.rt.length)) : null, atomics:b.atomics || null}))
@@ -56522,11 +56699,12 @@ function startTrial(attempt = 0, forcedLevel = null){
       setPrompt("META", "meta1");
       beginInputPhase();
     } else {
+      const isL1BoolAnswer = l1.responseFormat === "bool" || l1.answerKind === "bool" || l1.responseFormat === "yesno";
       State.trialInfo = {kind:"meta1", level:1, statsMode:"D", autoPhase:autoPhase || "L1", op:l1.op,
                          pair1:l1.pair1, pair2:l1.pair2,
                          rawPair1:l1.rawPair1, rawPair2:l1.rawPair2,
                          directionSwapped:l1.directionSwapped,
-                         answer:l1.answer, question:l1.question, frameTags:l1FrameTags(l1.op),
+                         answer:l1.answer, answerKind:isL1BoolAnswer ? "bool" : (l1.answerKind || "numeric"), responseFormat:isL1BoolAnswer ? "bool" : (l1.responseFormat || "numeric"), answerLabel:l1.answerLabel || (isL1BoolAnswer ? (l1.answer ? "YES" : "NO") : null), question:l1.question, frameTags:l1FrameTags(l1.op),
                          isMemInterferenceLure:!!l1.isMemInterferenceLure,
                          memLureType:l1.memLureType || null,
                          memLureTargetLevel:l1.memLureTargetLevel || null,
@@ -56561,7 +56739,7 @@ function startTrial(attempt = 0, forcedLevel = null){
                          transformedPair2:l1.transformedPair2 || null,
                          transform:l1.transform || null,
                          coherenceTelemetry:l1.coherenceTelemetry || null};
-      State.pendingPanel = "numpad";
+      State.pendingPanel = isL1BoolAnswer ? "bool" : "numpad";
       if(!State.trialInfo?.isMemInterferenceLure && State.trialInfo?.countsForMetaHistory !== false){
         if(showMetaTierBriefingBeforeMemoryIfNeeded(2, () => startTrial(attempt, 1))) return;
       }
@@ -57874,6 +58052,7 @@ function processInputPostAnswer(ctx){
   }
   if(trialLevel === 2){ State.meta.l2Stats.t++; }
   if(trialLevel === 3){ State.meta.l3Stats.t++; }
+  recordMetaReadinessOutcome(trialLevel, correct, rt, State.trialInfo);
   runGatingCriticalDiagnostics(State.trialInfo, correct, rt, trialLevel);
   if(CONFIG.postAnswerForensicQueueAlwaysCapture || !CONFIG.publicBuildDisablePerTrialDiagnostics){
     enqueueForensicDiagnosticsSnapshot(State.trialInfo, correct, rt, trialLevel, {full:true, userAnswer:val, correctAnswer:State.targetValue});
@@ -58277,9 +58456,9 @@ function updateMetaStateAfterTrial(level, correct, rt=0){
     if(State.trialInfo && State.trialInfo.kind === "meta1"){
       State.meta.l1Results.push({
         answer: State.trialInfo.answer,
-        answerKind: State.trialInfo.answerKind || (State.trialInfo.responseFormat === "choice" ? "choice" : "numeric"),
-        answerLabel: State.trialInfo.answerLabel || null,
-        responseFormat: State.trialInfo.responseFormat || "numeric",
+        answerKind: State.trialInfo.answerKind || (State.trialInfo.responseFormat === "choice" ? "choice" : (State.trialInfo.responseFormat === "bool" ? "bool" : "numeric")),
+        answerLabel: State.trialInfo.answerLabel || (State.trialInfo.responseFormat === "bool" ? (State.trialInfo.answer ? "YES" : "NO") : null),
+        responseFormat: State.trialInfo.responseFormat || (State.trialInfo.answerKind === "bool" ? "bool" : "numeric"),
         op: State.trialInfo.op,
         opId: State.trialInfo.op?.id || null,
         family: State.trialInfo.op?.family || null,
@@ -58867,31 +59046,79 @@ function drawTransformReview(info){
 function drawReviewCard({label="REVIEW", question="", details="", answer="", color="#ff9f43"}){
   const margin = Math.max(16, Math.round(W*0.05));
   const cardW = Math.min(W - margin*2, 430);
-  const qFont = `700 ${clamp(Math.round(W*0.035), 12, 16)}px system-ui`;
-  const detailFont = `600 ${clamp(Math.round(W*0.030), 10, 13)}px system-ui`;
-  const labelFont = `800 ${clamp(Math.round(W*0.030), 10, 12)}px system-ui`;
   const polishedQuestion = readabilityPolishMultilineText(question);
   const polishedDetails = readabilityPolishMultilineText(details);
   const answerText = readabilityPolishMultilineText(answer);
-  const qCap = polishedQuestion.includes("\n") ? 5 : 3;
-  const detailCap = polishedDetails.includes("\n") ? 7 : 3;
-  const qLines = wrapCanvasText(polishedQuestion, cardW - 32, qFont).slice(0, qCap);
-  const detailLines = wrapCanvasText(polishedDetails, cardW - 32, detailFont).slice(0, detailCap);
-  let answerFontPx = clamp(Math.round(W*0.095), 28, 46);
+  const interiorW = cardW - 32;
+  const maxCardH = Math.max(150, H - Math.max(92, Math.round(H * 0.16)));
+  let qPx = clamp(Math.round(W*0.035), 11, 16);
+  let detailPx = clamp(Math.round(W*0.030), 9, 13);
+  let labelPx = clamp(Math.round(W*0.030), 9, 12);
+  let answerFontPx = clamp(Math.round(W*0.095), 24, 46);
+  let qFont = `700 ${qPx}px system-ui`;
+  let detailFont = `600 ${detailPx}px system-ui`;
+  let labelFont = `800 ${labelPx}px system-ui`;
   let answerFont = `900 ${answerFontPx}px system-ui`;
-  ctx.font = answerFont;
-  while(answerText && ctx.measureText(answerText).width > cardW - 34 && answerFontPx > 16){
-    answerFontPx -= 1;
-    answerFont = `900 ${answerFontPx}px system-ui`;
+  const wrapAll = () => {
+    const qAll = wrapCanvasText(polishedQuestion, interiorW, qFont);
+    const dAll = wrapCanvasText(polishedDetails, interiorW, detailFont);
     ctx.font = answerFont;
+    while(answerText && ctx.measureText(answerText).width > cardW - 34 && answerFontPx > 14){
+      answerFontPx -= 1;
+      answerFont = `900 ${answerFontPx}px system-ui`;
+      ctx.font = answerFont;
+    }
+    const aAll = answerText ? wrapCanvasText(answerText, cardW - 34, answerFont) : [];
+    return {qAll, dAll, aAll};
+  };
+  let {qAll, dAll, aAll} = wrapAll();
+  let qCap = polishedQuestion.includes("\n") ? 6 : 4;
+  let detailCap = polishedDetails.includes("\n") ? 12 : 8;
+  let answerCap = 2;
+  let qLines = qAll.slice(0, qCap);
+  let detailLines = dAll.slice(0, detailCap);
+  let answerLines = aAll.slice(0, answerCap);
+  const addOverflowMark = (shown, all, cap) => {
+    if(all.length <= shown.length || shown.length === 0) return shown;
+    const out = shown.slice();
+    out[out.length - 1] = out[out.length - 1].replace(/[.…\s]*$/, "") + " …";
+    return out;
+  };
+  qLines = addOverflowMark(qLines, qAll, qCap);
+  detailLines = addOverflowMark(detailLines, dAll, detailCap);
+  answerLines = addOverflowMark(answerLines, aAll, answerCap);
+  let lineH = clamp(Math.round(W*0.045), 15, 22);
+  let detailLineH = Math.max(12, lineH - 3);
+  let answerLineH = Math.max(16, Math.round(answerFontPx * 1.02));
+  const heightOf = () => {
+    const answerBlockH = answerLines.length ? Math.max(clamp(Math.round(W*0.12), 30, 52), answerLines.length * answerLineH) : 0;
+    return 30 + qLines.length*lineH + 10 + detailLines.length*detailLineH + 12 + answerBlockH + 22;
+  };
+  let cardH = heightOf();
+  while(cardH > maxCardH && (qPx > 10 || detailPx > 8 || answerFontPx > 18)){
+    if(qPx > 10) qPx -= 1;
+    if(detailPx > 8) detailPx -= 1;
+    if(answerFontPx > 18) answerFontPx -= 1;
+    qFont = `700 ${qPx}px system-ui`; detailFont = `600 ${detailPx}px system-ui`; answerFont = `900 ${answerFontPx}px system-ui`;
+    lineH = Math.max(13, lineH - 1); detailLineH = Math.max(11, detailLineH - 1); answerLineH = Math.max(15, Math.round(answerFontPx * 1.02));
+    ({qAll, dAll, aAll} = wrapAll());
+    qLines = addOverflowMark(qAll.slice(0, qCap), qAll, qCap);
+    detailLines = addOverflowMark(dAll.slice(0, detailCap), dAll, detailCap);
+    answerLines = addOverflowMark(aAll.slice(0, answerCap), aAll, answerCap);
+    cardH = heightOf();
   }
-  const answerLines = answerText ? wrapCanvasText(answerText, cardW - 34, answerFont).slice(0, 2) : [];
-  const answerLineH = Math.max(17, Math.round(answerFontPx * 1.05));
-  const answerBlockH = Math.max(clamp(Math.round(W*0.12), 34, 52), answerLines.length * answerLineH);
-  const lineH = clamp(Math.round(W*0.045), 16, 22);
-  const cardH = 30 + qLines.length*lineH + 12 + detailLines.length*(lineH-2) + 14 + answerBlockH + 24;
+  while(cardH > maxCardH && detailLines.length > 2){
+    detailLines = detailLines.slice(0, -1);
+    detailLines[detailLines.length - 1] = detailLines[detailLines.length - 1].replace(/[.…\s]*$/, "") + " …";
+    cardH = heightOf();
+  }
+  while(cardH > maxCardH && qLines.length > 2){
+    qLines = qLines.slice(0, -1);
+    qLines[qLines.length - 1] = qLines[qLines.length - 1].replace(/[.…\s]*$/, "") + " …";
+    cardH = heightOf();
+  }
   const x = W/2 - cardW/2;
-  const y = Math.max(46, H/2 - cardH/2);
+  const y = Math.max(12, Math.min(Math.max(42, H/2 - cardH/2), H - cardH - Math.max(46, Math.round(H*0.08))));
 
   ctx.fillStyle = "rgba(8,8,13,0.88)";
   ctx.beginPath(); ctx.roundRect(x,y,cardW,cardH,12); ctx.fill();
@@ -58902,12 +59129,12 @@ function drawReviewCard({label="REVIEW", question="", details="", answer="", col
   ctx.fillText(label, W/2, y+18);
 
   ctx.font = qFont; ctx.fillStyle = "#f2f2f8";
-  let cy = y + 44;
+  let cy = y + 42;
   for(const line of qLines){ ctx.fillText(line, W/2, cy); cy += lineH; }
 
   ctx.font = detailFont; ctx.fillStyle = "#aaa";
-  cy += 4;
-  for(const line of detailLines){ ctx.fillText(line, W/2, cy); cy += lineH-2; }
+  cy += 3;
+  for(const line of detailLines){ ctx.fillText(line, W/2, cy); cy += detailLineH; }
 
   ctx.font = answerFont; ctx.fillStyle = color;
   if(answerLines.length){
@@ -59189,7 +59416,7 @@ function l0TransformationReviewLines(info){
 }
 
 function valueSetMembershipLine(kind, v, m=currentMax()){
-  const label = NUMBER_SET_LABELS?.[kind] || kind;
+  const label = (typeof numberSetLabel === "function") ? numberSetLabel(kind) : String(kind || "set").replace(/_/g, " ");
   let inSet = false;
   try { inSet = numberSetHas(kind, v, m); } catch(_){ inSet = false; }
   return `${v} is ${inSet ? "in" : "not in"} the ${label} set`;
@@ -59913,14 +60140,21 @@ function drawL0PairReviewOverlay(info){
   const memoryRepairLines = Number(info.memoryTargetLevel) === 1
     ? safeWrap("Corrected pair remains in the scheduled META chain.", 2)
     : [];
-  const lines = [
+  let lines = [
     ...chainStateLines,
     ...explanationLines,
     ...qLines,
     ...memoryRepairLines,
     `Correct: ${correctAnswer} · You: ${userAnswer}`
   ];
-  const cardH = 24 + lines.length * lineH + 16;
+  const maxCardH = Math.max(142, H - Math.max(106, Math.round(H * 0.18)));
+  const maxLines = Math.max(5, Math.floor((maxCardH - 40) / Math.max(11, lineH)));
+  if(lines.length > maxLines){
+    const answerLine = lines[lines.length - 1];
+    const keep = Math.max(3, maxLines - 2);
+    lines = [...lines.slice(0, keep), "… core rule shown; extra details shortened to fit.", answerLine];
+  }
+  const cardH = Math.min(maxCardH, 24 + lines.length * lineH + 16);
   const x = W/2 - cardW/2;
   // Keep the correction low enough to preserve visibility of the encoded stimuli,
   // but leave a stable gap above the manual-continue hint at the bottom.
@@ -60235,6 +60469,24 @@ ${info.episodicReview.text}`;
       details,
       answer: correctText,
       color: "#ff9f43"
+    });
+    return;
+  }
+  if(info.responseFormat === "bool" || info.answerKind === "bool"){
+    const correctText = info.answer ? "YES" : "NO";
+    const userText = Number.isFinite(info.userAnswer) ? (Number(info.userAnswer) ? "YES" : "NO") : null;
+    const userPart = userText ? ` · You: ${userText}` : "";
+    const sourceLine = info.payload?.sourceQuestion ? `Previous L0 question: ${readabilityPolishText(info.payload.sourceQuestion)}` : "Recall the previous YES/NO answer.";
+    let details = `${sourceLine}${userPart}`;
+    if(info.episodicReview?.text) details = `${details}
+
+${info.episodicReview.text}`;
+    drawReviewCard({
+      label:Number(info.memoryTargetLevel) === 2 ? "L1 REVIEW · MEMORY REPAIR" : "L1 REVIEW · YES/NO RECALL",
+      question:info.question || "",
+      details,
+      answer:correctText,
+      color:"#ff9f43"
     });
     return;
   }
@@ -61343,6 +61595,8 @@ function buildLeanLocalStorageProfileBlobForHotSave(){
     dExtensionStats:compactDExtensionStatsForSave(State.dExtensionStats),
     dLastL1ExtensionFamily:State.dLastL1ExtensionFamily,
     dL0Window:Array.isArray(State.dL0Window) ? State.dL0Window.slice(-120) : [],
+    dL1Window:Array.isArray(State.dL1Window) ? State.dL1Window.slice(-120) : [],
+    dL2Window:Array.isArray(State.dL2Window) ? State.dL2Window.slice(-120) : [],
     adaptiveBaseline:compactAdaptiveBaselineForLocalStorage(State.adaptiveBaseline),
     sessionCount:State.sessionCount,
     totalPlaytimeMs:State.totalPlaytimeMs,
@@ -62055,6 +62309,8 @@ function _saveImmediate(force=false, reason="save"){
       dExtensionStats:compactDExtensionStatsForSave(State.dExtensionStats),
       dLastL1ExtensionFamily:State.dLastL1ExtensionFamily,
       dL0Window:State.dL0Window,
+      dL1Window:State.dL1Window,
+      dL2Window:State.dL2Window,
       adaptiveBaseline:State.adaptiveBaseline,
       // v6.5.0: time/session telemetry persistence
       sessionCount:State.sessionCount,
@@ -62482,6 +62738,10 @@ function load(){
     else State.dExtensionStats = ensureDExtensionStatsShape(State.dExtensionStats);
     State.dLastL1ExtensionFamily = typeof d.dLastL1ExtensionFamily === "string" ? d.dLastL1ExtensionFamily : null;
     if(Array.isArray(d.dL0Window)) State.dL0Window = d.dL0Window.slice(-120);
+    if(Array.isArray(d.dL1Window)) State.dL1Window = d.dL1Window.slice(-120);
+    else if(!Array.isArray(State.dL1Window)) State.dL1Window = [];
+    if(Array.isArray(d.dL2Window)) State.dL2Window = d.dL2Window.slice(-120);
+    else if(!Array.isArray(State.dL2Window)) State.dL2Window = [];
     State.levelByMode.A = clamp(Number(State.levelByMode.A) || 0, 0, maxLevelIndexForMode("A"));
     State.levelByMode.D = clamp(Number(State.levelByMode.D) || 0, 0, maxLevelIndexForMode("D"));
     invalidateDAutoSnapshot("load_state");
@@ -65094,7 +65354,7 @@ function buildDiagnosticExport(){
     },
     recentTrials:(State.trialTelemetryBuffer || []).slice(-600),
     recentBlocks:(State.progressHistory || []).slice(-80),
-    adaptiveState:{autoMetaStable:State.autoMetaStable, dL0Window:State.dL0Window, autoPhaseStats:State.meta?.autoPhaseStats || {}, autoCurriculumTelemetry},
+    adaptiveState:{autoMetaStable:State.autoMetaStable, dL0Window:State.dL0Window, dL1Window:State.dL1Window, dL2Window:State.dL2Window, autoPhaseStats:State.meta?.autoPhaseStats || {}, autoCurriculumTelemetry},
     dataQuality:{
       recentTrialBufferLength:(State.trialTelemetryBuffer || []).length,
       answerBudgetMisses:(State.answerBudget?.misses || []).length,
@@ -67523,8 +67783,8 @@ function auditL0BooleanCompoundClarity(opts={}){
     if(row.id === "bool_left_even_nand_right_gt5" && row.negate) block.push(`${row.id}: NAND prompt should not be served through negated wording`);
   }
   const samplesToCheck = [
-    {id:"bool_left_even_nand_right_gt5", a:3, b:5, expectedResult:true, expect:/NAND\s*\/\s*NOT-BOTH|unless both are true/i},
-    {id:"bool_left_even_nand_right_gt5", a:2, b:6, expectedResult:false, expect:/NAND\s*\/\s*NOT-BOTH|unless both are true/i},
+    {id:"bool_left_even_nand_right_gt5", a:3, b:5, expectedResult:true, expect:/unless both (?:conditions )?are true/i},
+    {id:"bool_left_even_nand_right_gt5", a:2, b:6, expectedResult:false, expect:/unless both (?:conditions )?are true/i},
     {id:"bool_left_even_xor_right_gt5", a:2, b:5, expect:/exactly one condition is true/i},
     {id:"bool_left_gt_and_sum_gt10", a:7, b:5, expect:/both conditions are true/i},
     {id:"bool_left_prime_nor_right_odd", a:4, b:6, expect:/both conditions are false/i},
@@ -67541,6 +67801,27 @@ function auditL0BooleanCompoundClarity(opts={}){
     if(!s.expect.test(text)) warnings.push(`${s.id}: review did not visibly spell expected connective (${s.expect})`);
   }
   return auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentAppVersion(), scanned:scan.length, warnings, block, samples});
+}
+
+
+
+// v6.5.96-audit-hotfix: shared audit-envelope helper used by late audit wrappers.
+function auditEnvelope(feature, results={}, harnessMs=0){
+  let status = "PASS";
+  try{
+    if(typeof combineAuditResults === "function") status = combineAuditResults(results);
+    else {
+      const vals = Object.values(results || {}).map(r => String(r?.status || r?.ok || "PASS").toUpperCase());
+      status = vals.includes("FAIL") ? "FAIL" : (vals.includes("WARN") ? "WARN" : "PASS");
+    }
+  }catch(_){ status = "WARN"; }
+  return {
+    feature:String(feature || "unknown"),
+    status,
+    results:results || {},
+    harnessMs:Math.max(0, Number(harnessMs) || 0),
+    at:new Date().toISOString()
+  };
 }
 
 function combineAuditResults(results){
@@ -67904,6 +68185,19 @@ function auditL1BridgeOptionLeakContracts(){
       const result = typeof op.fn === "function" ? op.fn(p1,p2,6) : null;
       if(!result || result.correctIndex !== 0) block.push("pair identity bridge correct index changed");
     }
+    const answerOp = (Array.isArray(L1_MEMORY_BRIDGE_OPS) ? L1_MEMORY_BRIDGE_OPS : []).find(o => o && o.id === "bridge_pair1_l0_answer");
+    if(!answerOp) block.push("bridge_pair1_l0_answer missing");
+    else {
+      if(answerOp.responseFormat !== "bool") block.push("boolean L0-answer bridge must use YES/NO panel, not four-choice distractors");
+      const yesTrial = typeof answerOp.fn === "function" ? answerOp.fn({a:2,b:3,isTrue:true,question:"sample"},{a:4,b:5,isTrue:false},6) : null;
+      const noTrial = typeof answerOp.fn === "function" ? answerOp.fn({a:2,b:3,isTrue:false,question:"sample"},{a:4,b:5,isTrue:true},6) : null;
+      if(!yesTrial || yesTrial.responseFormat !== "bool" || yesTrial.answer !== 1) block.push("YES source answer bridge did not build as binary YES");
+      if(!noTrial || noTrial.responseFormat !== "bool" || noTrial.answer !== 0) block.push("NO source answer bridge did not build as binary NO");
+      const txt = `${yesTrial?.question || ""} ${(yesTrial?.choiceLabels || []).join(" ")}`;
+      if(/Cannot tell|values were equal|I don.?t know/i.test(txt)) block.push("boolean answer recall still exposes four-choice filler labels");
+    }
+    const bridgeText = (Array.isArray(L1_MEMORY_BRIDGE_OPS) ? L1_MEMORY_BRIDGE_OPS : []).map(o => [o.id, ...(Array.isArray(o.choiceLabels) ? o.choiceLabels : [])].join(" ")).join(" | ");
+    if(/Cannot tell|I don.?t know/i.test(bridgeText)) block.push("memory bridge exposes impossible filler choices instead of a smaller valid response set");
     if(typeof choiceTrayUsesOrdinalLabels !== "function") block.push("choiceTrayUsesOrdinalLabels missing");
   }catch(e){ block.push(`audit exception: ${e?.message || e}`); }
   return auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {block, warnings});
@@ -68858,6 +69152,42 @@ function l0ConciseBaseQuestionForTransform(baseQ){
   const direct = l0RelationQuestionFromTerms(normalized, "LEFT", "RIGHT");
   return l0EnsureQuestionMark(direct || normalized);
 }
+
+function l0TransformBaseQuestionSideUsage(baseQ){
+  const raw = String(baseQ || "").replace(/^Considering\s+[^:]+:\s*/i, "");
+  const normalized = l0NormalizeBaseQuestionSideLabels(raw).trim();
+  const canonical = l0RelationQuestionFromTerms(normalized, "LEFT", "RIGHT") || normalized;
+  const upper = String(canonical || "").toUpperCase();
+  let a = /\bLEFT\b/.test(upper);
+  let b = /\bRIGHT\b/.test(upper);
+
+  // Many older L0 prompts talk about the pair without spelling out LEFT/RIGHT.
+  // Those prompts consume both sides: a single-side transform can change the
+  // role selected by "larger", "closer", "sum", "gap", etc.  The guard below
+  // is deliberately conservative: if a prompt clearly talks about pair-level
+  // structure, either side is a live operand; if it only names one side, only
+  // that side is live; if neither can be established, the transform hook skips
+  // it rather than emitting decorative text.
+  if(!a && !b){
+    const bothPatterns = [
+      /\b(TWO|BOTH|PAIR|VALUES|NUMBERS|THEY|THEIR)\b/,
+      /\bSUM|TOTAL|PRODUCT|MULTIPLY|ADD|GAP|DIFFERENCE|DISTANCE|APART\b/,
+      /\bLARGER|SMALLER|GREATER|LESS|CLOSER|FARTHER|FURTHER\b/,
+      /\bEITHER|ONE OR BOTH|ONE VALUE|THE OTHER|SAME|DIFFERENT|MATCH\b/,
+      /\bDIVIDE|DIVISIBLE|MULTIPLE|PRIME|NON-PRIME|EVEN|ODD\b.*\b(BOTH|VALUES|NUMBERS|EITHER)\b/,
+    ];
+    if(bothPatterns.some(re => re.test(upper))){
+      a = true; b = true;
+    }
+  }
+  return {a:!!a, b:!!b, canonical, known:!!(a || b)};
+}
+function l0TransformChosenSideIsLive(baseQ, chosen){
+  if(!chosen || chosen.kind !== "single") return true;
+  const usage = l0TransformBaseQuestionSideUsage(baseQ);
+  if(!usage.known) return false;
+  return chosen.side === "a" ? !!usage.a : !!usage.b;
+}
 function l0TransformInstruction(transformId, side, query, orientation){
   const sideLabel = side === "a" ? "LEFT" : "RIGHT";
   const id = String(transformId || "");
@@ -68985,6 +69315,17 @@ function auditL0TransformSemanticContract(opts={}){
   }
   if(picked.includes("domino_is_double")) block.push("domino_is_double was sampled in the L0 relational transform hook");
   if(picked.includes("grid_center_filled")) block.push("grid_center_filled was sampled in the L0 relational transform hook");
+
+  const rightOnlyUsage = l0TransformBaseQuestionSideUsage("If RIGHT decreased by 2, would it be prime?");
+  if(rightOnlyUsage.a || !rightOnlyUsage.b) block.push("RIGHT-only counterfactual should not allow a LEFT-side transform");
+  const leftOnlyUsage = l0TransformBaseQuestionSideUsage("If LEFT increased by 2, would it equal RIGHT?");
+  if(!leftOnlyUsage.a || !leftOnlyUsage.b) warnings.push("LEFT+RIGHT counterfactual should mark both live operands");
+  if(l0TransformChosenSideIsLive("If RIGHT decreased by 2, would it be prime?", {kind:"single", side:"a"})){
+    block.push("single-side transform guard allows decorative LEFT transform on RIGHT-only prompt");
+  }
+  if(!l0TransformChosenSideIsLive("If RIGHT decreased by 2, would it be prime?", {kind:"single", side:"b"})){
+    block.push("single-side transform guard rejects live RIGHT transform on RIGHT-only prompt");
+  }
 
   // Review should not duplicate transform lines. The overlay owns the
   // transform-state readout; the explanation branch can repeat values/rule but
@@ -70846,7 +71187,7 @@ setInterval(tickPlaytimeAccumulator, 30000);
 // summary. It never runs per-frame and never externalizes memory.
 (function(){
   if(typeof CONFIG === "undefined" || typeof State === "undefined") return;
-  const VERSION = "v6.5.85-nand-clear-gate-contract";
+  const VERSION = "v6.5.96-audit-hotfix";
   try{
     Object.assign(CONFIG, {
       temporalConsolidationEnabled:true,
@@ -71298,8 +71639,8 @@ function loop(ts){
           return s.includes(lo + 1) && !s.includes(lo - 1) ? lo : null;
         },
         requireUnique:false,
-        leadWord:"The lower-boundary",
-        rangeClause:a => `from ${a[0].label} through ${a[1].label}`
+        leadWord:"Smallest",
+        rangeClause:a => `in the inclusive range from ${a[0].label} through ${a[1].label}`
       };
     }
     if(!WITNESS_QUALIFIERS.upper_boundary){
@@ -71313,8 +71654,8 @@ function loop(ts){
           return s.includes(hi - 1) && !s.includes(hi + 1) ? hi : null;
         },
         requireUnique:false,
-        leadWord:"The upper-boundary",
-        rangeClause:a => `from ${a[0].label} through ${a[1].label}`
+        leadWord:"Largest",
+        rangeClause:a => `in the inclusive range from ${a[0].label} through ${a[1].label}`
       };
     }
   }
@@ -71855,7 +72196,7 @@ function migrateLateL1AdditionsToRegistry(){
   function recExtraSpecs(){return[
     {id:"rec_branch_first_halve_sum",opId:"even_halve_else_minus_one_to_one",seedSource:"SUM",tier:4,minM:8,predicate:"first_step_halves",q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. Was the first step a halving step?"},
     {id:"rec_branch_first_minus_one_sum",opId:"even_halve_else_minus_one_to_one",seedSource:"SUM",tier:4,minM:8,predicate:"first_step_subtracts_one",q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. Was the first step a subtract-1 step?"},
-    {id:"rec_branch_absent_minus_one_left",opId:"even_halve_else_minus_one_to_one",seedSource:"LEFT",tier:4,minM:8,predicate:"absence_of_branch",branchId:"minus_one",q:"From LEFT, repeat until 1: even → halve; odd >1 → subtract 1. Was the subtract-1 branch never used?"},
+    {id:"rec_branch_absent_minus_one_left",opId:"even_halve_else_minus_one_to_one",seedSource:"LEFT",tier:4,minM:8,predicate:"absence_of_branch",branchId:"minus_one",q:"Start from LEFT. Rule: even → halve; odd >1 → subtract 1. Was the subtract-1 branch never used?"},
     {id:"rec_halving_net_change_gt3",opId:"halving_to_odd",seedSource:"LEFT",tier:4,minM:8,predicate:"net_change",band:[4,99],q:"Halve LEFT until it becomes odd. Did the value change by at least 4 overall?"},
     {id:"rec_subtract5_passes_prime",opId:"subtract_5_until_below_5",seedSource:"SUM",tier:4,minM:8,predicate:"passes_prime",q:"Start from LEFT+RIGHT. Subtract 5 until below 5. Did the trace pass through a prime number?"},
     {id:"rec_digit_sum_net_change_large",opId:"digit_sum_iterated",seedSource:"TWO_DIGIT",tier:4,minM:8,predicate:"net_change",band:[10,99],q:"Build LEFT-RIGHT as a two-digit number, then repeatedly sum digits. Did the value change by at least 10 overall?"},
@@ -72298,6 +72639,1617 @@ migrateLateL1AdditionsToRegistry();
 
 requestAnimationFrame(loop);
 openModal("overlay"); setStatus("MENU"); updateMenu({force:true});
+
+
+// =============================================================================
+// v6.5.87 — Memory-scope disambiguation + recursive audit cleanup
+// =============================================================================
+(function(){
+  "use strict";
+  const APP_V = "v6.5.96-audit-hotfix";
+  try{ if(typeof CONFIG === "object") CONFIG.version = APP_V; }catch(_){ }
+
+  function v6587Num(x){ const n = Number(x); return Number.isFinite(n) ? n : null; }
+  function v6587TransformCells(info){
+    try{ if(typeof representationTransformCellsFromInfo === "function") return representationTransformCellsFromInfo(info); }catch(_){ }
+    const t = info && info.representationTransform;
+    if(!t || typeof t !== "object") return [];
+    if(t.target === "both") return [t.a, t.b].filter(Boolean);
+    return [t].filter(Boolean);
+  }
+  function v6587CellForSide(info, side){
+    const t = info && info.representationTransform;
+    if(!t || typeof t !== "object") return null;
+    if(t.target === "both") return t[side] || null;
+    if(t.target === side) return t;
+    return null;
+  }
+  function l0ValueBeforeVisualTransform(info, side){
+    const cell = v6587CellForSide(info, side);
+    if(cell && Number.isInteger(Number(cell.originalValue))) return Number(cell.originalValue);
+    const explicit = side === "a" ? info?.originalA : info?.originalB;
+    if(Number.isInteger(Number(explicit))) return Number(explicit);
+    const display = side === "a" ? info?.displayA : info?.displayB;
+    if(Number.isInteger(Number(display))) return Number(display);
+    const current = side === "a" ? info?.a : info?.b;
+    return Number.isInteger(Number(current)) ? Number(current) : null;
+  }
+  function l0ValueAfterVisualTransform(info, side){
+    const current = side === "a" ? info?.a : info?.b;
+    if(Number.isInteger(Number(current))) return Number(current);
+    const cell = v6587CellForSide(info, side);
+    if(cell && Number.isInteger(Number(cell.transformedValue))) return Number(cell.transformedValue);
+    return l0ValueBeforeVisualTransform(info, side);
+  }
+  function l0HasValueChangingVisualTransform(info){
+    if(!info || !info.representationTransform) return false;
+    for(const side of ["a","b"]){
+      const before = l0ValueBeforeVisualTransform(info, side);
+      const after = l0ValueAfterVisualTransform(info, side);
+      if(Number.isInteger(before) && Number.isInteger(after) && before !== after) return true;
+    }
+    return v6587TransformCells(info).length > 0;
+  }
+  function chooseL0MemoryValueScope(info){
+    if(!l0HasValueChangingVisualTransform(info)) return "shown";
+    const cur = String(info.memoryValueScope || "");
+    if(cur === "shown" || cur === "transformed") return cur;
+    // Keep the balance simple and local. The cue tells the user which contract
+    // applies; the pair-history stores the corresponding values.
+    return Math.random() < 0.5 ? "transformed" : "shown";
+  }
+  function l0MemoryScopeContract(info){
+    const hasTransform = l0HasValueChangingVisualTransform(info);
+    const scope = hasTransform ? chooseL0MemoryValueScope(info) : "shown";
+    const shown = {a:l0ValueBeforeVisualTransform(info,"a"), b:l0ValueBeforeVisualTransform(info,"b")};
+    const transformed = {a:l0ValueAfterVisualTransform(info,"a"), b:l0ValueAfterVisualTransform(info,"b")};
+    const retained = scope === "shown" ? shown : transformed;
+    const label = scope === "shown" ? "originally shown numbers" : "transformed numbers";
+    const cue = !hasTransform ? null : (scope === "shown"
+      ? "Use the originally shown numbers for later META; ignore this L0 transform."
+      : "Use the transformed numbers from this L0 for later META.");
+    return {hasTransform, scope, label, cue, shown, transformed, retained};
+  }
+  function assignL0MemoryValueScopeIfNeeded(info){
+    if(!info || info.kind !== "posner" || !info.representationTransform) return info;
+    const c = l0MemoryScopeContract(info);
+    info.memoryValueScope = c.scope;
+    info.memoryScopeLabel = c.label;
+    info.memoryScopeCue = c.cue;
+    info.memoryShownPair = c.shown;
+    info.memoryTransformedPair = c.transformed;
+    info.memoryRetainedPair = c.retained;
+    return info;
+  }
+  window.l0MemoryScopeContract = l0MemoryScopeContract;
+  window.assignL0MemoryValueScopeIfNeeded = assignL0MemoryValueScopeIfNeeded;
+
+  // Make the MEM cue explicit when a visual transform is part of a future META item.
+  if(typeof attachMemoryPlanToCurrentTrial === "function"){
+    const oldAttach = attachMemoryPlanToCurrentTrial;
+    attachMemoryPlanToCurrentTrial = function attachMemoryPlanToCurrentTrialV6587(){
+      const out = oldAttach.apply(this, arguments);
+      try{
+        if(State?.trialInfo?.memoryActive && Number(State.trialInfo.memoryTargetLevel) === 1){
+          assignL0MemoryValueScopeIfNeeded(State.trialInfo);
+        }
+      }catch(_){ }
+      return out;
+    };
+  }
+  if(typeof memoryCueInfo === "function"){
+    const oldCue = memoryCueInfo;
+    memoryCueInfo = function memoryCueInfoV6587(){
+      const cue = oldCue.apply(this, arguments);
+      try{
+        const info = State?.trialInfo || {};
+        if(cue && Number(cue.level) === 1 && info.memoryScopeCue){
+          const short = info.memoryValueScope === "shown" ? "shown" : "transformed";
+          cue.label = `${cue.label} · ${short}`;
+          cue.detail = `${cue.detail} ${info.memoryScopeCue}`;
+        }
+      }catch(_){ }
+      return cue;
+    };
+  }
+
+  // Store the promised memory scope in MEM items and ordinary pairHistory.
+  if(typeof metaMemoryItemFromCurrentTrial === "function"){
+    const oldMemItem = metaMemoryItemFromCurrentTrial;
+    metaMemoryItemFromCurrentTrial = function metaMemoryItemFromCurrentTrialV6587(prereqLevel){
+      const item = oldMemItem.apply(this, arguments);
+      try{
+        if(Number(prereqLevel) === 0 && item && State?.trialInfo?.kind === "posner"){
+          assignL0MemoryValueScopeIfNeeded(State.trialInfo);
+          const c = l0MemoryScopeContract(State.trialInfo);
+          item.a = c.retained.a; item.b = c.retained.b;
+          item.originalA = c.shown.a; item.originalB = c.shown.b;
+          item.transformedA = c.transformed.a; item.transformedB = c.transformed.b;
+          item.memoryValueScope = c.scope;
+          item.memoryScopeLabel = c.label;
+          item.memoryScopeCue = c.cue;
+          item.hasRepresentationTransform = c.hasTransform;
+          item.memoryShownPair = c.shown;
+          item.memoryTransformedPair = c.transformed;
+        }
+      }catch(_){ }
+      return item;
+    };
+  }
+  if(typeof updateMetaStateAfterTrial === "function"){
+    const oldUpdateMeta = updateMetaStateAfterTrial;
+    updateMetaStateAfterTrial = function updateMetaStateAfterTrialV6587(level, correct, rt){
+      const info = State?.trialInfo;
+      let restore = null, beforeLen = 0, beforePlanLens = null, contract = null;
+      try{
+        if(Number(level) === 0 && info && info.kind === "posner" && info.representationTransform){
+          assignL0MemoryValueScopeIfNeeded(info);
+          contract = l0MemoryScopeContract(info);
+          beforeLen = Array.isArray(State.meta?.pairHistory) ? State.meta.pairHistory.length : 0;
+          const plans = typeof ensureMetaMemoryPlans === "function" ? ensureMetaMemoryPlans() : null;
+          beforePlanLens = plans ? Object.fromEntries([1,2,3].map(k => [k, Array.isArray(plans[k]?.items) ? plans[k].items.length : 0])) : null;
+          restore = {a:info.a,b:info.b,displayA:info.displayA,displayB:info.displayB};
+          info.a = contract.retained.a;
+          info.b = contract.retained.b;
+          info.displayA = contract.retained.a;
+          info.displayB = contract.retained.b;
+        }
+      }catch(_){ }
+      const out = oldUpdateMeta.apply(this, arguments);
+      try{
+        if(restore && info){
+          info.a = restore.a; info.b = restore.b; info.displayA = restore.displayA; info.displayB = restore.displayB;
+        }
+        if(contract && State?.meta){
+          const patch = p => {
+            if(!p) return;
+            p.a = contract.retained.a; p.b = contract.retained.b;
+            p.originalA = contract.shown.a; p.originalB = contract.shown.b;
+            p.transformedA = contract.transformed.a; p.transformedB = contract.transformed.b;
+            p.memoryValueScope = contract.scope;
+            p.memoryScopeLabel = contract.label;
+            p.memoryScopeCue = contract.cue;
+            p.hasRepresentationTransform = contract.hasTransform;
+            p.memoryShownPair = contract.shown;
+            p.memoryTransformedPair = contract.transformed;
+          };
+          const hist = State.meta.pairHistory;
+          if(Array.isArray(hist) && hist.length > beforeLen) patch(hist[hist.length - 1]);
+          if(State.meta.lastPair) patch(State.meta.lastPair);
+          const plans = typeof ensureMetaMemoryPlans === "function" ? ensureMetaMemoryPlans() : null;
+          if(plans && beforePlanLens){
+            for(const k of [1,2,3]){
+              const arr = plans[k]?.items;
+              if(Array.isArray(arr) && arr.length > (beforePlanLens[k] || 0)) patch(arr[arr.length - 1]);
+            }
+          }
+        }
+      }catch(_){ }
+      return out;
+    };
+  }
+  if(typeof l1MemoryPairFromL0Pair === "function"){
+    const oldL1Pair = l1MemoryPairFromL0Pair;
+    l1MemoryPairFromL0Pair = function l1MemoryPairFromL0PairV6587(p){
+      const out = oldL1Pair.apply(this, arguments);
+      try{
+        if(out && p){
+          for(const k of ["originalA","originalB","transformedA","transformedB","memoryValueScope","memoryScopeLabel","memoryScopeCue","hasRepresentationTransform","memoryShownPair","memoryTransformedPair"]){
+            if(p[k] !== undefined) out[k] = (typeof p[k] === "object" && p[k] !== null) ? JSON.parse(JSON.stringify(p[k])) : p[k];
+          }
+        }
+      }catch(_){ }
+      return out;
+    };
+  }
+  function memoryScopeCompactLineForPairs(p1, p2){
+    const lines = [];
+    const add = (idx, p) => {
+      if(!p || !p.hasRepresentationTransform || !p.memoryValueScope) return;
+      if(p.memoryValueScope === "shown") lines.push(`Pair ${idx}: use the originally shown numbers.`);
+      else lines.push(`Pair ${idx}: use the transformed numbers from its L0 rule.`);
+    };
+    add(1, p1); add(2, p2);
+    return lines.length ? `Memory rule: ${lines.join(" ")}` : "";
+  }
+  function memoryScopeReviewLineForPairs(p1, p2){
+    const lines = [];
+    const add = (idx, p) => {
+      if(!p || !p.hasRepresentationTransform || !p.memoryValueScope) return;
+      const shown = p.memoryShownPair || {a:p.originalA, b:p.originalB};
+      const transformed = p.memoryTransformedPair || {a:p.transformedA, b:p.transformedB};
+      const retained = p.memoryValueScope === "shown" ? shown : transformed;
+      const mode = p.memoryValueScope === "shown" ? "originally shown" : "transformed";
+      if(Number.isFinite(Number(shown.a)) && Number.isFinite(Number(shown.b)) && Number.isFinite(Number(transformed.a)) && Number.isFinite(Number(transformed.b))){
+        lines.push(`Pair ${idx} memory used ${mode} values: shown (${shown.a}, ${shown.b}) → transformed (${transformed.a}, ${transformed.b}) → retained (${retained.a}, ${retained.b}).`);
+      } else {
+        lines.push(`Pair ${idx} memory used ${mode} values.`);
+      }
+    };
+    add(1, p1); add(2, p2);
+    return lines.join("\n");
+  }
+  window.l1MemoryScopeHintForPairs = memoryScopeCompactLineForPairs;
+  window.l1MemoryScopeReviewLineForPairs = memoryScopeReviewLineForPairs;
+  function annotateL1MemoryScopeContract(l1){
+    try{
+      if(!l1 || l1._memoryScopeAnnotated) return l1;
+      const hint = memoryScopeCompactLineForPairs(l1.pair1, l1.pair2);
+      if(!hint) return l1;
+      l1._memoryScopeAnnotated = true;
+      l1.memoryScopeHint = hint;
+      if(typeof l1.question === "string" && !l1.question.startsWith("Memory rule:")) l1.question = `${hint}\n${l1.question}`;
+      l1.payload = {...(l1.payload || {}), memoryScopeContract:{hint, pair1:l1.pair1?.memoryValueScope || null, pair2:l1.pair2?.memoryValueScope || null}};
+      l1.mechanismTags = (typeof uniq === "function" ? uniq([...(l1.mechanismTags || []), "memory_scope_disambiguation"]) : [...(l1.mechanismTags || []), "memory_scope_disambiguation"]);
+    }catch(_){ }
+    return l1;
+  }
+  if(typeof setupL1 === "function"){
+    const oldSetupL1 = setupL1;
+    setupL1 = function setupL1V6587(){ return annotateL1MemoryScopeContract(oldSetupL1.apply(this, arguments)); };
+  }
+  if(typeof drawL1Review === "function"){
+    const oldDrawL1Review = drawL1Review;
+    drawL1Review = function drawL1ReviewV6587(info){
+      try{
+        const scopeLine = memoryScopeReviewLineForPairs(info?.pair1, info?.pair2);
+        if(scopeLine){
+          info = {...info, episodicReview:{...(info.episodicReview || {}), text:[scopeLine, info.episodicReview?.text].filter(Boolean).join("\n")}};
+        }
+      }catch(_){ }
+      return oldDrawL1Review.apply(this, [info]);
+    };
+  }
+
+  // Remove/rebalance recursive probes that were empirically constant under the
+  // served ranges. Bad probes are not useful difficulty; they teach response bias.
+  const RETIRED_REC_IDS = new Set([
+    "rec_subtract5_passes_even",
+    "rec_halving_sum_net_change_4_10"
+  ]);
+  const TUNED_REC_SPECS = {
+    rec_halving_final_gt3:{minM:10, seedFilter:seed => Number(seed) <= 12, q:"Starting from LEFT, keep halving while the value is even. Is the final odd value greater than 3?"},
+    rec_subtract5_final_even:{predicate:"final_in_set", values:[0,2,4], q:"Start from LEFT+RIGHT. Repeatedly subtract 5 until the value is below 5. Is the final value one of 0, 2, or 4?"},
+    rec_digit_pair_final_even:{predicate:"final_in_set", values:[2,4,6,8], q:"Make a two-digit number with LEFT as tens and RIGHT as ones. Repeatedly sum digits until one digit remains. Is the final digit one of 2, 4, 6, or 8?"},
+    rec_halving_final_eq3:{minM:8, seedFilter:seed => Number(seed) <= 12, q:"Starting from LEFT, keep halving while the value is even. Is the final odd value exactly 3?"},
+    rec_collatz_within5:{seedWhitelist:[2,4,5,8,10], maxTraceDepth:6, q:"Collatz rule from LEFT: even → halve; odd → 3n+1. Does it reach 1 within five steps?"},
+    rec_collatz_triple_twice:{predicate:"branch_usage_count", threshold:1, seedWhitelist:[2,4,5,8,10], maxTraceDepth:6, q:"Collatz rule: even → halve; odd → 3n+1. Is the 3n+1 branch used at least once?"},
+    rec_branch_absent_minus_one_left:{q:"Start from LEFT. Rule: even → halve; odd >1 → subtract 1. Was the subtract-1 branch never used?"}
+  };
+  try{
+    if(Array.isArray(RECURSIVE_TRACE_CAT_SPECS)){
+      for(let i=RECURSIVE_TRACE_CAT_SPECS.length-1;i>=0;i--){
+        if(RETIRED_REC_IDS.has(RECURSIVE_TRACE_CAT_SPECS[i]?.id)) RECURSIVE_TRACE_CAT_SPECS.splice(i,1);
+      }
+      for(const sp of RECURSIVE_TRACE_CAT_SPECS){
+        if(TUNED_REC_SPECS[sp.id]) Object.assign(sp, TUNED_REC_SPECS[sp.id]);
+        const atoms = [sp.opId, sp.seedSource, sp.predicate, sp.branchId ? `branch_${sp.branchId}` : null, sp.invariant ? `invariant_${sp.invariant}` : null, Array.isArray(sp.values) ? "set_membership" : null].filter(Boolean);
+        sp.atomicsUsed = typeof uniq === "function" ? uniq([...(sp.atomicsUsed || []), ...atoms]) : [...(sp.atomicsUsed || []), ...atoms];
+      }
+    }
+    if(Array.isArray(POSNER_CATS)){
+      for(let i=POSNER_CATS.length-1;i>=0;i--){
+        if(RETIRED_REC_IDS.has(POSNER_CATS[i]?.id)) POSNER_CATS.splice(i,1);
+      }
+      for(const c of POSNER_CATS){
+        if(c && c.family === "recursive_trace" && typeof recursiveTraceSpecById === "function"){
+          const sp = recursiveTraceSpecById(c.id);
+          if(sp){
+            c.minM = sp.minM || c.minM;
+            c.variants = [{q:sp.q}];
+            c.atomicsUsed = sp.atomicsUsed || c.atomicsUsed;
+            c.frameTags = typeof uniq === "function" ? uniq([...(c.frameTags || []), ...(sp.frameTags || [])]) : c.frameTags;
+          }
+        }
+      }
+    }
+  }catch(e){ try{ console.warn("recursive cleanup failed", e); }catch(_){} }
+
+  // Retire two cross-representation clock ±1 operators whose projection output
+  // was nearly constant under the YES/NO construction. Clock ±2/±3 and opposite
+  // remain available; this removes bias, not the cyclic-transform primitive.
+  const CROSS_REP_RETIRED = new Set(["cross_rep_project_clock_advance_1", "cross_rep_project_clock_back_1"]);
+  try{
+    if(Array.isArray(POSNER_CATS)){
+      for(let i=POSNER_CATS.length-1;i>=0;i--){
+        if(CROSS_REP_RETIRED.has(POSNER_CATS[i]?.id)) POSNER_CATS.splice(i,1);
+      }
+    }
+    if(typeof l0CrossRepProjectionCatalog === "function"){
+      const oldCross = l0CrossRepProjectionCatalog;
+      l0CrossRepProjectionCatalog = function l0CrossRepProjectionCatalogV6587(){
+        return oldCross.apply(this, arguments).filter(op => !CROSS_REP_RETIRED.has(op.id));
+      };
+    }
+  }catch(_){ }
+
+  // Complete the declared clock visual-state grammar for implemented transforms.
+  try{
+    const ops = VISUAL_STATE_SPECS?.clock?.transformOps;
+    if(Array.isArray(ops)){
+      for(const id of ["clock_advance_3", "clock_retreat_3", "clock_advance_6"]){ if(!ops.includes(id)) ops.push(id); }
+    }
+  }catch(_){ }
+
+  function auditL0VisualTransformMemoryScopeContract(opts={}){
+    const block=[], cases=[];
+    const mk = (scope) => ({kind:"posner", a:4, b:9, repA:"dots", repB:"clock", memoryValueScope:scope, representationTransform:{rep:"clock", transformId:"clock_opposite_hour", target:"b", originalValue:3, transformedValue:9, displayValue:3}});
+    for(const scope of ["shown","transformed"]){
+      const info = mk(scope), c = l0MemoryScopeContract(info);
+      cases.push({scope, retained:c.retained, cue:c.cue});
+      if(scope === "shown" && c.retained.b !== 3) block.push("shown scope did not retain original clock value");
+      if(scope === "transformed" && c.retained.b !== 9) block.push("transformed scope did not retain transformed clock value");
+      if(!/shown|transformed/i.test(c.cue || "")) block.push(`${scope}: missing explicit cue`);
+    }
+    const l1 = annotateL1MemoryScopeContract({question:"Sum the remembered values.", pair1:{a:1,b:2}, pair2:{a:4,b:9,hasRepresentationTransform:true,memoryValueScope:"transformed",memoryShownPair:{a:4,b:3},memoryTransformedPair:{a:4,b:9}}, mechanismTags:[]});
+    if(!/^Memory rule:/i.test(l1.question || "")) block.push("L1 question did not receive memory rule prefix");
+    return auditResult(block.length ? "BLOCK" : "PASS", {appVersion:currentAppVersion(), cases, sampleQuestion:l1.question, block});
+  }
+  window.auditL0VisualTransformMemoryScopeContract = auditL0VisualTransformMemoryScopeContract;
+
+  function auditRecursiveTraceBehavioralCleanup(opts={}){
+    const block=[], retired=[], tuned=[];
+    try{
+      const ids = new Set((RECURSIVE_TRACE_CAT_SPECS || []).map(s=>s.id));
+      for(const id of RETIRED_REC_IDS){ if(ids.has(id)) block.push(`${id}: retired degenerate probe still in spec list`); else retired.push(id); }
+      if(typeof recScalarPredicate === "function"){} // normally scoped; ReferenceError is checked by generating prime choice instead.
+      const primeCat = (POSNER_CATS || []).find(c => c && c.id === "decl_rec_choice_first_prime_subtract");
+      if(primeCat && typeof primeCat.buildChoiceTrial === "function"){
+        try{ const t = primeCat.buildChoiceTrial(primeCat, 12); if(!t) block.push("prime choice did not build"); }
+        catch(e){ block.push(`prime choice threw: ${e?.message || e}`); }
+      }
+      for(const id of Object.keys(TUNED_REC_SPECS)){ const sp=(RECURSIVE_TRACE_CAT_SPECS||[]).find(s=>s.id===id); if(sp) tuned.push({id, q:sp.q, predicate:sp.predicate, seedWhitelist:sp.seedWhitelist || null}); }
+    }catch(e){ block.push(`exception: ${e?.message || e}`); }
+    return auditResult(block.length ? "BLOCK" : "PASS", {appVersion:currentAppVersion(), retired, tuned, block});
+  }
+  window.auditRecursiveTraceBehavioralCleanup = auditRecursiveTraceBehavioralCleanup;
+
+  // Register audit aliases without editing the central dispatcher.
+  try{
+    const oldRun = runFeatureAudit;
+    runFeatureAudit = function runFeatureAuditV6587(feature, opts={}){
+      const f = String(feature || "").toLowerCase();
+      if(["memory_scope", "visual_transform_memory_scope", "l1_memory_scope", "meta_memory_scope"].includes(f)){
+        const results = {memoryScope:runTimedFeatureSubAudit(f, "memoryScope", () => auditL0VisualTransformMemoryScopeContract(opts))};
+        return auditEnvelope(f, results, 0);
+      }
+      if(["recursive_cleanup", "recursive_behavior", "recursive_trace_cleanup"].includes(f)){
+        const results = {recursiveCleanup:runTimedFeatureSubAudit(f, "recursiveCleanup", () => auditRecursiveTraceBehavioralCleanup(opts))};
+        return auditEnvelope(f, results, 0);
+      }
+      return oldRun.apply(this, arguments);
+    };
+  }catch(_){ }
+  try{ if(typeof safeRegisterAtomic === "function") safeRegisterAtomic("visual_transform_memory_scope_contract", {kind:"memory_contract", desc:"When a retained L0 used a visual transform, META memory explicitly declares whether to retain shown or transformed values."}); }catch(_){ }
+  try{ if(typeof safeRegisterAtomic === "function") safeRegisterAtomic("recursive_trace_behavioral_balance_cleanup", {kind:"audit", desc:"Recursive trace probes with constant answers are retired or tuned; prime predicates use a safe defined primality guard."}); }catch(_){ }
+})();
+
+
+// v6.5.88 — Readability/display surface audit and final display guards.
+(function registerV6588ReadabilityDisplaySurface(){
+  try{
+    const BAD_PUBLIC_PATTERNS = [
+      {id:"previous_calculation_meta", re:/previous calculation question did you just answer/i, msg:"META classification should not call every previous question a calculation."},
+      {id:"hold_together", re:/hold together|fail to hold together/i, msg:"Boolean gates must name the connective and definition, not 'hold together'."},
+      {id:"ambiguous_missing_datum", re:/Which missing value makes:/i, msg:"Missing-datum questions must say exact gap or smallest value explicitly."},
+      {id:"bridge_leak_pair_label", re:/Pair\s+[12]\s*(?:swapped)?\s*:\s*LEFT/i, msg:"Bridge options must not reveal Pair 1/Pair 2/swapped status."},
+      {id:"filler_choice", re:/\b(?:Cannot tell|I don.?t know|values were equal)\b/i, msg:"Choice distractors must be plausible under the public contract."},
+      {id:"triangle_negative", re:/too short or exactly equal|third side equals the larger value/i, msg:"Triangle prompt must use positive smaller+smaller > larger contract."},
+      {id:"cycle_complement", re:/complement to the cycle/i, msg:"Cycle prompts must say shorter path or remaining path explicitly."},
+      {id:"centre_cell", re:/centre cell/i, msg:"Grid prompts must say middle square of the 3×3 grid."},
+      {id:"spanglish", re:/property-de-valor|relación-de-orden|pertenencia-a-conjunto|métrica-derivada|META-CLASS/i, msg:"Public labels must be plain English."},
+      {id:"inclusive_next_multiple", re:/next multiple of \d+ after/i, msg:"Use 'next higher multiple' for the strict successor."}
+    ];
+    function displayPolishedSurfaceRows(){
+      const rows = (typeof collectPromptSurfaceRows === "function") ? collectPromptSurfaceRows() : [];
+      return rows.map(r => ({...r, displayText:readabilityPolishText(r.displayText || r.rawRendered || r.rawText || "")}));
+    }
+    function auditReadabilityDisplaySurface(opts={}){
+      const block=[], warnings=[], samples=[];
+      let rows=[];
+      try{ rows = displayPolishedSurfaceRows(); }catch(e){ warnings.push(`surface collection failed: ${e?.message || e}`); }
+      for(const r of rows){
+        const txt = String(r.displayText || "");
+        for(const rule of BAD_PUBLIC_PATTERNS){
+          if(rule.re.test(txt)) block.push({rule:rule.id, id:r.id, family:r.family, level:r.level, text:txt.slice(0,220), msg:rule.msg});
+        }
+        const words = txt.trim() ? txt.trim().split(/\s+/).length : 0;
+        if(r.isGameQuestion && words > 46 && !/rule selector|program-card|program card|if yes|if no/i.test(txt)) warnings.push({rule:"long_unstructured_prompt", id:r.id, family:r.family, words, text:txt.slice(0,220)});
+      }
+      try{
+        const qa = (typeof runLinguisticQA === "function") ? runLinguisticQA({includeRows:false}) : null;
+        if(qa?.hygiene?.blockingCount) block.push({rule:"linguistic_hygiene_blockers", count:qa.hygiene.blockingCount, first:(qa.hygiene.blocking||[]).slice(0,8)});
+        if(qa?.contracts?.blockingCount) block.push({rule:"language_contract_blockers", count:qa.contracts.blockingCount, first:(qa.contracts.blocking||[]).slice(0,8)});
+        if(qa?.anaphora?.unsafeCount) block.push({rule:"unsafe_anaphora", count:qa.anaphora.unsafeCount, first:(qa.anaphora.unsafe||[]).slice(0,8)});
+        samples.push({linguisticStatus:qa?.status || null, clarityMean:qa?.clarity?.meanScore || null, hygieneWarnings:qa?.hygiene?.warningCount || 0, contractWarnings:qa?.contracts?.warningCount || 0});
+      }catch(e){ warnings.push(`linguistic QA failed: ${e?.message || e}`); }
+      try{
+        const cardSrc = String(drawReviewCard || "");
+        if(!/maxCardH/.test(cardSrc) || !/addOverflowMark/.test(cardSrc)) block.push({rule:"review_card_no_fit_guard"});
+        const pairSrc = String(drawL0PairReviewOverlay || "");
+        if(!/core rule shown/.test(pairSrc) || !/maxLines/.test(pairSrc)) block.push({rule:"l0_pair_review_no_fit_guard"});
+      }catch(e){ warnings.push(`display guard inspection failed: ${e?.message || e}`); }
+      return auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentAppVersion(), scanned:rows.length, block:block.slice(0,80), warnings:warnings.slice(0,80), samples});
+    }
+    window.auditReadabilityDisplaySurface = auditReadabilityDisplaySurface;
+    const _runFeatureAudit88Prev = runFeatureAudit;
+    runFeatureAudit = function runFeatureAuditV6588(feature, opts={}){
+      const f = String(feature || "").toLowerCase();
+      if(["readability", "readability_display", "display_surface", "review_display", "question_legibility", "surface_legibility"].includes(f)){
+        const results = {readabilityDisplay:runTimedFeatureSubAudit(f, "readabilityDisplay", () => auditReadabilityDisplaySurface(opts))};
+        return {feature:f, status:combineAuditResults(results), at:new Date().toISOString(), results, harnessMs:0};
+      }
+      if(["memory_scope", "visual_transform_memory_scope", "l1_memory_scope", "meta_memory_scope"].includes(f) && typeof auditL0VisualTransformMemoryScopeContract === "function"){
+        const results = {memoryScope:runTimedFeatureSubAudit(f, "memoryScope", () => auditL0VisualTransformMemoryScopeContract(opts))};
+        return {feature:f, status:combineAuditResults(results), at:new Date().toISOString(), results, harnessMs:0};
+      }
+      if(["recursive_cleanup", "recursive_behavior", "recursive_trace_cleanup"].includes(f) && typeof auditRecursiveTraceBehavioralCleanup === "function"){
+        const results = {recursiveCleanup:runTimedFeatureSubAudit(f, "recursiveCleanup", () => auditRecursiveTraceBehavioralCleanup(opts))};
+        return {feature:f, status:combineAuditResults(results), at:new Date().toISOString(), results, harnessMs:0};
+      }
+      return _runFeatureAudit88Prev.apply(this, arguments);
+    };
+    try{ if(typeof safeRegisterAtomic === "function") safeRegisterAtomic("readability_display_surface_contract", {kind:"linguistic_ui_contract", desc:"Public prompts, options and reviews are polished, budgeted for mobile display, and audited for known ambiguity/leak patterns."}); }catch(_){ }
+  }catch(e){ try{ console.warn("v6.5.88 readability/display registration failed", e); }catch(_){} }
+})();
+
+
+
+// v6.5.89 — Distribution-first recursive traces + bridge/registry closure.
+(function registerV6589RecursiveDistributionBridgeRegistryClosure(){
+  const PATCH_VERSION = "v6.5.96-audit-hotfix";
+  const REC_TARGET_MIN_YES = 0.25;
+  const REC_TARGET_MAX_YES = 0.75;
+  const REC_MIN_VALID = 12;
+  const REC_DISTRIBUTION_CACHE = new Map();
+  const RETIRED_RUNTIME_IDS = new Set([
+    "rec_subtract5_passes_even",
+    "rec_halving_sum_net_change_4_10",
+    "cross_rep_project_clock_advance_1",
+    "cross_rep_project_clock_back_1"
+  ]);
+
+  function v6589EntryId(e){ try{ return registryEntryId(e); }catch(_){ return e && (e.id || e.catId || e.opId || e.relOpId || null); } }
+  function v6589AuditResult(status, details){ return (typeof auditResult === "function") ? auditResult(status, details) : {status, details}; }
+  function v6589Uniq(arr){ return (typeof uniq === "function") ? uniq(arr) : Array.from(new Set(arr)); }
+  function v6589Choice(arr){ return (typeof choice === "function") ? choice(arr) : arr[Math.floor(Math.random()*arr.length)]; }
+  function v6589RecursiveSpecById(id){ return (typeof recursiveTraceSpecById === "function") ? recursiveTraceSpecById(id) : ((RECURSIVE_TRACE_CAT_SPECS || []).find(s=>s && s.id === id) || null); }
+  function v6589TraceValues(result){
+    if(Array.isArray(result?.traceValues)) return result.traceValues.map(Number).filter(Number.isFinite);
+    if(Array.isArray(result?.trace)) return result.trace.map(e => Number(e.value ?? e.state ?? e.display)).filter(Number.isFinite);
+    if(Number.isFinite(Number(result?.seed))) return [Number(result.seed)];
+    return [];
+  }
+  function v6589SeedWhitelistAllows(spec, seed){
+    if(Array.isArray(spec?.seedWhitelist) && spec.seedWhitelist.length && !spec.seedWhitelist.map(Number).includes(Number(seed))) return false;
+    if(typeof spec?.seedFilter === "function"){ try{ if(!spec.seedFilter(seed)) return false; }catch(_){ return false; } }
+    const op = RECURSIVE_OPS && spec?.opId ? RECURSIVE_OPS[spec.opId] : null;
+    if(op && Array.isArray(op.seedWhitelist) && op.seedWhitelist.length && !op.seedWhitelist.map(Number).includes(Number(seed))) return false;
+    if(op && typeof op.validSeed === "function"){
+      try{ if(!op.validSeed(seed, (typeof recursiveTraceContextForSpec === "function" ? recursiveTraceContextForSpec(spec, 1, 1, seed) : {}))) return false; }catch(_){ return false; }
+    }
+    return true;
+  }
+  function v6589RecursivePairBaseValid(spec, a, b, m){
+    if(!spec || !Number.isInteger(a) || !Number.isInteger(b)) return false;
+    try{ if(typeof recursiveSeedSourcePairValid === "function" && !recursiveSeedSourcePairValid(spec.seedSource, a, b)) return false; }catch(_){ return false; }
+    try{
+      const seed = recursiveSeedValue(spec.seedSource, a, b);
+      if(!v6589SeedWhitelistAllows(spec, seed)) return false;
+    }catch(_){ return false; }
+    let result = null;
+    try{ result = recursiveTraceResultForSpec(spec, a, b); }catch(_){ return false; }
+    if(!result || !result.ok || !Number.isFinite(Number(result.depth)) || Number(result.depth) < 1) return false;
+    const maxDepth = Number(spec.maxTraceDepth || spec.maxDepthAllowed || 7);
+    if(Number(result.depth) > maxDepth) return false;
+    return true;
+  }
+  function v6589RecursiveAnswer(spec, a, b){
+    try{ return !!recursiveTraceAnswer(spec.id, a, b); }catch(_){ return false; }
+  }
+  function v6589RecursiveDistribution(spec, m){
+    const M = Math.max(2, Math.min(14, Number(m) || Number(spec?.minM) || 12));
+    const key = [spec?.id || "?", M, JSON.stringify(spec?.seedWhitelist || null), String(spec?.predicate || ""), String(spec?.threshold ?? spec?.value ?? "")].join("|");
+    if(REC_DISTRIBUTION_CACHE.has(key)) return REC_DISTRIBUTION_CACHE.get(key);
+    const yesPairs=[], noPairs=[], rows=[];
+    for(let a=1; a<=M; a++) for(let b=1; b<=M; b++){
+      if(a === b && spec?.seedSource !== "TWO_DIGIT" && spec?.seedSource !== "LEFT_RIGHT_DIGITS" && spec?.seedSource !== "EUCLID_PAIR") continue;
+      if(!v6589RecursivePairBaseValid(spec,a,b,M)) continue;
+      const ans = v6589RecursiveAnswer(spec,a,b);
+      const row = {a,b,answer:ans};
+      rows.push(row);
+      (ans ? yesPairs : noPairs).push(row);
+    }
+    const valid = yesPairs.length + noPairs.length;
+    const yesRatio = valid ? yesPairs.length/valid : 0;
+    const balanced = valid >= REC_MIN_VALID && yesPairs.length > 0 && noPairs.length > 0 && yesRatio >= REC_TARGET_MIN_YES && yesRatio <= REC_TARGET_MAX_YES;
+    const summary = {id:spec?.id || null, m:M, valid, yes:yesPairs.length, no:noPairs.length, yesRatio:+yesRatio.toFixed(3), balanced, yesPairs, noPairs, rows};
+    REC_DISTRIBUTION_CACHE.set(key, summary);
+    return summary;
+  }
+  function v6589RecursiveSpecServable(spec, m){ return !!v6589RecursiveDistribution(spec, Math.max(Number(m)||0, Number(spec?.minM)||0, 12)).balanced; }
+  function v6589ApplyDistributionFirstToCat(cat){
+    if(!cat || cat.family !== "recursive_trace") return cat;
+    const spec = v6589RecursiveSpecById(cat.id);
+    if(!spec) return cat;
+    const oldCanUse = typeof cat.canUse === "function" ? cat.canUse : null;
+    cat.canUse = function recursiveTraceCanUseDistributionFirst(m){
+      if(oldCanUse && !oldCanUse.apply(this, arguments)) return false;
+      return v6589RecursiveSpecServable(spec, Math.max(Number(m)||0, Number(spec.minM)||0, 12));
+    };
+    cat.gen = function recursiveTraceGenDistributionFirst(m, target){
+      const dist = v6589RecursiveDistribution(spec, Math.max(Number(m)||0, Number(spec.minM)||0, 12));
+      const pool = target ? dist.yesPairs : dist.noPairs;
+      if(!pool || !pool.length) return null;
+      const row = v6589Choice(pool);
+      return [row.a, row.b];
+    };
+    cat.distributionFirst = true;
+    cat.recursiveDistributionContract = {minValid:REC_MIN_VALID, yesRatio:[REC_TARGET_MIN_YES, REC_TARGET_MAX_YES]};
+    cat.atomicsUsed = v6589Uniq([...(cat.atomicsUsed || []), "recursive_distribution_first_generation", spec.opId, spec.seedSource, `readout_${spec.predicate || "choice"}`]);
+    return cat;
+  }
+
+  // Repair bridge audit contract: one bridge item is intentionally binary, not a four-choice item.
+  auditL1MemoryBridge = function auditL1MemoryBridgeV6589(){
+    const block = [], warnings = [], samples = [];
+    const ops = (typeof L1_MEMORY_BRIDGE_OPS !== "undefined") ? L1_MEMORY_BRIDGE_OPS : [];
+    if(!Array.isArray(ops) || ops.length < 4) block.push("missing L1 memory bridge ops");
+    const p1 = {a:3,b:5,isTrue:true,question:"test"}, p2 = {a:7,b:2,isTrue:false,question:"test2"};
+    for(const op of ops){
+      try{
+        const r = op.fn(p1,p2,10);
+        const sample = {id:op.id, format:op.responseFormat, ok:!!r, q:r?.question || null, labels:r?.choiceLabels || null, answer:r?.answer ?? null, answerLabel:r?.answerLabel || null};
+        samples.push(sample);
+        if(!r) { block.push(`${op.id}: unbuildable bridge item`); continue; }
+        if(op.family !== "memory_bridge") block.push(`${op.id}: wrong family`);
+        if(op.responseFormat === "choice"){
+          if(r.responseFormat && r.responseFormat !== "choice") block.push(`${op.id}: result format mismatch`);
+          if(!Array.isArray(r.choiceLabels) || r.choiceLabels.length < 2 || r.choiceLabels.length > 4) block.push(`${op.id}: invalid choice labels`);
+          if(!Number.isInteger(r.correctIndex) || r.correctIndex < 0 || r.correctIndex >= (r.choiceLabels || []).length) block.push(`${op.id}: invalid correctIndex`);
+        } else if(op.responseFormat === "bool"){
+          if(r.responseFormat !== "bool" || r.answerKind !== "bool") block.push(`${op.id}: boolean bridge did not build a YES/NO contract`);
+          if(!(r.answer === 0 || r.answer === 1)) block.push(`${op.id}: boolean bridge answer must be 0/1`);
+          if(Array.isArray(r.choiceLabels) && r.choiceLabels.length) block.push(`${op.id}: boolean bridge should not expose filler choice labels`);
+        } else {
+          block.push(`${op.id}: unsupported bridge responseFormat ${op.responseFormat}`);
+        }
+      }catch(e){ block.push(`${op?.id || "bridge"}: exception ${e?.message || e}`); }
+    }
+    return v6589AuditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentAppVersion(), total:ops.length, warnings, block, samples});
+  };
+
+  // Fix the exposed impossible Collatz choice: seeds 10/12 never exceed 20. Use seeds that do.
+  try{
+    for(const c of (POSNER_CATS || [])){
+      if(c && c.choiceSpecId === "rec_choice_first_gt20_collatz" && c.choiceSpec){
+        Object.assign(c.choiceSpec, {seedWhitelist:[7,9,11], minM:11, maxTraceDepth:8, q:"Collatz rule: even → halve; odd → 3n+1. Which is the first value greater than 20?"});
+        c.minM = 11;
+        c.variants = [{q:c.choiceSpec.q}];
+        c.atomicsUsed = v6589Uniq([...(c.atomicsUsed || []), "collatz_canonical", "first_state_satisfying", "threshold_crossing"]);
+      }
+    }
+  }catch(_){ }
+
+  // Add two high-value recursive choice formats that cannot be solved by a terminal-value shortcut.
+  function v6589TraceSummary(vals){ return vals.map(String).join(" → "); }
+  function v6589RunTrace(opId, seed){
+    const op = RECURSIVE_OPS && RECURSIVE_OPS[opId];
+    if(!op) return null;
+    try{ return executeRecursiveTrace(op, seed, {}); }catch(_){ return null; }
+  }
+  function v6589BuildMissingTraceValueChoice(cat, m){
+    const M = Math.max(8, Math.min(12, Number(m)||10));
+    const samples=[];
+    for(let a=1;a<=M;a++) for(let b=1;b<=M;b++){
+      if(a===b) continue;
+      const seed = a + b;
+      const r = v6589RunTrace("even_halve_else_minus_one_to_one", seed);
+      const vals = v6589TraceValues(r);
+      if(r && r.ok && vals.length >= 4 && vals.length <= 7) samples.push({a,b,vals});
+    }
+    if(!samples.length) return null;
+    const sample = v6589Choice(samples);
+    const idx = Math.min(2, sample.vals.length-2);
+    const correct = sample.vals[idx];
+    const trace = sample.vals.map((v,i)=> i===idx ? "?" : String(v)).join(" → ");
+    const opts = [correct, sample.vals[idx-1], sample.vals[idx+1], correct+1].filter(Number.isFinite);
+    const unique=[]; for(const v of opts){ if(!unique.includes(v)) unique.push(v); }
+    for(let d=1; unique.length<4 && d<=8; d++){ for(const v of [correct-d, correct+d]){ if(v>=1 && !unique.includes(v)) unique.push(v); if(unique.length>=4) break; } }
+    const options = unique.slice(0,4).map(v=>l0ChoiceOption(String(v), v===correct, v===correct ? "correct" : "near_state_lure", {value:v}));
+    const correctIndex = options.findIndex(o=>o.value===correct);
+    const q = `Trace gap. Start from LEFT+RIGHT. Rule: even → halve; odd >1 → subtract 1. Fill the missing value: ${trace}.`;
+    const trial = buildL0ChoiceTrialFromOptions(cat, M, sample.a, sample.b, q, normalizeChoiceOptionDistractorTypes(options, cat.id), correctIndex, {recursiveTraceChoice:{type:"trace_hole", trace}, mechanismTags:["recursive_trace_choice","trace_gap"]});
+    if(trial){ trial.countsForMetaHistory=false; trial.recursiveTraceChoice = trial.payload?.recursiveTraceChoice; }
+    return trial;
+  }
+  function v6589BuildCrossTraceMaxChoice(cat, m){
+    const M = Math.max(8, Math.min(12, Number(m)||12));
+    const samples=[];
+    for(let a=2;a<=M;a++) for(let b=2;b<=M;b++){
+      if(a===b) continue;
+      const ra = v6589RunTrace("collatz_canonical", a), rb = v6589RunTrace("collatz_canonical", b);
+      const va = v6589TraceValues(ra), vb = v6589TraceValues(rb);
+      if(!ra?.ok || !rb?.ok || !va.length || !vb.length) continue;
+      if(Number(ra.depth)>8 || Number(rb.depth)>8) continue;
+      const ma = Math.max(...va), mb = Math.max(...vb);
+      if(ma === mb) continue;
+      samples.push({a,b,ma,mb});
+    }
+    if(!samples.length) return null;
+    const s = v6589Choice(samples);
+    const correctIndex = s.ma > s.mb ? 0 : 1;
+    const options = [
+      l0ChoiceOption("LEFT trace", correctIndex===0, "correct", {semanticIndex:0}),
+      l0ChoiceOption("RIGHT trace", correctIndex===1, "correct", {semanticIndex:1}),
+      l0ChoiceOption("same highest value", false, "structure_preserving_surface_violating", {semanticIndex:2})
+    ];
+    const q = "Collatz comparison. Run the same rule from LEFT and from RIGHT: even → halve; odd → 3n+1. Which trace reaches the larger value?";
+    const trial = buildL0ChoiceTrialFromOptions(cat, M, s.a, s.b, q, normalizeChoiceOptionDistractorTypes(options, cat.id), correctIndex, {recursiveTraceChoice:{type:"cross_trace_extremum", leftMax:s.ma, rightMax:s.mb}, mechanismTags:["recursive_trace_choice","cross_trace_comparison"]});
+    if(trial){ trial.countsForMetaHistory=false; trial.recursiveTraceChoice = trial.payload?.recursiveTraceChoice; }
+    return trial;
+  }
+  function v6589AddRecursiveChoiceCat(def){
+    if(!Array.isArray(POSNER_CATS) || POSNER_CATS.some(c=>c && c.id === def.id)) return false;
+    const cat = {id:def.id, tier:5, stage:5, minM:def.minM || 8, minLevel:5, family:"recursive_trace_choice", responseFormat:"choice", noL0Transform:true, atomicsUsed:v6589Uniq(def.atomicsUsed || []), frameTags:v6589Uniq(["recursive_trace","trace_choice","working_state"].concat(def.frameTags || [])), variants:[{q:def.q}], canUse:m => !!CONFIG.recursiveTraceEnabled && Number(m) >= (def.minM || 8), buildChoiceTrial:def.buildChoiceTrial, gen(m){ return [1,2]; }, verify(){ return INAPPLICABLE; }};
+    POSNER_CATS.push(cat);
+    try{ if(typeof migrateLegacyCatalogueEntryToSpec === "function") migrateLegacyCatalogueEntryToSpec("L0", cat); }catch(_){ }
+    return true;
+  }
+  const addedRecursiveChoiceCats = [];
+  if(v6589AddRecursiveChoiceCat({
+    id:"rec_choice_trace_gap_even_minus", minM:8,
+    atomicsUsed:["recursive_trace","trace_gap","working_state_update","even_halve_else_minus_one_to_one"],
+    q:"Trace gap. Start from LEFT+RIGHT. Rule: even → halve; odd >1 → subtract 1. Fill the missing value.",
+    buildChoiceTrial:v6589BuildMissingTraceValueChoice
+  })) addedRecursiveChoiceCats.push("rec_choice_trace_gap_even_minus");
+  if(v6589AddRecursiveChoiceCat({
+    id:"rec_choice_cross_trace_collatz_max", minM:8,
+    atomicsUsed:["recursive_trace","cross_trace_comparison","trace_extremum","collatz_canonical"],
+    q:"Collatz comparison. Which trace reaches the larger value?",
+    buildChoiceTrial:v6589BuildCrossTraceMaxChoice
+  })) addedRecursiveChoiceCats.push("rec_choice_cross_trace_collatz_max");
+
+  // Apply distribution-first selection to all served recursive yes/no cats and future cats.
+  try{
+    if(typeof makeRecursiveTraceL0Cat === "function"){
+      const oldMake = makeRecursiveTraceL0Cat;
+      makeRecursiveTraceL0Cat = function makeRecursiveTraceL0CatV6589(spec){ return v6589ApplyDistributionFirstToCat(oldMake.apply(this, arguments)); };
+    }
+    for(const c of (POSNER_CATS || [])) v6589ApplyDistributionFirstToCat(c);
+  }catch(_){ }
+
+  // Keep the canonical registry fail-closed after late removals/additions.
+  try{
+    const oldRebuild = rebuildRegistryRuntimeIndex;
+    rebuildRegistryRuntimeIndex = function rebuildRegistryRuntimeIndexV6589(){
+      const idx = oldRebuild.apply(this, arguments);
+      for(const layer of ["L0","L1","L2"]){
+        const fallback = registryFallbackArrayForLayer(layer) || [];
+        const allowed = new Map(fallback.map(e => [v6589EntryId(e), e]));
+        idx.layers[layer] = (idx.layers[layer] || []).filter(e => allowed.has(v6589EntryId(e)));
+        idx.byEntryId[layer] = Object.create(null);
+        idx.byLegacyId[layer] = Object.create(null);
+        for(const entry of idx.layers[layer]){
+          const id = v6589EntryId(entry);
+          if(id) idx.byEntryId[layer][id] = entry;
+          const specId = entry.registrySpecId || entry.canonicalSpecId;
+          const spec = specId && SPEC_REGISTRY ? SPEC_REGISTRY[specId] : null;
+          if(spec && spec.legacyId) idx.byLegacyId[layer][spec.legacyId] = entry;
+        }
+      }
+      idx.missingRuntime = (idx.missingRuntime || []).filter(x => {
+        const fallback = registryFallbackArrayForLayer(x.layer) || [];
+        const allowed = new Set(fallback.map(e => v6589EntryId(e)));
+        return allowed.has(x.legacyId || x.entryId || x.specId);
+      });
+      idx.builtAt = Date.now();
+      if(typeof REGISTRY_LAYER_ENTRIES_CACHE !== "undefined" && REGISTRY_LAYER_ENTRIES_CACHE) REGISTRY_LAYER_ENTRIES_CACHE.sig = "";
+      return idx;
+    };
+    if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0;
+    try{ ensureRegistryRuntimeIndex(); }catch(_){ }
+  }catch(_){ }
+
+  auditRecursiveProbeBalance = function auditRecursiveProbeBalanceV6589(opts={}){
+    const m = Number(opts.m || 13);
+    const block=[], counts=[], inactive=[];
+    for(const spec of (RECURSIVE_TRACE_CAT_SPECS || [])){
+      if(!spec || RETIRED_RUNTIME_IDS.has(spec.id)) continue;
+      const dist = v6589RecursiveDistribution(spec, Math.max(m, Number(spec.minM)||0, 12));
+      counts.push({id:spec.id, valid:dist.valid, yes:dist.yes, no:dist.no, yesRatio:dist.yesRatio, served:dist.balanced});
+      if(!dist.balanced) inactive.push({id:spec.id, valid:dist.valid, yes:dist.yes, no:dist.no, yesRatio:dist.yesRatio, reason:dist.valid<REC_MIN_VALID?"too_few_valid_pairs":(dist.yes===0||dist.no===0?"constant_answer":"outside_balance_band")});
+    }
+    const served = counts.filter(c=>c.served).length;
+    if(served < 8) block.push(`too few recursive probes pass distribution-first: ${served}`);
+    return v6589AuditResult(block.length ? "BLOCK" : "PASS", {appVersion:currentAppVersion(), contract:{minValid:REC_MIN_VALID, yesRatio:[REC_TARGET_MIN_YES,REC_TARGET_MAX_YES]}, served, inactive:inactive.slice(0,80), counts:counts.slice(0,120), block});
+  };
+
+  auditRecursiveDepthDistribution = function auditRecursiveDepthDistributionV6589(opts={}){
+    const m = Number(opts.m || 13), block=[], details=[];
+    for(const spec of (RECURSIVE_TRACE_CAT_SPECS || [])){
+      if(!spec || !v6589RecursiveSpecServable(spec, Math.max(m, Number(spec.minM)||0, 12))) continue;
+      const hist={};
+      const dist = v6589RecursiveDistribution(spec, Math.max(m, Number(spec.minM)||0, 12));
+      for(const row of dist.rows){ const d=Number(recursiveTraceResultForSpec(spec,row.a,row.b).depth); hist[d]=(hist[d]||0)+1; }
+      const depths = Object.keys(hist).map(Number);
+      const hasLong = depths.some(d=>d>6), hasShort = depths.some(d=>d<=3);
+      details.push({id:spec.id, hist});
+      if(hasLong && hasShort) block.push(`${spec.id}: mixed short and depth>6 inputs after distribution filter`);
+    }
+    return v6589AuditResult(block.length ? "BLOCK" : "PASS", {appVersion:currentAppVersion(), checked:details.length, details:details.slice(0,100), block});
+  };
+
+  function auditRecursiveDistributionFirstGeneration(opts={}){
+    const block=[], samples=[];
+    for(const c of (POSNER_CATS || []).filter(c=>c && c.family === "recursive_trace")){
+      const sp = v6589RecursiveSpecById(c.id); if(!sp) continue;
+      const m = Math.max(Number(sp.minM)||8, 13);
+      const use = typeof c.canUse === "function" ? c.canUse(m) : false;
+      const dist = v6589RecursiveDistribution(sp, m);
+      samples.push({id:c.id, canUse:use, valid:dist.valid, yes:dist.yes, no:dist.no, yesRatio:dist.yesRatio});
+      if(use && !dist.balanced) block.push(`${c.id}: canUse true but distribution is not balanced`);
+      if(use){
+        const y = c.gen(m, true), n = c.gen(m, false);
+        if(!Array.isArray(y) || recursiveTraceAnswer(c.id, y[0], y[1]) !== true) block.push(`${c.id}: YES generation failed`);
+        if(!Array.isArray(n) || recursiveTraceAnswer(c.id, n[0], n[1]) !== false) block.push(`${c.id}: NO generation failed`);
+      }
+    }
+    const choiceGt20 = (POSNER_CATS || []).find(c=>c && c.choiceSpecId === "rec_choice_first_gt20_collatz");
+    if(choiceGt20 && typeof choiceGt20.buildChoiceTrial === "function"){
+      const t = choiceGt20.buildChoiceTrial(choiceGt20, 12);
+      samples.push({id:"rec_choice_first_gt20_collatz", builds:!!t, answerLabel:t?.answerLabel || null});
+      if(!t) block.push("rec_choice_first_gt20_collatz still unbuildable");
+    }
+    for(const id of ["rec_choice_trace_gap_even_minus","rec_choice_cross_trace_collatz_max"]){
+      const c = (POSNER_CATS || []).find(x=>x && x.id===id);
+      if(!c || typeof c.buildChoiceTrial !== "function") block.push(`${id}: missing process-readout choice cat`);
+      else { const t=c.buildChoiceTrial(c,12); samples.push({id, builds:!!t, question:t?.question || null, optionCount:Array.isArray(t?.options)?t.options.length:null}); if(!t) block.push(`${id}: did not build`); }
+    }
+    return v6589AuditResult(block.length ? "BLOCK" : "PASS", {appVersion:currentAppVersion(), block, samples:samples.slice(0,160)});
+  }
+  window.auditRecursiveDistributionFirstGeneration = auditRecursiveDistributionFirstGeneration;
+
+  function auditDebtlessRegistryFailClosedV6589(){
+    if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0;
+    try{ ensureRegistryRuntimeIndex(); }catch(_){ }
+    return auditDebtlessRegistryFailClosed.__oldV6589 ? auditDebtlessRegistryFailClosed.__oldV6589() : auditDebtlessRegistryFailClosed();
+  }
+  try{
+    if(!auditDebtlessRegistryFailClosed.__oldV6589){
+      const oldDebtlessAudit = auditDebtlessRegistryFailClosed;
+      auditDebtlessRegistryFailClosed = function auditDebtlessRegistryFailClosedPatchedV6589(){
+        if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0;
+        try{ ensureRegistryRuntimeIndex(); }catch(_){ }
+        return oldDebtlessAudit.apply(this, arguments);
+      };
+      auditDebtlessRegistryFailClosed.__oldV6589 = oldDebtlessAudit;
+    }
+  }catch(_){ }
+
+  try{
+    const oldRun = runFeatureAudit;
+    runFeatureAudit = function runFeatureAuditV6589(feature, opts={}){
+      const f = String(feature || "").toLowerCase();
+      if(["recursive_distribution", "recursive_distribution_first", "recursive_trace_distribution", "recursive_viability"].includes(f)){
+        const results = {recursiveDistributionFirst:runTimedFeatureSubAudit(f, "recursiveDistributionFirst", () => auditRecursiveDistributionFirstGeneration(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.recursiveDistributionFirst.status, results};
+      }
+      if(["registry_fail_closed", "debtless_registry", "debtless_registry_fail_closed"].includes(f)){
+        const results = {registryFailClosed:runTimedFeatureSubAudit(f, "registryFailClosed", () => auditDebtlessRegistryFailClosed(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.registryFailClosed.status, results};
+      }
+      return oldRun.apply(this, arguments);
+    };
+  }catch(_){ }
+
+  try{
+    if(typeof safeRegisterAtomic === "function"){
+      safeRegisterAtomic("recursive_distribution_first_generation", {kind:"generator_contract", desc:"Recursive traces enumerate the finite seed domain and only serve probes with satisfiable, refutable, balanced outcomes."});
+      safeRegisterAtomic("recursive_trace_gap_choice", {kind:"recursive_trace_choice", desc:"Choose a missing intermediate value in a recursive trace."});
+      safeRegisterAtomic("recursive_cross_trace_comparison", {kind:"recursive_trace_choice", desc:"Compare two recursive traces by a process readout such as maximum value."});
+      safeRegisterAtomic("memory_bridge_binary_contract", {kind:"input_contract", desc:"L1 bridge recall of a boolean L0 answer uses a YES/NO panel rather than filler choice labels."});
+    }
+  }catch(_){ }
+
+  try{ if(typeof window !== "undefined") window.EUCA_V6589_RECURSIVE_CLOSURE = {patch:PATCH_VERSION, addedRecursiveChoiceCats, retired:Array.from(RETIRED_RUNTIME_IDS), balanceBand:[REC_TARGET_MIN_YES, REC_TARGET_MAX_YES]}; }catch(_){ }
+})();
+
+(function v6590NandTriangleTernaryContract(){
+  const PATCH_VERSION = "v6.5.96-audit-hotfix";
+
+  function triRetainedPair(p){
+    try{ return (typeof l1MemoryPairFromL0Pair === "function") ? l1MemoryPairFromL0Pair(p) : {a:p?.a, b:p?.b}; }
+    catch(_){ return {a:p?.a, b:p?.b}; }
+  }
+  function triRefs(p1, p2){
+    const q1 = triRetainedPair(p1), q2 = triRetainedPair(p2);
+    return [
+      {pair:1, side:"LEFT", label:"Pair 1 LEFT", value:Number(q1?.a)},
+      {pair:1, side:"RIGHT", label:"Pair 1 RIGHT", value:Number(q1?.b)},
+      {pair:2, side:"LEFT", label:"Pair 2 LEFT", value:Number(q2?.a)},
+      {pair:2, side:"RIGHT", label:"Pair 2 RIGHT", value:Number(q2?.b)}
+    ].filter(r => Number.isFinite(r.value));
+  }
+  function triAnalyze(vals){
+    const sorted = vals.slice().sort((x,y)=>x-y);
+    const sumTwo = sorted[0] + sorted[1];
+    const largest = sorted[2];
+    const margin = sumTwo - largest;
+    return {sorted, sumTwo, largest, margin, valid: margin > 0, degenerate: margin === 0};
+  }
+  function l1TriangleTernaryCandidates(p1, p2){
+    const refs = triRefs(p1,p2);
+    const out = [];
+    for(let i=0;i<refs.length;i++) for(let j=i+1;j<refs.length;j++) for(let k=j+1;k<refs.length;k++){
+      const picked = [refs[i], refs[j], refs[k]];
+      const vals = picked.map(r=>r.value);
+      if(new Set(vals).size < 3) continue;              // genuinely independent values, not duplicates.
+      const a = triAnalyze(vals);
+      if(a.degenerate) continue;                       // avoid equality edge; invalids are strictly too short.
+      const pairSet = new Set(picked.map(r=>r.pair));
+      if(pairSet.size < 2) continue;                   // true L1: both retained pairs contribute.
+      out.push({refs:picked, values:vals, ...a});
+    }
+    out.sort((A,B)=>{
+      // Prefer near-boundary triples because they make plausible false/true cases.
+      const d = Math.abs(A.margin) - Math.abs(B.margin);
+      if(d) return d;
+      // Vary deterministically by value signature without using per-frame randomness.
+      return A.refs.map(r=>r.label).join("|").localeCompare(B.refs.map(r=>r.label).join("|"));
+    });
+    return out;
+  }
+  function l1TrianglePickCandidate(p1,p2){
+    const c = l1TriangleTernaryCandidates(p1,p2);
+    if(!c.length) return null;
+    const sig = c.reduce((acc,row,i)=>acc + row.values.reduce((s,v)=>s+v,0)*(i+1), 0);
+    return c[Math.abs(sig) % c.length];
+  }
+  function l1TriangleQuestion(c){
+    if(!c) return "";
+    const labels = c.refs.map(r=>r.label).join(", ");
+    return `Use these three retained values as side lengths: ${labels}. Can they form a triangle? Rule: the two smaller sides must add to more than the largest side.`;
+  }
+  function l1TriangleFn(p1,p2,m){
+    const c = l1TrianglePickCandidate(p1,p2);
+    if(!c) return null;
+    return {
+      answer: c.valid,
+      question: l1TriangleQuestion(c),
+      payload:{ternaryTriangle:{
+        labels:c.refs.map(r=>r.label), values:c.values, sorted:c.sorted, sumTwo:c.sumTwo, largest:c.largest, margin:c.margin, valid:c.valid
+      }},
+      frameTags:["ternary_relation","triangle_inequality","role_binding","episodic_integration"],
+      mechanismTags:["true_ternary_triangle","retained_three_sides"]
+    };
+  }
+
+  try{
+    if(Array.isArray(POSNER_CATS)){
+      const tri = POSNER_CATS.find(c => c && c.id === "triangle_inequality_strict");
+      if(tri){
+        tri.semanticEquivalentTo = tri.semanticEquivalentTo || "smaller_more_than_half_larger";
+        tri.deprecatedDegeneratePairTriangle = true;
+        tri.canUse = function(){ return false; };
+        tri.frameTags = (typeof uniq === "function" ? uniq([...(tri.frameTags || []), "semantic_duplicate", "degenerate_pair_triangle"]) : [...(tri.frameTags || []), "semantic_duplicate", "degenerate_pair_triangle"]);
+      }
+    }
+  }catch(_){ }
+
+  try{
+    if(Array.isArray(L1_OPS) && !L1_OPS.some(o => o && o.id === "l1_triangle_three_retained_sides")){
+      L1_OPS.push({
+        id:"l1_triangle_three_retained_sides",
+        symmetric:true,
+        family:"ternary_triangle",
+        responseFormat:"bool",
+        minLevel:3,
+        minM:6,
+        stage:3,
+        relationalAccessMinLevel:3,
+        frameTags:["ternary_relation","triangle_inequality","episodic_binding","role_binding","relational_integration"],
+        atomicsUsed:["l1_ternary_triangle_relation","triangle_inequality_general","retained_three_side_selection"],
+        canUse:(p1,p2,m)=>l1TriangleTernaryCandidates(p1,p2).length>0,
+        variants:[{q:"Use three retained values as triangle sides. Can they form a triangle?"}],
+        questionFor:(p1,p2,m)=>{ const c=l1TrianglePickCandidate(p1,p2); return l1TriangleQuestion(c); },
+        fn:l1TriangleFn
+      });
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof L1_PUBLIC_KIND_OVERRIDES !== "undefined"){
+      L1_PUBLIC_KIND_OVERRIDES.l1_triangle_three_retained_sides = "witness / coherence / counterfactual";
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof L1_REVIEW_DETAIL_BUILDERS !== "undefined"){
+      L1_REVIEW_DETAIL_BUILDERS.l1_triangle_three_retained_sides = function({info}){
+        const t = info?.payload?.ternaryTriangle;
+        if(!t) return null;
+        const vals = (t.values || []).join(", ");
+        const sorted = (t.sorted || []).join(" ≤ ");
+        const verdict = t.valid ? "YES" : "NO";
+        return `Chosen sides: ${vals}. Ordered: ${sorted}. Two smaller sum: ${t.sorted?.[0]}+${t.sorted?.[1]} = ${t.sumTwo}; largest is ${t.largest}. ${t.sumTwo} ${t.valid ? "is" : "is not"} more than ${t.largest}, so the answer is ${verdict}.`;
+      };
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof drawL1Review === "function" && !drawL1Review.__triangleTernaryV6590){
+      const oldDraw = drawL1Review;
+      drawL1Review = function drawL1ReviewV6590(info){
+        try{
+          if(info?.op?.id === "l1_triangle_three_retained_sides" || info?.payload?.ternaryTriangle){
+            const t = info?.payload?.ternaryTriangle || {};
+            const correctText = info.answer ? "YES" : "NO";
+            const userText = Number.isFinite(info.userAnswer) ? (Number(info.userAnswer) ? "YES" : "NO") : null;
+            const sorted = Array.isArray(t.sorted) ? t.sorted : [];
+            const details = [
+              `The three side lengths were ${Array.isArray(t.values) ? t.values.join(", ") : "the selected retained values"}.`,
+              sorted.length === 3 ? `Ordered: ${sorted[0]} ≤ ${sorted[1]} ≤ ${sorted[2]}.` : null,
+              Number.isFinite(t.sumTwo) && Number.isFinite(t.largest) ? `Two smaller sides: ${sorted[0]} + ${sorted[1]} = ${t.sumTwo}. This must be more than ${t.largest}.` : null,
+              userText ? `You: ${userText}.` : null
+            ].filter(Boolean).join(" ");
+            drawReviewCard({label:"L1 REVIEW · TRIANGLE SIDES", question:info.question || "", details, answer:correctText, color:"#ff9f43"});
+            return;
+          }
+        }catch(_){ }
+        return oldDraw.apply(this, arguments);
+      };
+      drawL1Review.__triangleTernaryV6590 = true;
+    }
+  }catch(_){ }
+
+  function auditNandConcisePrompt(){
+    const block=[], warnings=[];
+    try{
+      const cat = (typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).find(c=>c?.id === "bool_left_even_nand_right_gt5");
+      const text = JSON.stringify(cat?.variants || []);
+      if(/NAND\s*\/\s*NOT-BOTH\s+check/i.test(text)) block.push("NAND prompt still starts with label instead of the rule.");
+      if(!/Answer YES unless both conditions are true/i.test(text)) block.push("NAND prompt does not state the public rule directly.");
+      if(typeof renderBooleanCompoundReview === "function"){
+        const r = renderBooleanCompoundReview("nand", false);
+        if(/NAND\s*\/\s*NOT-BOTH/i.test(r)) warnings.push("NAND review still names the gate; acceptable only if prompt remains rule-first.");
+        if(!/unless both conditions are true/i.test(r)) block.push("NAND review does not explain the rule.");
+      }
+    }catch(e){ block.push(e?.message || String(e)); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), warnings, block};
+  }
+  function auditTriangleTernaryContract(){
+    const block=[], warnings=[];
+    try{
+      const l0 = (typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).find(c=>c?.id === "triangle_inequality_strict");
+      if(!l0) warnings.push("legacy pair-derived triangle id not found; OK only if intentionally removed from registry.");
+      else{
+        if(l0.semanticEquivalentTo !== "smaller_more_than_half_larger") block.push("legacy isosceles triangle is not marked semantically equivalent to half-larger relation.");
+        if(typeof l0.canUse !== "function" || l0.canUse(10) !== false) block.push("legacy pair-derived triangle is still servable.");
+      }
+      const op = (typeof L1_OPS !== "undefined" ? L1_OPS : []).find(o=>o?.id === "l1_triangle_three_retained_sides");
+      if(!op) block.push("true ternary L1 triangle op missing.");
+      else{
+        const p1={a:2,b:3}, p2={a:4,b:7};
+        const r = op.fn(p1,p2,10);
+        if(!r || r.responseFormat === "choice" || typeof r.question !== "string" || !/three retained values|side lengths|two smaller sides/i.test(r.question)) block.push("ternary L1 triangle prompt is missing or not explicit.");
+        if(!(typeof r.answer === "boolean" || r.answer === 0 || r.answer === 1)) block.push("ternary L1 triangle answer is not boolean.");
+        const vals = r.payload?.ternaryTriangle?.values || [];
+        if(vals.length !== 3 || new Set(vals).size !== 3) block.push("ternary L1 triangle did not select three independent side values.");
+      }
+    }catch(e){ block.push(e?.message || String(e)); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), warnings, block};
+  }
+  try{ window.auditNandConcisePrompt = auditNandConcisePrompt; window.auditTriangleTernaryContract = auditTriangleTernaryContract; }catch(_){ }
+  try{
+    const oldRun = runFeatureAudit;
+    runFeatureAudit = function runFeatureAuditV6590(feature, opts={}){
+      const f = String(feature || "").toLowerCase();
+      if(["nand_prompt", "nand_concise", "boolean_gate_prompt"].includes(f)){
+        const results = {nandConcise:runTimedFeatureSubAudit(f, "nandConcise", () => auditNandConcisePrompt(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.nandConcise.status, results};
+      }
+      if(["triangle_ternary", "triangle_contract", "l1_triangle"].includes(f)){
+        const results = {triangleTernary:runTimedFeatureSubAudit(f, "triangleTernary", () => auditTriangleTernaryContract(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.triangleTernary.status, results};
+      }
+      return oldRun.apply(this, arguments);
+    };
+  }catch(_){ }
+
+  try{
+    if(typeof safeRegisterAtomic === "function"){
+      safeRegisterAtomic("l1_ternary_triangle_relation", {kind:"ternary_relation", desc:"Use three independent retained values as side lengths and apply the strict triangle inequality."});
+      safeRegisterAtomic("triangle_inequality_general", {kind:"relation_contract", desc:"A triangle is possible exactly when the two smaller sides add to more than the largest side."});
+      safeRegisterAtomic("retained_three_side_selection", {kind:"episodic_binding", desc:"Select three side lengths from two retained pairs without printing the values in the prompt."});
+      safeRegisterAtomic("nand_rule_first_prompt", {kind:"prompt_contract", desc:"Public NAND prompt states the rule directly: answer YES unless both conditions are true."});
+    }
+  }catch(_){ }
+  try{ if(typeof window !== "undefined") window.EUCA_V6590_TRIANGLE_NAND = {patch:PATCH_VERSION}; }catch(_){ }
+})();
+
+
+
+// v6.5.91 — Recursive source cleanup, not masking: degenerate specs retired at the source.
+(function registerV6591RecursiveSourceCleanup(){
+  const PATCH_VERSION = "v6.5.96-audit-hotfix";
+
+  // Specs retired because their source-domain distribution is constant or
+  // semantically redundant under the served range. This removes the disease at
+  // the catalogue source so both legacy and distribution-first audits see the
+  // same family.
+  const SOURCE_RETIRED_RECURSIVE_IDS = new Set([
+    "rec_halving_final_gt3",
+    "rec_subtract5_final_even",
+    "rec_digit_pair_final_even",
+    "rec_halving_final_eq3",
+    "rec_halving_sum_net_change_4_10",
+    "rec_subtract5_passes_even",
+    "rec_subtract5_final_gt2",
+    "rec_subtract5_net_change_10_20",
+    "rec_digit_pair_final_in_369",
+    "rec_collatz_max_gt20",
+    "rec_halving_net_change_gt3",
+    "rec_digit_sum_net_change_large",
+    "rec_collatz_first_triple",
+    "rec_collatz_min_below3",
+    "rec_branch_absent_minus_one_left"
+  ]);
+
+  function v6591RemoveIdsFromArray(arr, ids, idGetter){
+    if(!Array.isArray(arr)) return 0;
+    let removed = 0;
+    for(let i=arr.length-1;i>=0;i--){
+      let id = null;
+      try{ id = idGetter ? idGetter(arr[i]) : arr[i]?.id; }catch(_){ id = arr[i]?.id; }
+      if(ids.has(id)){ arr.splice(i,1); removed++; }
+    }
+    return removed;
+  }
+
+  function v6591PatchRecursiveSource(){
+    const report = {removedSpecs:0, removedCats:0, depthLimited:[], collatzChoice:false, registryRemigrated:false};
+    try{ report.removedSpecs += v6591RemoveIdsFromArray(RECURSIVE_TRACE_CAT_SPECS, SOURCE_RETIRED_RECURSIVE_IDS, x=>x?.id); }catch(_){ }
+    try{ report.removedCats += v6591RemoveIdsFromArray(POSNER_CATS, SOURCE_RETIRED_RECURSIVE_IDS, x=>x?.id); }catch(_){ }
+
+    // Depth coherence: keep branch probes from mixing very short traces with
+    // >6-step traces. These remain legitimate probes, but the source spec now
+    // declares the depth ceiling instead of relying on the downstream filter.
+    try{
+      for(const spec of (RECURSIVE_TRACE_CAT_SPECS || [])){
+        if(["rec_safe_branch_depth_gt4","rec_branch_first_halve_sum","rec_branch_first_minus_one_sum"].includes(spec?.id)){
+          spec.maxTraceDepth = 6;
+          spec.maxDepthAllowed = 6;
+          if(typeof spec.q === "string" && !/repeat until 1: even/i.test(spec.q)){
+            spec.q = `${spec.q}`;
+          }
+          report.depthLimited.push(spec.id);
+        }
+      }
+      for(const cat of (POSNER_CATS || [])){
+        if(["rec_safe_branch_depth_gt4","rec_branch_first_halve_sum","rec_branch_first_minus_one_sum"].includes(cat?.id)){
+          const spec = (typeof recursiveTraceSpecById === "function") ? recursiveTraceSpecById(cat.id) : null;
+          if(spec){ cat.minM = spec.minM || cat.minM; cat.variants = [{q:spec.q}]; cat.atomicsUsed = spec.atomicsUsed || cat.atomicsUsed; }
+        }
+      }
+    }catch(_){ }
+
+    // Collatz >20 choice: make the source satisfiable. The old seeds 10/12
+    // never exceeded 20. Seed 7 does, but it requires the Collatz executor to
+    // keep the full trace long enough to terminate, so the source spec and the
+    // operation whitelist are both updated.
+    try{
+      const op = RECURSIVE_OPS?.collatz_canonical;
+      if(op){
+        const wl = Array.isArray(op.seedWhitelist) ? op.seedWhitelist.map(Number) : [];
+        if(!wl.includes(7)) wl.push(7);
+        op.seedWhitelist = Array.from(new Set(wl)).sort((a,b)=>a-b);
+        op.maxDepth = Math.max(Number(op.maxDepth || 9), 16);
+      }
+      for(const cat of (POSNER_CATS || [])){
+        if(cat && cat.choiceSpecId === "rec_choice_first_gt20_collatz" && cat.choiceSpec){
+          Object.assign(cat.choiceSpec, {
+            seedWhitelist:[7],
+            minM:7,
+            maxTraceDepth:16,
+            maxDepthAllowed:16,
+            executorMaxDepth:16,
+            q:"Collatz rule: even → halve; odd → 3n+1. Which is the first value greater than 20?"
+          });
+          cat.minM = 7;
+          cat.variants = [{q:cat.choiceSpec.q}];
+          report.collatzChoice = true;
+        }
+      }
+    }catch(_){ }
+
+    // The v6.5.90 ternary triangle L1 op was added after the late migration
+    // pass. Re-run the late L1 migration so registry runtime and fallback counts
+    // converge again.
+    try{
+      if(typeof migrateLateL1AdditionsToRegistry === "function"){
+        migrateLateL1AdditionsToRegistry();
+        report.registryRemigrated = true;
+      }
+      if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0;
+      if(typeof REGISTRY_LAYER_ENTRIES_CACHE !== "undefined" && REGISTRY_LAYER_ENTRIES_CACHE) REGISTRY_LAYER_ENTRIES_CACHE.sig = "";
+      if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex();
+    }catch(_){ }
+    return report;
+  }
+
+  const v6591SourceReport = v6591PatchRecursiveSource();
+
+  // Ensure older exported audit aliases point at the strict source-clean view,
+  // not a stale pre-patch function reference.
+  try{ window.runRecursiveProbeBalanceAudit = function runRecursiveProbeBalanceAuditV6591(opts={}){ return auditRecursiveProbeBalance(opts); }; }catch(_){ }
+
+  function auditRecursiveSourceCleanClosure(opts={}){
+    const block=[], warnings=[], details={report:v6591SourceReport, retired:Array.from(SOURCE_RETIRED_RECURSIVE_IDS)};
+    try{
+      const ids = new Set((RECURSIVE_TRACE_CAT_SPECS || []).map(s=>s?.id));
+      for(const id of SOURCE_RETIRED_RECURSIVE_IDS){ if(ids.has(id)) block.push(`${id}: retired recursive spec still present in source`); }
+      const cats = new Set((POSNER_CATS || []).map(c=>c?.id));
+      for(const id of SOURCE_RETIRED_RECURSIVE_IDS){ if(cats.has(id)) block.push(`${id}: retired recursive category still present in POSNER_CATS`); }
+    }catch(e){ block.push(`source scan threw: ${e?.message || e}`); }
+    try{
+      const collatz = (POSNER_CATS || []).find(c=>c?.choiceSpecId === "rec_choice_first_gt20_collatz");
+      const built = collatz && typeof collatz.buildChoiceTrial === "function" ? collatz.buildChoiceTrial(collatz, 12) : null;
+      details.collatzGt20 = {builds:!!built, answer:built?.answerLabel || null, question:built?.question || null};
+      if(!built) block.push("rec_choice_first_gt20_collatz did not build after source seed repair");
+      if(built && String(built.answerLabel) !== "22") warnings.push("Collatz >20 built, but sample answer is not 22; verify seed selection is still expected.");
+    }catch(e){ block.push(`Collatz >20 build threw: ${e?.message || e}`); }
+    try{
+      const oldBal = typeof window !== "undefined" && typeof window.runRecursiveProbeBalanceAudit === "function" ? window.runRecursiveProbeBalanceAudit(opts) : null;
+      const newBal = typeof auditRecursiveProbeBalance === "function" ? auditRecursiveProbeBalance(opts) : null;
+      details.legacyBalance = {status:oldBal?.status || null, block:oldBal?.details?.block || []};
+      details.currentBalance = {status:newBal?.status || null, block:newBal?.details?.block || []};
+      if(oldBal?.status === "BLOCK") block.push(`legacy balance audit still blocks: ${(oldBal.details?.block || []).slice(0,3).join("; ")}`);
+      if(newBal?.status === "BLOCK") block.push(`current balance audit still blocks: ${(newBal.details?.block || []).slice(0,3).join("; ")}`);
+    }catch(e){ block.push(`balance audit comparison threw: ${e?.message || e}`); }
+    try{
+      const depth = typeof auditRecursiveDepthDistribution === "function" ? auditRecursiveDepthDistribution(opts) : null;
+      details.depth = {status:depth?.status || null, block:depth?.details?.block || []};
+      if(depth?.status === "BLOCK") block.push(`depth audit still blocks: ${(depth.details?.block || []).slice(0,3).join("; ")}`);
+    }catch(e){ block.push(`depth audit threw: ${e?.message || e}`); }
+    try{
+      const clarity = typeof auditRecursiveBranchPromptClarity === "function" ? auditRecursiveBranchPromptClarity(opts) : null;
+      details.branchPrompt = {status:clarity?.status || null, block:clarity?.details?.block || []};
+      if(clarity?.status === "BLOCK") block.push(`branch prompt clarity still blocks: ${(clarity.details?.block || []).slice(0,3).join("; ")}`);
+    }catch(e){ block.push(`branch prompt audit threw: ${e?.message || e}`); }
+    try{
+      const debt = typeof auditDebtlessRegistryFailClosed === "function" ? auditDebtlessRegistryFailClosed() : null;
+      details.registry = {status:debt?.status || null, problems:debt?.details?.problems || []};
+      if(debt?.status === "BLOCK") block.push(`registry fail-closed still blocks: ${(debt.details?.problems || []).slice(0,3).join("; ")}`);
+    }catch(e){ block.push(`registry audit threw: ${e?.message || e}`); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), details:{...details,warnings,block}};
+  }
+  try{ window.auditRecursiveSourceCleanClosure = auditRecursiveSourceCleanClosure; }catch(_){ }
+
+  try{
+    const previousRunFeatureAudit = runFeatureAudit;
+    runFeatureAudit = function runFeatureAuditV6591(feature, opts={}){
+      const f = String(feature || "").toLowerCase();
+      if(["recursive_source_clean", "recursive_source_cleanup", "recursive_closure", "recursive_trace_source"].includes(f)){
+        const results = {recursiveSourceClean:runTimedFeatureSubAudit(f, "recursiveSourceClean", () => auditRecursiveSourceCleanClosure(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.recursiveSourceClean.status, results};
+      }
+      return previousRunFeatureAudit.apply(this, arguments);
+    };
+  }catch(_){ }
+
+  try{
+    if(typeof safeRegisterAtomic === "function"){
+      safeRegisterAtomic("recursive_source_clean_balance", {kind:"generator_contract", desc:"Degenerate recursive probes are removed or repaired at the source catalogue so strict and distribution-first audits agree."});
+      safeRegisterAtomic("collatz_threshold_choice_viable_seed", {kind:"recursive_trace_choice", desc:"The first-Collatz-value-over-threshold choice uses a seed whose trace actually crosses the threshold."});
+    }
+  }catch(_){ }
+
+  try{ if(typeof window !== "undefined") window.EUCA_V6591_RECURSIVE_SOURCE_CLEANUP = {patch:PATCH_VERSION, report:v6591SourceReport}; }catch(_){ }
+})();
+
+// v6.5.92 — L1 witness wording, side-total review, and triangle registry closure.
+(function registerV6592L1WitnessTriangleRegistryClarity(){
+  const PATCH_VERSION = "v6.5.96-audit-hotfix";
+
+  function v6592Unique(arr){ return Array.from(new Set((arr || []).filter(Boolean))); }
+  function v6592Sentence(s){ s = String(s || "").trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  // 1) L1 side-total difference: make the operation explicit. The old wording
+  // “two side totals” was compact but opaque; users must know we mean the sum
+  // of both LEFT values versus the sum of both RIGHT values.
+  try{
+    const op = (typeof L1_OPS !== "undefined" ? L1_OPS : []).find(o => o && o.id === "side_total_diff");
+    if(op){
+      op.variants = [
+        {q:"Add Pair 1 LEFT + Pair 2 LEFT. Add Pair 1 RIGHT + Pair 2 RIGHT. What is the gap between those two totals?"},
+        {q:"Compare the two column totals: LEFT total = Pair 1 LEFT + Pair 2 LEFT; RIGHT total = Pair 1 RIGHT + Pair 2 RIGHT. What is their difference?"},
+        {q:"First total the two LEFT values. Then total the two RIGHT values. How far apart are those totals?", linguisticFrame:"comparative_scope"}
+      ];
+      op.promptBuilder = function(state={}){ return op.variants[0].q; };
+      op.reviewBuilder = function(state={}){
+        const p1 = state.pair1 || state.p1 || {a:state.a, b:state.b};
+        const p2 = state.pair2 || state.p2 || {a:state.c, b:state.d};
+        if(!Number.isFinite(Number(p1?.a)) || !Number.isFinite(Number(p1?.b)) || !Number.isFinite(Number(p2?.a)) || !Number.isFinite(Number(p2?.b))) return ["Add both LEFT values and both RIGHT values, then compare the two totals."];
+        const left = Number(p1.a) + Number(p2.a);
+        const right = Number(p1.b) + Number(p2.b);
+        return [`LEFT total: ${p1.a}+${p2.a} = ${left}.`, `RIGHT total: ${p1.b}+${p2.b} = ${right}.`, `Gap: |${left}−${right}| = ${Math.abs(left-right)}.`];
+      };
+    }
+    if(typeof L1_REVIEW_DETAIL_BUILDERS !== "undefined"){
+      L1_REVIEW_DETAIL_BUILDERS.side_total_diff = function({p1,p2}){
+        const left = Number(p1.a) + Number(p2.a);
+        const right = Number(p1.b) + Number(p2.b);
+        return `LEFT total = Pair 1 LEFT + Pair 2 LEFT = ${p1.a}+${p2.a} = ${left}. RIGHT total = Pair 1 RIGHT + Pair 2 RIGHT = ${p1.b}+${p2.b} = ${right}. Gap = |${left}−${right}| = ${Math.abs(left-right)}.`;
+      };
+    }
+  }catch(_){ }
+
+  // 2) Witness public prompts: boundary witnesses should not surface as
+  // “upper-boundary not prime…”. That phrase names an implementation detail,
+  // not the task. Present the actual search: largest/smallest value in an
+  // inclusive range satisfying the predicate.
+  try{
+    const oldWitnessBuildPrompt = witnessBuildPrompt;
+    witnessBuildPrompt = function witnessBuildPromptV6592(qualifierId, anchors, unaryPredLabels, binaryPredLabels, binaryNounLabel){
+      try{
+        const qid = String(qualifierId || "");
+        const mainNoun = (unaryPredLabels && unaryPredLabels.length) ? unaryPredLabels.join(" and ") : (binaryNounLabel || "value");
+        const rangeReady = anchors && anchors.length >= 2 && anchors[0] && anchors[1];
+        if((qid === "upper_boundary" || qid === "lower_boundary") && rangeReady){
+          const dir = qid === "upper_boundary" ? "largest" : "smallest";
+          return `In the inclusive range from ${anchors[0].label} through ${anchors[1].label}, what is the ${dir} value that is ${mainNoun}?`;
+        }
+        const raw = oldWitnessBuildPrompt.apply(this, arguments);
+        return String(raw || "").replace(/\bThe upper-boundary\b/gi, "The largest boundary value").replace(/\bThe lower-boundary\b/gi, "The smallest boundary value");
+      }catch(_){ return oldWitnessBuildPrompt.apply(this, arguments); }
+    };
+  }catch(_){ }
+
+  // 3) Witness near-miss wording: avoid “is not not prime”. The predicate
+  // not_in_set means “not prime”; failing it means the candidate is prime.
+  try{
+    const oldWitnessFindNearMiss = witnessFindNearMiss;
+    witnessFindNearMiss = function witnessFindNearMissV6592(lo, hi, predicates, solutionSet, failureLabels){
+      if(!solutionSet || solutionSet.length === 0) return null;
+      const sol = solutionSet[0];
+      let best = null, bestDist = Infinity;
+      for(let n = lo; n <= hi; n++){
+        if(solutionSet.includes(n)) continue;
+        let failed = -1, failCount = 0;
+        for(let i = 0; i < predicates.length; i++){
+          if(!witnessEvaluatePredicate(predicates[i].predId, n, predicates[i].anchor)){
+            failed = i; failCount++;
+            if(failCount > 1) break;
+          }
+        }
+        if(failCount === 1){
+          const d = Math.abs(n - sol);
+          if(d < bestDist){ bestDist = d; best = { value:n, failedIndex:failed }; }
+        }
+      }
+      if(!best) return null;
+      const pred = predicates[best.failedIndex] || {};
+      let reason;
+      if(pred.predId === "not_in_set") reason = `${best.value} is in range but is prime.`;
+      else if(pred.predId === "multiple_of_6") reason = `${best.value} is in range but is not a multiple of 6.`;
+      else if(pred.predId === "equal_to_anchor") reason = `${best.value} is in range but is not equal to the required anchor.`;
+      else{
+        const fail = String(failureLabels[best.failedIndex] || "the required property");
+        reason = `${best.value} is in range but does not satisfy: ${fail}.`;
+      }
+      return {value:best.value, reason};
+    };
+  }catch(_){ }
+
+  function v6592ResolveWitnessAnchors(info){
+    const p1 = info?.pair1 || info?.rawPair1; const p2 = info?.pair2 || info?.rawPair2;
+    const ids = info?.witnessTelemetry?.anchorIds || [];
+    const out = [];
+    try{
+      for(const id of ids){
+        const a = (typeof witnessResolveAnchor === "function") ? witnessResolveAnchor(id, p1, p2) : null;
+        if(a) out.push(a);
+      }
+    }catch(_){ }
+    return out;
+  }
+  function v6592WitnessPredicateText(predId){
+    if(predId === "not_in_set") return "not prime";
+    if(predId === "multiple_of_6") return "a multiple of 6";
+    try{ return WITNESS_PREDICATES?.[predId]?.label || predId; }catch(_){ return predId; }
+  }
+  function v6592WitnessCandidateValues(info){
+    const tele = info?.witnessTelemetry || {};
+    const anchors = v6592ResolveWitnessAnchors(info);
+    const pids = tele.predicates || [];
+    if(!anchors.length || !pids.length) return null;
+    const qid = String(tele.qualifier || "");
+    try{
+      const qual = WITNESS_QUALIFIERS[qid];
+      if(!qual) return null;
+      const range = qual.range(anchors);
+      if(!range || !Number.isFinite(range[0]) || !Number.isFinite(range[1])) return null;
+      const predicates = pids.map(id => ({predId:id, anchor:null}));
+      const cands = witnessSearchCandidates(range[0], range[1], predicates);
+      return {lo:range[0], hi:range[1], anchors, cands, predText:pids.map(v6592WitnessPredicateText).join(" and ")};
+    }catch(_){ return null; }
+  }
+  function v6592WitnessReviewDetails({info}){
+    const tele = info?.witnessTelemetry || {};
+    const data = v6592WitnessCandidateValues(info);
+    if(!data) return null;
+    const qid = String(tele.qualifier || "");
+    const dir = /upper/.test(qid) ? "largest" : (/lower/.test(qid) ? "smallest" : (/smallest/.test(qid) ? "smallest" : (/largest/.test(qid) ? "largest" : "selected")));
+    const rangeLine = `Range: ${data.anchors.map(a => `${a.label} = ${a.value}`).join(" through ")} (inclusive).`;
+    const candLine = data.cands && data.cands.length ? `Values in that range that are ${data.predText}: ${data.cands.join(", ")}.` : `No values in that range satisfy ${data.predText}.`;
+    const answerLine = `${v6592Sentence(dir)} such value = ${info.answer}.`;
+    return `${rangeLine} ${candLine} ${answerLine}`;
+  }
+  try{
+    if(typeof L1_REVIEW_DETAIL_BUILDERS !== "undefined"){
+      ["witness_qualifier","witness_interval","witness_negative_largest","witness_lower_boundary","witness_upper_boundary","witness_largest_in_set","witness_smallest_in_set","witness_unique_in_interval","witness_multiple6_smallest","witness_relational_anchored","witness_closest_to_anchor","witness_equidistant"].forEach(id => {
+        L1_REVIEW_DETAIL_BUILDERS[id] = v6592WitnessReviewDetails;
+      });
+    }
+  }catch(_){ }
+
+  // 4) Ternary triangle: make the late L1 op a fully migrated registry citizen
+  // with spec, label ontology, replay/review contract and runtime-index refresh.
+  function v6592RegisterTriangleSpec(){
+    let op = null;
+    try{ op = (typeof L1_OPS !== "undefined" ? L1_OPS : []).find(o => o && o.id === "l1_triangle_three_retained_sides"); }catch(_){ op = null; }
+    if(!op) return {ok:false, reason:"op_missing"};
+    try{
+      op.shortLabel = op.shortLabel || "Ternary triangle side check";
+      op.labelOntology = {
+        version: typeof LABEL_DICTIONARY_VERSION !== "undefined" ? LABEL_DICTIONARY_VERSION : "unknown",
+        layer:"L1", id:op.id, family:op.family || "ternary_triangle",
+        substrate:"retained_pairs", topology:"three_values", direction:"none",
+        operation:"ternary triangle inequality", predicate:"two smaller sides add to more than largest", responseFormat:"bool",
+        canonicalLabel:"Ternary triangle side check", legacyAliases:[]
+      };
+      op.labelDictionaryVersion = op.labelOntology.version;
+      op.canonicalFamily = "l1.retained_pairs.ternary_triangle";
+      op.promptBuilder = function(){ return op.variants?.[0]?.q || "Use three retained values as triangle sides. Can they form a triangle?"; };
+      op.reviewBuilder = function(state={}){
+        try{
+          const r = op.fn(state.pair1 || state.p1 || {a:2,b:3}, state.pair2 || state.p2 || {a:4,b:5}, state.m || 10);
+          const t = r?.payload?.ternaryTriangle || null;
+          if(t) return [`Sides: ${t.values.join(", ")}.`, `Ordered: ${t.sorted.join(" ≤ ")}.`, `Two smaller sides: ${t.sorted[0]}+${t.sorted[1]} = ${t.sumTwo}; largest = ${t.largest}.`];
+        }catch(_){ }
+        return ["Order the three side lengths, add the two smaller values, and compare the sum with the largest value."];
+      };
+      op.replayContract = {kind:"retained_pairs", memoryScope:"three retained side values", deterministic:true};
+      if(typeof migrateLegacyCatalogueEntryToSpec === "function") migrateLegacyCatalogueEntryToSpec("L1", op);
+      if(op._registrySpec){
+        op._registrySpec.labelOntology = op.labelOntology;
+        op._registrySpec.labelDictionaryVersion = op.labelDictionaryVersion;
+        op._registrySpec.replayContract = op.replayContract;
+        op._registrySpec.promptBuilder = op.promptBuilder;
+        op._registrySpec.reviewBuilder = op.reviewBuilder;
+        op._registrySpec.atomicsUsed = v6592Unique([...(op._registrySpec.atomicsUsed || []), ...(op.atomicsUsed || []), "l1_ternary_triangle_relation", "triangle_inequality_general", "retained_three_side_selection"]);
+        op.atomicsUsed = op._registrySpec.atomicsUsed.slice();
+        if(typeof SPEC_REGISTRY !== "undefined") SPEC_REGISTRY[op._registrySpec.id] = op._registrySpec;
+      } else if(typeof registerSpec === "function"){
+        const spec = registerSpec({
+          id: typeof _legacySpecId === "function" ? _legacySpecId("L1", op) : `legacy_L1_${op.id}`,
+          layer:"L1", legacyId:op.id, legacyFamily:op.family || null, canonicalFamily:op.canonicalFamily,
+          responseFormat:"bool", atomicsUsed:v6592Unique([...(op.atomicsUsed || []), "l1_ternary_triangle_relation", "triangle_inequality_general", "retained_three_side_selection"]),
+          prompts:op.variants || [{q:"Use three retained values as triangle sides. Can they form a triangle?"}],
+          promptBuilder:op.promptBuilder,
+          verifier:function(state={}){ const r = op.fn(state.pair1 || state.p1 || {a:2,b:3}, state.pair2 || state.p2 || {a:4,b:5}, state.m || 10); return !!r?.answer; },
+          reviewBuilder:op.reviewBuilder,
+          replayContract:op.replayContract,
+          labelOntology:op.labelOntology,
+          labelDictionaryVersion:op.labelDictionaryVersion,
+          minLevel:op.minLevel || 3,
+          minM:op.minM || 6,
+          frameTags:Array.isArray(op.frameTags) ? op.frameTags.slice() : [],
+          source:"v6.5.92_triangle_late_migration"
+        });
+        op._registrySpec = spec; op.registrySpecId = spec?.id || null; if(spec) op.atomicsUsed = spec.atomicsUsed.slice();
+      }
+      if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0;
+      if(typeof REGISTRY_LAYER_ENTRIES_CACHE !== "undefined" && REGISTRY_LAYER_ENTRIES_CACHE) REGISTRY_LAYER_ENTRIES_CACHE.sig = "";
+      if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex();
+      return {ok:!!op._registrySpec, specId:op._registrySpec?.id || null};
+    }catch(e){ return {ok:false, reason:e?.message || String(e)}; }
+  }
+  const v6592TriangleRegistryReport = v6592RegisterTriangleSpec();
+
+  function auditL1WitnessWordingClarity(){
+    const block=[], warnings=[];
+    try{
+      const p1={a:2,b:3}, p2={a:4,b:5}; // totals 5..9, classic case from screenshot
+      const cfg={qualifierId:"upper_boundary", anchorIds:["p1_sum","p2_sum"], predicates:[{id:"not_in_set"}], allowAnchorAnswer:true};
+      const inst = witnessTryGenerate(p1,p2,cfg);
+      if(!inst) block.push("upper-boundary not-prime witness no longer builds for screenshot-like case");
+      else{
+        if(/upper-boundary|lower-boundary/i.test(inst.prompt)) block.push(`boundary implementation term leaked into prompt: ${inst.prompt}`);
+        if(!/inclusive range|largest value|not prime/i.test(inst.prompt)) block.push(`boundary witness prompt is not explicit enough: ${inst.prompt}`);
+        const nm = witnessFindNearMiss(5,9,[{predId:"not_in_set",anchor:null}],[9],["not prime"]);
+        if(nm && /not not prime/i.test(nm.reason)) block.push("near-miss still contains 'not not prime'");
+      }
+    }catch(e){ block.push(e?.message || String(e)); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), warnings, block};
+  }
+  function auditL1SideTotalWordingClarity(){
+    const block=[], warnings=[];
+    try{
+      const op = (typeof L1_OPS !== "undefined" ? L1_OPS : []).find(o=>o?.id === "side_total_diff");
+      const qs = JSON.stringify(op?.variants || []);
+      if(/How far apart are the two side totals\?/i.test(qs)) block.push("opaque side-total prompt still present");
+      if(!/Pair 1 LEFT \+ Pair 2 LEFT/i.test(qs) || !/Pair 1 RIGHT \+ Pair 2 RIGHT/i.test(qs)) block.push("side-total prompt does not spell out left-column and right-column totals");
+      const built = L1_REVIEW_DETAIL_BUILDERS?.side_total_diff?.({p1:{a:6,b:4},p2:{a:7,b:4}}) || "";
+      if(!/LEFT total.*6\+7 = 13/i.test(built) || !/RIGHT total.*4\+4 = 8/i.test(built) || !/Gap.*5/i.test(built)) block.push("side-total review does not show both column sums and the gap");
+    }catch(e){ block.push(e?.message || String(e)); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), warnings, block};
+  }
+  function auditTriangleRegistryClosureV6592(){
+    const block=[], warnings=[];
+    try{
+      const op = (typeof L1_OPS !== "undefined" ? L1_OPS : []).find(o=>o?.id === "l1_triangle_three_retained_sides");
+      if(!op) block.push("ternary triangle L1 op missing");
+      else{
+        if(!op._registrySpec || !op.registrySpecId) block.push("ternary triangle missing migrated registry spec");
+        if(!op.labelOntology || op.labelDictionaryVersion !== (typeof LABEL_DICTIONARY_VERSION !== "undefined" ? LABEL_DICTIONARY_VERSION : op.labelDictionaryVersion)) block.push("ternary triangle missing current label ontology");
+        if(!Array.isArray(op.atomicsUsed) || !op.atomicsUsed.includes("triangle_inequality_general")) block.push("ternary triangle missing expected atomics");
+      }
+      const debt = typeof auditDebtlessRegistryFailClosed === "function" ? auditDebtlessRegistryFailClosed() : null;
+      if(debt?.status === "BLOCK") block.push(`debtless registry still blocks: ${(debt.details?.problems || []).slice(0,2).join("; ")}`);
+      const migr = typeof auditSpecAtomicMigration === "function" ? auditSpecAtomicMigration() : null;
+      const problems = (migr?.details?.entries || migr?.details?.warnings || []);
+      const triBad = JSON.stringify(migr || {}).includes("l1_triangle_three_retained_sides") && migr?.status === "BLOCK";
+      if(triBad) block.push("spec-atomic migration still blocks on ternary triangle");
+    }catch(e){ block.push(e?.message || String(e)); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {warnings, block, report:v6592TriangleRegistryReport}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), warnings, block, report:v6592TriangleRegistryReport};
+  }
+  try{
+    window.auditL1WitnessWordingClarity = auditL1WitnessWordingClarity;
+    window.auditL1SideTotalWordingClarity = auditL1SideTotalWordingClarity;
+    window.auditTriangleRegistryClosureV6592 = auditTriangleRegistryClosureV6592;
+  }catch(_){ }
+
+  try{
+    const previousRunFeatureAudit = runFeatureAudit;
+    runFeatureAudit = function runFeatureAuditV6592(feature, opts={}){
+      const f = String(feature || "").toLowerCase();
+      if(["l1_witness_wording", "witness_wording", "witness_clarity", "upper_boundary_witness"].includes(f)){
+        const results = {witnessWording:runTimedFeatureSubAudit(f, "witnessWording", () => auditL1WitnessWordingClarity(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.witnessWording.status, results};
+      }
+      if(["l1_side_total", "side_total_clarity", "side_total_diff"].includes(f)){
+        const results = {sideTotal:runTimedFeatureSubAudit(f, "sideTotal", () => auditL1SideTotalWordingClarity(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.sideTotal.status, results};
+      }
+      if(["triangle_registry", "l1_triangle_registry", "triangle_registry_closure"].includes(f)){
+        const results = {triangleRegistry:runTimedFeatureSubAudit(f, "triangleRegistry", () => auditTriangleRegistryClosureV6592(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.triangleRegistry.status, results};
+      }
+      return previousRunFeatureAudit.apply(this, arguments);
+    };
+  }catch(_){ }
+
+  try{
+    if(typeof safeRegisterAtomic === "function"){
+      safeRegisterAtomic("l1_side_total_explicit_columns", {kind:"prompt_contract", desc:"L1 side-total prompts spell out LEFT-column and RIGHT-column sums."});
+      safeRegisterAtomic("witness_boundary_plain_language", {kind:"prompt_contract", desc:"Witness boundary prompts use largest/smallest value in an inclusive range, not implementation terms."});
+      safeRegisterAtomic("l1_triangle_registry_migration_closure", {kind:"registry_contract", desc:"Late ternary triangle L1 operation is migrated into spec-atomic registry and label ontology."});
+    }
+  }catch(_){ }
+
+  try{ if(typeof window !== "undefined") window.EUCA_V6592_L1_WITNESS_TRIANGLE_REGISTRY = {patch:PATCH_VERSION, triangleRegistry:v6592TriangleRegistryReport}; }catch(_){ }
+})();
+
+
+
+// v6.5.93 — windowed META readiness guards against L1→L2 / L2→L3 soft-locks.
+function auditWindowedMetaReadinessFrontiers(){
+  const block = [], warnings = [];
+  const saved = {
+    dL1Window:Array.isArray(State.dL1Window) ? State.dL1Window.slice() : [],
+    dL2Window:Array.isArray(State.dL2Window) ? State.dL2Window.slice() : [],
+    l1Stats:State.meta?.l1Stats,
+    l2Stats:State.meta?.l2Stats,
+    levelByMode:{...(State.levelByMode || {})}
+  };
+  try{
+    if(!Array.isArray(State.dL1Window)) block.push("State.dL1Window missing");
+    if(!Array.isArray(State.dL2Window)) block.push("State.dL2Window missing");
+    if(typeof recordMetaReadinessOutcome !== "function") block.push("recordMetaReadinessOutcome missing");
+    State.levelByMode.D = Math.max(4, Number(State.levelByMode.D)||4);
+    State.meta.l1Stats = {bad_start:{t:30,c:15,rt:[9000]}};
+    const fams1 = ["memory_bridge","witness","coherence","counterfactual","comparison","source","rule","triangle"];
+    State.dL1Window = fams1.map((family,i)=>({correct:true, rt:1200+i*10, opId:`synthetic_${i}`, family, levelAtTrial:State.levelByMode.D, ts:Date.now()+i}));
+    const r1 = dL1Readiness();
+    if(!(r1.acc >= 0.99 && r1.lifetimeAcc <= 0.51)) block.push("L1 readiness still appears lifetime-based rather than recent-window based");
+    if(r1.state === "locked" && r1.reason && /accuracy/i.test(r1.reason)) block.push(`L1 readiness locked by lifetime accuracy: ${r1.reason}`);
+    State.meta.l2Stats = {t:20,c:8,rt:[10000]};
+    const fams2 = ["answer","source","ordinal","boolean","implication","truth_cell"];
+    State.dL2Window = fams2.map((family,i)=>({correct:true, rt:1800+i*20, catId:`synthetic_l2_${i}`, family, levelAtTrial:State.levelByMode.D, ts:Date.now()+i}));
+    const r2 = dL2Readiness();
+    if(!(r2.acc >= 0.99 && r2.lifetimeAcc <= 0.41)) block.push("L2 readiness still appears lifetime-based rather than recent-window based");
+    if(r2.state === "locked" && r2.reason && /accuracy/i.test(r2.reason)) block.push(`L2 readiness locked by lifetime accuracy: ${r2.reason}`);
+    const oldLen = State.dL1Window.length;
+    recordMetaReadinessOutcome(1, false, 2345, {op:{id:"bridge_pair_larger_sum", family:"memory_bridge"}, responseFormat:"choice"});
+    if(State.dL1Window.length !== oldLen + 1) block.push("recordMetaReadinessOutcome did not append an L1 trial");
+    if(State.dL1Window.at(-1)?.correct !== false) block.push("L1 readiness window did not retain incorrect outcome");
+  }catch(e){ block.push(`audit exception: ${e?.message || e}`); }
+  finally{
+    State.dL1Window = saved.dL1Window;
+    State.dL2Window = saved.dL2Window;
+    State.meta.l1Stats = saved.l1Stats;
+    State.meta.l2Stats = saved.l2Stats;
+    State.levelByMode = saved.levelByMode;
+  }
+  return auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {block, warnings});
+}
+try{
+  const previousRunFeatureAuditV6592 = runFeatureAudit;
+  runFeatureAudit = function runFeatureAuditV6593(feature, opts={}){
+    const f = String(feature || "").toLowerCase();
+    if(["windowed_meta_readiness","meta_readiness_window","l1_l2_softlock","l2_l3_softlock","readiness_softlock"].includes(f)){
+      const results = {windowedMetaReadiness:runTimedFeatureSubAudit(f, "windowedMetaReadiness", () => auditWindowedMetaReadinessFrontiers(opts))};
+      return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.windowedMetaReadiness.status, results};
+    }
+    return previousRunFeatureAuditV6592.apply(this, arguments);
+  };
+  if(typeof window !== "undefined") window.auditWindowedMetaReadinessFrontiers = auditWindowedMetaReadinessFrontiers;
+  if(typeof safeRegisterAtomic === "function"){
+    safeRegisterAtomic("windowed_l1_to_l2_readiness", {kind:"readiness_gate", desc:"L1→L2 promotion uses recent L1 outcomes, not lifetime aggregate accuracy."});
+    safeRegisterAtomic("windowed_l2_to_l3_readiness", {kind:"readiness_gate", desc:"L2→L3 promotion uses recent L2 outcomes, not lifetime aggregate accuracy."});
+  }
+}catch(_){ }
+
+
+// v6.5.94 — source-level witness boundary and side-total clarity closure.
+(function registerV6594WitnessSideTotalSourceClarity(){
+  const PATCH_VERSION = "v6.5.96-audit-hotfix";
+  function auditWitnessSideTotalSourceClarity(){
+    const block=[], warnings=[];
+    try{
+      const op = (typeof L1_OPS !== "undefined" ? L1_OPS : []).find(o=>o && o.id === "side_total_diff");
+      const qs = JSON.stringify(op?.variants || []);
+      if(/How far apart are the two side totals\?/i.test(qs)) block.push("source still contains opaque side-total wording");
+      if(!/Pair 1 LEFT \+ Pair 2 LEFT/i.test(qs) || !/Pair 1 RIGHT \+ Pair 2 RIGHT/i.test(qs)) block.push("source side-total variants do not spell out column sums");
+      const lower = (typeof WITNESS_QUALIFIERS !== "undefined") ? WITNESS_QUALIFIERS.lower_boundary : null;
+      const upper = (typeof WITNESS_QUALIFIERS !== "undefined") ? WITNESS_QUALIFIERS.upper_boundary : null;
+      if(lower && /lower-boundary/i.test(String(lower.leadWord || "") + " " + String(lower.rangeClause?.([{label:"A"},{label:"B"}]) || ""))) block.push("lower_boundary source still leaks implementation wording");
+      if(upper && /upper-boundary/i.test(String(upper.leadWord || "") + " " + String(upper.rangeClause?.([{label:"A"},{label:"B"}]) || ""))) block.push("upper_boundary source still leaks implementation wording");
+      if(typeof witnessBuildPrompt === "function"){
+        const prompt = witnessBuildPrompt("upper_boundary", [{label:"Pair 1's total", value:5},{label:"Pair 2's total", value:9}], ["not prime"], [], null);
+        if(/upper-boundary|lower-boundary/i.test(prompt)) block.push(`boundary prompt leaks implementation term: ${prompt}`);
+        if(!/inclusive range/i.test(prompt) || !/largest value/i.test(prompt) || !/not prime/i.test(prompt)) block.push(`boundary prompt is not explicit enough: ${prompt}`);
+      }
+      if(typeof witnessFindNearMiss === "function"){
+        const nm = witnessFindNearMiss(5,9,[{predId:"not_in_set", anchor:null}],[9],["not prime"]);
+        if(nm && /not not prime/i.test(nm.reason)) block.push("near-miss still says not not prime");
+      }
+    }catch(e){ block.push(e?.message || String(e)); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {warnings, block}) : {status:block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), warnings, block};
+  }
+  try{ window.auditWitnessSideTotalSourceClarity = auditWitnessSideTotalSourceClarity; }catch(_){ }
+  try{
+    const previousRunFeatureAudit = runFeatureAudit;
+    runFeatureAudit = function runFeatureAuditV6594(feature, opts={}){
+      const f = String(feature || "").toLowerCase();
+      if(["witness_side_total_source", "source_clarity", "witness_source_clarity", "side_total_source_clarity"].includes(f)){
+        const results = {sourceClarity:runTimedFeatureSubAudit(f, "sourceClarity", () => auditWitnessSideTotalSourceClarity(opts))};
+        return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.sourceClarity.status, results};
+      }
+      return previousRunFeatureAudit.apply(this, arguments);
+    };
+    try{ window.runFeatureAudit = runFeatureAudit; }catch(_){ }
+  }catch(_){ }
+  try{
+    if(typeof safeRegisterAtomic === "function"){
+      safeRegisterAtomic("witness_boundary_source_clarity", {kind:"prompt_contract", desc:"Boundary witness prompts are fixed in the source qualifier path, not only by a late wrapper."});
+      safeRegisterAtomic("l1_side_total_source_clarity", {kind:"prompt_contract", desc:"The L1 side-total operation has no opaque legacy wording in its source variant list."});
+    }
+  }catch(_){ }
+  try{ if(typeof window !== "undefined") window.EUCA_V6594_WITNESS_SIDE_TOTAL_SOURCE_CLARITY = {patch:PATCH_VERSION}; }catch(_){ }
+})();
 
 </script>
 </body>
