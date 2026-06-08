@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.6.4-experimental-densification-semantic-guard</title>
+<title>Eucalculia v6.6.5-experimental-densification-semantic-balance</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.6.4-experimental-densification-semantic-guard";
+const APP_VERSION = "v6.6.5-experimental-densification-semantic-balance";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -76266,7 +76266,7 @@ try{
 //   3) fixed-pair probe conversion fails closed if a visual-gate payload ever
 //      leaks through future code.
 (function(){
-  const PATCH_VERSION = "v6.6.4-experimental-densification-semantic-guard";
+  const PATCH_VERSION = "v6.6.5-experimental-densification-semantic-balance";
   const gateArr = (x)=> Array.isArray(x) ? x : [];
   const gateStr = (x)=> String(x == null ? "" : x);
   function gateCatById(id){
@@ -76549,7 +76549,7 @@ try{
 //   - truth-target choice distractors must be semantically invalid for the
 //     requested truth target, so the displayed answer is unique.
 (function experimentalDensificationSemanticGuardV664(){
-  const PATCH_VERSION = "v6.6.4-experimental-densification-semantic-guard";
+  const PATCH_VERSION = "v6.6.5-experimental-densification-semantic-balance";
   const arr = x => Array.isArray(x) ? x : [];
   const clamp = (x,lo,hi)=> Math.max(lo, Math.min(hi, x));
   const ri = (lo,hi)=> {
@@ -76678,58 +76678,80 @@ try{
     return null;
   }
 
-  function sequentialSufficiencyTrialV664(cat,m){
-    const templates = ["after1","after2","after3","not"].sort(()=>Math.random()-0.5);
-    for(const kind of templates){
-      for(let tries=0; tries<80; tries++){
-        const domainMax = 12;
-        let hidden = ri(1, domainMax), clues = [], earliest = -1;
-        if(kind === "after1"){
-          clues = [
-            {label:`Clue 1: the value is between ${hidden} and ${hidden}.`, filter:n=>n===hidden},
-            {label:`Clue 2: the value has the same parity as ${hidden}.`, filter:n=>(n%2)===(hidden%2)},
-            {label:`Clue 3: the value is ${hidden > 6 ? "greater than" : "not greater than"} 6.`, filter:n=>(n>6)===(hidden>6)}
-          ];
-        } else if(kind === "after2"){
-          const neighbor = hidden < domainMax ? hidden + 1 : hidden - 1;
-          const lo = Math.min(hidden, neighbor), hi = Math.max(hidden, neighbor);
-          clues = [
-            {label:`Clue 1: the value is between ${lo} and ${hi}.`, filter:n=>n>=lo && n<=hi},
-            {label:`Clue 2: the value is ${hidden%2===0 ? "even" : "odd"}.`, filter:n=>(n%2)===(hidden%2)},
-            {label:`Clue 3: the value is ${hidden > 6 ? "greater than" : "not greater than"} 6.`, filter:n=>(n>6)===(hidden>6)}
-          ];
-        } else if(kind === "after3"){
-          hidden = pick([3,4,5,6,7,8,9,10]);
-          const lo = clamp(hidden-2, 1, domainMax-3), hi = lo + 3;
-          clues = [
-            {label:`Clue 1: the value is between ${lo} and ${hi}.`, filter:n=>n>=lo && n<=hi},
-            {label:`Clue 2: the value is ${hidden%2===0 ? "even" : "odd"}.`, filter:n=>(n%2)===(hidden%2)},
-            {label:`Clue 3: the value is exactly ${hidden}.`, filter:n=>n===hidden}
-          ];
-        } else {
-          hidden = pick([1,3,5,7,9,11]);
-          const lo = hidden <= 5 ? 1 : 7, hi = lo + 5;
-          clues = [
-            {label:`Clue 1: the value is between ${lo} and ${hi}.`, filter:n=>n>=lo && n<=hi},
-            {label:`Clue 2: the value is odd.`, filter:n=>n%2===1},
-            {label:`Clue 3: the value is ${hidden <= 5 ? "less than 6" : "greater than 6"}.`, filter:n=> hidden <= 5 ? n<6 : n>6}
-          ];
-        }
-        let possible = Array.from({length:domainMax},(_,i)=>i+1), counts=[];
-        for(let i=0;i<clues.length;i++){
-          possible = possible.filter(clues[i].filter); counts.push(possible.length);
-          if(possible.length === 1 && earliest < 0) earliest = i;
-        }
-        const correct = earliest < 0 ? 3 : earliest;
-        if(kind === "after1" && correct !== 0) continue;
-        if(kind === "after2" && correct !== 1) continue;
-        if(kind === "after3" && correct !== 2) continue;
-        if(kind === "not" && correct !== 3) continue;
-        const opts = ["after clue 1", "after clue 2", "after clue 3", "not determined by these clues"];
-        const q = `A hidden value is from 1 to 12. What is the earliest clue after which the value is determined?`;
-        const review = [`${clues.map(c=>c.label).join(" ")}`, `Remaining possibilities after each clue: ${counts.join(" → ")}.`, correct === 3 ? `No clue leaves exactly one possible value, so the value is not determined.` : `First point with exactly one possible value: after clue ${correct+1}.`];
-        return choiceTrial(cat,m,hidden,counts[0],q,opts,correct,{kind:"sequential_sufficiency", hidden, clueKind:kind, clues:clues.map(c=>c.label), counts, earliestIndex:correct, reviewLines:review}, ["premature_stop","late_stop","underdetermined_lure"]);
+  // v6.6.5: balanced target construction for sequential sufficiency.
+  // The previous semantic guard made all four outcomes possible, but the
+  // generator still chose by "shuffle templates, return first success", which
+  // left a mild after-1 / not-determined skew. This keeps the same determined
+  // clue logic while selecting the intended answer class from a balanced bag.
+  const SUFFICIENCY_KINDS_V665 = ["after1", "after2", "after3", "not"];
+  let sufficiencyKindBagV665 = [];
+  function shuffledCopyV665(xs){
+    const a = arr(xs).slice();
+    for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; }
+    return a;
+  }
+  function nextSufficiencyKindV665(){
+    if(!sufficiencyKindBagV665.length) sufficiencyKindBagV665 = shuffledCopyV665(SUFFICIENCY_KINDS_V665);
+    return sufficiencyKindBagV665.shift();
+  }
+  function buildSequentialSufficiencyForKindV665(cat,m,kind){
+    for(let tries=0; tries<90; tries++){
+      const domainMax = 12;
+      let hidden = ri(1, domainMax), clues = [], earliest = -1;
+      if(kind === "after1"){
+        clues = [
+          {label:`Clue 1: the value is exactly ${hidden}.`, filter:n=>n===hidden},
+          {label:`Clue 2: the value has the same parity as ${hidden}.`, filter:n=>(n%2)===(hidden%2)},
+          {label:`Clue 3: the value is ${hidden > 6 ? "greater than" : "not greater than"} 6.`, filter:n=>(n>6)===(hidden>6)}
+        ];
+      } else if(kind === "after2"){
+        const neighbor = hidden < domainMax ? hidden + 1 : hidden - 1;
+        const lo = Math.min(hidden, neighbor), hi = Math.max(hidden, neighbor);
+        clues = [
+          {label:`Clue 1: the value is either ${lo} or ${hi}.`, filter:n=>n===lo || n===hi},
+          {label:`Clue 2: the value is ${hidden%2===0 ? "even" : "odd"}.`, filter:n=>(n%2)===(hidden%2)},
+          {label:`Clue 3: the value is ${hidden > 6 ? "greater than" : "not greater than"} 6.`, filter:n=>(n>6)===(hidden>6)}
+        ];
+      } else if(kind === "after3"){
+        hidden = pick([3,4,5,6,7,8,9,10]);
+        const lo = clamp(hidden-2, 1, domainMax-3), hi = lo + 3;
+        clues = [
+          {label:`Clue 1: the value is between ${lo} and ${hi}.`, filter:n=>n>=lo && n<=hi},
+          {label:`Clue 2: the value is ${hidden%2===0 ? "even" : "odd"}.`, filter:n=>(n%2)===(hidden%2)},
+          {label:`Clue 3: the value is exactly ${hidden}.`, filter:n=>n===hidden}
+        ];
+      } else {
+        hidden = pick([1,3,5,7,9,11]);
+        const lo = hidden <= 5 ? 1 : 7, hi = lo + 5;
+        clues = [
+          {label:`Clue 1: the value is between ${lo} and ${hi}.`, filter:n=>n>=lo && n<=hi},
+          {label:`Clue 2: the value is odd.`, filter:n=>n%2===1},
+          {label:`Clue 3: the value is ${hidden <= 5 ? "less than 6" : "greater than 6"}.`, filter:n=> hidden <= 5 ? n<6 : n>6}
+        ];
       }
+      let possible = Array.from({length:domainMax},(_,i)=>i+1), counts=[];
+      for(let i=0;i<clues.length;i++){
+        possible = possible.filter(clues[i].filter); counts.push(possible.length);
+        if(possible.length === 1 && earliest < 0) earliest = i;
+      }
+      const correct = earliest < 0 ? 3 : earliest;
+      if(kind === "after1" && correct !== 0) continue;
+      if(kind === "after2" && correct !== 1) continue;
+      if(kind === "after3" && correct !== 2) continue;
+      if(kind === "not" && correct !== 3) continue;
+      const opts = ["after clue 1", "after clue 2", "after clue 3", "not determined by these clues"];
+      const q = `A hidden value is from 1 to 12. What is the earliest clue after which the value is determined exactly?`;
+      const review = [`${clues.map(c=>c.label).join(" ")}`, `Remaining possibilities after each clue: ${counts.join(" → ")}.`, correct === 3 ? `No clue leaves exactly one possible value, so the value is not determined.` : `First point with exactly one possible value: after clue ${correct+1}.`];
+      return choiceTrial(cat,m,hidden,counts[0],q,opts,correct,{kind:"sequential_sufficiency", hidden, clueKind:kind, clues:clues.map(c=>c.label), counts, earliestIndex:correct, semanticBalanceVersion:"v6.6.5"}, ["premature_stop","late_stop","underdetermined_lure"]);
+    }
+    return null;
+  }
+  function sequentialSufficiencyTrialV664(cat,m){
+    const first = nextSufficiencyKindV665();
+    const order = [first].concat(shuffledCopyV665(SUFFICIENCY_KINDS_V665.filter(k=>k!==first)));
+    for(const kind of order){
+      const tr = buildSequentialSufficiencyForKindV665(cat,m,kind);
+      if(tr) return tr;
     }
     return null;
   }
@@ -76896,8 +76918,13 @@ try{
       }
       if(id === "exp_sequential_sufficiency_stop"){
         const keys = Object.keys(s.counts || {});
-        if(keys.length < 3) block.push(`${id}: low sufficiency-answer entropy (${keys.join(", ")})`);
+        const total = Object.values(s.counts || {}).reduce((a,b)=>a+Number(b||0),0);
+        const shares = Object.fromEntries(Object.entries(s.counts || {}).map(([k,v])=>[k, total ? +(Number(v||0)/total).toFixed(3) : 0]));
+        const maxShare = total ? Math.max(...Object.values(s.counts || {}).map(v=>Number(v||0)/total)) : 1;
+        const minShare = total ? Math.min(...["after clue 1","after clue 2","after clue 3","not determined by these clues"].map(k=>Number((s.counts || {})[k] || 0)/total)) : 0;
+        if(keys.length < 4) block.push(`${id}: low sufficiency-answer entropy (${keys.join(", ")})`);
         if(!(s.counts["not determined by these clues"] > 0)) block.push(`${id}: never generated a genuine underdetermined clue sequence`);
+        if(maxShare > 0.45 || minShare < 0.10) block.push(`${id}: imbalanced sufficiency distribution ${JSON.stringify(shares)} (max=${maxShare.toFixed(3)}, min=${minShare.toFixed(3)})`);
       }
       if(id === "exp_truth_target_choice"){
         const bad = auditTruthTargetUniqueV664(s.rows);
