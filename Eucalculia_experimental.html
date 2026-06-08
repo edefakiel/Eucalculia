@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.6.14-experimental-densification-coherence-grounding</title>
+<title>Eucalculia v6.6.16-experimental-densification-meta-clarity</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3306,6 +3306,7 @@ select.cs-native {
 
 <script>
 
+
 // =====================
 
 // ============================================================================
@@ -3323,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.6.14-experimental-densification-coherence-grounding";
+const APP_VERSION = "v6.6.16-experimental-densification-meta-clarity";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -77588,10 +77589,8 @@ try{
   }
   try{ window.auditEpistemicDomainBalanceV6611 = auditEpistemicDomainBalanceV6611; }catch(_){}
 })();
-</script>
 
 
-<script>
 // v6.6.12 / v6.5.103 semantic wording guard: keep wording aligned with the predicate.
 // A previous friendly variant for larger_even_and_gap_gt2 asked whether exactly one
 // condition was "broken". That is an XOR predicate, not the AND predicate represented
@@ -78024,6 +78023,571 @@ try{
     }
   }catch(e){ try{ console.warn("[Eucalculia] coherence grounding refinement failed", e); }catch(_){ } }
 })();
+
+
+// v6.6.14 / v6.5.105 hardening: filter retired abstract coherence ops from
+// registry-layer access as well as from L1_OPS, because the registry runtime may
+// have cached legacy entries before late patches mutate the array.
+(function hardenV6614CoherenceRegistryFilter(){
+  const RETIRED = new Set(["coherence_compatibility","coherence_implication","coherence_mutually_exclusive_subset","coherence_redundant_claim"]);
+  function entryId(e){ return e && (e.id || e.opId || e.catId || e.legacyId || null); }
+  function isL1(layer){ const s=String(layer||"").toUpperCase(); return s === "L1" || s === "META1"; }
+  function scrubRegistryCache(){
+    try{ if(typeof REGISTRY_LAYER_ENTRIES_CACHE !== "undefined" && REGISTRY_LAYER_ENTRIES_CACHE){ REGISTRY_LAYER_ENTRIES_CACHE.sig = null; REGISTRY_LAYER_ENTRIES_CACHE.rows = {}; } }catch(_){ }
+    try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX){
+      if(REGISTRY_RUNTIME_INDEX.layers && Array.isArray(REGISTRY_RUNTIME_INDEX.layers.L1)) REGISTRY_RUNTIME_INDEX.layers.L1 = REGISTRY_RUNTIME_INDEX.layers.L1.filter(e=>!RETIRED.has(entryId(e)));
+      for(const id of RETIRED){
+        try{ delete REGISTRY_RUNTIME_INDEX.byEntryId.L1[id]; }catch(_){ }
+        try{ delete REGISTRY_RUNTIME_INDEX.byLegacyId.L1[id]; }catch(_){ }
+      }
+      REGISTRY_RUNTIME_INDEX.builtAt = 0;
+    } }catch(_){ }
+    try{ if(typeof SPEC_REGISTRY !== "undefined") for(const id of RETIRED){ const s=SPEC_REGISTRY[id]; if(s){ delete s.runtimeEntry; s.disabled=true; s.minLevel=999; } } }catch(_){ }
+  }
+  try{
+    scrubRegistryCache();
+    if(typeof registryLayerEntries === "function" && !registryLayerEntries.__eucaCoherenceGroundingFilter){
+      const prevLayerEntries = registryLayerEntries;
+      registryLayerEntries = function registryLayerEntriesCoherenceGrounded(layer, fallback=null){
+        const rows = prevLayerEntries(layer, fallback) || [];
+        return isL1(layer) ? rows.filter(e=>!RETIRED.has(entryId(e))) : rows;
+      };
+      registryLayerEntries.__eucaCoherenceGroundingFilter = true;
+    }
+    if(typeof registryEntryById === "function" && !registryEntryById.__eucaCoherenceGroundingFilter){
+      const prevEntryById = registryEntryById;
+      registryEntryById = function registryEntryByIdCoherenceGrounded(layer, id, fallback=null){
+        if(isL1(layer) && RETIRED.has(String(id||""))) return null;
+        return prevEntryById(layer, id, fallback);
+      };
+      registryEntryById.__eucaCoherenceGroundingFilter = true;
+    }
+    const oldAudit = window.auditCoherenceGroundingV6614;
+    if(typeof oldAudit === "function"){
+      window.auditCoherenceGroundingV6614 = function auditCoherenceGroundingV6614Hardened(opts={}){
+        const base = oldAudit(opts) || {ok:true, problems:[]};
+        const problems = Array.isArray(base.problems) ? base.problems.slice() : [];
+        try{
+          const active = (typeof registryLayerEntries === "function") ? registryLayerEntries("L1", (typeof L1_OPS !== "undefined" ? L1_OPS : [])).filter(e=>RETIRED.has(entryId(e))).map(entryId) : [];
+          if(active.length) problems.push("retired_abstract_coherence_ops_active_in_registry:" + [...new Set(active)].join(","));
+          base.registryRetiredActive = [...new Set(active)];
+        }catch(e){ problems.push("registry_retired_scan_failed:" + (e && e.message || e)); }
+        base.problems = problems;
+        base.ok = problems.length === 0;
+        base.status = base.ok ? "PASS" : "BLOCK";
+        return base;
+      };
+      try{ if(typeof runFeatureAudit === "function"){
+        const prevRun = runFeatureAudit;
+        runFeatureAudit = function runFeatureAuditCoherenceGroundingHardened(feature, opts={}){
+          const f = String(feature||"").toLowerCase();
+          if(f === "coherence_grounding" || f === "l1_coherence_grounding" || f === "v6614_coherence_grounding" || f === "v65105_coherence_grounding") return window.auditCoherenceGroundingV6614(opts);
+          return prevRun(feature, opts);
+        };
+        window.runFeatureAudit = runFeatureAudit; globalThis.runFeatureAudit = runFeatureAudit;
+      } }catch(_){ }
+    }
+    window.EUCA_COHERENCE_GROUNDING_REGISTRY_FILTER = {retired:[...RETIRED]};
+  }catch(e){ try{ console.warn("[Eucalculia] coherence registry filter failed", e); }catch(_){ } }
+})();
+
+
+// v6.6.14 / v6.5.105 compatibility: expose Lucas as a public number-set def
+// for audits and any set-membership prompts that use the generic set dictionary.
+(function exposeLucasNumberSetDefinition(){
+  try{
+    const lucasHas = (typeof isLucasNumber === "function") ? isLucasNumber : (n => [1,2,3,4,7,11,18,29,47].includes(Number(n)));
+    const defs = globalThis.NUMBER_SET_DEFS || {};
+    defs.lucas = Object.assign({id:"lucas", label:"Lucas numbers", has:n=>!!lucasHas(Number(n))}, defs.lucas || {});
+    if(typeof defs.lucas.has !== "function") defs.lucas.has = n=>!!lucasHas(Number(n));
+    globalThis.NUMBER_SET_DEFS = defs;
+    try{ window.NUMBER_SET_DEFS = defs; }catch(_){ }
+  }catch(e){ try{ console.warn("[Eucalculia] Lucas number-set exposure failed", e); }catch(_){ } }
+})();
+
+// ── v6.6.15 / v6.5.106 — recursive trace prompt readability ──
+(function(){
+  "use strict";
+  const PATCH_MARKER = "recursive_trace_prompt_readability_v6615";
+  const branchRuleSum = "Start with LEFT+RIGHT. Repeat until the value reaches 1: if the current value is even, divide it by 2; if it is odd and greater than 1, subtract 1.";
+  const branchRuleLeft = "Start with LEFT. Repeat until the value reaches 1: if the current value is even, divide it by 2; if it is odd and greater than 1, subtract 1.";
+  const collatzRuleLeft = "Start with LEFT. Repeat the Collatz rule: if the current value is even, divide it by 2; if it is odd, multiply by 3 and add 1.";
+  const halvingRuleLeft = "Start with LEFT. While the current value is even, divide it by 2; stop when it becomes odd.";
+  const halvingRuleSum = "Start with LEFT+RIGHT. While the current value is even, divide it by 2; stop when it becomes odd.";
+  const subtract5RuleSum = "Start with LEFT+RIGHT. Repeatedly subtract 5 until the value is below 5.";
+  const countedHalvingLeft = "Start with LEFT. Count each time you divide an even value by 2; stop when the value becomes odd.";
+  const countedHalvingSum = "Start with LEFT+RIGHT. Count each time you divide an even value by 2; stop when the value becomes odd.";
+  const euclidRule = "Use the ordered pair (larger, smaller). Apply Euclid's rule: replace the larger value by the remainder after dividing it by the smaller value, until the remainder is 0.";
+  const qById = {
+    rec_halving_depth_gt1: `${halvingRuleLeft} Were there more than one divide-by-2 step?`,
+    rec_halving_final_gt3: `${halvingRuleLeft} Is the final odd value greater than 3?`,
+    rec_halving_depth_eq2: `${halvingRuleLeft} Were there exactly two divide-by-2 steps?`,
+    rec_halving_final_eq3: `${halvingRuleSum} Is the final odd value 3?`,
+    rec_halving_sum_net_change_4_10: `${halvingRuleSum} Is the total change between 4 and 10?`,
+    rec_halving_sum_max_gt20: `${halvingRuleSum} Does any value in the trace exceed 20?`,
+    rec_term_halving_within2: `${halvingRuleLeft} Does it stop within two steps?`,
+    rec_subtract5_depth_gt2: `${subtract5RuleSum} Were there more than two subtract-5 steps?`,
+    rec_subtract5_final_even: `${subtract5RuleSum} Is the final value even?`,
+    rec_subtract5_passes_even: `${subtract5RuleSum} Does any value in the trace become even?`,
+    rec_subtract5_depth_eq2: `${subtract5RuleSum} Were there exactly two subtract-5 steps?`,
+    rec_subtract5_final_gt2: `${subtract5RuleSum} Is the final value greater than 2?`,
+    rec_subtract5_min_below3: `${subtract5RuleSum} Does any value in the trace fall below 3?`,
+    rec_subtract5_net_change_10_20: `${subtract5RuleSum} Is the net change between 10 and 20?`,
+    rec_subtract5_all_above3: `${subtract5RuleSum} Do all values in the trace stay above 3?`,
+    rec_subtract5_passes_prime: `${subtract5RuleSum} Does any value in the trace become prime?`,
+    rec_term_subtract5_base_within2: `Start with LEFT+RIGHT. Subtract 5 at most twice, stopping early if the value falls below 5. Does it reach the below-5 base case before the two-step limit?`,
+    rec_safe_branch_depth_gt4: `${branchRuleSum} Did it take more than four steps?`,
+    rec_branch_uses_both_rules: `${branchRuleSum} Were both step types used?`,
+    rec_branch_uses_halve: `${branchRuleSum} Was the first step to divide by 2?`,
+    rec_branch_first_halve_sum: `${branchRuleSum} Was the first step to divide by 2?`,
+    rec_branch_first_minus_one_sum: `${branchRuleSum} Was the first step to subtract 1?`,
+    rec_branch_avoids_minus_one: `${branchRuleSum} Did the trace never use the subtract-1 step?`,
+    rec_branch_only_halve: `${branchRuleSum} Were all steps divide-by-2 steps?`,
+    rec_branch_minus_one_twice: `${branchRuleSum} Did the trace use the subtract-1 step at least twice?`,
+    rec_branch_max_gt15: `${branchRuleSum} Does any value in the trace exceed 15?`,
+    rec_term_branch_not_within3: `${branchRuleSum} Would three steps be insufficient to reach 1?`,
+    rec_branch_absent_minus_one_left: `${branchRuleLeft} Did the trace never use the subtract-1 step?`,
+    rec_choice_branch_change_even_minus: `${branchRuleSum} At which transition did the step type first change?`,
+    rec_choice_first_even_branch: `${branchRuleSum} Which value is the first even value in the trace?`,
+    rec_collatz_within5: `${collatzRuleLeft} Does it reach 1 within five steps?`,
+    rec_collatz_max_gt20: `${collatzRuleLeft} Does any value in the trace exceed 20?`,
+    rec_collatz_triple_twice: `${collatzRuleLeft} Is the multiply-by-3-and-add-1 step used at least once?`,
+    rec_collatz_first_triple: `${collatzRuleLeft} Is the first step the multiply-by-3-and-add-1 step?`,
+    rec_collatz_min_below3: `${collatzRuleLeft} Before stopping, does any value in the trace fall below 3?`,
+    rec_choice_branch_change_collatz: `${collatzRuleLeft} At which transition did the trace first switch between the two step types?`,
+    rec_choice_first_gt20_collatz: `${collatzRuleLeft} Which value is the first value greater than 20?`,
+    rec_euclid_depth_gt1: `${euclidRule} Does that take more than one step?`,
+    rec_euclid_final_eq2: `${euclidRule} Is the final gcd 2?`,
+    rec_euclid_final_in_34: `${euclidRule} Is the final gcd 3 or 4?`,
+    rec_euclid_max_gt10: `${euclidRule} Does any component in the trace exceed 10?`,
+    rec_term_euclid_within2: `${euclidRule} Does it finish within two steps?`,
+    rec_counted_halving_count_eq2: `${countedHalvingLeft} Is the final step count exactly 2?`,
+    rec_counted_halving_count_gt2: `${countedHalvingSum} Is the final step count greater than 2?`,
+    rec_counted_halving_net_4_12: `${countedHalvingSum} Is the value change between 4 and 12?`
+  };
+  function polishRecursivePromptText(txt){
+    let q = String(txt || "");
+    q = q.replace(/From LEFT\+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1\./g, branchRuleSum);
+    q = q.replace(/From LEFT\+RIGHT, repeat until 1\. If the value is even, halve it; otherwise subtract 1\./g, branchRuleSum);
+    q = q.replace(/Trace the pair total to 1: even values are halved, odd values above 1 lose 1\./g, branchRuleSum);
+    q = q.replace(/Using LEFT\+RIGHT as the start, did the even-halve \/ odd-minus-1 rule need/g, "Starting with LEFT+RIGHT, did this rule need");
+    q = q.replace(/Start from LEFT\+RIGHT\. Halve until odd\./g, halvingRuleSum);
+    q = q.replace(/Halve LEFT until odd\./g, halvingRuleLeft);
+    q = q.replace(/Start from LEFT\+RIGHT\. Subtract 5 until below 5\./g, subtract5RuleSum);
+    q = q.replace(/Run counted halving on LEFT\+RIGHT\./g, countedHalvingSum);
+    q = q.replace(/Run counted halving on LEFT\./g, countedHalvingLeft);
+    q = q.replace(/Collatz rule from LEFT: even → halve; odd → 3n\+1\./g, collatzRuleLeft);
+    q = q.replace(/Collatz rule: even → halve; odd → 3n\+1\./g, collatzRuleLeft);
+    q = q.replace(/Run Collatz from LEFT\./g, collatzRuleLeft);
+    q = q.replace(/Use Euclid on the ordered pair \(larger, smaller\)\./g, euclidRule);
+    q = q.replace(/Use Euclid on the ordered pair\./g, euclidRule);
+    q = q.replace(/Was the first step a halving step\?/g, "Was the first step to divide by 2?");
+    q = q.replace(/Was the first step a subtract-1 step\?/g, "Was the first step to subtract 1?");
+    q = q.replace(/Was subtract-1 never used\?/g, "Did the trace never use the subtract-1 step?");
+    q = q.replace(/Was subtract-1 used at least twice\?/g, "Did the trace use the subtract-1 step at least twice?");
+    q = q.replace(/Were all steps halving steps\?/g, "Were all steps divide-by-2 steps?");
+    q = q.replace(/3v\+1 branch/g, "multiply-by-3-and-add-1 step");
+    q = q.replace(/3n\+1 branch/g, "multiply-by-3-and-add-1 step");
+    q = q.replace(/step-count/g, "step count");
+    q = q.replace(/value-change/g, "value change");
+    return q.replace(/\s+/g, " ").trim();
+  }
+  function setVariants(cat, q){
+    if(!cat || !q) return;
+    if(Array.isArray(cat.variants) && cat.variants.length){
+      cat.variants = cat.variants.map(v => typeof v === "string" ? {q} : {...(v || {}), q});
+    } else cat.variants = [{q}];
+  }
+  function updateById(id, q){
+    let n=0;
+    try{ if(Array.isArray(RECURSIVE_TRACE_CAT_SPECS)) for(const sp of RECURSIVE_TRACE_CAT_SPECS){ if(sp && sp.id === id){ sp.q=q; n++; } } }catch(_){ }
+    try{ if(Array.isArray(POSNER_CATS)) for(const cat of POSNER_CATS){
+      if(!cat) continue;
+      if(cat.id === id){ setVariants(cat,q); if(cat.choiceSpec) cat.choiceSpec.q=q; n++; }
+      if(cat.choiceSpecId === id && cat.choiceSpec){ cat.choiceSpec.q=q; setVariants(cat,q); n++; }
+      if(cat.choiceSpec && cat.choiceSpec.id === id){ cat.choiceSpec.q=q; setVariants(cat,q); n++; }
+    } }catch(_){ }
+    try{ if(typeof FRIENDLY_POSNER_VARIANTS !== "undefined" && FRIENDLY_POSNER_VARIANTS) FRIENDLY_POSNER_VARIANTS[id] = [{q}]; }catch(_){ }
+    return n;
+  }
+  function polishAllRecursiveSurfaces(){
+    let changed=0;
+    try{ if(Array.isArray(RECURSIVE_TRACE_CAT_SPECS)) for(const sp of RECURSIVE_TRACE_CAT_SPECS){ if(sp && typeof sp.q === "string"){ const nq = qById[sp.id] || polishRecursivePromptText(sp.q); if(nq && nq !== sp.q){ sp.q=nq; changed++; } } } }catch(_){ }
+    try{ if(Array.isArray(POSNER_CATS)) for(const cat of POSNER_CATS){
+      if(!cat) continue;
+      const id = cat.choiceSpecId || cat.choiceSpec?.id || cat.id;
+      const exact = qById[id];
+      if(exact){ updateById(id, exact); changed++; continue; }
+      if(cat.family === "recursive_trace" || cat.family === "recursive_trace_choice" || cat.recursiveTraceOpId || cat.choiceSpec?.opId){
+        if(cat.choiceSpec && typeof cat.choiceSpec.q === "string"){
+          const nq = polishRecursivePromptText(cat.choiceSpec.q); if(nq !== cat.choiceSpec.q){ cat.choiceSpec.q=nq; changed++; }
+        }
+        if(Array.isArray(cat.variants)) cat.variants = cat.variants.map(v => {
+          const old = typeof v === "string" ? v : String(v?.q || v?.text || "");
+          const nq = polishRecursivePromptText(old);
+          if(nq !== old) changed++;
+          return typeof v === "string" ? {q:nq} : {...(v||{}), q:nq};
+        });
+      }
+    } }catch(_){ }
+    try{ if(typeof FRIENDLY_POSNER_VARIANTS !== "undefined" && FRIENDLY_POSNER_VARIANTS){
+      for(const [id, arr] of Object.entries(FRIENDLY_POSNER_VARIANTS)){
+        if(!/^rec_/.test(id) || !Array.isArray(arr)) continue;
+        FRIENDLY_POSNER_VARIANTS[id] = arr.map(v => {
+          const old = typeof v === "string" ? v : String(v?.q || v?.text || "");
+          const nq = qById[id] || polishRecursivePromptText(old);
+          if(nq !== old) changed++;
+          return typeof v === "string" ? {q:nq} : {...(v||{}), q:nq};
+        });
+      }
+    } }catch(_){ }
+    for(const [id,q] of Object.entries(qById)) changed += updateById(id,q);
+    return changed;
+  }
+  function recursivePromptRows(){
+    const rows=[];
+    try{ if(Array.isArray(RECURSIVE_TRACE_CAT_SPECS)) for(const sp of RECURSIVE_TRACE_CAT_SPECS){ if(sp?.q) rows.push({source:"spec", id:sp.id, text:String(sp.q)}); } }catch(_){ }
+    try{ if(Array.isArray(POSNER_CATS)) for(const cat of POSNER_CATS){
+      if(!cat) continue;
+      const id = cat.choiceSpecId || cat.choiceSpec?.id || cat.id;
+      const isRec = /^rec_/.test(String(id||"")) || cat.family === "recursive_trace" || cat.family === "recursive_trace_choice" || cat.recursiveTraceOpId || cat.choiceSpec?.opId;
+      if(!isRec) continue;
+      if(cat.choiceSpec?.q) rows.push({source:"choiceSpec", id, text:String(cat.choiceSpec.q)});
+      for(const v of (Array.isArray(cat.variants)?cat.variants:[])) rows.push({source:"variant", id, text:String(v?.q || v?.text || v || "")});
+    } }catch(_){ }
+    try{ if(typeof FRIENDLY_POSNER_VARIANTS !== "undefined" && FRIENDLY_POSNER_VARIANTS){
+      for(const [id, arr] of Object.entries(FRIENDLY_POSNER_VARIANTS)){ if(/^rec_/.test(id) && Array.isArray(arr)) for(const v of arr) rows.push({source:"friendly", id, text:String(v?.q || v?.text || v || "")}); }
+    } }catch(_){ }
+    return rows.filter(r=>r.text.trim());
+  }
+  function auditRecursiveTracePromptReadabilityV6615(opts={}){
+    const rows = recursivePromptRows();
+    const bad=[];
+    const oldPattern = /From LEFT\+RIGHT, repeat until 1|even\s*→\s*halve|odd\s*>\s*1\s*→|odd-minus-1|even-halve|3n\+1 branch|3v\+1 branch|step-count|value-change/i;
+    for(const r of rows){
+      if(oldPattern.test(r.text)) bad.push({...r, reason:"terse_or_symbolic_rule_wording"});
+      if(/even\/odd rule trace/i.test(r.text) && !/if the current value is even/i.test(r.text)) bad.push({...r, reason:"rule_name_without_rule"});
+    }
+    const sampleIds = ["rec_branch_first_minus_one_sum","rec_safe_branch_depth_gt4","rec_choice_branch_change_even_minus","rec_collatz_within5"];
+    const samples = rows.filter(r=>sampleIds.includes(r.id)).slice(0,20);
+    return {feature:"recursive_trace_prompt_readability", status:bad.length?"BLOCK":"PASS", ok:!bad.length, appVersion:(typeof APP_VERSION!=="undefined"?APP_VERSION:null), marker:PATCH_MARKER, changed:window.EUCA_RECURSIVE_TRACE_PROMPT_READABILITY?.changed ?? null, scanned:rows.length, bad:bad.slice(0,80), samples};
+  }
+  try{
+    const changed = polishAllRecursiveSurfaces();
+    window.EUCA_RECURSIVE_TRACE_PROMPT_READABILITY = {version:(typeof APP_VERSION!=="undefined"?APP_VERSION:null), marker:PATCH_MARKER, changed, ids:Object.keys(qById)};
+    window.auditRecursiveTracePromptReadabilityV6615 = auditRecursiveTracePromptReadabilityV6615;
+    const prev = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(prev){
+      runFeatureAudit = function runFeatureAuditRecursiveTracePromptReadability(feature, opts={}){
+        const f = String(feature||"").toLowerCase();
+        if(f === "recursive_trace_prompt_readability" || f === "recursive_prompt_readability" || f === "v6615_recursive_readability" || f === "v65106_recursive_readability") return auditRecursiveTracePromptReadabilityV6615(opts);
+        return prev(feature, opts);
+      };
+      try{ window.runFeatureAudit = runFeatureAudit; globalThis.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(e){ try{ console.warn("[Eucalculia] recursive trace prompt readability patch failed", e); }catch(_){ } }
+})();
+
+
+
+// =============================================================================
+// v6.6.16 / v6.5.107 — META clarity and semantic uniqueness guards.
+// Ground abstract public/private epistemic questions in structured cards,
+// clarify retrospective META² source wording, and add a semantic uniqueness
+// audit for "only TRUE/FALSE" coherence choices.
+// =============================================================================
+(function eucaMetaClarityV6616(){
+  const PATCH_ID = "2026-06-08.meta-clarity-v6616";
+  const warn = (msg,e)=>{ try{ if(typeof console!=="undefined"&&console.warn) console.warn("[Eucalculia meta clarity] "+msg, e||""); }catch(_){} };
+  const esc = (s)=>String(s ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+  const uniqLocal = (arr)=>Array.from(new Set((arr||[]).filter(x=>x!==null&&x!==undefined).map(String)));
+  function auditResultLocal(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){}
+    return {status, details};
+  }
+  function currentVersionLocal(){
+    try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){}
+    try{ return APP_VERSION; }catch(_){}
+    return "unknown";
+  }
+  function eucaPolishEpTargetText(text){
+    let s = String(text || "the target claim").trim();
+    s = s.replace(/^whether\s+/i, "");
+    s = s.replace(/\bLEFT\s*<\s*RIGHT\b/g, "LEFT is less than RIGHT");
+    s = s.replace(/\bLEFT\s*>\s*RIGHT\b/g, "LEFT is greater than RIGHT");
+    s = s.replace(/\bRIGHT\s*>\s*LEFT\b/g, "RIGHT is greater than LEFT");
+    s = s.replace(/\bRIGHT\s*<\s*LEFT\b/g, "RIGHT is less than LEFT");
+    return s;
+  }
+  function renderEpistemicAbstractCardV6616(ep){
+    if(!ep || typeof ep !== "object") return "";
+    const target = eucaPolishEpTargetText(ep.targetText || ep.target || "the target claim");
+    const rows = Array.isArray(ep.agents) ? ep.agents : [];
+    const infoRows = rows.map(r => {
+      const agent = r && r.agent ? String(r.agent) : "Agent";
+      let text = String(r && r.info ? r.info : "").trim();
+      text = text.replace(new RegExp("^"+agent.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s+knows\\s+", "i"), "knows ");
+      text = text.replace(/\bLEFT and RIGHT\b/g, "both LEFT and RIGHT");
+      text = text.replace(/\bonly LEFT\b/g, "only LEFT");
+      text = text.replace(/\bonly RIGHT\b/g, "only RIGHT");
+      return `<div class="qstep compact"><strong>${esc(agent)}:</strong> ${esc(text || "has the listed information")}</div>`;
+    }).join("");
+    const actual = ep.actualWorld && Number.isFinite(Number(ep.actualWorld.left)) && Number.isFinite(Number(ep.actualWorld.right))
+      ? `<div class="qstep compact"><strong>You saw:</strong> the actual LEFT and RIGHT values.</div>`
+      : "";
+    return `<div class="meta-question-card epistemic-card">`
+      + `<div class="qstep section"><strong>Target claim:</strong><br>• ${esc(target)}</div>`
+      + actual
+      + `<div class="qstep section"><strong>What each person knows:</strong></div>`
+      + infoRows
+      + `<div class="qstep prompt-end"><strong>Question:</strong> Which person or people have enough information to determine whether the target claim is YES or NO?</div>`
+      + `</div>`;
+  }
+  function installEpistemicAbstractRenderer(){
+    try{
+      if(typeof renderStructuredQuestionHTML !== "function") return false;
+      const prev = renderStructuredQuestionHTML;
+      renderStructuredQuestionHTML = function(qText, info=null){
+        try{
+          const epAbs = info?.payload?.epistemicAbstract || info?.epistemicAbstract || null;
+          if(epAbs && epAbs.solver === "finite_possible_worlds_determinability"){
+            const html = renderEpistemicAbstractCardV6616(epAbs);
+            if(html) return html;
+          }
+        }catch(e){ warn("epistemic abstract renderer failed", e); }
+        return prev.apply(this, arguments);
+      };
+      try{ window.renderStructuredQuestionHTML = renderStructuredQuestionHTML; }catch(_){}
+      return true;
+    }catch(e){ warn("install epistemic renderer failed", e); return false; }
+  }
+  const epistemicRendererInstalled = installEpistemicAbstractRenderer();
+
+  function l2ClarifyRetrospectiveTextV6616(s){
+    let x = String(s || "");
+    x = x.replace(/the two previous calculation questions/gi, "the two previous META questions");
+    x = x.replace(/previous calculation questions/gi, "previous META questions");
+    x = x.replace(/previous calculation question/gi, "previous META question");
+    x = x.replace(/calculation questions/gi, "META questions");
+    x = x.replace(/left\/right side/gi, "side-specific LEFT/RIGHT readout");
+    x = x.replace(/left\/right-side/gi, "side-specific LEFT/RIGHT readout");
+    x = x.replace(/left\/right position/gi, "side-specific LEFT/RIGHT position");
+    x = x.replace(/kind of calculation/gi, "calculation family");
+    x = x.replace(/same kind of thing/gi, "same calculation family");
+    x = x.replace(/kind of task/gi, "calculation family");
+    x = x.replace(/kinds of task/gi, "calculation families");
+    x = x.replace(/gap-calculation use/gi, "within-pair gap use");
+    x = x.replace(/difference within a pair/gi, "within-pair difference");
+    x = x.replace(/pair 1 to choose a side in pair 2/gi, "Pair 1 as a rule for which side of Pair 2 to read");
+    x = x.replace(/carry a side from pair 1 to pair 2/gi, "use Pair 1 to select a side of Pair 2");
+    x = x.replace(/side-transfer META question/gi, "cross-pair side-transfer META question");
+    x = x.replace(/side-transfer calculation/gi, "cross-pair side-transfer calculation");
+    return x;
+  }
+  function patchL2VariantsV6616(){
+    let patched = 0;
+    try{
+      const byId = Object.create(null);
+      for(const c of (typeof L2_CATS !== "undefined" && Array.isArray(L2_CATS) ? L2_CATS : [])) if(c && c.id) byId[c.id] = c;
+      const set = (id, variants)=>{ if(byId[id]){ byId[id].variants = variants.map(q => typeof q === "string" ? {q} : q); byId[id]._v6616RetrospectiveWording = true; patched++; } };
+      set("l2_same_op_group", [
+        "Did the two previous META questions belong to the same calculation family?",
+        "Were the two previous META questions the same type of calculation?",
+        {q:"Did the previous META questions belong to different calculation families?", negate:true}
+      ]);
+      set("l2_same_gap_dependency", [
+        "Did both previous META questions match on within-pair gap use?",
+        "Did both previous META questions depend on a difference inside one pair, or did neither?",
+        {q:"Did exactly one previous META question use a within-pair difference?", negate:true}
+      ]);
+      set("l2_same_position_dependency", [
+        "Did both previous META questions match on side-specific LEFT/RIGHT readout?",
+        "Did both previous META questions depend on reading a named side, LEFT or RIGHT, or did neither?",
+        {q:"Did exactly one previous META question depend on a side-specific LEFT/RIGHT readout?", negate:true}
+      ]);
+      set("l2_position_rule_larger", [
+        "Did the META question that depended on a side-specific LEFT/RIGHT readout produce the larger answer?",
+        "Was the larger answer produced by the META question that read a named side, LEFT or RIGHT?",
+        {q:"Did the META question that did not use a side-specific LEFT/RIGHT readout produce the larger answer?", negate:true}
+      ]);
+      set("l2_same_transfer_dependency", [
+        "Did both previous META questions match on cross-pair side transfer?",
+        "Did both previous META questions use Pair 1 as a rule for which side of Pair 2 to read, or did neither?",
+        {q:"Did exactly one previous META question use cross-pair side transfer?", negate:true}
+      ]);
+      set("l2_transfer_task_larger", [
+        "Did the cross-pair side-transfer META question produce the larger answer?",
+        "Was the larger answer produced by the META question that used Pair 1 to select a side of Pair 2?",
+        {q:"Did the non-transfer META question produce the larger answer?", negate:true}
+      ]);
+      if(typeof L2_DEPENDENCY_FEATURE_LABELS !== "undefined"){
+        if(L2_DEPENDENCY_FEATURE_LABELS.l2_same_position_dependency) L2_DEPENDENCY_FEATURE_LABELS.l2_same_position_dependency.label = "a side-specific LEFT/RIGHT readout";
+        if(L2_DEPENDENCY_FEATURE_LABELS.l2_same_transfer_dependency) L2_DEPENDENCY_FEATURE_LABELS.l2_same_transfer_dependency.label = "cross-pair side transfer";
+        if(L2_DEPENDENCY_FEATURE_LABELS.l2_same_gap_dependency) L2_DEPENDENCY_FEATURE_LABELS.l2_same_gap_dependency.label = "a within-pair gap";
+      }
+      if(typeof l2OpGroupUserLabel === "function"){
+        const prevLabel = l2OpGroupUserLabel;
+        l2OpGroupUserLabel = function(group){
+          const map = {
+            position:"side-specific LEFT/RIGHT readout",
+            gap:"within-pair gap",
+            role_transfer:"cross-pair side transfer",
+            global:"whole-pair/global",
+            structured_state:"structured-representation",
+            mental_line:"mental-line",
+            visual_transform:"visual-transform",
+            conditional:"if/else rule",
+            transformation:"value-transform"
+          };
+          return map[group] || prevLabel.apply(this, arguments);
+        };
+      }
+      if(typeof buildL2DependencyClassificationChoice === "function"){
+        const prevDep = buildL2DependencyClassificationChoice;
+        buildL2DependencyClassificationChoice = function(cat, r1obj, r2obj){
+          const pkg = prevDep.apply(this, arguments);
+          if(pkg){
+            pkg.relationQuestion = l2ClarifyRetrospectiveTextV6616(pkg.relationQuestion || "");
+            if(Array.isArray(pkg.options)) pkg.options = pkg.options.map(o=>({...o, text:l2ClarifyRetrospectiveTextV6616(o.text)}));
+            pkg._v6616RetrospectiveWording = true;
+          }
+          return pkg;
+        };
+      }
+      if(typeof buildL2OpGroupClassificationChoice === "function"){
+        const prevOp = buildL2OpGroupClassificationChoice;
+        buildL2OpGroupClassificationChoice = function(r1obj, r2obj){
+          const pkg = prevOp.apply(this, arguments);
+          if(pkg){
+            pkg.relationQuestion = l2ClarifyRetrospectiveTextV6616(pkg.relationQuestion || "");
+            if(Array.isArray(pkg.options)) pkg.options = pkg.options.map(o=>({...o, text:l2ClarifyRetrospectiveTextV6616(o.text)}));
+            pkg._v6616RetrospectiveWording = true;
+          }
+          return pkg;
+        };
+      }
+      if(typeof l2BuildSourceAxisChoice === "function"){
+        const prevAxis = l2BuildSourceAxisChoice;
+        l2BuildSourceAxisChoice = function(cat, r1obj, r2obj, spec){
+          const pkg = prevAxis.apply(this, arguments);
+          if(pkg){
+            pkg.relationQuestion = l2ClarifyRetrospectiveTextV6616(pkg.relationQuestion || "");
+            if(Array.isArray(pkg.options)) pkg.options = pkg.options.map(o=>({...o, text:l2ClarifyRetrospectiveTextV6616(o.text)}));
+            pkg._v6616RetrospectiveWording = true;
+          }
+          return pkg;
+        };
+      }
+    }catch(e){ warn("L2 variant patch failed", e); }
+    return patched;
+  }
+  const l2RetrospectivePatched = patchL2VariantsV6616();
+
+  function installCoherenceUniquenessGuard(){
+    let installed = false;
+    try{
+      if(typeof generateCoherenceCheck === "function"){
+        const prev = generateCoherenceCheck;
+        generateCoherenceCheck = function(p1, p2, mode, opts){
+          const out = prev.apply(this, arguments);
+          if(out){
+            out.question = mode === "find_true"
+              ? "For the retained pairs, which statement is the only one that is true?"
+              : "For the retained pairs, which statement is the only one that is false?";
+            out._v6616CoherenceGroundedWording = true;
+          }
+          return out;
+        };
+        if(typeof generateCoherenceFindTrue === "function") generateCoherenceFindTrue = function(p1,p2,opts){ return generateCoherenceCheck(p1,p2,"find_true",opts); };
+        if(typeof generateCoherenceFindFalse === "function") generateCoherenceFindFalse = function(p1,p2,opts){ return generateCoherenceCheck(p1,p2,"find_false",opts); };
+        installed = true;
+      }
+    }catch(e){ warn("coherence wrapper failed", e); }
+    return installed;
+  }
+  const coherenceWrapperInstalled = installCoherenceUniquenessGuard();
+  function auditCoherenceTruthOptionUniquenessV6616(opts={}){
+    const samples = Math.max(40, Number(opts.samples || 180));
+    const block = [], warnings = [];
+    let checked = 0, findTrue = 0, findFalse = 0;
+    try{
+      if(typeof generateCoherenceCheck !== "function" || typeof _coh_evaluateAll !== "function") block.push("coherence generator/evaluator unavailable");
+      const max = Math.max(6, Math.min(12, Number(typeof currentMax === "function" ? currentMax() : 8) || 8));
+      for(let i=0;i<samples && !block.length;i++){
+        const p1 = {a:1+Math.floor(Math.random()*max), b:1+Math.floor(Math.random()*max)};
+        const p2 = {a:1+Math.floor(Math.random()*max), b:1+Math.floor(Math.random()*max)};
+        const mode = i % 2 ? "find_true" : "find_false";
+        const out = generateCoherenceCheck(p1,p2,mode,{budget:120});
+        if(!out) { warnings.push(`sample ${i}: no generated coherence ${mode}`); continue; }
+        const ev = _coh_evaluateAll(p1,p2);
+        const vals = (out.options || []).map(o => ev.byId && ev.byId[o.claimId] ? !!ev.byId[o.claimId].value : null);
+        if(vals.some(v => v === null)) { block.push(`sample ${i}: option claim missing from evaluator`); break; }
+        const nTrue = vals.filter(Boolean).length;
+        const nFalse = vals.filter(v=>!v).length;
+        if(mode === "find_true"){
+          findTrue++;
+          if(nTrue !== 1) { block.push(`sample ${i}: only TRUE ambiguity; trueCount=${nTrue}`); break; }
+        } else {
+          findFalse++;
+          if(nFalse !== 1) { block.push(`sample ${i}: only FALSE ambiguity; falseCount=${nFalse}`); break; }
+        }
+        const correctCount = (out.options || []).filter(o=>o.correct).length;
+        if(correctCount !== 1) { block.push(`sample ${i}: declared correctCount=${correctCount}`); break; }
+        checked++;
+      }
+      if(checked < Math.min(40, samples/2)) warnings.push(`low coherence sample yield: ${checked}/${samples}`);
+    }catch(e){ block.push(`exception: ${e?.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentVersionLocal(), checked, findTrue, findFalse, warnings, block});
+  }
+  function auditEpistemicAbstractCardClarityV6616(){
+    const block = [], warnings = [];
+    try{
+      if(!epistemicRendererInstalled) block.push("epistemic abstract renderer not installed");
+      const fake = {payload:{epistemicAbstract:{solver:"finite_possible_worlds_determinability", targetText:"LEFT < RIGHT", actualWorld:{left:2,right:5}, agents:[{agent:"Ada", info:"Ada knows LEFT and RIGHT."},{agent:"Ben", info:"Ben knows only LEFT."},{agent:"Cy", info:"Cy knows only RIGHT."}]}}};
+      const html = typeof renderStructuredQuestionHTML === "function" ? String(renderStructuredQuestionHTML("", fake) || "") : "";
+      if(!/Target claim/i.test(html) || !/What each person knows/i.test(html) || !/Which person or people/i.test(html)) block.push("epistemic abstract card lacks target/knowledge/question sections");
+      if(/Agent can determine|Actual answer is YES, but Vera|Actual answer is NO, but Vera/.test(html)) block.push("generic/hardcoded agent wording leaked into epistemic card");
+    }catch(e){ block.push(`exception: ${e?.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentVersionLocal(), warnings, block});
+  }
+  function auditL2RetrospectivePromptClarityV6616(){
+    const block = [], warnings = [];
+    try{
+      if(l2RetrospectivePatched < 4) warnings.push(`patched only ${l2RetrospectivePatched} L2 retrospective cats`);
+      const cats = (typeof L2_CATS !== "undefined" && Array.isArray(L2_CATS)) ? L2_CATS.filter(c=>c && /^l2_(same_position|position_rule|same_transfer|transfer_task|same_gap|same_op_group)/.test(c.id || "")) : [];
+      for(const c of cats){
+        const qs = (c.variants || []).map(v=>String(v.q || "")).join(" \n ");
+        if(/left\/right side\??|left\/right-side|same kind of thing|kind of task/i.test(qs)) block.push(`${c.id}: stale unclear wording`);
+      }
+    }catch(e){ block.push(`exception: ${e?.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentVersionLocal(), patched:l2RetrospectivePatched, warnings, block});
+  }
+  window.auditCoherenceTruthOptionUniquenessV6616 = auditCoherenceTruthOptionUniquenessV6616;
+  window.auditEpistemicAbstractCardClarityV6616 = auditEpistemicAbstractCardClarityV6616;
+  window.auditL2RetrospectivePromptClarityV6616 = auditL2RetrospectivePromptClarityV6616;
+  try{ globalThis.auditCoherenceTruthOptionUniquenessV6616 = auditCoherenceTruthOptionUniquenessV6616; globalThis.auditEpistemicAbstractCardClarityV6616 = auditEpistemicAbstractCardClarityV6616; globalThis.auditL2RetrospectivePromptClarityV6616 = auditL2RetrospectivePromptClarityV6616; }catch(_){}
+  try{
+    if(typeof runFeatureAudit === "function"){
+      const prevRun = runFeatureAudit;
+      runFeatureAudit = function(name, opts){
+        const key = String(name || "").toLowerCase();
+        if(["meta_clarity","v6616_meta_clarity"].includes(key)){
+          const a = auditEpistemicAbstractCardClarityV6616(opts), b = auditL2RetrospectivePromptClarityV6616(opts), c = auditCoherenceTruthOptionUniquenessV6616(opts);
+          const block = [].concat(a.details?.block||[], b.details?.block||[], c.details?.block||[]);
+          const warnings = [].concat(a.details?.warnings||[], b.details?.warnings||[], c.details?.warnings||[]);
+          return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentVersionLocal(), epistemic:a, retrospective:b, coherence:c, warnings, block});
+        }
+        if(key === "coherence_truth_uniqueness") return auditCoherenceTruthOptionUniquenessV6616(opts);
+        if(key === "epistemic_abstract_card_clarity") return auditEpistemicAbstractCardClarityV6616(opts);
+        if(key === "l2_retrospective_prompt_clarity") return auditL2RetrospectivePromptClarityV6616(opts);
+        return prevRun.apply(this, arguments);
+      };
+      try{ window.runFeatureAudit = runFeatureAudit; }catch(_){}
+    }
+  }catch(e){ warn("runFeatureAudit wrapper failed", e); }
+  try{ window.EUCA_V6616_META_CLARITY = {patchId:PATCH_ID, epistemicRendererInstalled, l2RetrospectivePatched, coherenceWrapperInstalled}; }catch(_){}
+})();
+
 
 </script>
 
