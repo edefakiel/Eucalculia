@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.6.5-experimental-densification-semantic-balance</title>
+<title>Eucalculia v6.6.6-experimental-densification-calibrated-guard</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.6.5-experimental-densification-semantic-balance";
+const APP_VERSION = "v6.6.6-experimental-densification-calibrated-guard";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -76266,7 +76266,7 @@ try{
 //   3) fixed-pair probe conversion fails closed if a visual-gate payload ever
 //      leaks through future code.
 (function(){
-  const PATCH_VERSION = "v6.6.5-experimental-densification-semantic-balance";
+  const PATCH_VERSION = "v6.6.6-experimental-densification-calibrated-guard";
   const gateArr = (x)=> Array.isArray(x) ? x : [];
   const gateStr = (x)=> String(x == null ? "" : x);
   function gateCatById(id){
@@ -76549,7 +76549,7 @@ try{
 //   - truth-target choice distractors must be semantically invalid for the
 //     requested truth target, so the displayed answer is unique.
 (function experimentalDensificationSemanticGuardV664(){
-  const PATCH_VERSION = "v6.6.5-experimental-densification-semantic-balance";
+  const PATCH_VERSION = "v6.6.6-experimental-densification-calibrated-guard";
   const arr = x => Array.isArray(x) ? x : [];
   const clamp = (x,lo,hi)=> Math.max(lo, Math.min(hi, x));
   const ri = (lo,hi)=> {
@@ -76678,7 +76678,7 @@ try{
     return null;
   }
 
-  // v6.6.5: balanced target construction for sequential sufficiency.
+  // v6.6.5/v6.6.6: balanced target construction for sequential sufficiency.
   // The previous semantic guard made all four outcomes possible, but the
   // generator still chose by "shuffle templates, return first success", which
   // left a mild after-1 / not-determined skew. This keeps the same determined
@@ -76742,7 +76742,7 @@ try{
       const opts = ["after clue 1", "after clue 2", "after clue 3", "not determined by these clues"];
       const q = `A hidden value is from 1 to 12. What is the earliest clue after which the value is determined exactly?`;
       const review = [`${clues.map(c=>c.label).join(" ")}`, `Remaining possibilities after each clue: ${counts.join(" → ")}.`, correct === 3 ? `No clue leaves exactly one possible value, so the value is not determined.` : `First point with exactly one possible value: after clue ${correct+1}.`];
-      return choiceTrial(cat,m,hidden,counts[0],q,opts,correct,{kind:"sequential_sufficiency", hidden, clueKind:kind, clues:clues.map(c=>c.label), counts, earliestIndex:correct, semanticBalanceVersion:"v6.6.5"}, ["premature_stop","late_stop","underdetermined_lure"]);
+      return choiceTrial(cat,m,hidden,counts[0],q,opts,correct,{kind:"sequential_sufficiency", hidden, clueKind:kind, clues:clues.map(c=>c.label), counts, earliestIndex:correct, semanticBalanceVersion:"v6.6.6"}, ["premature_stop","late_stop","underdetermined_lure"]);
     }
     return null;
   }
@@ -76924,7 +76924,13 @@ try{
         const minShare = total ? Math.min(...["after clue 1","after clue 2","after clue 3","not determined by these clues"].map(k=>Number((s.counts || {})[k] || 0)/total)) : 0;
         if(keys.length < 4) block.push(`${id}: low sufficiency-answer entropy (${keys.join(", ")})`);
         if(!(s.counts["not determined by these clues"] > 0)) block.push(`${id}: never generated a genuine underdetermined clue sequence`);
-        if(maxShare > 0.45 || minShare < 0.10) block.push(`${id}: imbalanced sufficiency distribution ${JSON.stringify(shares)} (max=${maxShare.toFixed(3)}, min=${minShare.toFixed(3)})`);
+        const minAllowed = 0.18, maxAllowed = 0.32;
+        // v6.6.6: calibrated to the regression that motivated the guard.
+        // The earlier 0.10/0.45 band only caught collapse; it would not catch
+        // the observed moderate skew (~36/14/18/32). With the round-robin
+        // generator the expected band is exactly balanced, so 18–32% is still
+        // generous while protecting against that failure mode.
+        if(maxShare > maxAllowed || minShare < minAllowed) block.push(`${id}: imbalanced sufficiency distribution ${JSON.stringify(shares)} (max=${maxShare.toFixed(3)}, min=${minShare.toFixed(3)}, allowed=${minAllowed.toFixed(2)}–${maxAllowed.toFixed(2)})`);
       }
       if(id === "exp_truth_target_choice"){
         const bad = auditTruthTargetUniqueV664(s.rows);
@@ -76963,7 +76969,8 @@ try{
       try{ window.runFeatureAudit = runFeatureAudit; }catch(_){ }
     }
   }catch(_){ }
-  try{ window.EUCA_V664_EXPERIMENTAL_SEMANTIC_GUARD = {patch:PATCH_VERSION, semanticContentAudit:true}; }catch(_){ }
+  try{ window.EUCA_V664_EXPERIMENTAL_SEMANTIC_GUARD = {patch:PATCH_VERSION, semanticContentAudit:true, sufficiencyBalanceBand:[0.18,0.32]}; }catch(_){ }
+  try{ window.EUCA_V666_CALIBRATED_BALANCE_GUARD = {patch:PATCH_VERSION, sufficiencyBalanceBand:[0.18,0.32]}; }catch(_){ }
 })();
 
 </script>
