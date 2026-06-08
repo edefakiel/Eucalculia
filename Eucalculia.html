@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.5.102-epistemic-domain-balance</title>
+<title>Eucalculia v6.5.103-semantic-wording-fix</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.5.102-epistemic-domain-balance";
+const APP_VERSION = "v6.5.103-semantic-wording-fix";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -26183,7 +26183,7 @@ const FRIENDLY_POSNER_VARIANTS = {
     {q:"Is the larger value even AND is the absolute difference greater than 2?"},
     {q:"Are both true: the bigger number is even, and the difference exceeds 2?"},
     {q:"Is at least one of these false: that the larger is even, or that the gap is more than 2?", negate:true, linguisticFrame:"restrictive_quantifier"},
-    {q:"Is exactly one of the two conditions broken (larger-even or gap>2)?", linguisticFrame:"restrictive_quantifier"},
+    {q:"Are both required conditions satisfied: the larger value is even and the gap is more than 2?", linguisticFrame:"restrictive_quantifier"},
   ],
 
   // v6.5.2: verbal densification round. The remaining compositional cats
@@ -76006,7 +76006,7 @@ try{
 
 
 
-// ── v6.5.102-epistemic-domain-balance: epistemic value-domain and knowability balance guard ──
+// ── v6.5.103-semantic-wording-fix: epistemic value-domain and knowability balance guard ──
 (function(){
   if(typeof window !== "undefined" && window.__EUCA_V6611_EPISTEMIC_DOMAIN_BALANCE__) return;
   if(typeof window !== "undefined") window.__EUCA_V6611_EPISTEMIC_DOMAIN_BALANCE__ = true;
@@ -76106,5 +76106,81 @@ try{
   try{ window.auditEpistemicDomainBalanceV6611 = auditEpistemicDomainBalanceV6611; }catch(_){}
 })();
 </script>
+
+
+<script>
+// v6.6.12 / v6.5.103 semantic wording guard: keep wording aligned with the predicate.
+// A previous friendly variant for larger_even_and_gap_gt2 asked whether exactly one
+// condition was "broken". That is an XOR predicate, not the AND predicate represented
+// by larger_even_and_gap_gt2. The wording must not be served from this category.
+(function(){
+  try{
+    const targetId = "larger_even_and_gap_gt2";
+    const forbidden = /exactly\s+one[^?]*condition[^?]*broken|exactly\s+one[^?]*broken/i;
+    function cleanVariants(){
+      if(typeof FRIENDLY_POSNER_VARIANTS === "undefined" || !FRIENDLY_POSNER_VARIANTS) return false;
+      const arr = FRIENDLY_POSNER_VARIANTS[targetId];
+      if(!Array.isArray(arr)) return false;
+      let changed = false;
+      for(let i=0;i<arr.length;i++){
+        const v = arr[i] || {};
+        if(forbidden.test(String(v.q || ""))){
+          arr[i] = {
+            q:"Are both required conditions satisfied: the larger value is even and the gap is more than 2?",
+            linguisticFrame:"restrictive_quantifier"
+          };
+          changed = true;
+        }
+      }
+      return changed;
+    }
+    cleanVariants();
+    window.auditCompoundSemanticWordingV6612 = function auditCompoundSemanticWordingV6612(){
+      const problems = [];
+      const rows = [];
+      const cats = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS : [];
+      function scanVariant(source, id, v){
+        const q = String((v && v.q) || "");
+        rows.push({source,id,q});
+        if(id === targetId && forbidden.test(q)){
+          problems.push({id, source, q, problem:"xor_broken_wording_attached_to_and_predicate"});
+        }
+      }
+      if(typeof FRIENDLY_POSNER_VARIANTS !== "undefined" && FRIENDLY_POSNER_VARIANTS){
+        Object.entries(FRIENDLY_POSNER_VARIANTS).forEach(([id, arr])=>{
+          if(Array.isArray(arr)) arr.forEach(v=>scanVariant("friendly", id, v));
+        });
+      }
+      cats.forEach(cat=>{
+        if(Array.isArray(cat.variants)) cat.variants.forEach(v=>scanVariant("cat", cat.id, v));
+      });
+      const a=5,b=6;
+      const largerEven = Math.max(a,b) % 2 === 0;
+      const gapGt2 = Math.abs(a-b) > 2;
+      const exactlyOneBroken = ((largerEven?0:1) + (gapGt2?0:1)) === 1;
+      const andPredicate = largerEven && gapGt2;
+      if(exactlyOneBroken !== true || andPredicate !== false){
+        problems.push({problem:"sanity_check_unexpected", largerEven, gapGt2, exactlyOneBroken, andPredicate});
+      }
+      return {
+        appVersion:(typeof APP_VERSION !== "undefined" ? APP_VERSION : null),
+        ok:problems.length===0,
+        status:problems.length?"blocking":"pass",
+        scanned:rows.length,
+        problems
+      };
+    };
+    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(previousRunFeatureAudit){
+      runFeatureAudit = function runFeatureAuditV6612SemanticWording(feature, opts={}){
+        if(String(feature||"").toLowerCase()==="compound_semantic_wording") return window.auditCompoundSemanticWordingV6612(opts);
+        return previousRunFeatureAudit(feature, opts);
+      };
+      try{ window.runFeatureAudit = runFeatureAudit; globalThis.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(e){ try{ console.warn("compound semantic wording guard failed", e); }catch(_){ } }
+})();
+</script>
+
 </body>
 </html>
