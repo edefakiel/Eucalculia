@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.6.6-experimental-densification-calibrated-guard</title>
+<title>Eucalculia v6.6.9-experimental-densification-epistemic-label-fix</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.6.6-experimental-densification-calibrated-guard";
+const APP_VERSION = "v6.6.9-experimental-densification-epistemic-label-fix";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -11587,7 +11587,7 @@ function renderStructuredQuestionHTML(qText, info=null){
       : l0EpistemicInfoLinesFromScenario(ep, currentMax());
     html.push(`<div class="qstep section"><strong>Information available to ${esc(agent)}:</strong><br>${renderLines(infoLines)}</div>`);
     html.push(`<div class="qstep compact"><strong>Claim to evaluate:</strong><br>• ${esc(targetText)}</div>`);
-    html.push(`<div class="qstep prompt-end"><strong>Question:</strong> From this information, can ${esc(agent)} determine whether the claim is YES or NO?</div>`);
+    html.push(`<div class="qstep prompt-end"><strong>Question:</strong> You saw the actual LEFT and RIGHT. ${esc(agent)} only has the information above. Choose what ${esc(agent)} can determine; if ${esc(agent)} cannot determine it, choose the actual truth of the claim.</div>`);
     return `<div class="meta-question-card epistemic-card">${html.join("")}</div>`;
   }
   if(info?.epistemicSufficiency) return renderEpistemicQuestionCard(info.epistemicSufficiency);
@@ -22149,7 +22149,7 @@ function recursiveSeedLabel(seedSource){
   if(seedSource === "RIGHT") return "RIGHT";
   if(seedSource === "SUM") return "LEFT+RIGHT";
   if(seedSource === "GAP_PLUS_LARGER") return "larger value + gap";
-  if(seedSource === "TWO_DIGIT") return "LEFT-RIGHT two-digit number";
+  if(seedSource === "TWO_DIGIT") return "LEFT followed by RIGHT (tens digit, ones digit)";
   return "LEFT";
 }
 function recursiveTraceUsesBothRules(result){
@@ -22188,9 +22188,9 @@ const RECURSIVE_TRACE_CAT_SPECS = [
   {id:"rec_subtract5_final_even", opId:"subtract_5_until_below_5", seedSource:"SUM", tier:4, minM:8, predicate:"final_even",
    q:"Start from LEFT+RIGHT. Repeatedly subtract 5 until the value is below 5. Is the final value even?"},
   {id:"rec_digit_pair_final_even", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"final_even",
-   q:"Make a two-digit number with LEFT as tens and RIGHT as ones. Repeatedly sum digits until one digit remains. Is the final digit even?"},
+   q:"Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Is the final digit even?"},
   {id:"rec_digit_pair_depth_gt1", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"depth_gt", threshold:1,
-   q:"Make a two-digit number with LEFT as tens and RIGHT as ones. Repeatedly sum digits until one digit remains. Were there more than one digit-sum step?"},
+   q:"Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Was more than one digit-sum step needed?"},
   {id:"rec_safe_branch_depth_gt4", opId:"even_halve_else_minus_one_to_one", seedSource:"SUM", tier:4, minM:8, predicate:"depth_gt", threshold:4,
    q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. Were there more than four steps?"}
 ];
@@ -23687,7 +23687,7 @@ function l0EpistemicQuestion(scenario, m=null){
 ${infoLines.map(x=>`• ${x}`).join("\n")}
 Claim to evaluate:
 • ${t}
-From this information, can ${agent} determine whether the claim is YES or NO?`;
+You saw the actual LEFT and RIGHT. ${agent} only has the information above. Choose what ${agent} can determine; if ${agent} cannot determine it, choose the actual truth of the claim.`;
 }
 function l0EpistemicGenericTargetsForWorlds(worlds, max){
   const out = [];
@@ -45734,28 +45734,34 @@ function twoPropertyRelationPattern(x, y, keyA, keyB, m=currentMax()){
 }
 function twoPropertyDimensionLabel(key){
   const spec = twoPropertySpec(key);
-  if(spec?.noun) return spec.noun;
+  if(key === "even") return "parity";
+  if(key === "prime") return "prime status";
   if(key === "multiple3") return "multiple-of-3 status";
   if(key === "square") return "square-number status";
+  if(spec?.noun) return spec.noun;
   return `${spec?.short || key || "class"} status`;
 }
-function twoPropertyPairClause(pattern, pair){
+function twoPropertyRelationPhrase(pattern, pair, subject="they"){
   const sa = String(pattern || "SS")[0] === "S";
   const sb = String(pattern || "SS")[1] === "S";
   const aDim = twoPropertyDimensionLabel(pair?.a);
   const bDim = twoPropertyDimensionLabel(pair?.b);
-  return `${sa ? "match" : "differ"} on ${aDim} and ${sb ? "match" : "differ"} on ${bDim}`;
+  const first = `${sa ? "the same" : "different"} ${aDim}`;
+  const second = `${sb ? "the same" : "different"} ${bDim}`;
+  return `${subject} have ${first} ${sa === sb ? "and" : "but"} ${second}`;
+}
+function twoPropertyPairClause(pattern, pair){
+  return twoPropertyRelationPhrase(pattern, pair, "they").replace(/^they have /, "have ");
 }
 function twoPropertyPatternLabel(pattern, pair){
-  return twoPropertyPairClause(pattern, pair);
+  return twoPropertyRelationPhrase(pattern, pair, "they");
 }
 function twoPropertyOptionText(pair, pattern){
-  const clause = twoPropertyPairClause(pattern, pair);
-  return `They ${clause}.`;
+  return `${twoPropertyRelationPhrase(pattern, pair, "They")}.`;
 }
 function twoPropertyQuestionText(pair, target="previous answers"){
   const subject = target === "left/right" ? "LEFT and RIGHT" : "the two previous answers";
-  return `Compare ${subject}: do they match or differ on ${twoPropertyDimensionLabel(pair?.a)} and ${twoPropertyDimensionLabel(pair?.b)}?`;
+  return `Do ${subject} have the same or different ${twoPropertyDimensionLabel(pair?.a)} and ${twoPropertyDimensionLabel(pair?.b)}?`;
 }
 function twoPropertyL0Question(pair, pattern){
   return `Do LEFT and RIGHT ${twoPropertyPairClause(pattern, pair)}?`;
@@ -46966,7 +46972,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
       if(seedSource === "RIGHT") return "RIGHT";
       if(seedSource === "SUM") return "LEFT+RIGHT";
       if(seedSource === "GAP_PLUS_LARGER") return "larger value + gap";
-      if(seedSource === "TWO_DIGIT") return "LEFT-RIGHT two-digit number";
+      if(seedSource === "TWO_DIGIT") return "LEFT followed by RIGHT (tens digit, ones digit)";
       return "LEFT";
     };
     recursiveTraceContextForSpec = function recursiveTraceContextForSpecV6546(spec, a, b, seed){
@@ -47214,10 +47220,10 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
       {id:"rec_subtract5_min_below3", opId:"subtract_5_until_below_5", seedSource:"SUM", tier:4, minM:8, predicate:"min_reached", threshold:3, maxTraceDepth:5, q:"Start from LEFT+RIGHT. Subtract 5 until below 5. Does the trace ever fall below 3?"},
       {id:"rec_subtract5_net_change_10_20", opId:"subtract_5_until_below_5", seedSource:"SUM", tier:4, minM:8, predicate:"net_change", band:[10,20], maxTraceDepth:6, q:"Start from LEFT+RIGHT. Subtract 5 until below 5. Is the net change between 10 and 20?"},
       {id:"rec_subtract5_all_above3", opId:"subtract_5_until_below_5", seedSource:"SUM", tier:5, minM:9, predicate:"invariant_holds", invariant:"all_above_threshold", threshold:3, maxTraceDepth:5, q:"Start from LEFT+RIGHT. Subtract 5 until below 5. Do all trace values stay above 3?"},
-      {id:"rec_digit_pair_passes_multiple3", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"passes_multiple_of_3", maxDepthAllowed:5, q:"Build LEFT-RIGHT as a two-digit number. Does the digit-sum trace pass through a multiple of 3?"},
-      {id:"rec_digit_pair_depth_eq1", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"depth_eq", threshold:1, maxDepthAllowed:5, q:"Build LEFT-RIGHT as a two-digit number. Does the digit-sum trace stop after exactly one step?"},
-      {id:"rec_digit_pair_final_in_369", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"final_in_set", values:[3,6,9], maxDepthAllowed:5, q:"Build LEFT-RIGHT as a two-digit number. Is the final digit 3, 6, or 9?"},
-      {id:"rec_digit_pair_all_above5", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:5, minM:8, predicate:"invariant_holds", invariant:"all_above_threshold", threshold:5, maxTraceDepth:5, q:"Build LEFT-RIGHT as a two-digit number. Are all trace values greater than 5?"},
+      {id:"rec_digit_pair_passes_multiple3", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"passes_multiple_of_3", maxDepthAllowed:5, q:"Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Does any value in that trace become a multiple of 3?"},
+      {id:"rec_digit_pair_depth_eq1", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"depth_eq", threshold:1, maxDepthAllowed:5, q:"Use LEFT as the tens digit and RIGHT as the ones digit. After one digit-sum step, is the result already a single digit?"},
+      {id:"rec_digit_pair_final_in_369", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:4, minM:8, predicate:"final_in_set", values:[3,6,9], maxDepthAllowed:5, q:"Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Is that final digit 3, 6, or 9?"},
+      {id:"rec_digit_pair_all_above5", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:5, minM:8, predicate:"invariant_holds", invariant:"all_above_threshold", threshold:5, maxTraceDepth:5, q:"Use LEFT as the tens digit and RIGHT as the ones digit. During repeated digit-sum, are the starting number and every later trace value greater than 5?"},
       {id:"rec_branch_uses_both_rules", opId:"even_halve_else_minus_one_to_one", seedSource:"SUM", tier:4, minM:8, predicate:"uses_all_branches", maxTraceDepth:6, q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. Were both step types used?"},
       {id:"rec_branch_uses_halve", opId:"even_halve_else_minus_one_to_one", seedSource:"SUM", tier:4, minM:8, predicate:"first_branch", branchId:"halve", maxTraceDepth:6, q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. Was the first step a halving step?"},
       {id:"rec_branch_avoids_minus_one", opId:"even_halve_else_minus_one_to_one", seedSource:"SUM", tier:4, minM:8, predicate:"avoids_branch", branchId:"minus_one", maxTraceDepth:6, q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. Was subtract-1 never used?"},
@@ -47231,15 +47237,15 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
       {id:"rec_collatz_within5", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"terminates_within_k", k:5, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:9, q:"Collatz rule from LEFT: even → halve; odd → 3n+1. Does it reach 1 within five steps?"},
       {id:"rec_collatz_max_gt20", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"max_reached", threshold:20, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:5, q:"Run Collatz from LEFT. Does the trace ever exceed 20?"},
       {id:"rec_collatz_triple_twice", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"branch_usage_count", branchId:"triple_plus_one", threshold:2, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:9, q:"Run Collatz from LEFT. Is the 3v+1 branch used at least twice?"},
-      {id:"rec_fa_parity_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"parity"}, maxTraceDepth:4, q:"Feed digits LEFT then RIGHT to the parity automaton. Does it finish in the even state?"},
-      {id:"rec_fa_div3_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"div3"}, maxTraceDepth:4, q:"Read LEFT then RIGHT as digits in the division-by-3 machine. Does it finish in remainder state 0?"},
-      {id:"rec_fa_div3_final_remainder1", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:1, params:{automaton:"div3"}, maxTraceDepth:4, q:"Read LEFT then RIGHT as digits in the division-by-3 machine. Does it finish in remainder state 1?"},
+      {id:"rec_fa_parity_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"parity"}, maxTraceDepth:4, q:"Feed the LEFT digit first, then the RIGHT digit, to the parity automaton. Does it finish in the even state?"},
+      {id:"rec_fa_div3_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"div3"}, maxTraceDepth:4, q:"Feed the LEFT digit first, then the RIGHT digit, to the division-by-3 machine. Does it finish in remainder state 0?"},
+      {id:"rec_fa_div3_final_remainder1", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:1, params:{automaton:"div3"}, maxTraceDepth:4, q:"Feed the LEFT digit first, then the RIGHT digit, to the division-by-3 machine. Does it finish in remainder state 1?"},
       {id:"rec_counted_halving_count_eq2", opId:"counted_iteration", seedSource:"LEFT", tier:5, minM:8, predicate:"final_eq", value:2, params:{innerOpId:"halving_to_odd"}, maxTraceDepth:5, atomicsUsed:["multi_variable_state"], q:"Run counted halving on LEFT. Is the final step-count exactly 2?"},
       {id:"rec_counted_halving_count_gt2", opId:"counted_iteration", seedSource:"SUM", tier:5, minM:8, predicate:"final_gt", threshold:2, params:{innerOpId:"halving_to_odd"}, maxTraceDepth:5, atomicsUsed:["multi_variable_state"], q:"Run counted halving on LEFT+RIGHT. Is the final step-count greater than 2?"},
       {id:"rec_counted_halving_net_4_12", opId:"counted_iteration", seedSource:"SUM", tier:5, minM:8, predicate:"net_change", band:[4,12], params:{innerOpId:"halving_to_odd"}, maxTraceDepth:5, atomicsUsed:["multi_variable_state"], q:"Run counted halving on LEFT+RIGHT. Is the value-change between 4 and 12?"},
       {id:"rec_term_halving_within2", opId:"halving_to_odd", seedSource:"LEFT", tier:5, minM:8, predicate:"terminates_within_k", k:2, maxTraceDepth:5, q:"Halve LEFT until odd. Does it terminate within two steps?"},
       {id:"rec_term_branch_not_within3", opId:"even_halve_else_minus_one_to_one", seedSource:"SUM", tier:5, minM:8, predicate:"would_not_terminate_within_k", k:3, maxTraceDepth:6, q:"From LEFT+RIGHT, repeat until 1: even → halve; odd >1 → subtract 1. Would three steps be insufficient to reach 1?"},
-      {id:"rec_term_digit_not_within1", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:5, minM:8, predicate:"would_not_terminate_within_k", k:1, maxTraceDepth:5, q:"For the digit-sum trace, would one step be insufficient to reach the final digit?"},
+      {id:"rec_term_digit_not_within1", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", tier:5, minM:8, predicate:"would_not_terminate_within_k", k:1, maxTraceDepth:5, q:"Use LEFT as the tens digit and RIGHT as the ones digit. Is one digit-sum step insufficient to reach the final one-digit value?"},
       {id:"rec_term_collatz_depth_limit3", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"termination_reason_eq", reason:"max_depth", executorMaxDepth:3, allowNonBaseReasons:["max_depth"], seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:3, q:"Run Collatz from LEFT with a three-step limit. Does it stop because the depth limit is reached?"},
       {id:"rec_term_subtract5_base_within2", opId:"subtract_5_until_below_5", seedSource:"SUM", tier:5, minM:8, predicate:"termination_reason_eq", reason:"base", executorMaxDepth:2, allowNonBaseReasons:["max_depth"], maxTraceDepth:2, q:"Subtract 5 from LEFT+RIGHT with a two-step limit. Does it reach the base case before the limit?"},
       {id:"rec_term_euclid_within2", opId:"euclidean_gcd", seedSource:"EUCLID_PAIR", tier:5, minM:8, predicate:"terminates_within_k", k:2, maxTraceDepth:3, q:"Use Euclid on the ordered pair. Does it terminate within two steps?"}
@@ -47263,7 +47269,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
       {id:"rec_choice_branch_change_even_minus", opId:"even_halve_else_minus_one_to_one", seedSource:"SUM", type:"branch_change_step", minM:8, maxTraceDepth:7, atomicsUsed:["step_of_branch_change"], q:"For the even/odd rule trace (even → halve; odd >1 → subtract 1), which transition first switched step type?"},
       {id:"rec_choice_branch_change_collatz", opId:"collatz_canonical", seedSource:"LEFT", type:"branch_change_step", minM:12, seedWhitelist:[3,5,6,10,12], maxTraceDepth:7, atomicsUsed:["step_of_branch_change"], q:"Collatz rule: even → halve; odd → 3n+1. At which transition did the trace first switch between those two branches?"},
       {id:"rec_choice_first_even_branch", opId:"even_halve_else_minus_one_to_one", seedSource:"SUM", type:"first_state_satisfying", predicateKind:"even", minM:8, maxTraceDepth:7, atomicsUsed:["first_state_satisfying"], q:"For the even/odd rule trace from LEFT+RIGHT, which is the first even value?"},
-      {id:"rec_choice_first_mult3_digit", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", type:"first_state_satisfying", predicateKind:"multiple_of_3", minM:8, maxTraceDepth:7, atomicsUsed:["first_state_satisfying"], q:"Which is the first value in the digit-sum trace that is a multiple of 3?"},
+      {id:"rec_choice_first_mult3_digit", opId:"digit_sum_iterated", seedSource:"TWO_DIGIT", type:"first_state_satisfying", predicateKind:"multiple_of_3", minM:8, maxTraceDepth:7, atomicsUsed:["first_state_satisfying"], q:"Use LEFT as the tens digit and RIGHT as the ones digit. In the repeated digit-sum trace, which value is the first multiple of 3?"},
       {id:"rec_choice_first_gt20_collatz", opId:"collatz_canonical", seedSource:"LEFT", type:"first_state_satisfying", predicateKind:"gt", threshold:20, minM:12, seedWhitelist:[10,12], maxTraceDepth:7, atomicsUsed:["first_state_satisfying"], q:"Which is the first Collatz value greater than 20?"},
       {id:"rec_choice_first_prime_subtract", opId:"subtract_5_until_below_5", seedSource:"SUM", type:"first_state_satisfying", predicateKind:"prime", minM:8, maxTraceDepth:7, atomicsUsed:["first_state_satisfying"], q:"Which is the first prime value in the subtract-5 trace?"},
       {id:"rec_choice_rule_scalar_left", opId:"halving_to_odd", seedSource:"LEFT", type:"applied_rule_identification", candidateOps:["halving_to_odd","subtract_5_until_below_5","even_halve_else_minus_one_to_one","collatz_canonical"], minM:12, maxTraceDepth:7, atomicsUsed:["applied_rule_identification"], q:"Which rule generated the trace shown?"},
@@ -47540,8 +47546,8 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
   };
   l0EpistemicRuleText = function l0EpistemicRuleTextV6547(rule){
     const id = typeof rule === "string" ? rule : rule?.id;
-    if(id === "mod_3") return "RIGHT = LEFT mod 3";
-    if(id === "mod_5") return "RIGHT = LEFT mod 5";
+    if(id === "mod_3") return "RIGHT = LEFT mod 3 (remainder after dividing LEFT by 3)";
+    if(id === "mod_5") return "RIGHT = LEFT mod 5 (remainder after dividing LEFT by 5)";
     if(id === "flip_parity") return "RIGHT = LEFT + 1 if LEFT is even; otherwise LEFT − 1";
     if(id === "mirror_5") return "RIGHT = 10 − LEFT, when LEFT ≤ 5";
     if(id === "gap_to_5") return "RIGHT = |LEFT − 5|";
@@ -72201,8 +72207,8 @@ function migrateLateL1AdditionsToRegistry(){
     {id:"counter_mixed_relation",minM:8,defs:["right_gt_left","gap_gt_2","sum_even","same_parity"]},
     {id:"counter_far_cross",minM:10,defs:["closer_to_5","same_side_of_5","gap_gt_2","sum_even"]}
   ];}
-  function buildL0CounterexampleChoice(cat,m){const defs=(cat.choiceSpec?.defs||[]).map(id=>L0_RELATION_IDENTIFICATION_DEFS[id]).filter(Boolean);if(defs.length!==4)return null;const s=sampleOneFalse(Math.min(m,12),defs,(d,a,b)=>d.eval(a,b),{allowEqual:true,cap:Math.min(m,12)});if(!s)return null;const opts=defs.map((d,i)=>l0ChoiceOption(d.label,i===s.correctIndex,i===s.correctIndex?"correct":"plausible_true_control",{atomicId:d.atomic,relationKind:d.kind,truth:s.truth[i]}));return buildL0ChoiceTrialFromOptions(cat,m,s.a,s.b,"Which statement is NOT true for the pair you just saw?",opts,s.correctIndex,{counterexampleChoice:{specId:cat.choiceSpec.id,truth:s.truth},mechanismTags:["counterexample_choice","plausible_false_generation"]});}
-  function makeCounterCats(){return counterSpecs().map(spec=>({id:"decl_counterexample_choice_"+spec.id,tier:4,stage:4,minM:spec.minM||7,minLevel:CONFIG.l0ChoiceCounterexampleMinLevel||3,family:"counterexample_choice",responseFormat:"choice",choiceSpec:spec,frameTags:["relation_processing","counterexample","plausible_false","choice_readout","metacognitive"],atomicsUsed:["l0_counterexample_choice","family_level_plausible_false_generation"],canUse:m=>Number(m)>=(spec.minM||7),variants:[{q:"Which statement is not true?"}],buildChoiceTrial:buildL0CounterexampleChoice,gen(m,t){const defs=spec.defs.map(id=>L0_RELATION_IDENTIFICATION_DEFS[id]).filter(Boolean);const s=sampleOneFalse(Math.min(m,12),defs,(d,a,b)=>d.eval(a,b));return s?[s.a,s.b]:[1,2];},verify(){return INAPPLICABLE;}}));}
+  function buildL0CounterexampleChoice(cat,m){const defs=(cat.choiceSpec?.defs||[]).map(id=>L0_RELATION_IDENTIFICATION_DEFS[id]).filter(Boolean);if(defs.length!==4)return null;const s=sampleOneFalse(Math.min(m,12),defs,(d,a,b)=>d.eval(a,b),{allowEqual:true,cap:Math.min(m,12)});if(!s)return null;const opts=defs.map((d,i)=>l0ChoiceOption(d.label,i===s.correctIndex,i===s.correctIndex?"correct":"plausible_true_control",{atomicId:d.atomic,relationKind:d.kind,truth:s.truth[i]}));return buildL0ChoiceTrialFromOptions(cat,m,s.a,s.b,"Choose the one statement that is NOT true for the pair you just saw.",opts,s.correctIndex,{counterexampleChoice:{specId:cat.choiceSpec.id,truth:s.truth},mechanismTags:["counterexample_choice","plausible_false_generation"]});}
+  function makeCounterCats(){return counterSpecs().map(spec=>({id:"decl_counterexample_choice_"+spec.id,tier:4,stage:4,minM:spec.minM||7,minLevel:CONFIG.l0ChoiceCounterexampleMinLevel||3,family:"counterexample_choice",responseFormat:"choice",choiceSpec:spec,frameTags:["relation_processing","counterexample","plausible_false","choice_readout","metacognitive"],atomicsUsed:["l0_counterexample_choice","family_level_plausible_false_generation"],canUse:m=>Number(m)>=(spec.minM||7),variants:[{q:"Choose the false statement for this pair."}],buildChoiceTrial:buildL0CounterexampleChoice,gen(m,t){const defs=spec.defs.map(id=>L0_RELATION_IDENTIFICATION_DEFS[id]).filter(Boolean);const s=sampleOneFalse(Math.min(m,12),defs,(d,a,b)=>d.eval(a,b));return s?[s.a,s.b]:[1,2];},verify(){return INAPPLICABLE;}}));}
   function choiceOptionsForAnswer(ans,max,mode="near"){const vals=[Number(ans)];const push=v=>{v=Number(v);if(Number.isInteger(v)&&v>=0&&v<=Math.max(20,max)&&!vals.includes(v))vals.push(v);};push(ans+1);push(Math.max(0,ans-1));push(ans+2);push(Math.max(0,ans-2));while(vals.length<4)push(randInt(0,Math.max(6,max+3)));const labels=shuffle(vals.slice(0,4));const ci=labels.findIndex(v=>v===Number(ans));return{options:labels.map((v,i)=>l0ChoiceOption(String(v),i===ci,i===ci?"correct":"near_numeric",{value:v,mode})),correctIndex:ci};}
   function missingSpecs(){return[
     {id:"gap_to_larger",minM:5,contract:"exact_gap",q:"Fill the exact gap: smaller + ? must equal the larger remembered value.",answer:(a,b)=>Math.abs(a-b),valid:(a,b)=>a!==b},
@@ -72230,7 +72236,7 @@ function migrateLateL1AdditionsToRegistry(){
     {id:"rec_branch_absent_minus_one_left",opId:"even_halve_else_minus_one_to_one",seedSource:"LEFT",tier:4,minM:8,predicate:"absence_of_branch",branchId:"minus_one",q:"Start from LEFT. Rule: even → halve; odd >1 → subtract 1. Was the subtract-1 branch never used?"},
     {id:"rec_halving_net_change_gt3",opId:"halving_to_odd",seedSource:"LEFT",tier:4,minM:8,predicate:"net_change",band:[4,99],q:"Halve LEFT until it becomes odd. Did the value change by at least 4 overall?"},
     {id:"rec_subtract5_passes_prime",opId:"subtract_5_until_below_5",seedSource:"SUM",tier:4,minM:8,predicate:"passes_prime",q:"Start from LEFT+RIGHT. Subtract 5 until below 5. Did the trace pass through a prime number?"},
-    {id:"rec_digit_sum_net_change_large",opId:"digit_sum_iterated",seedSource:"TWO_DIGIT",tier:4,minM:8,predicate:"net_change",band:[10,99],q:"Build LEFT-RIGHT as a two-digit number, then repeatedly sum digits. Did the value change by at least 10 overall?"},
+    {id:"rec_digit_sum_net_change_large",opId:"digit_sum_iterated",seedSource:"TWO_DIGIT",tier:4,minM:8,predicate:"net_change",band:[10,99],q:"Use LEFT as the tens digit and RIGHT as the ones digit, then repeatedly sum digits until one digit remains. Did the value change by at least 10 overall?"},
     {id:"rec_collatz_first_triple",opId:"collatz_canonical",seedSource:"LEFT",tier:5,minM:12,predicate:"first_step_branch",branchId:"triple_plus_one",seedWhitelist:[3,5],q:"Collatz rule: even → halve; odd → 3n+1. Was the first step the 3n+1 branch?"},
     {id:"rec_collatz_min_below3",opId:"collatz_canonical",seedSource:"LEFT",tier:5,minM:12,predicate:"min_reached_lt",threshold:3,seedWhitelist:[3,4,5,6,8,10,12],q:"Run Collatz from LEFT. Before stopping, does the trace ever go below 3?"}
   ];}
@@ -72941,7 +72947,7 @@ openModal("overlay"); setStatus("MENU"); updateMenu({force:true});
   const TUNED_REC_SPECS = {
     rec_halving_final_gt3:{minM:10, seedFilter:seed => Number(seed) <= 12, q:"Starting from LEFT, keep halving while the value is even. Is the final odd value greater than 3?"},
     rec_subtract5_final_even:{predicate:"final_in_set", values:[0,2,4], q:"Start from LEFT+RIGHT. Repeatedly subtract 5 until the value is below 5. Is the final value one of 0, 2, or 4?"},
-    rec_digit_pair_final_even:{predicate:"final_in_set", values:[2,4,6,8], q:"Make a two-digit number with LEFT as tens and RIGHT as ones. Repeatedly sum digits until one digit remains. Is the final digit one of 2, 4, 6, or 8?"},
+    rec_digit_pair_final_even:{predicate:"final_in_set", values:[2,4,6,8], q:"Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Is the final digit one of 2, 4, 6, or 8?"},
     rec_halving_final_eq3:{minM:8, seedFilter:seed => Number(seed) <= 12, q:"Starting from LEFT, keep halving while the value is even. Is the final odd value exactly 3?"},
     rec_collatz_within5:{seedWhitelist:[2,4,5,8,10], maxTraceDepth:6, q:"Collatz rule from LEFT: even → halve; odd → 3n+1. Does it reach 1 within five steps?"},
     rec_collatz_triple_twice:{predicate:"branch_usage_count", threshold:1, seedWhitelist:[2,4,5,8,10], maxTraceDepth:6, q:"Collatz rule: even → halve; odd → 3n+1. Is the 3n+1 branch used at least once?"},
@@ -74329,9 +74335,9 @@ try{
     "From LEFT+RIGHT, count repeated removals of 5 before dropping below 5. Is the count three or more?"
   ]);
   addFriendly("rec_digit_pair_depth_gt1", [
-    "Make the two-digit number LEFT then RIGHT. Repeatedly sum its digits until one digit remains. Were at least two digit-sum steps needed?",
-    "Use LEFT as the tens digit and RIGHT as the ones digit. Did the repeated digit-sum trace take more than one step?",
-    "Build a two-digit value from LEFT and RIGHT, then keep replacing it by its digit sum. Did this require two or more replacements?"
+    "Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Were at least two digit-sum steps needed?",
+    "Use LEFT as the tens digit and RIGHT as the ones digit. After one digit-sum step, was the result still two digits?",
+    "Start with the number whose tens digit is LEFT and ones digit is RIGHT. Did reaching one digit require two or more digit-sum steps?"
   ]);
   addFriendly("rec_safe_branch_depth_gt4", [
     "From LEFT+RIGHT, repeat until 1. If the value is even, halve it; otherwise subtract 1. Were more than four steps needed?",
@@ -74515,7 +74521,7 @@ try{
       const existingFriendly = Array.isArray(FRIENDLY_POSNER_VARIANTS[cat.id]) ? FRIENDLY_POSNER_VARIANTS[cat.id].slice() : [];
       const seen = new Set((merged.concat(existingFriendly)).map(variantKey).filter(Boolean));
       const wrappers = [
-        `Use the shown LEFT and RIGHT values. ${baseQ}`,
+        `Decide whether this is true: ${baseQ}`,
         `Keep the roles fixed: LEFT stays left and RIGHT stays right. ${baseQ}`,
         `For this pair, decide whether the rule is true. ${baseQ}`
       ];
@@ -76973,6 +76979,425 @@ try{
   try{ window.EUCA_V666_CALIBRATED_BALANCE_GUARD = {patch:PATCH_VERSION, sufficiencyBalanceBand:[0.18,0.32]}; }catch(_){ }
 })();
 
+
+
+// =============================================================================
+// v6.6.7 — recursive digit-trace wording clarity.
+// Public prompts no longer use the ambiguous "LEFT-RIGHT" surface for the
+// two-digit seed. They state the binding explicitly: LEFT is the tens digit and
+// RIGHT is the ones digit. This is wording-only; predicates, domains and
+// recursive semantics are unchanged.
+(function(){
+  "use strict";
+  const marker = "2026-06-08.v6.6.7-recursive-wording";
+  const digitPromptMap = {
+    rec_digit_pair_final_even: "Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Is the final digit even?",
+    rec_digit_pair_depth_gt1: "Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Was more than one digit-sum step needed?",
+    rec_digit_pair_passes_multiple3: "Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Does any value in that trace become a multiple of 3?",
+    rec_digit_pair_depth_eq1: "Use LEFT as the tens digit and RIGHT as the ones digit. After one digit-sum step, is the result already a single digit?",
+    rec_digit_pair_final_in_369: "Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Is that final digit 3, 6, or 9?",
+    rec_digit_pair_all_above5: "Use LEFT as the tens digit and RIGHT as the ones digit. During repeated digit-sum, are the starting number and every later trace value greater than 5?",
+    rec_digit_sum_net_change_large: "Use LEFT as the tens digit and RIGHT as the ones digit, then repeatedly sum digits until one digit remains. Did the value change by at least 10 overall?",
+    rec_term_digit_not_within1: "Use LEFT as the tens digit and RIGHT as the ones digit. Is one digit-sum step insufficient to reach the final one-digit value?",
+    rec_choice_first_mult3_digit: "Use LEFT as the tens digit and RIGHT as the ones digit. In the repeated digit-sum trace, which value is the first multiple of 3?",
+    rec_fa_parity_accept: "Feed the LEFT digit first, then the RIGHT digit, to the parity automaton. Does it finish in the even state?",
+    rec_fa_div3_accept: "Feed the LEFT digit first, then the RIGHT digit, to the division-by-3 machine. Does it finish in remainder state 0?",
+    rec_fa_div3_final_remainder1: "Feed the LEFT digit first, then the RIGHT digit, to the division-by-3 machine. Does it finish in remainder state 1?"
+  };
+  function applyPrompt(obj){
+    if(!obj || !obj.id || !digitPromptMap[obj.id]) return false;
+    const q = digitPromptMap[obj.id];
+    obj.q = q;
+    if(Array.isArray(obj.variants)){
+      obj.variants = obj.variants.map(v => v && typeof v === "object" ? {...v, q} : v);
+      if(!obj.variants.length) obj.variants = [{q}];
+    }
+    return true;
+  }
+  function patchRecursiveDigitPromptsV667(){
+    const patched=[];
+    try{ for(const spec of (typeof RECURSIVE_TRACE_CAT_SPECS !== "undefined" ? RECURSIVE_TRACE_CAT_SPECS : [])){ if(applyPrompt(spec)) patched.push(spec.id); } }catch(_){ }
+    try{ for(const cat of (typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){ if(applyPrompt(cat)) patched.push(cat.id); } }catch(_){ }
+    try{
+      if(typeof FRIENDLY_POSNER_VARIANTS !== "undefined" && FRIENDLY_POSNER_VARIANTS){
+        FRIENDLY_POSNER_VARIANTS.rec_digit_pair_depth_gt1 = [
+          "Use LEFT as the tens digit and RIGHT as the ones digit. Repeatedly sum digits until one digit remains. Were at least two digit-sum steps needed?",
+          "Use LEFT as the tens digit and RIGHT as the ones digit. After one digit-sum step, was the result still two digits?",
+          "Start with the number whose tens digit is LEFT and ones digit is RIGHT. Did reaching one digit require two or more digit-sum steps?"
+        ];
+      }
+    }catch(_){ }
+    return Array.from(new Set(patched));
+  }
+  const prevSeedLabel = (typeof recursiveSeedLabel === "function") ? recursiveSeedLabel : null;
+  if(prevSeedLabel){
+    recursiveSeedLabel = function recursiveSeedLabelV667(seedSource){
+      if(seedSource === "TWO_DIGIT") return "LEFT followed by RIGHT (tens digit, ones digit)";
+      if(seedSource === "LEFT_RIGHT_DIGITS") return "digit sequence: LEFT, then RIGHT";
+      return prevSeedLabel(seedSource);
+    };
+  }
+  const patched = patchRecursiveDigitPromptsV667();
+  function auditRecursiveDigitPromptClarityV667(opts={}){
+    const rows=[];
+    const bad=[];
+    const add=(id,q,source)=>{
+      if(typeof q !== "string") return;
+      const row={id,q,source}; rows.push(row);
+      if(/LEFT\s*[-–—]\s*RIGHT/i.test(q)) bad.push({...row, reason:"ambiguous LEFT-RIGHT notation"});
+      if(/Build\s+LEFT/i.test(q)) bad.push({...row, reason:"implicit build wording"});
+      if(/two-digit number/i.test(q) && !/tens digit/i.test(q)) bad.push({...row, reason:"two-digit seed without tens/ones binding"});
+    };
+    try{ for(const spec of (typeof RECURSIVE_TRACE_CAT_SPECS !== "undefined" ? RECURSIVE_TRACE_CAT_SPECS : [])){ if(spec?.seedSource === "TWO_DIGIT" || /digit_sum/i.test(spec?.opId||"")) add(spec.id, spec.q, "RECURSIVE_TRACE_CAT_SPECS"); } }catch(_){ }
+    try{ for(const cat of (typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){ if(/^rec_digit|^rec_term_digit|^rec_choice_first_mult3_digit|^rec_fa_/.test(cat?.id||"")){ for(const v of (cat.variants||[])) add(cat.id, v?.q, "POSNER_CATS.variants"); } } }catch(_){ }
+    try{ for(const v of ((typeof FRIENDLY_POSNER_VARIANTS !== "undefined" && FRIENDLY_POSNER_VARIANTS.rec_digit_pair_depth_gt1) || [])) add("rec_digit_pair_depth_gt1", v, "FRIENDLY_POSNER_VARIANTS"); }catch(_){ }
+    return {status:bad.length?"BLOCK":"PASS", ok:bad.length===0, appVersion:(typeof APP_VERSION!=="undefined"?APP_VERSION:null), marker, patched, scanned:rows.length, bad:bad.slice(0,80), rows:rows.slice(0,120)};
+  }
+  try{ window.patchRecursiveDigitPromptsV667 = patchRecursiveDigitPromptsV667; window.auditRecursiveDigitPromptClarityV667 = auditRecursiveDigitPromptClarityV667; window.EUCA_V667_RECURSIVE_WORDING = {marker, patched}; }catch(_){ }
+  try{
+    if(typeof runFeatureAudit === "function"){
+      const prevRunFeatureAudit = runFeatureAudit;
+      runFeatureAudit = function runFeatureAuditV667(name, opts={}){
+        const key = String(name || "").toLowerCase();
+        if(key === "recursive_digit_prompt_clarity" || key === "recursive_wording" || key === "digit_trace_wording") return auditRecursiveDigitPromptClarityV667(opts);
+        return prevRunFeatureAudit(name, opts);
+      };
+      try{ window.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+
+
+
+// -----------------------------------------------------------------------------
+// v6.6.8: clarity and active-input flow guard.
+// Fixes post-v6.6.7 public issues:
+//   • redundant "Use the shown LEFT and RIGHT values" wrappers;
+//   • epistemic cards now spell out the user-vs-agent contract and modulo gloss;
+//   • choice-only L0 cats cannot leak into boolean frame-burst probes;
+//   • the trial-prep progress banner is cleared fail-closed when INPUT opens;
+//   • two-property prompts use direct parity/status language.
+// -----------------------------------------------------------------------------
+(function registerV668ClarityAndFlowGuard(){
+  const PATCH_VERSION = "v6.6.8-experimental-densification-clarity-flowfix";
+  const warn = (msg,e)=>{ try{ if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia v6.6.8] " + msg, e || ""); }catch(_){} };
+  const arr = x => Array.isArray(x) ? x : [];
+  const str = x => String(x == null ? "" : x);
+  const catById = id => arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).find(c => c && c.id === id) || null;
+
+  function sanitizeQuestionTextV668(q){
+    return str(q)
+      .replace(/^\s*Use the shown LEFT and RIGHT values\.\s*/i, "")
+      .replace(/^\s*Decide whether this is true:\s*(Do\b)/i, "$1")
+      .replace(/^\s*Decide whether this is true:\s*/i, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function sanitizeVariantList(list){
+    for(const v of arr(list)){
+      if(v && typeof v === "object"){
+        for(const k of ["q","text","template","label","title"]){
+          if(typeof v[k] === "string") v[k] = sanitizeQuestionTextV668(v[k]);
+        }
+      }
+    }
+  }
+  function refreshTwoPropertyVariants(){
+    try{
+      for(const c of arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+        if(c && c.family === "l0_two_property_relation"){
+          const pair = {a:c.twoPropertyA, b:c.twoPropertyB};
+          const pattern = c.twoPropertyPattern || "SS";
+          c.variants = [{q: twoPropertyL0Question(pair, pattern)}];
+          c.wordingGuardVersion = PATCH_VERSION;
+        }
+      }
+    }catch(e){ warn("refreshTwoPropertyVariants failed", e); }
+  }
+  function sanitizeAllPromptSurfaces(){
+    try{ for(const c of arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])) sanitizeVariantList(c && c.variants); }catch(e){ warn("POSNER variant sanitize failed", e); }
+    try{
+      if(typeof FRIENDLY_POSNER_VARIANTS !== "undefined" && FRIENDLY_POSNER_VARIANTS){
+        for(const k of Object.keys(FRIENDLY_POSNER_VARIANTS)) sanitizeVariantList(FRIENDLY_POSNER_VARIANTS[k]);
+      }
+    }catch(e){ warn("friendly variant sanitize failed", e); }
+    try{ refreshTwoPropertyVariants(); }catch(_){ }
+  }
+
+  function isChoiceOnlyCatV668(cat){
+    return !!(cat && (cat.responseFormat === "choice" || typeof cat.buildChoiceTrial === "function" || cat.choiceSpec || cat.l0RelationEquivalenceId));
+  }
+  function isChoiceOnlyProbeV668(probe){
+    if(!probe) return false;
+    if(probe.responseFormat === "choice" || Array.isArray(probe.options) || Number.isInteger(probe.correctIndex) || Number.isInteger(probe.semanticCorrectIndex)) return true;
+    const c = catById(probe.catId);
+    return isChoiceOnlyCatV668(c);
+  }
+  function recordChoiceLeakV668(route, id, detail){
+    try{
+      const pm = ensureProductionRuntimeMonitor();
+      if(!pm.choiceProbeGuard) pm.choiceProbeGuard = {blocked:0, recent:[]};
+      pm.choiceProbeGuard.blocked++;
+      pm.choiceProbeGuard.recent.push({ts:Date.now(), route, id:id||null, detail:detail||null});
+      pm.choiceProbeGuard.recent = pm.choiceProbeGuard.recent.slice(-30);
+    }catch(_){ }
+  }
+
+  try{
+    if(typeof instantiateL0ProbeOnFixedPair === "function" && !instantiateL0ProbeOnFixedPair.__v668ChoiceGuard){
+      const prev = instantiateL0ProbeOnFixedPair;
+      const wrapped = function instantiateL0ProbeOnFixedPairChoiceGuardV668(cat, vnt, pair, m){
+        if(isChoiceOnlyCatV668(cat)){
+          recordChoiceLeakV668("instantiate_pre", cat && cat.id, "choice cats require their buildChoiceTrial route");
+          return null;
+        }
+        const probe = prev.apply(this, arguments);
+        if(isChoiceOnlyProbeV668(probe)){
+          recordChoiceLeakV668("instantiate_post", probe && probe.catId, "choice probe generated on fixed-pair route");
+          return null;
+        }
+        return probe;
+      };
+      wrapped.__v668ChoiceGuard = true;
+      instantiateL0ProbeOnFixedPair = wrapped;
+      try{ window.instantiateL0ProbeOnFixedPair = instantiateL0ProbeOnFixedPair; }catch(_){ }
+    }
+  }catch(e){ warn("instantiate choice guard failed", e); }
+
+  try{
+    if(typeof buildL0BurstCandidates === "function" && !buildL0BurstCandidates.__v668ChoiceGuard){
+      const prev = buildL0BurstCandidates;
+      const wrapped = function buildL0BurstCandidatesChoiceGuardV668(pair){
+        const out = arr(prev.apply(this, arguments)).filter(p => {
+          if(isChoiceOnlyProbeV668(p)){
+            recordChoiceLeakV668("buildL0BurstCandidates", p && p.catId, "choice-only probe filtered from burst candidates");
+            return false;
+          }
+          return true;
+        });
+        return out;
+      };
+      wrapped.__v668ChoiceGuard = true;
+      buildL0BurstCandidates = wrapped;
+      try{ window.buildL0BurstCandidates = buildL0BurstCandidates; }catch(_){ }
+    }
+  }catch(e){ warn("burst candidate choice guard failed", e); }
+
+  try{
+    if(typeof buildL0FrameBurst === "function" && !buildL0FrameBurst.__v668ChoiceGuard){
+      const prev = buildL0FrameBurst;
+      const wrapped = function buildL0FrameBurstChoiceGuardV668(basePos, n=null){
+        if(isChoiceOnlyProbeV668(basePos)){
+          recordChoiceLeakV668("buildL0FrameBurst_anchor", basePos && basePos.catId, "choice trial cannot be a bool burst anchor");
+          return null;
+        }
+        const burst = prev.apply(this, arguments);
+        const leak = arr(burst && burst.probes).find(isChoiceOnlyProbeV668);
+        if(leak){
+          recordChoiceLeakV668("buildL0FrameBurst_sequence", leak && leak.catId, "choice probe leaked into burst sequence");
+          return null;
+        }
+        return burst;
+      };
+      wrapped.__v668ChoiceGuard = true;
+      buildL0FrameBurst = wrapped;
+      try{ window.buildL0FrameBurst = buildL0FrameBurst; }catch(_){ }
+    }
+  }catch(e){ warn("frame burst choice guard failed", e); }
+
+  try{
+    if(typeof makeL0TrialInfoFromProbe === "function" && !makeL0TrialInfoFromProbe.__v668ChoiceGuard){
+      const prev = makeL0TrialInfoFromProbe;
+      const wrapped = function makeL0TrialInfoFromProbeChoiceGuardV668(probe, burst=null){
+        if(isChoiceOnlyProbeV668(probe)){
+          recordChoiceLeakV668("makeL0TrialInfoFromProbe_pre", probe && probe.catId, "choice-only probe cannot become bool trialInfo");
+          try{
+            const fb = fallbackPosnerTrial(currentMax(), true, {cat:probe && probe.catId || "choice_leak", reason:"choice_probe_on_bool_burst_route", route:"makeL0TrialInfoFromProbe"});
+            const info = prev.call(this, fb, null);
+            info.isFrameBurst = false;
+            info.burst = null;
+            info.burstId = null;
+            info.episodeId = null;
+            info.probeIndex = 0;
+            info.probeCount = 1;
+            return info;
+          }catch(_){ return prev.apply(this, arguments); }
+        }
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v668ChoiceGuard = true;
+      makeL0TrialInfoFromProbe = wrapped;
+      try{ window.makeL0TrialInfoFromProbe = makeL0TrialInfoFromProbe; }catch(_){ }
+    }
+  }catch(e){ warn("make trialInfo choice guard failed", e); }
+
+  function clearTrialPrepBannerV668(reason="active_input"){
+    try{ State.trialPrepLoading = null; }catch(_){ }
+    try{
+      const lp = $("levelProgress"), lpf = $("levelProgressFill"), lpt = $("levelProgressText");
+      if(lp){ lp.classList.remove("visible","intro","near","ready","reverse"); }
+      if(lpf) lpf.style.width = "0%";
+      if(lpt && /Preparing next trial/i.test(lpt.textContent || "")) lpt.textContent = "";
+      try{ if(typeof invalidateHUD === "function") invalidateHUD("v668_clear_trial_prep:" + reason); }catch(_){ }
+    }catch(_){ }
+  }
+  try{ window.clearTrialPrepBannerV668 = clearTrialPrepBannerV668; }catch(_){ }
+
+  try{
+    if(typeof setStatus === "function" && !setStatus.__v668TrialPrepGuard){
+      const prev = setStatus;
+      const wrapped = function setStatusTrialPrepGuardV668(status, reason="setStatus"){
+        const out = prev.apply(this, arguments);
+        if(String(status) === "INPUT") clearTrialPrepBannerV668(reason || "setStatus_INPUT");
+        return out;
+      };
+      wrapped.__v668TrialPrepGuard = true;
+      setStatus = wrapped;
+      try{ window.setStatus = setStatus; }catch(_){ }
+    }
+  }catch(e){ warn("setStatus trial-prep guard failed", e); }
+
+  // Last-resort polish for epistemic rule text if an older wrapper returns bare modulo.
+  try{
+    if(typeof l0EpistemicRuleText === "function" && !l0EpistemicRuleText.__v668ModuloGloss){
+      const prev = l0EpistemicRuleText;
+      const wrapped = function l0EpistemicRuleTextModuloGlossV668(rule){
+        const id = typeof rule === "string" ? rule : rule && rule.id;
+        if(id === "mod_3") return "RIGHT = LEFT mod 3 (remainder after dividing LEFT by 3)";
+        if(id === "mod_5") return "RIGHT = LEFT mod 5 (remainder after dividing LEFT by 5)";
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v668ModuloGloss = true;
+      l0EpistemicRuleText = wrapped;
+      try{ window.l0EpistemicRuleText = l0EpistemicRuleText; }catch(_){ }
+    }
+  }catch(e){ warn("modulo gloss wrapper failed", e); }
+
+  sanitizeAllPromptSurfaces();
+
+  function auditV668ClarityFlowContracts(opts={}){
+    const block = [], warnings = [], rows = [];
+    try{
+      sanitizeAllPromptSurfaces();
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []);
+      for(const c of cats){
+        for(const v of arr(c && c.variants)){
+          const q = str(v && (v.q || v.text || v.template || v.label || v.title));
+          if(/Use the shown LEFT and RIGHT values/i.test(q)) block.push(`${c.id}: redundant shown-values prefix remains`);
+          if(/^Which statement is not true\??$/i.test(q) && !isChoiceOnlyCatV668(c)) block.push(`${c.id}: ambiguous false-statement prompt on non-choice cat`);
+        }
+      }
+      const two = cats.find(c => c && c.id === "two_property_even_multiple3_DS");
+      rows.push({twoPropertySample:two && two.variants && two.variants[0] && two.variants[0].q});
+      if(two && !/different parity but the same multiple-of-3 status/i.test(two.variants?.[0]?.q || "")) block.push("two-property even/multiple3 DS prompt not in direct parity/status wording");
+      const ce = cats.find(c => c && c.family === "counterexample_choice");
+      if(ce){
+        const probe = instantiateL0ProbeOnFixedPair(ce, arr(ce.variants)[0] || {}, {a:5,b:3,displayA:5,displayB:3,repA:"digit",repB:"digit"}, 12);
+        if(probe) block.push("counterexample choice cat still instantiates as fixed-pair bool probe");
+        const fakeBurst = buildL0FrameBurst({a:5,b:3,displayA:5,displayB:3,repA:"digit",repB:"digit",catId:ce.id,family:ce.family,question:"Which statement is not true?",responseFormat:"choice",options:[{text:"x",correct:true}],correctIndex:0,isTrue:true,frameTags:[]}, 2);
+        if(fakeBurst) block.push("choice anchor still allowed to create a boolean burst");
+      } else warnings.push("no counterexample choice cat found for audit");
+      const base = {a:6,b:4,displayA:6,displayB:4,repA:"digit",repB:"digit",catId:"gap_gt2",family:"l0.numeric_pair.metric",question:"Is the gap more than 2?",isTrue:false,frameTags:["metric_relation"]};
+      const candidates = arr(buildL0BurstCandidates(base));
+      const choiceLeaks = candidates.filter(isChoiceOnlyProbeV668);
+      rows.push({burstCandidates:candidates.length, choiceLeaks:choiceLeaks.map(p=>p.catId).slice(0,12)});
+      if(choiceLeaks.length) block.push(`choice-only burst candidate leak: ${choiceLeaks.map(p=>p.catId).slice(0,8).join(", ")}`);
+      const mod5 = l0EpistemicRuleText("mod_5");
+      rows.push({mod5});
+      if(!/remainder after dividing LEFT by 5/i.test(mod5)) block.push("mod 5 public rule lacks remainder gloss");
+      rows.push({choiceLabels: (typeof L0_EPISTEMIC_CHOICE_LABELS !== "undefined" ? Array.from(L0_EPISTEMIC_CHOICE_LABELS) : [])});
+      if(typeof L0_EPISTEMIC_CHOICE_LABELS !== "undefined" && !Array.from(L0_EPISTEMIC_CHOICE_LABELS).some(x => /Cannot know that the answer is YES/i.test(x))) block.push("epistemic labels do not expose the unknown-but-actual-YES branch");
+      if(typeof setStatus === "function" && !setStatus.__v668TrialPrepGuard) block.push("setStatus INPUT trial-prep cleanup guard missing");
+    }catch(e){ block.push(`audit exception: ${e && e.message || e}`); }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_VERSION), rows, warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), rows, warnings, block};
+  }
+  try{ window.auditV668ClarityFlowContracts = auditV668ClarityFlowContracts; globalThis.auditV668ClarityFlowContracts = auditV668ClarityFlowContracts; }catch(_){ }
+
+  try{
+    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(previousRunFeatureAudit && !previousRunFeatureAudit.__v668ClarityFlowGuard){
+      const wrapped = function runFeatureAuditV668ClarityFlow(feature, opts={}){
+        const f = str(feature).toLowerCase().trim();
+        if(["v668_clarity_flow","clarity_flow","choice_burst_guard","epistemic_mod_gloss","prompt_clarity_flow"].includes(f)){
+          const result = auditV668ClarityFlowContracts(opts);
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, {v668:result}, 0) : result;
+        }
+        const prev = previousRunFeatureAudit.apply(this, arguments);
+        if(["readability","question_review_coverage","experimental_densification"].includes(f)){
+          const v668 = auditV668ClarityFlowContracts(opts);
+          if(v668.status === "BLOCK"){
+            const results = Object.assign({}, prev && prev.results ? prev.results : {previous:prev}, {v668ClarityFlow:v668});
+            return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 1) : {feature:f, status:"BLOCK", results};
+          }
+        }
+        return prev;
+      };
+      wrapped.__v668ClarityFlowGuard = true;
+      runFeatureAudit = wrapped;
+      try{ window.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(e){ warn("runFeatureAudit hook failed", e); }
+
+  try{ window.EUCA_V668_CLARITY_FLOWFIX = {patch:PATCH_VERSION, choiceBurstGuard:true, inputPrepBannerFailClosed:true}; }catch(_){ }
+})();
+
+
+
+// v6.6.9: restore epistemic choice labels to neutral canonical form.
+// The agent name belongs in the card stem; option labels should not mix a generic
+// "Agent" with a concrete sampled name such as Vera.
+(function registerV669EpistemicLabelAudit(){
+  const PATCH_VERSION = "v6.6.9-experimental-densification-epistemic-label-fix";
+  function auditV669EpistemicLabels(){
+    const labels = (typeof L0_EPISTEMIC_CHOICE_LABELS !== "undefined") ? Array.from(L0_EPISTEMIC_CHOICE_LABELS) : [];
+    const expected = [
+      "Can know the answer is YES",
+      "Can know the answer is NO",
+      "Cannot know that the answer is YES",
+      "Cannot know that the answer is NO"
+    ];
+    const block = [];
+    if(labels.length !== expected.length || labels.some((x,i)=>x !== expected[i])) block.push("epistemic choice labels are not the neutral canonical labels");
+    if(labels.some(x => /\bAgent\b/.test(x))) block.push("epistemic option labels contain generic Agent instead of using the named-agent stem");
+    if(labels.some(x => /\bVera\b/.test(x))) block.push("epistemic option labels hard-code Vera instead of remaining neutral across sampled agents");
+    let sampleQuestion = null;
+    try{
+      if(typeof l0EpistemicQuestion === "function"){
+        sampleQuestion = l0EpistemicQuestion({agent:"Vera", knowledge:{exactLeft:1, possibleRuleIds:["add_2","mod_5"]}, target:{slot:"right", cmp:"gt", threshold:1}}, 12);
+        if(!/Vera/.test(sampleQuestion)) block.push("epistemic stem does not name the sampled agent");
+        if(/\bAgent\b/.test(sampleQuestion)) block.push("epistemic stem leaks generic Agent");
+      }
+    }catch(e){ block.push("epistemic stem sample failed: " + (e && e.message ? e.message : e)); }
+    return {appVersion:typeof APP_VERSION!=="undefined"?APP_VERSION:null, patch:PATCH_VERSION, status:block.length?"BLOCK":"PASS", block, labels, sampleQuestion};
+  }
+  try{ window.auditV669EpistemicLabels = auditV669EpistemicLabels; globalThis.auditV669EpistemicLabels = auditV669EpistemicLabels; }catch(_){ }
+  try{
+    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(previousRunFeatureAudit && !previousRunFeatureAudit.__v669EpistemicLabelAudit){
+      const wrapped = function runFeatureAuditV669EpistemicLabels(feature, opts={}){
+        const f = String(feature || "").toLowerCase();
+        if(["v669_epistemic_labels", "epistemic_labels", "epistemic_choice_labels"].includes(f)){
+          const result = auditV669EpistemicLabels();
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, {v669:result}, 0) : result;
+        }
+        const prev = previousRunFeatureAudit.apply(this, arguments);
+        if(f === "v668_clarity_flow" || f === "clarity_flow" || f === "question_review_coverage" || f === "experimental_densification"){
+          const labelAudit = auditV669EpistemicLabels();
+          const okPrev = !prev || prev.status !== "BLOCK";
+          if(labelAudit.status === "BLOCK"){
+            const results = Object.assign({}, prev && prev.results ? prev.results : {previous:prev}, {v669EpistemicLabels:labelAudit});
+            return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, labelAudit.block.length) : {status:"BLOCK", results};
+          }
+          return prev;
+        }
+        return prev;
+      };
+      wrapped.__v669EpistemicLabelAudit = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(e){ if(typeof console!=="undefined"&&console.warn) console.warn("[Eucalculia] v6.6.9 epistemic label audit patch failed", e); }
+  try{ window.EUCA_V669_EPISTEMIC_LABEL_FIX = {patch:PATCH_VERSION, neutralCanonicalLabels:true}; }catch(_){ }
+})();
 </script>
 </body>
 </html>
