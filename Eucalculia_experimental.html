@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.6.25-experimental-densification-audited-polish</title>
+<title>Eucalculia v6.7.0-generative-mode</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3309,7 +3309,7 @@ select.cs-native {
 // =====================
 
 // ============================================================================
-// EUCALCULIA v6.5.91-recursive-source-cleanup — recursive source cleanup, audit convergence, bridge/registry coherence
+// EUCALCULIA v6.7.0-generative-mode — generative mode v1 (dual boundary witnesses) over the audit-closed v6.6.26 base
 // ============================================================================
 // v6.5.26x: paper-folding boundary punches may unfold into multiple complete holes; no residual half-holes.
 // This build consolidates the 6.4.2 telemetry-cleanup fork and the 6.4.3
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.6.25-experimental-densification-audited-polish";
+const APP_VERSION = "v6.7.0-generative-mode";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -3407,7 +3407,9 @@ const CONFIG = {
   particleStormThreshold:3,
   publicBuildMaxActiveParticles:96,
   publicBuildClearParticlesOnPrep:false,
-  publicBuildTrialBuildBudgetMs:48,
+  // v6.6.26: 48 ms starved heavy families on slow devices (the v6.6.21 governance
+  // audit encodes >= 64 ms as the floor for full-coverage emergency builds).
+  publicBuildTrialBuildBudgetMs:64,
   publicBuildSetupPosnerMaxAttempts:6,
   publicBuildRuntimeVisualPickBudget:24,
   publicBuildDirectedVisualTries:8,
@@ -11605,6 +11607,18 @@ function renderStructuredQuestionHTML(qText, info=null){
     return `<div class="qstep"><strong>${esc(head)}:</strong> ${esc(line)}</div>`;
   }).join("") + `</div>`;
 }
+// v6.6.26: renderEpistemicQuestionCard is an inner function of
+// renderStructuredQuestionHTML, so the v6.6.24 public-announcement layer in the
+// trailing patch block could never see it (its typeof guard failed silently and
+// its audit had no render path). Expose a delegate bound to the ORIGINAL
+// structured renderer — captured here, before any wrapper installs — so later
+// wrappers can call it without recursing into themselves.
+const __renderStructuredQuestionHTMLOriginal = renderStructuredQuestionHTML;
+function renderEpistemicQuestionCardDelegate(ep){
+  try{ return __renderStructuredQuestionHTMLOriginal("", {epistemicSufficiency:ep}); }catch(_){ return ""; }
+}
+try{ if(typeof window !== "undefined" && typeof window.renderEpistemicQuestionCard !== "function") window.renderEpistemicQuestionCard = renderEpistemicQuestionCardDelegate; }catch(_){ }
+try{ if(typeof globalThis !== "undefined" && typeof globalThis.renderEpistemicQuestionCard !== "function") globalThis.renderEpistemicQuestionCard = renderEpistemicQuestionCardDelegate; }catch(_){ }
 
 function showMetaQuestion(level, question, hint, options){
   // The central meta overlay already labels the level. Hide the transient
@@ -13851,7 +13865,17 @@ class Domino extends Stim {
     }
     if(v < 0 || v > 12){
       this.invalidEncoding = true;
-      console.warn("Domino cannot faithfully encode value", {value:v});
+      // v6.6.26: deliberate audit probes construct over-capacity dominoes to test
+      // the invalid-encoding contract; only live (non-mass-QA) occurrences warn.
+      // Every occurrence still lands in the production monitor.
+      try{
+        if(!(typeof window !== "undefined" && window.__EUCALCULIA_MASS_QA_ACTIVE)) console.warn("Domino cannot faithfully encode value", {value:v});
+        if(typeof State !== "undefined" && State){
+          if(!State.productionMonitor) State.productionMonitor = {};
+          const dm = State.productionMonitor.encodingViolations || (State.productionMonitor.encodingViolations = {count:0, byRep:{}});
+          dm.count = (dm.count || 0) + 1; dm.byRep.domino = (dm.byRep.domino || 0) + 1;
+        }
+      }catch(_){ }
     }
     if(v === 0){
       const baseRot = Math.floor(this.srand(1)*4) * Math.PI/2;
@@ -13884,6 +13908,10 @@ class Domino extends Stim {
     }
   }
   encodedValue(){
+    // v6.6.26: every sibling encoder (Dice, Finger, …) reports null once
+    // invalidEncoding is set; Domino silently summed a capped 12 for v > 12,
+    // which is a misencode rather than a refusal. Align with the family contract.
+    if(this.invalidEncoding) return null;
     return Array.isArray(this.dominoes) ? this.dominoes.reduce((sum,d)=>sum + (Number(d?.a) || 0) + (Number(d?.b) || 0), 0) : 0;
   }
 
@@ -16619,16 +16647,132 @@ function getVisualPairPool(kind, m){
   return VISUAL_PAIR_POOL_CACHE[key] || [];
 }
 
+// v6.6.26: the v6.6.19 diversity contract requires the emergency fallback itself to
+// rotate categories (identical <= 2 of 24, >= 5 distinct cats, max share <= 0.35).
+// That contract was invisible while its audit crashed on a missing helper; once the
+// audit ran, it exposed that the fallback had been hard-wired to `identical` since
+// its introduction. The picker below draws from simple, polarity-verifiable yes/no
+// value cats with a recent-10 anti-repetition window; `identical` stays as the
+// absolute floor when nothing else can be built.
+function _fallbackDiverseSafeCat(m, wantTrue){
+  try{
+    const recent = fallbackPosnerTrial.__recentCats || (fallbackPosnerTrial.__recentCats = []);
+    // v6.6.26: the legacy identical fallback was tier-safe by construction; the
+    // diversified pool must stay inside the tier the player has actually reached,
+    // or a level-1 beginner could be served a tier-5 recursive cat on a timeout.
+    const tierCap = (typeof getPosnerTier === "function") ? (Number(getPosnerTier()) || 1) : 5;
+    const simple = (Array.isArray(POSNER_CATS) ? POSNER_CATS : []).filter(c =>
+      c && c.id && c.id !== "identical"
+      && (Number(c.tier) || 1) <= tierCap
+      && typeof c.gen === "function" && typeof c.verify === "function"
+      && !c.checkVisual && !c.questionVisualGate && !c.choiceBuilder && !c.options && !c.choiceSpec
+      && !c.balanceSpec && !c.vennGate && !c.vennConditionId && !c.graphRelationGate && !c.graphConditionalId
+      && !c.paperFoldingAnalogyId && !c.shepardConditional && !c.l0RelationEquivalenceId
+      && !c.needsStimSeed && !c.requiredRep
+      && (c.responseFormat === undefined || c.responseFormat === "yesno")
+      && (c.variants || []).some(v => v && v.q && !v.negate && !v.swap));
+    if(!simple.length) return null;
+    const usable = simple.filter(c => { try{ return typeof c.canUse !== "function" || !!c.canUse(m); }catch(_){ return false; } });
+    const pool = usable.length ? usable : simple;
+    // v6.6.27 selection core — three layers, each closing a distinct failure
+    // mode found in cold-state stress (tier-1 pool = exactly five simple cats):
+    //   1. LRU window capped at pool−1. With window >= pool size every cat is
+    //      permanently "recent", fresh is permanently empty, and cross-call
+    //      selection degenerates to uniform WITH replacement — the original
+    //      share-concentration flake against the v6.6.19 diversity contract.
+    //   2. Fresh-first candidate order with the rest of the pool appended.
+    //      Strict single-fresh LRU alone funnels one-sided cats' missing
+    //      polarity straight into the identical floor (same_rep has no YES
+    //      witness at any magnitude: its truth lives in the visual reps, not
+    //      the values); in-call backup candidates route around the hole
+    //      without hiding it the way with-replacement sampling did.
+    //   3. A memoized witness grid per (cat, m, polarity), universal across
+    //      magnitudes: it skips impossible builds instantly and supplies a
+    //      verified pair when rejection sampling misses a low-density side
+    //      (a 1/16-density side defeats four gen draws ~77% of the time).
+    //      gen keeps priority so native pair distributions are preserved
+    //      whenever they work; the grid is the builder of last resort.
+    const win = Math.max(1, Number((typeof CONFIG === "object" && CONFIG && CONFIG.fallbackDiverseRecentWindow) || 10));
+    const effWin = Math.min(win, Math.max(1, pool.length - 1));
+    while(recent.length > effWin) recent.shift();
+    const recentSet = new Set(recent);
+    const freshArr = [], restArr = [];
+    for(const c of pool){ (recentSet.has(c.id) ? restArr : freshArr).push(c); }
+    const genShuffle = (arr) => { for(let i = arr.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; } return arr; };
+    const order = genShuffle(freshArr).concat(genShuffle(restArr));
+    const wantKeyBase = "|" + m + "|" + (!!wantTrue);
+    if(!_fallbackDiverseSafeCat.__witnessMemo) _fallbackDiverseSafeCat.__witnessMemo = new Map();
+    const memo = _fallbackDiverseSafeCat.__witnessMemo;
+    const witnessesFor = (cat) => {
+      const key = cat.id + wantKeyBase;
+      if(memo.has(key)) return memo.get(key);
+      const pairs = [];
+      const cap = Math.max(2, Math.min(Math.floor(m), 12));
+      for(let a = 1; a <= cap; a++){
+        for(let b = 1; b <= cap; b++){
+          let v = null; try{ v = cat.verify(a, b, m); }catch(_){ continue; }
+          if(v === !!wantTrue && pairs.length < 8) pairs.push([a, b]);
+        }
+      }
+      if(memo.size > 4000) memo.clear(); // bounded for long public sessions
+      memo.set(key, pairs);
+      return pairs;
+    };
+    for(let ci = 0; ci < Math.min(order.length, 8); ci++){
+      const cat = order[ci];
+      const witnesses = witnessesFor(cat);
+      if(!witnesses.length) continue; // polarity not constructible for this cat at this m
+      let a = null, b = null, built = false;
+      for(let tries = 0; tries < 4 && !built; tries++){
+        let pair = null; try{ pair = cat.gen(m, !!wantTrue); }catch(_){ pair = null; }
+        if(!Array.isArray(pair) || pair.length < 2) continue;
+        a = Number(pair[0]); b = Number(pair[1]);
+        if(!Number.isFinite(a) || !Number.isFinite(b)) continue;
+        let v = null; try{ v = cat.verify(a, b, m); }catch(_){ continue; }
+        if(typeof v === "boolean" && v === !!wantTrue) built = true;
+      }
+      if(!built){
+        const pick = witnesses[Math.floor(Math.random() * witnesses.length)];
+        a = pick[0]; b = pick[1]; built = true;
+      }
+      const vnt = (cat.variants || []).find(x => x && x.q && !x.negate && !x.swap);
+      if(!vnt) continue;
+      // v6.6.26: family-specific template tokens ({short}, {A}, {AXIS}, …) are
+      // substituted by their own builders, not by renderRangeCenterPrompt. A cat
+      // whose tokens survive the range-prompt pass would reach the screen raw, so
+      // reject such candidates here; the identical floor is always token-free.
+      if(/\{[A-Za-z_]\w*\}/.test(renderRangeCenterPrompt(String(vnt.q), m))) continue;
+      recent.push(cat.id); while(recent.length > effWin) recent.shift();
+      return {cat, pair:[a, b], vnt};
+    }
+  }catch(_){ }
+  return null;
+}
 function fallbackPosnerTrial(m, wantTrue, reason){
-  const safeCat = POSNER_CATS.find(c => c.id === "identical") || POSNER_CATS[0];
-  const safeVnt = (safeCat.variants || []).find(v => !v.negate && !v.swap) || (safeCat.variants || [{q:"Same number?"}])[0];
+  const diverse = _fallbackDiverseSafeCat(m, wantTrue);
+  const safeCat = (diverse && diverse.cat) || POSNER_CATS.find(c => c.id === "identical") || POSNER_CATS[0];
+  const safeVnt = (diverse && diverse.vnt) || (safeCat.variants || []).find(v => !v.negate && !v.swap) || (safeCat.variants || [{q:"Same number?"}])[0];
   const requestedCatId = reason && typeof reason === "object" ? (reason.cat || reason.catId || null) : null;
   const requestedCat = requestedCatId ? POSNER_CATS.find(c => c.id === requestedCatId) : null;
-  const pair = safeCat.gen(m, !!wantTrue) || [1, Math.min(2, Math.max(1, m))];
+  const pair = (diverse && diverse.pair) || safeCat.gen(m, !!wantTrue) || [1, Math.min(2, Math.max(1, m))];
   const rawA = pair[0], rawB = pair[1];
   const [visA, visB] = pickValueComparisonVisuals(rawA, rawB, safeCat);
   const massQuiet = (typeof window !== "undefined" && window.__EUCALCULIA_MASS_QA_ACTIVE);
-  if(reason && !massQuiet) console.warn("Posner generation fallback", reason);
+  // v6.6.26: keep the diagnostic but stop it flooding the console during audit
+  // sweeps and governance churn — first five verbatim, then one in fifty with a
+  // running count. Every occurrence still lands in the production monitor.
+  if(reason && !massQuiet){
+    fallbackPosnerTrial.__warnCount = (fallbackPosnerTrial.__warnCount || 0) + 1;
+    const wc = fallbackPosnerTrial.__warnCount;
+    if(wc <= 5 || wc % 50 === 0) console.warn("Posner generation fallback", reason, wc > 5 ? {occurrences:wc} : "");
+    try{
+      if(!State.productionMonitor) State.productionMonitor = {};
+      const fmon = State.productionMonitor.posnerFallbacks || (State.productionMonitor.posnerFallbacks = {count:0, byReason:{}});
+      fmon.count = (fmon.count || 0) + 1;
+      const rk = String((reason && typeof reason === "object" ? (reason.reason || reason.cat) : reason) || "unknown").slice(0,60);
+      fmon.byReason[rk] = (fmon.byReason[rk] || 0) + 1;
+    }catch(_){ }
+  }
   return { a:rawA, b:rawB, repA:visA.rep, repB:visB.rep,
            stimSeedA:Number.isFinite(visA.seed) ? Number(visA.seed) : null,
            stimSeedB:Number.isFinite(visB.seed) ? Number(visB.seed) : null,
@@ -21070,14 +21214,21 @@ function auditVisualPredicateP(opts={}){
       const est = estimateVisualPredicateP(cat.id, m, {samples});
       if(!est) continue;
       const minP = Math.min(est.pTrue ?? 0, est.pFalse ?? 0);
+      // v6.6.26: a predicate that the cat's own canUse(m) gate excludes at this
+      // magnitude is not a live degeneracy — the sampler never offers it there.
+      // Label those rows GATED_AT_M so IMPOSSIBLE_SIDE is reserved for genuinely
+      // reachable one-sided predicates.
+      let eligibleAtM = true;
+      try{ eligibleAtM = typeof cat.canUse !== "function" || !!cat.canUse(m); }catch(_){ eligibleAtM = true; }
       rows.push(Object.assign(est, {
         tier: cat.tier,
         family: cat.family || posnerFamily(cat),
         requiredRep: visualRequiredRepsForCat(cat),
         directedBuilder: _directedVisualBuilderExists(cat.id),
         minP,
+        eligibleAtM,
         expectedAttemptsWorstSide: minP > 0 ? Math.round((1/minP)*10)/10 : Infinity,
-        risk: minP === 0 ? "IMPOSSIBLE_SIDE" : (minP < 0.10 ? "HIGH" : (minP < 0.25 ? "MEDIUM" : "LOW"))
+        risk: !eligibleAtM ? "GATED_AT_M" : (minP === 0 ? "IMPOSSIBLE_SIDE" : (minP < 0.10 ? "HIGH" : (minP < 0.25 ? "MEDIUM" : "LOW")))
       }));
     }
   }
@@ -21991,7 +22142,28 @@ function l0CrossRepProjectionCats(){
     checkVisual:true,
     projectionId:op.id,
     cueRep:op.cueRep,
-    canUse:(m)=> (State.reps || []).includes(op.cueRep) && (!CONFIG.l0CrossRepProjectionRequireGate || requireHarnessPass("l0_cross_rep_projection")),
+    canUse:(m)=> {
+      // v6.6.26: gate on constructibility at the current magnitude. Several
+      // projections (fill-to-10 complements, wrap-only clock moves, complete
+      // tally groups) have no constructible YES instance at small m; without
+      // this gate the sampler could pick them, spin on an impossible polarity
+      // and fall back. The gate asks: does at least one source value in range
+      // project to a target that is itself representable as a pair value?
+      // (cap corrected in-version: randInt(1, m+1) floors to 1..m, so the pair
+      // support is 1..m, not 1..m+1 — the +1 made e.g. fill-to-10 look
+      // constructible at m=4 via the unreachable pair (5,5).)
+      const cap = Math.min(Math.max(2, Math.floor(Number(m) || 1)), 12);
+      let constructible = false;
+      for(let v = 1; v <= cap && !constructible; v++){
+        try{
+          if(op.canProject(v)){
+            const t = op.apply(v);
+            constructible = Number.isInteger(t) && t >= 1 && t <= cap;
+          }
+        }catch(_){ }
+      }
+      return constructible && (State.reps || []).includes(op.cueRep) && (!CONFIG.l0CrossRepProjectionRequireGate || requireHarnessPass("l0_cross_rep_projection"));
+    },
     variants:[
       { q:l0CrossRepProjectionQuestion(op) },
       { q:`Apply LEFT's ${op.short} rule to RIGHT's number. Is the projected result equal to LEFT's number?` },
@@ -26761,7 +26933,10 @@ const L1_OP_SHORT_LABELS = ({
   // Position (left/right side)
   left_total:"Sum of left-side values",
   right_total:"Sum of right-side values",
-  side_total_diff:"Right total minus left total",
+  // v6.6.26: the op and every prompt variant ask for the ABSOLUTE gap between the
+  // two side totals (the review surface even prints |L−R|); the old label named a
+  // signed subtraction and misdescribed the contract whenever LEFT > RIGHT.
+  side_total_diff:"Gap between the two side totals",
   left_values_gap:"Gap between left-side values",
   right_values_gap:"Gap between right-side values",
   larger_side_total:"Higher of the two side totals",
@@ -32039,7 +32214,12 @@ function auditL0GraphConditional(opts={}){
   CONFIG.l0GraphConditionalRequireGate = false;
   const oldLevels = State.levelByMode ? Object.assign({}, State.levelByMode) : null;
   if(!State.levelByMode) State.levelByMode = {};
-  State.levelByMode.D = Math.max(State.levelByMode.D || 0, CONFIG.l0GraphConditionalMinLevel || 6);
+  // v6.6.26: coverage must be measured against the whole template catalog, not the
+  // entry-level pool. At the minimum level only three templates exist, so the audit
+  // structurally guaranteed its own "only 3 templates used" warning.
+  const __graphAuditMaxTemplateLevel = (typeof GRAPH_CONDITIONAL_TEMPLATES !== "undefined" && GRAPH_CONDITIONAL_TEMPLATES.length)
+    ? Math.max(...GRAPH_CONDITIONAL_TEMPLATES.map(t => Number(t.minLevel) || 6)) : (CONFIG.l0GraphConditionalMinLevel || 6);
+  State.levelByMode.D = Math.max(State.levelByMode.D || 0, CONFIG.l0GraphConditionalMinLevel || 6, __graphAuditMaxTemplateLevel);
   try {
     const m = Math.max(8, Math.floor(Number(opts.m) || 10));
     const trialsPerPolarity = Math.max(6, Number(opts.trialsPerPolarity) || 10);
@@ -32876,10 +33056,11 @@ function canonicalDistractorRoleDistribution(options){
   }
   return dist;
 }
-function incrementPlainCount(map, key, n=1){
-  key = key || "unknown";
-  map[key] = (Number(map[key]) || 0) + (Number(n) || 0);
-}
+// v6.6.26: a second top-level declaration of incrementPlainCount existed further
+// down; with function-hoisting order the later one silently shadowed this copy
+// everywhere, so this earlier body was dead from the moment the later patch
+// landed. Consolidated into the surviving definition (which adds a null-map
+// guard and key stringification).
 function recordDistractorRoleWindow(root, dist, context="block"){
   if(!root || !dist) return;
   root.distractorRoles = root.distractorRoles || {};
@@ -40887,7 +41068,7 @@ const L1_FINAL_UPDATE_OPS = [
   { id:"max_remainder1_mod3_value", symmetric:true, family:"modular", minLevel:4, minM:4,
     variants:[{q:"Largest value that leaves integer remainder 1 when divided by 3."}],
     canUse:(p1,p2)=> l1Values(p1,p2).some(x=>x%3===1),
-    fn:(p1,p2)=> Math.max(...l1Values(p1,p2).filter(x=>x%3===1)) },
+    fn:(p1,p2)=> { const xs = l1Values(p1,p2).filter(x=>x%3===1); return xs.length ? Math.max(...xs) : null; } },
   { id:"total_from_pair_with_diff_multiple3", symmetric:true, family:"modular", minLevel:4, minM:4,
     variants:[{q:"Enter the total of the pair whose difference was a multiple of 3."}],
     canUse:(p1,p2)=> l1ExactlyOnePair(p1,p2,p=>Math.abs(p.a-p.b)%3===0),
@@ -43836,13 +44017,14 @@ function auditRegistryBehavioral(opts={}){
   const m = opts.m || 12;
   const failures = []; // {specId, kind, sample, message}
   const balanceWarnings = []; // {specId, yesCount, noCount, ratio}
+  const parameterizedOnly = []; // {specId, trials} — yes/no specs whose pair verifier is intentionally null
   let specsTested = 0;
 
   for(const id of Object.keys(SPEC_REGISTRY)){
     const spec = SPEC_REGISTRY[id];
     if(typeof spec.verifier !== "function" || typeof spec.reviewBuilder !== "function") continue;
     specsTested++;
-    let yesCount = 0, noCount = 0;
+    let yesCount = 0, noCount = 0, nullCount = 0;
 
     for(let i = 0; i < trialsPerSpec; i++){
       // Build a synthetic state. For yesno specs we just need a, b in
@@ -43893,6 +44075,11 @@ function auditRegistryBehavioral(opts={}){
         continue;
       }
       if(spec.responseFormat === "yesno"){
+        // v6.6.26: null mirrors the documented numeric not-applicable contract.
+        // Specs whose semantics are trial-parameterised (choice builders) register
+        // a null pair-level verifier deliberately; the runtime sampler never
+        // consults a pair predicate for them, so the audit skips rather than flags.
+        if(verifierResult === null){ nullCount++; continue; }
         if(typeof verifierResult !== "boolean"){
           failures.push({specId:id, kind:"verifier_wrong_type", sample:{a,b,m}, message:`expected boolean, got ${typeof verifierResult}`});
           continue;
@@ -43929,6 +44116,9 @@ function auditRegistryBehavioral(opts={}){
     // RANDOM (a,b) pairs may not match the sampler's targeted distribution,
     // but extreme imbalance still signals the predicate is almost always
     // one polarity over typical inputs — useful telemetry.
+    if(spec.responseFormat === "yesno" && (yesCount + noCount) === 0 && nullCount > 0){
+      parameterizedOnly.push({specId:id, trials:nullCount});
+    }
     if(spec.responseFormat === "yesno" && (yesCount + noCount) >= 8){
       const total = yesCount + noCount;
       const minSide = Math.min(yesCount, noCount);
@@ -43938,7 +44128,7 @@ function auditRegistryBehavioral(opts={}){
       }
     }
   }
-  return { specsTested, trialsPerSpec, failures, balanceWarnings };
+  return { specsTested, trialsPerSpec, failures, balanceWarnings, parameterizedOnly };
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -48001,6 +48191,13 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
               const capacityIndex = ep47CapabilityIndex(outcomes, agents);
               rows.push({scenario, outcomes, capacityIndex, responseSubformat:"agent_capacity_disjoint"});
               for(const ann of ep47AnnouncementOptions(actual)){
+                // v6.6.26: a public announcement that repeats an agent's private line
+                // verbatim prints the same sentence twice on the card and makes that
+                // private datum inert (it is already common knowledge). The concision
+                // audit counts the announcement line exactly once; skip these instances
+                // at the source rather than masking them in the renderer.
+                const _annLine = String(ann.line || "").trim();
+                if(_annLine && (_annLine === String(factA.line || "").trim() || _annLine === String(factB.line || "").trim())) continue;
                 // v6.6.26 non-degeneracy guard: drop public-announcement instances whose claim is
                 // already settled by the announcement alone — i.e. the claim is constant across
                 // every world consistent with the public info. In those cards no possible-worlds
@@ -48688,6 +48885,10 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
     window.auditL0EpistemicSufficiency = auditL0EpistemicSufficiency;
     window.l0EpistemicOutcomeForAgent = l0EpistemicOutcomeForAgent;
     window.l0EpistemicOutcomesByAgent = l0EpistemicOutcomesByAgent;
+    // v6.6.26: the v6.6.24 public-announcement concision audit lives in a later
+    // <script> block and needs the candidate builder; without this export it
+    // reported a permanent "no rows" BLOCK against a perfectly healthy pool.
+    window.ep47BuildTwoAgentCandidates = ep47BuildTwoAgentCandidates;
   }
 })();
 
@@ -50156,13 +50357,27 @@ function _legacyReplayContract(layer, entry){
   };
 }
 function _legacyVerifier(layer, entry){
+  // v6.6.26: some migrated L1 ops (memory bridge, ternary triangle) are
+  // question-builders whose fn returns a structured {question, answer, …}
+  // payload rather than a bare value. The behavioural contract wants the
+  // verdict, so unwrap the answer by its declared kind instead of handing the
+  // whole object to the audit.
+  const unwrapVerifierResult = (res) => {
+    if(res && typeof res === "object" && !Array.isArray(res) && ("answer" in res)){
+      const kind = res.answerKind || res.responseFormat || null;
+      if(kind === "bool" || typeof res.answer === "boolean") return !!res.answer;
+      const n = Number(res.answer);
+      return Number.isFinite(n) ? n : null;
+    }
+    return res;
+  };
   return function legacySpecVerifier(state={}){
     try{
       if(layer === "L1"){
         const p1 = state.pair1 || state.p1 || {a:state.a, b:state.b};
         const p2 = state.pair2 || state.p2 || {a:state.c ?? state.a, b:state.d ?? state.b};
-        if(typeof entry.fn === "function") return entry.fn(p1, p2, state.m);
-        if(typeof entry.verify === "function") return entry.verify(p1, p2, state.m);
+        if(typeof entry.fn === "function") return unwrapVerifierResult(entry.fn(p1, p2, state.m));
+        if(typeof entry.verify === "function") return unwrapVerifierResult(entry.verify(p1, p2, state.m));
         return null;
       }
       if(layer === "L2"){
@@ -56818,7 +57033,13 @@ function startTrial(attempt = 0, forcedLevel = null){
       }
     }
     _markStartTrial("l0_sampler_begin");
-    const pos = memLurePos || epistemicPos || inverseOpPos || setupPosner();
+    // v6.6.26: setupPosner is nullable (the auto-primitive caller already guards
+    // it), but this main relational path dereferenced the result unconditionally —
+    // a ~1/600 TypeError at high levels in live play. The emergency fallback is
+    // total by contract (diversified, tier-safe, token-clean), so a null here
+    // degrades to a served safe trial instead of a crashed trial start.
+    const pos = memLurePos || epistemicPos || inverseOpPos || setupPosner()
+      || fallbackPosnerTrial((typeof currentMax === "function" ? currentMax() : 6), Math.random() < 0.5, {reason:"start_trial_null_pos"});
     _markStartTrial("l0_pos_ready");
     const displayA = l0DisplayValueForSide(pos, "a");
     const displayB = l0DisplayValueForSide(pos, "b");
@@ -57638,10 +57859,10 @@ function schedulePostAnswerAccounting(ctx){
 
 // ── v6.5.45 retrospective L0 meta-classification wrapper ────────────────
 const L0_META_CLASSIFICATION_PUBLIC_OPTIONS = Object.freeze([
-  {id:"property_value", label:"number property", publicLabel:"number property"},
-  {id:"order_relation", label:"order comparison", publicLabel:"order comparison"},
-  {id:"set_membership", label:"belongs to a set", publicLabel:"belongs to a set"},
-  {id:"derived_metric", label:"calculated measure", publicLabel:"calculated measure"}
+  {id:"property_value", label:"a number property", publicLabel:"a number property"},
+  {id:"order_relation", label:"an order comparison", publicLabel:"an order comparison"},
+  {id:"spatial_transform", label:"a spatial transform", publicLabel:"a spatial transform"},
+  {id:"rule_procedure", label:"a step-by-step rule", publicLabel:"a step-by-step rule"}
 ]);
 function ensureMetaClassificationStatsShape(root){
   if(!root || typeof root !== "object") root = {};
@@ -57718,14 +57939,17 @@ function metaClassificationLabelFor(id, dimensionId){
   return row ? row.publicLabel : metaClassificationLabel(id);
 }
 function projectL0TrialToQuestionType(info){
-  const fam = String(info?.family || info?.catFamily || info?.catId || "").toLowerCase();
-  const id = String(info?.catId || "").toLowerCase();
-  const tags = new Set((info?.frameTags || []).map(x=>String(x || "").toLowerCase()));
-  const mode = String(info?.relationMode || "").toLowerCase();
-  if(fam.includes("modular") || fam.includes("ratio") || fam.includes("metric") || fam.includes("virtual") || fam.includes("operation_invariance") || fam.includes("cyclic") || mode.includes("metric") || mode.includes("transform") || tags.has("metric_relation") || tags.has("transformation_relation") || tags.has("modular_relation") || tags.has("proportional_relation") || tags.has("anchor_distance")) return "derived_metric";
-  if(fam.includes("set") || fam.includes("predicate") || fam.includes("quantifier") || tags.has("class_inclusion") || tags.has("quantifier_relation") || id.startsWith("set_") || id.startsWith("quant_") || info?.vennGate) return "set_membership";
-  if(fam.includes("comparison") || fam.includes("order") || tags.has("comparison") || tags.has("reversal") || tags.has("role_binding") || /left_gt|right_gt|larger|smaller|farther|closer/.test(id)) return "order_relation";
-  return "property_value";
+  // Unified with the mental-move relational-kind taxonomy so the two dimensions never disagree: a
+  // question is classified the same way whether asked "what kind?" or "what move?". This dissolves
+  // the old property/set incoherence (e.g. "is it Fibonacci?" is a number property, exactly like
+  // "is it prime?" or "is it square?") and the former derived_metric catch-all, and re-homes the
+  // venn/conditional and recursive cats that previously misfiled. question_type carries
+  // noun-framed labels; mental_move carries verb-framed labels for the same partition.
+  const move = projectL0TrialToMentalMove(info);
+  return move === "transform_layout" ? "spatial_transform"
+       : move === "run_rule" ? "rule_procedure"
+       : move === "compare_two" ? "order_relation"
+       : "property_value";
 }
 function projectL0TrialToMetaClass(info){ return projectL0TrialToQuestionType(info); }
 function projectL0TrialToMentalMove(info){
@@ -57757,10 +57981,24 @@ function projectL0TrialToMetaDimension(info, dimensionId){
   if(dimensionId === "answer_source") return projectL0TrialToAnswerSource(info);
   return projectL0TrialToQuestionType(info);
 }
+function l0MetaClassAmbiguous(info){
+  // True when the prior question sits in the property/comparison gray zone: it both relates two
+  // values (derives a quantity, or selects a role like "the larger") AND tests a property — so
+  // "test a property" vs "compare two values" has no single defensible answer. We withhold the
+  // question_type and mental_move classifications for these cases so the learner is never marked
+  // wrong on a genuinely two-sided question; the answer_source dimension still applies.
+  const id = String(info?.catId || "").toLowerCase();
+  const move = (typeof projectL0TrialToMentalMove === "function") ? projectL0TrialToMentalMove(info) : "";
+  if(move !== "test_property" && move !== "compare_two") return false;
+  const propertyTok = /_even\b|_odd\b|parity|prime|composite|square|cube|fibonacci|lucas|triangular|power2|multiple|divisor|divisible/.test(id);
+  const relationTok = /larger|smaller|greater|less|closer|farther|nearer|_gt\b|_lt\b|diff|gap|distance|between|midpoint|same_|different_|identical|opposite/.test(id);
+  return propertyTok && relationTok;
+}
 function l0MetaClassificationCandidateDimensions(info){
   if(!info) return [];
   const out = [];
   for(const d of L0_META_CLASSIFICATION_DIMENSIONS){
+    if((d.id === "question_type" || d.id === "mental_move") && l0MetaClassAmbiguous(info)) continue;
     const expected = projectL0TrialToMetaDimension(info, d.id);
     const rows = metaClassificationOptionsForDimension(d.id);
     if(rows.some(o=>o.id===expected)){
@@ -64567,7 +64805,14 @@ function auditPromptContracts(){
     // force one requiredRep. Only visual cats that truly target a concrete
     // representation family require requiredRep/visualRequiredRepsForCat().
     const crossRepProjection = c.family === "l0_cross_rep_projection";
-    if(!formatValueRelation && !crossRepProjection && (!required || !required.length)){
+    // v6.6.26: paper-folding, Shepard-conditional and graph-conditional cats are
+    // question-visual-gate families. The LEFT/RIGHT pair stimulus is representation-
+    // agnostic; the visual payload is a separately generated gate diagram attached at
+    // question time. Architecturally they mirror l0_cross_rep_projection, so demanding
+    // a pair-level requiredRep from them was a category error, not missing metadata.
+    const questionVisualGateFamily = c.questionVisualGate === true
+      || ["l0_paper_folding_analogy","l0_shepard_conditional","l0_graph_conditional"].includes(String(c.family || ""));
+    if(!formatValueRelation && !crossRepProjection && !questionVisualGateFamily && (!required || !required.length)){
       findings.push({scope:"visual_contract", id:c.id, text:c.id, polished:c.id, rule:"visual_specific_without_requiredRep", severity:"block"});
     }
   }
@@ -66880,11 +67125,17 @@ function auditVisuospatialTransformCatalogue(){
       const s = stim.getStructuredLayout && stim.getStructuredLayout();
       if(v <= 9 && (!s || s.rows !== 3 || s.cols !== 3)) block.push(`grid ${v} is not 3×3`);
     }
-    const d = new Domino(13, {seed:222});
+    // v6.6.26: the metadata-complement probe must use an encodable value — 13 is
+    // beyond single-domino capacity, so the old probe fed a misencode into the
+    // transform and tripped the capacity warning on every sweep. The invalid
+    // contract is now asserted explicitly instead of exercised as a side effect.
+    const d = new Domino(11, {seed:222});
     const meta = {dominoes:(d.dominoes || []).map(x => ({a:x.a,b:x.b}))};
     const expected = meta.dominoes.reduce((sum,x)=>sum+(6-x.a)+(6-x.b),0);
     const got = applyRepresentationTransform("domino", d.encodedValue(), "domino_complement_each_half", meta);
     if(got !== expected) block.push(`domino metadata complement mismatch: got ${got}, expected ${expected}`);
+    const dInvalid = new Domino(13, {seed:223});
+    if(!dInvalid.invalidEncoding || dInvalid.encodedValue() !== null) block.push("domino over-capacity value must set invalidEncoding and report null encodedValue");
   } finally {
     State.reps = oldReps;
   }
@@ -66908,7 +67159,17 @@ function auditVerbalCoverage(){
     }
   } else block.push("left_gt category missing");
 
-  const directional = POSNER_CATS.filter(c => /left|right|larger|smaller|greater|less|gt|lt/.test(`${c.id} ${c.family || ""}`));
+  // v6.6.26: `gt`/`lt` must match only as standalone relational tokens (left_gt),
+  // never as numeric-threshold suffixes (depth_gt1, max_gt20, lt5). Recursive-trace
+  // and declarative-choice cats fall under the single-canonical-rule-prompt contract
+  // (v6.6.24 rule_name_without_rule), which deliberately collapses their surfaces to
+  // one fully spelled-out phrasing; counting them as thin directional wording was a
+  // misclassification, not a coverage gap.
+  const directional = POSNER_CATS.filter(c => {
+    const hay = `${c.id} ${c.family || ""}`;
+    if(/left|right|larger|smaller|greater|less/.test(hay)) return true;
+    return /(^|[^a-z])(gt|lt)(?![a-z0-9])/.test(hay);
+  });
   const tooThin = directional.filter(c => {
     const vars = friendlyVariantList(FRIENDLY_L0_VARIANTS, c.id, c.variants || []);
     return vars.length < 3;
@@ -72367,7 +72628,7 @@ function loop(ts){
       if(!l0CompareMetaReady(p1,p2) || !p1?.catId || !p2?.catId || typeof projectL0TrialToMetaClass !== "function") return null;
       const c1=projectL0TrialToMetaClass(p1), c2=projectL0TrialToMetaClass(p2);
       if(c1===c2) return null;
-      const all=["property_value","order_relation","set_membership","derived_metric"];
+      const all=["property_value","order_relation","spatial_transform","rule_procedure"];
       const correct=`First: ${l0ClassLabel(c1)} · Second: ${l0ClassLabel(c2)}`;
       const distractors=[];
       for(const a of all) for(const b of all){ const lab=`First: ${l0ClassLabel(a)} · Second: ${l0ClassLabel(b)}`; if(lab!==correct) distractors.push(lab); }
@@ -73856,11 +74117,11 @@ openModal("overlay"); setStatus("MENU"); updateMenu({force:true});
     }
   }catch(_){ }
 
-  try{
-    if(typeof L1_PUBLIC_KIND_OVERRIDES !== "undefined"){
-      L1_PUBLIC_KIND_OVERRIDES.l1_triangle_three_retained_sides = "witness / coherence / counterfactual";
-    }
-  }catch(_){ }
+  // v6.6.26: L1_PUBLIC_KIND_OVERRIDES has never existed in this line — public
+  // kinds are computed per-episode by l2PublicKindForEpisode from frameTags —
+  // so this guarded override was inert scaffolding from the triangle family's
+  // integration. Removed rather than left to suggest a mechanism that is not
+  // there.
 
   try{
     if(typeof L1_REVIEW_DETAIL_BUILDERS !== "undefined"){
@@ -74882,6 +75143,10 @@ try{
     if(!labels.length) return "number";
     if(labels.length === 1){
       const l = labels[0].toLowerCase();
+      // v6.6.26: negated predicates read as "value that is not prime", never
+      // "not prime number" — the boundary-witness clarity contract checks for
+      // the "largest value …" formulation explicitly.
+      if(/^not\s+/.test(l)) return `value that is ${labels[0]}`;
       if(l === "even") return "even number";
       if(l === "odd") return "odd number";
       if(l === "prime") return "prime number";
@@ -74889,7 +75154,7 @@ try{
       if(/^multiple of \d+/i.test(l)) return l;
       return /\b(number|value|multiple|divisor|square)\b/i.test(labels[0]) ? labels[0] : `${labels[0]} number`;
     }
-    return `number that is ${labels.join(" and ")}`;
+    return `${labels.some(x => /^not\s+/i.test(String(x))) ? "value" : "number"} that is ${labels.join(" and ")}`;
   }
   function witnessTrailingPredicates(unaryPredLabels, binaryPredLabels, binaryNounLabel){
     const parts = [];
@@ -77685,9 +77950,13 @@ try{
         rows.push({n, expected:false, actual:(typeof isLucasNumber === "function") ? isLucasNumber(n) : null});
         if(!ok) block.push(`Lucas predicate should exclude ${n}`);
       }
-      const setDef = (typeof NUMBER_SET_DEFS !== "undefined") ? NUMBER_SET_DEFS.lucas : null;
-      if(!setDef || typeof setDef.has !== "function") block.push("NUMBER_SET_DEFS.lucas missing");
-      else if(setDef.has(2) !== true) block.push("NUMBER_SET_DEFS.lucas.has(2) should be true");
+      // v6.6.26: the live catalog is NUMBER_SETS; NUMBER_SET_DEFS never existed under
+      // that name in this line, so the audit blocked on a stale global while the
+      // predicate itself passed every behavioural row.
+      const setDef = (typeof NUMBER_SETS !== "undefined" && NUMBER_SETS) ? NUMBER_SETS.lucas
+        : ((typeof NUMBER_SET_DEFS !== "undefined" && NUMBER_SET_DEFS) ? NUMBER_SET_DEFS.lucas : null);
+      if(!setDef || typeof setDef.has !== "function") block.push("NUMBER_SETS.lucas missing");
+      else if(setDef.has(2) !== true) block.push("NUMBER_SETS.lucas.has(2) should be true");
     }catch(e){ block.push(`Lucas audit exception: ${e && e.message || e}`); }
     return {appVersion:typeof APP_VERSION!=="undefined"?APP_VERSION:null, patch:PATCH_VERSION, status:block.length?"BLOCK":"PASS", block, rows};
   }
@@ -78488,7 +78757,14 @@ try{
       if(!epistemicRendererInstalled) block.push("epistemic abstract renderer not installed");
       const fake = {payload:{epistemicAbstract:{solver:"finite_possible_worlds_determinability", targetText:"LEFT < RIGHT", actualWorld:{left:2,right:5}, agents:[{agent:"Ada", info:"Ada knows LEFT and RIGHT."},{agent:"Ben", info:"Ben knows only LEFT."},{agent:"Cy", info:"Cy knows only RIGHT."}]}}};
       const html = typeof renderStructuredQuestionHTML === "function" ? String(renderStructuredQuestionHTML("", fake) || "") : "";
-      if(!/Target claim/i.test(html) || !/What each person knows/i.test(html) || !/Which person or people/i.test(html)) block.push("epistemic abstract card lacks target/knowledge/question sections");
+      // v6.6.26: the v6.6.17 concision pass renamed the section headers to
+      // Claim / Knowledge / Question. The contract is structural (target,
+      // knowledge and question sections must each exist), so the audit accepts
+      // either the verbose or the concise label for each section.
+      const hasTargetSection = /Target claim|\bClaim\s*:/i.test(html);
+      const hasKnowledgeSection = /What each person knows|\bKnowledge\s*:/i.test(html);
+      const hasQuestionSection = /Which person or people|\bQuestion\s*:/i.test(html);
+      if(!hasTargetSection || !hasKnowledgeSection || !hasQuestionSection) block.push("epistemic abstract card lacks target/knowledge/question sections");
       if(/Agent can determine|Actual answer is YES, but Vera|Actual answer is NO, but Vera/.test(html)) block.push("generic/hardcoded agent wording leaked into epistemic card");
     }catch(e){ block.push(`exception: ${e?.message || e}`); }
     return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentVersionLocal(), warnings, block});
@@ -79322,7 +79598,7 @@ try{
 (function(){
   "use strict";
   const PATCH_ID = "v6.6.18-meta-lure-fix";
-  const VERSION = "v6.6.25-experimental-densification-audited-polish";
+  const VERSION = "v6.7.0-generative-mode";
   function warn(){ try{ console.warn.apply(console, arguments); }catch(_){ } }
   function uniqLocal(arr){ return Array.from(new Set((Array.isArray(arr)?arr:[]).filter(x=>x!=null))); }
   function currentVersionLocal(){ try{ return (typeof APP_VERSION !== "undefined") ? APP_VERSION : VERSION; }catch(_){ return VERSION; } }
@@ -79348,7 +79624,12 @@ try{
       ],
       side_total_diff:[
         {q:"Add the two LEFT values, add the two RIGHT values, then enter the gap between those side totals."},
-        {q:"Compute LEFT-total and RIGHT-total. What is their absolute gap?"}
+        {q:"Compute LEFT-total and RIGHT-total. What is their absolute gap?"},
+        // v6.6.26: the v6.5.93/94 clarity contract requires at least one variant that
+        // spells out which values compose each column total. The v6.6.18 concision
+        // rewrite dropped it; this restores the explicit surface alongside the
+        // concise ones instead of choosing between the two contracts.
+        {q:"LEFT total = Pair 1 LEFT + Pair 2 LEFT. RIGHT total = Pair 1 RIGHT + Pair 2 RIGHT. Enter the gap between the two totals."}
       ],
       left_values_gap:[
         {q:"What is the absolute gap between Pair 1 LEFT and Pair 2 LEFT?"},
@@ -79376,14 +79657,12 @@ try{
         }
       }
     }catch(e){ warn("friendly L1 side wording patch failed", e); }
-    try{
-      if(typeof L1_OP_USER_LABELS !== "undefined" && L1_OP_USER_LABELS){
-        if(L1_OP_USER_LABELS.left_total) L1_OP_USER_LABELS.left_total = "Pair 1 LEFT + Pair 2 LEFT";
-        if(L1_OP_USER_LABELS.right_total) L1_OP_USER_LABELS.right_total = "Pair 1 RIGHT + Pair 2 RIGHT";
-        if(L1_OP_USER_LABELS.left_values_gap) L1_OP_USER_LABELS.left_values_gap = "Gap between Pair 1 LEFT and Pair 2 LEFT";
-        if(L1_OP_USER_LABELS.right_values_gap) L1_OP_USER_LABELS.right_values_gap = "Gap between Pair 1 RIGHT and Pair 2 RIGHT";
-      }
-    }catch(_){ }
+    // v6.6.26: this sub-patch wrote to L1_OP_USER_LABELS, a dictionary that has
+    // never existed in this line (the live label surface is L1_OP_SHORT_LABELS),
+    // so the four writes were inert since v6.6.18. Their wording intent already
+    // lives in the runtime variant replacement above; the one genuinely stale
+    // label (side_total_diff named a signed subtraction) is fixed at the real
+    // dictionary in the core block.
     return patched;
   }
   const sideReadoutPatched = patchL1SideReadoutWordingV6618();
@@ -79603,7 +79882,7 @@ try{
 // and reduces waiting for a prepared trial that probably will not arrive.
 (function(){
   const PATCH_ID = "v6.6.19-question-diversity";
-  const VERSION = "v6.6.25-experimental-densification-audited-polish";
+  const VERSION = "v6.7.0-generative-mode";
 
   try{
     if(typeof CONFIG !== "undefined" && CONFIG){
@@ -79836,6 +80115,10 @@ try{
     }
   }catch(e){ try{ warn("prepared wait wrapper failed", e); }catch(_){} }
 
+  // v6.6.26: this IIFE referenced auditResultLocal without defining it (other patch
+  // IIFEs each carry their own copy). Both the audit and its runFeatureAudit merge
+  // branch threw ReferenceError at call time.
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){} return {status, details}; }
   function auditV6619QuestionDiversity(opts={}){
     const block = [], warnings = [];
     try{
@@ -79895,7 +80178,7 @@ try{
    ║ warnings, suppresses identical/direct dominance, and audits it.      ║
    ╚══════════════════════════════════════════════════════════════════════╝ */
 (function(){
-  const VERSION = "v6.6.25-experimental-densification-audited-polish";
+  const VERSION = "v6.7.0-generative-mode";
   const PATCH_ID = "2026-06-08.v6620.coverage-governance";
 
   function _v6620SafeArray(x){ return Array.isArray(x) ? x : []; }
@@ -80041,15 +80324,74 @@ try{
     if(conc.window >= 12 && conc.comparisonEqualShare > 0.40 && (info.catId === "identical" || /same|equal|_eq/.test(String(info.catId)))) return true;
     return false;
   }
+  // v6.6.26: the previous implementation looped over fallbackPosnerTrial, which is
+  // hard-wired to the `identical` safe cat — so the loop could never satisfy its own
+  // non-identical condition. It logged four "Posner generation fallback" warnings per
+  // attempt and always returned null: the served-trial replacement layer was fully
+  // inoperative. The rewrite synthesises the alternative directly from the governed
+  // pool of simple yes/no value cats, verifying polarity when the cat exposes verify().
+  function _v6620SimpleReplacementCat(c){
+    if(!c || !c.id || c.id === "identical") return false;
+    if(typeof c.gen !== "function") return false;
+    if((c.family || "") === "direct") return false;
+    if(c.checkVisual || c.questionVisualGate || c.choiceBuilder || c.options || c.choiceSpec) return false;
+    if(c.balanceSpec || c.vennGate || c.vennConditionId || c.graphRelationGate || c.graphConditionalId) return false;
+    if(c.paperFoldingAnalogyId || c.shepardConditional || c.l0RelationEquivalenceId || c.needsStimSeed) return false;
+    if(c.responseFormat !== undefined && c.responseFormat !== "yesno") return false;
+    return true;
+  }
+  function _v6620BuildSimpleTrialForCat(cat, m, wantTrue){
+    try{
+      const vnt = (cat.variants || []).find(v => v && !v.negate && !v.swap) || (cat.variants || [])[0];
+      if(!vnt || !vnt.q) return null;
+      const pair = cat.gen(m, !!wantTrue);
+      if(!Array.isArray(pair) || pair.length < 2) return null;
+      const rawA = Number(pair[0]), rawB = Number(pair[1]);
+      if(!Number.isFinite(rawA) || !Number.isFinite(rawB)) return null;
+      if(typeof cat.verify === "function"){
+        let v = null; try{ v = cat.verify(rawA, rawB, m); }catch(_){ return null; }
+        if(typeof v !== "boolean" || v !== !!wantTrue) return null;
+      }
+      const question = renderRangeCenterPrompt(String(vnt.q), m);
+      // v6.6.26: same token-residue guard as the diversified fallback — family
+      // template tokens outside the range-prompt whitelist must never surface.
+      if(/\{[A-Za-z_]\w*\}/.test(question)) return null;
+      const [visA, visB] = pickValueComparisonVisuals(rawA, rawB, cat);
+      return { a:rawA, b:rawB, repA:visA.rep, repB:visB.rep,
+        stimSeedA:Number.isFinite(visA.seed) ? Number(visA.seed) : null,
+        stimSeedB:Number.isFinite(visB.seed) ? Number(visB.seed) : null,
+        stimSpecA:cloneStimReplaySpec(visA.rep, visA.spec), stimSpecB:cloneStimReplaySpec(visB.rep, visB.spec),
+        question, isTrue:!!wantTrue, targetOutcome:!!wantTrue,
+        catId:cat.id, family:posnerFamily(cat),
+        frameTags:posnerFrameTags(cat, vnt),
+        coverageGovernanceReplacement:true,
+        ...linguisticFramePayload(vnt) };
+    }catch(_){ return null; }
+  }
   function _v6620DiverseReplacementFor(info){
     try{
-      if(typeof fallbackPosnerTrial !== "function") return null;
       const want = typeof info?.targetOutcome === "boolean" ? info.targetOutcome : !!info?.isTrue;
       const m = (typeof currentMax === "function") ? currentMax() : 6;
-      for(let i=0;i<4;i++){
-        const alt = fallbackPosnerTrial(m, want, {cat:info?.catId || "identical", reason:"v6620_coverage_governance_replacement"});
-        if(alt && alt.catId && alt.catId !== "identical" && alt.family !== "direct") return alt;
-        if(alt && alt.catId && alt.catId !== "identical") return alt;
+      const base = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS : [];
+      // v6.6.26: same tier safety as the diversified fallback — the replacement
+      // runs post-selection in live play and must not escalate above the tier
+      // the ordinary chooser was allowed to use.
+      const tierCap = (typeof getPosnerTier === "function") ? (Number(getPosnerTier()) || 1) : 5;
+      let pool = base.filter(c => _v6620SimpleReplacementCat(c) && (Number(c.tier) || 1) <= tierCap);
+      try{
+        if(typeof _v6620GovernedCandidatePool === "function"){
+          const governed = _v6620GovernedCandidatePool(pool);
+          if(Array.isArray(governed) && governed.length){
+            const filtered = governed.filter(_v6620SimpleReplacementCat);
+            if(filtered.length) pool = filtered;
+          }
+        }
+      }catch(_){ }
+      pool = pool.filter(c => { try{ return typeof c.canUse !== "function" || !!c.canUse(m); }catch(_){ return false; } });
+      for(let i=0; i<6 && pool.length; i++){
+        const cat = pool[Math.floor(Math.random()*pool.length)];
+        const alt = _v6620BuildSimpleTrialForCat(cat, m, want);
+        if(alt) return alt;
       }
     }catch(_){ }
     return null;
@@ -80088,13 +80430,16 @@ try{
         let info = prevSetup.apply(this, arguments);
         try{
           if(_v6620ShouldReplaceServed(info)){
+            const replacedFromCatId = info && info.catId || "identical";
             const alt = _v6620DiverseReplacementFor(info);
             if(alt && alt.catId && alt.catId !== info.catId){
               info = _v6620AnnotateL0(alt);
               if(!State.productionMonitor) State.productionMonitor = {};
               const mon = State.productionMonitor.coverageGovernance || (State.productionMonitor.coverageGovernance = {applied:0, recent:[]});
               mon.replacements = (mon.replacements || 0) + 1;
-              mon.lastReplacement = {from:info?.fallbackRequestedCatId || "identical", to:info.catId};
+              // v6.6.26: read the FROM cat before info is reassigned; the previous
+              // line read it from the replacement object, which never carries it.
+              mon.lastReplacement = {from:replacedFromCatId, to:info.catId};
             }
           }
         }catch(e){ try{ warn("v6620 served-trial replacement failed", e); }catch(_){ } }
@@ -80106,6 +80451,8 @@ try{
     }
   }catch(e){ try{ warn("v6620 setup wrapper install failed", e); }catch(_){ } }
 
+  // v6.6.26: same missing-helper fix as the v6.6.19 IIFE.
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){} return {status, details}; }
   function auditV6620CoverageGovernance(opts={}){
     const block = [], warnings = [];
     const conc = _v6620RecentConcentration(Number(opts.window) || 30);
@@ -80164,7 +80511,7 @@ try{
 // equality questions dominate the pool.
 (function(){
   "use strict";
-  const VERSION = "v6.6.25-experimental-densification-audited-polish";
+  const VERSION = "v6.7.0-generative-mode";
   const PATCH_ID = "2026-06-08.v6621.mobile-prep-governance";
 
   function safeNow(){ try{ return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now(); }catch(_){ return Date.now(); } }
@@ -80487,7 +80834,7 @@ try{
    non-overlapping ontology.
 */
 (function(){
-  const VERSION = "v6.6.25-experimental-densification-audited-polish";
+  const VERSION = "v6.7.0-generative-mode";
   const PATCH_ID = "2026-06-09.v6622-l1-meta-classification-rebalance";
   try{ if(typeof APP_VERSION !== "undefined") APP_VERSION; }catch(_){}
   // (removed dead lines: APP_VERSION is `const` so reassignment always threw and
@@ -80918,14 +81265,20 @@ try{
 // =============================================================================
 (function(){
   "use strict";
-  const VERSION = "v6.6.25-experimental-densification-audited-polish";
+  const VERSION = "v6.7.0-generative-mode";
   window.EUCA_V6625_AUDITED_POLISH = true;
 
   function auditV6625AuditedPolish(opts={}){
     const block = [], warnings = [];
     const version = (typeof APP_VERSION !== "undefined" ? APP_VERSION : VERSION);
-    if(!/v6\.6\.25-experimental-densification-audited-polish/.test(String(version))){
-      block.push(`APP_VERSION mismatch: ${version}`);
+    // v6.6.26: pin a floor, not the exact build string — otherwise every later
+    // version bump re-blocks an audit whose actual subject (the venn/graph wording
+    // contracts below) is still satisfied.
+    // v6.7.0: the floor must survive minor-line changes (6.6.x → 6.7.x → …).
+    const vMatch = String(version).match(/v(\d+)\.(\d+)\.(\d+)/);
+    const versionOrdinal = vMatch ? (Number(vMatch[1]) * 1e6 + Number(vMatch[2]) * 1e3 + Number(vMatch[3])) : 0;
+    if(versionOrdinal < (6 * 1e6 + 6 * 1e3 + 25)){
+      block.push(`APP_VERSION below v6.6.25 floor: ${version}`);
     }
 
     const vennIds = [
@@ -80985,5 +81338,657 @@ try{
 })();
 </script>
 
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   EUCALCULIA v6.6.27 — GENERATIVE MODE v1 · dual boundary witnesses
+   ═══════════════════════════════════════════════════════════════════════════
+   Doctrine. Every receptive trial in Eucalculia serves a pre-structured
+   relation and asks for evaluation. This mode inverts gen/verify: the program
+   states the question, the user must PRODUCE one pair that makes the answer
+   YES and one that makes it NO. Producing both witnesses requires command of
+   the predicate's extension AND its complement — the dual format makes the
+   rarer side always bind, so density asymmetries cannot be gamed by random
+   entry.
+
+   Correctness rests on an already-audited contract: eligibility mirrors the
+   diversified-fallback filter (simple yes/no value cats whose verify is a pure
+   (a, b, m) → boolean predicate), the exact surface auditRegistryBehavioral
+   exercises with zero failures. No new verifier code exists in this block.
+
+   Quarantine. Generative activity must not touch the receptive curriculum:
+   no posnerCatStats writes, no adaptive-level signals, no scheduler
+   interaction, and persistence under its own storage key, decoupled from the
+   profile wrapper schema. auditGenerativeStatsQuarantine enforces this
+   behaviourally by running a real synthetic session.
+
+   v2 seams (declared, not built): transformation-composition tasks over
+   REPRESENTATION_TRANSFORMS (user composes a named sequence A→B, verified by
+   application) and rule induction over constructed sets. The task registry
+   below has room for them.
+   ═══════════════════════════════════════════════════════════════════════ */
+(function(){
+  "use strict";
+  const VERSION = "v6.7.0-generative-mode";
+  const PATCH_ID = "2026-06-10.generative-witness-v1";
+
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){} return {status, details}; }
+  function genEsc(s){ return String(s).replace(/[&<>'"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch])); }
+  function genWarn(msg, e){ try{ if(!(typeof window !== "undefined" && window.__EUCALCULIA_MASS_QA_ACTIVE)) console.warn("[generative] " + msg, e || ""); }catch(_){ } }
+
+  // ── CONFIG defaults (override-friendly, never clobbering explicit values) ──
+  try{
+    if(typeof CONFIG === "object" && CONFIG){
+      if(CONFIG.generativeModeEnabled === undefined) CONFIG.generativeModeEnabled = true;
+      if(CONFIG.generativeBlockSize === undefined) CONFIG.generativeBlockSize = 8;
+      if(CONFIG.generativeMinSideCount === undefined) CONFIG.generativeMinSideCount = 1;
+      if(CONFIG.generativeRecentWindow === undefined) CONFIG.generativeRecentWindow = 5;
+      if(CONFIG.generativeRevealAfterAttempts === undefined) CONFIG.generativeRevealAfterAttempts = 3;
+      if(CONFIG.generativeOneShot === undefined) CONFIG.generativeOneShot = false;
+    }
+  }catch(_){ }
+
+  /* ════════════════ 1 · CORE — eligibility, density, prompts ════════════════ */
+
+  // Pair support mirrors the receptive generators: randInt(1, m+1) floors to
+  // 1..m. The same cap bounds input validation, the satisfiability grid and
+  // the UI hint, so guard and task can never disagree about the universe.
+  function generativeValueCap(m){ return Math.max(2, Math.min(Math.floor(Number(m) || 2), 12)); }
+
+  // Mirror of the v6.6.26 diversified-fallback eligibility filter (kept in
+  // sync by auditGenerativeCatalog's contract checks rather than by sharing a
+  // function: the fallback is a hot degraded-state path and must stay
+  // self-contained).
+  function generativeEligibleCat(c){
+    if(!c || !c.id || c.id === "identical") return false;
+    if(typeof c.gen !== "function" || typeof c.verify !== "function") return false;
+    if(c.checkVisual || c.questionVisualGate || c.choiceBuilder || c.options || c.choiceSpec) return false;
+    if(c.balanceSpec || c.vennGate || c.vennConditionId || c.graphRelationGate || c.graphConditionalId) return false;
+    if(c.paperFoldingAnalogyId || c.shepardConditional || c.l0RelationEquivalenceId) return false;
+    if(c.needsStimSeed || c.requiredRep) return false;
+    if(c.responseFormat !== undefined && c.responseFormat !== "yesno") return false;
+    if(!(c.variants || []).some(v => v && v.q && !v.negate && !v.swap)) return false;
+    return true;
+  }
+
+  const _genGridCache = new Map(); // `${catId}|${m}` → {trueCount, falseCount, total, truePairs, falsePairs, broken}
+  function generativeGridStats(cat, m){
+    const key = `${cat.id}|${m}`;
+    const hit = _genGridCache.get(key);
+    if(hit) return hit;
+    const cap = generativeValueCap(m);
+    const out = {trueCount:0, falseCount:0, total:cap*cap, truePairs:[], falsePairs:[], broken:false};
+    for(let a = 1; a <= cap; a++){
+      for(let b = 1; b <= cap; b++){
+        let v = null;
+        try{ v = cat.verify(a, b, m); }catch(_){ out.broken = true; continue; }
+        if(typeof v !== "boolean"){ out.broken = true; continue; }
+        if(v){ out.trueCount++; if(out.truePairs.length < 6) out.truePairs.push([a, b]); }
+        else { out.falseCount++; if(out.falsePairs.length < 6) out.falsePairs.push([a, b]); }
+      }
+    }
+    if(_genGridCache.size > 600) _genGridCache.clear(); // bounded: long sessions cannot grow it without limit
+    _genGridCache.set(key, out);
+    return out;
+  }
+
+  function generativePromptForCat(cat, m){
+    try{
+      const merged = (typeof friendlyVariantList === "function" && typeof FRIENDLY_L0_VARIANTS !== "undefined")
+        ? friendlyVariantList(FRIENDLY_L0_VARIANTS, cat.id, cat.variants || [])
+        : (cat.variants || []);
+      const vnt = (merged || []).find(v => v && v.q && !v.negate && !v.swap) || (cat.variants || []).find(v => v && v.q && !v.negate && !v.swap);
+      if(!vnt) return null;
+      const q = (typeof renderRangeCenterPrompt === "function") ? renderRangeCenterPrompt(String(vnt.q), m) : String(vnt.q);
+      // Same token-residue contract as the fallback and the governance
+      // replacement: family tokens outside the range-prompt whitelist must
+      // never surface.
+      if(/\{[A-Za-z_]\w*\}/.test(q)) return null;
+      return q;
+    }catch(_){ return null; }
+  }
+
+  function generativePool(m, tier, opts={}){
+    const minSide = Math.max(1, Number((typeof CONFIG === "object" && CONFIG && CONFIG.generativeMinSideCount) || 1));
+    const cats = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS : [];
+    const rows = [];
+    for(const c of cats){
+      if(!generativeEligibleCat(c)) continue;
+      if((Number(c.tier) || 1) > tier) continue;
+      if((Number(c.minM) || 0) > m) continue;
+      try{ if(typeof c.canUse === "function" && !c.canUse(m)) continue; }catch(_){ continue; }
+      const q = generativePromptForCat(c, m);
+      if(!q) continue;
+      const grid = generativeGridStats(c, m);
+      if(grid.broken) continue;
+      if(grid.trueCount < minSide || grid.falseCount < minSide) continue;
+      const rarity = Math.min(grid.trueCount, grid.falseCount) / Math.max(1, grid.total);
+      rows.push({cat:c, q, grid, rarity});
+      if(opts.limit && rows.length >= opts.limit) break;
+    }
+    return rows;
+  }
+
+  /* ════════════════ 2 · SESSION ENGINE (pure, headless-drivable) ════════════════ */
+
+  function generativeNewSession(opts={}){
+    const m = Math.max(2, Math.floor(Number(opts.m) || ((typeof currentMax === "function") ? currentMax() : 6)));
+    const tier = Math.max(1, Math.floor(Number(opts.tier) || ((typeof getPosnerTier === "function") ? getPosnerTier() : 1)));
+    const pool = generativePool(m, tier);
+    const blockSize = Math.max(1, Math.floor(Number(opts.blockSize) || (typeof CONFIG === "object" && CONFIG && CONFIG.generativeBlockSize) || 8));
+    return {
+      version:VERSION, m, tier, cap:generativeValueCap(m), pool, blockSize,
+      recent:[], idx:0, current:null, results:[],
+      startedAt:Date.now(), finished:false, dryRun:!!opts.dryRun,
+      // Probe administration (frozen batteries) is strict one-shot; training
+      // keeps retries because there the search trajectory IS the treatment.
+      oneShot:!!(opts.oneShot !== undefined ? opts.oneShot : (typeof CONFIG === "object" && CONFIG && CONFIG.generativeOneShot))
+    };
+  }
+
+  function generativeNextTrial(session){
+    if(!session || session.finished) return null;
+    if(session.idx >= session.blockSize){ return null; }
+    if(!session.pool.length) return null;
+    const win = Math.max(0, Number((typeof CONFIG === "object" && CONFIG && CONFIG.generativeRecentWindow) || 5));
+    const fresh = session.pool.filter(r => !session.recent.includes(r.cat.id));
+    const candidates = fresh.length ? fresh : session.pool;
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    session.recent.push(pick.cat.id);
+    if(session.recent.length > win) session.recent.shift();
+    const order = Math.random() < 0.5 ? ["true", "false"] : ["false", "true"];
+    session.current = {
+      catId:pick.cat.id, cat:pick.cat, q:pick.q, rarity:pick.rarity, grid:pick.grid,
+      order, phaseIdx:0,
+      attempts:{true:0, false:0}, assisted:false, t0:Date.now()
+    };
+    session.idx++;
+    return session.current;
+  }
+
+  function generativeCurrentTarget(session){
+    const t = session && session.current;
+    if(!t) return null;
+    return t.order[t.phaseIdx] === "true";
+  }
+
+  // Judge one submission for the current phase. Range errors do not count as
+  // attempts; semantic misses do, and (since the predicate is boolean) every
+  // miss is itself a valid witness for the opposite phase — the feedback says
+  // so explicitly, because that inversion is the pedagogical payload.
+  function generativeJudge(session, aRaw, bRaw){
+    const t = session && session.current;
+    if(!t || session.finished) return {ok:false, reason:"no_active_trial"};
+    const cap = session.cap;
+    const a = Math.floor(Number(aRaw)), b = Math.floor(Number(bRaw));
+    if(!Number.isFinite(a) || !Number.isFinite(b) || a < 1 || b < 1 || a > cap || b > cap || a !== Number(aRaw) || b !== Number(bRaw)){
+      return {ok:false, reason:"range", cap};
+    }
+    const target = generativeCurrentTarget(session);
+    let v = null;
+    try{ v = t.cat.verify(a, b, session.m); }catch(e){ genWarn("verify threw for " + t.catId, e); return {ok:false, reason:"verify_error"}; }
+    if(typeof v !== "boolean"){ genWarn("non-boolean verify for " + t.catId); return {ok:false, reason:"verify_error"}; }
+    const phaseKey = target ? "true" : "false";
+    t.attempts[phaseKey]++;
+    const correct = (v === target);
+    const res = {ok:true, correct, value:v, target, pair:[a, b], attempts:t.attempts[phaseKey], phase:phaseKey, phaseDone:false, phaseFailed:false, trialDone:false, sessionDone:false};
+    const advance = correct || session.oneShot;
+    if(advance){
+      res.phaseDone = true;
+      if(!correct){ res.phaseFailed = true; if(!t.failed) t.failed = {}; t.failed[phaseKey] = true; }
+      t.phaseIdx++;
+      if(t.phaseIdx >= t.order.length){
+        res.trialDone = true;
+        const anyFailed = !!(t.failed && (t.failed.true || t.failed.false));
+        const firstTryBoth = t.attempts.true === 1 && t.attempts.false === 1 && !t.assisted && !anyFailed;
+        session.results.push({catId:t.catId, rarity:t.rarity, attempts:{...t.attempts}, assisted:t.assisted, failed:t.failed ? {...t.failed} : null, firstTryBoth, ms:Date.now() - t.t0});
+        session.current = null;
+        if(session.idx >= session.blockSize){
+          res.sessionDone = true;
+          generativeFinish(session);
+        }
+      }
+    }
+    return res;
+  }
+
+  function generativeReveal(session){
+    const t = session && session.current;
+    if(!t) return null;
+    const target = generativeCurrentTarget(session);
+    const pairs = target ? t.grid.truePairs : t.grid.falsePairs;
+    if(!pairs || !pairs.length) return null;
+    t.assisted = true;
+    return pairs[Math.floor(Math.random() * pairs.length)].slice();
+  }
+
+  function generativeSummary(session){
+    const r = session.results || [];
+    return {
+      trials:r.length,
+      firstTryBoth:r.filter(x => x.firstTryBoth).length,
+      assisted:r.filter(x => x.assisted).length,
+      failedPhases:r.reduce((s, x) => s + (x.failed ? (x.failed.true ? 1 : 0) + (x.failed.false ? 1 : 0) : 0), 0),
+      totalAttempts:r.reduce((s, x) => s + x.attempts.true + x.attempts.false, 0),
+      meanMs:r.length ? Math.round(r.reduce((s, x) => s + x.ms, 0) / r.length) : 0
+    };
+  }
+
+  /* ════════════════ 3 · PERSISTENCE — own key, profile-schema-decoupled ════════════════ */
+
+  const GEN_STORE_SUFFIX = "_generative_v1";
+  function generativeStoreKey(){
+    try{ if(typeof STORAGE_KEY !== "undefined" && STORAGE_KEY) return String(STORAGE_KEY) + GEN_STORE_SUFFIX; }catch(_){ }
+    return "eucalculia" + GEN_STORE_SUFFIX;
+  }
+  function generativeLoadStats(){
+    try{
+      const raw = (typeof localStorage !== "undefined") ? localStorage.getItem(generativeStoreKey()) : null;
+      if(raw){ const p = JSON.parse(raw); if(p && typeof p === "object") return p; }
+    }catch(_){ }
+    return {schema:1, sessions:0, trials:0, firstTryBoth:0, assisted:0, totalAttempts:0, byCat:{}, updatedAt:null};
+  }
+  function generativeSaveStats(stats){
+    try{ if(typeof localStorage !== "undefined") localStorage.setItem(generativeStoreKey(), JSON.stringify(stats)); }catch(_){ }
+  }
+  function generativeFinish(session){
+    if(session.finished) return;
+    session.finished = true;
+    session.summary = generativeSummary(session);
+    if(session.dryRun) return; // audits drive real sessions without telemetry pollution
+    try{
+      if(typeof State !== "undefined" && State){
+        if(!State.generativeStats) State.generativeStats = generativeLoadStats();
+        const g = State.generativeStats;
+        g.sessions = (g.sessions || 0) + 1;
+        g.trials = (g.trials || 0) + session.summary.trials;
+        g.firstTryBoth = (g.firstTryBoth || 0) + session.summary.firstTryBoth;
+        g.assisted = (g.assisted || 0) + session.summary.assisted;
+        g.totalAttempts = (g.totalAttempts || 0) + session.summary.totalAttempts;
+        if(!g.byCat) g.byCat = {};
+        for(const r of session.results){
+          const row = g.byCat[r.catId] || (g.byCat[r.catId] = {n:0, ft:0});
+          row.n++; if(r.firstTryBoth) row.ft++;
+        }
+        g.updatedAt = Date.now();
+        generativeSaveStats(g);
+      }
+    }catch(e){ genWarn("stats merge failed", e); }
+  }
+
+  /* ════════════════ 4 · DOM LAYER (thin; engine never touches DOM) ════════════════ */
+
+  let _ui = null, _uiSession = null;
+  const GEN_CSS = `
+#genOverlay{position:fixed;inset:0;z-index:9990;display:none;align-items:center;justify-content:center;background:rgba(8,8,12,0.92);backdrop-filter:blur(3px);}
+#genOverlay.open{display:flex;}
+#genCard{width:min(560px,94vw);max-height:92svh;overflow:auto;background:#101016;border:1px solid #2c2c38;border-radius:16px;padding:clamp(14px,2.4svh,22px);color:#eee;font-family:inherit;}
+#genCard h2{margin:0 0 4px;font-size:0.95rem;letter-spacing:0.04em;}
+#genProgress{font-size:0.68rem;color:var(--muted,#9a9aa6);margin-bottom:10px;}
+#genPhase{display:inline-block;padding:3px 10px;border-radius:999px;font-size:0.72rem;font-weight:700;margin-bottom:10px;}
+#genPhase.yes{background:#143d22;color:#7ee2a0;}
+#genPhase.no{background:#3d1420;color:#e27e9a;}
+#genClaim{margin-bottom:12px;}
+.gen-inputs{display:flex;gap:10px;align-items:center;justify-content:center;margin:10px 0 6px;}
+.gen-inputs label{font-size:0.7rem;color:var(--muted,#9a9aa6);display:block;text-align:center;margin-bottom:3px;}
+.gen-inputs input{width:84px;font-size:1.2rem;text-align:center;padding:8px 4px;border-radius:10px;border:1px solid #2c2c38;background:#16161e;color:#fff;}
+#genRange{font-size:0.66rem;color:var(--muted,#9a9aa6);text-align:center;margin-bottom:8px;}
+#genFeedback{min-height:2.2em;font-size:0.74rem;line-height:1.4;text-align:center;margin:8px 0;}
+#genFeedback.ok{color:#7ee2a0;}
+#genFeedback.miss{color:#e2b87e;}
+#genFeedback.err{color:#e27e7e;}
+#genActions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;}
+#genSummary{display:none;}
+#genSummary table{width:100%;border-collapse:collapse;font-size:0.74rem;margin:8px 0;}
+#genSummary td{padding:4px 6px;border-bottom:1px solid #22222c;}
+`;
+
+  function genBuildOverlay(){
+    if(_ui) return _ui;
+    const style = document.createElement("style");
+    style.id = "genStyles";
+    style.textContent = GEN_CSS;
+    document.head.appendChild(style);
+    const ov = document.createElement("div");
+    ov.id = "genOverlay";
+    ov.innerHTML = `
+<div id="genCard" role="dialog" aria-modal="true" aria-labelledby="genTitle">
+  <h2 id="genTitle">Generative mode · boundary witnesses</h2>
+  <div id="genProgress"></div>
+  <div id="genWork">
+    <span id="genPhase"></span>
+    <div id="genClaim" class="meta-question-card"></div>
+    <div id="genRange"></div>
+    <div class="gen-inputs">
+      <span><label for="genA">LEFT</label><input id="genA" type="text" inputmode="numeric" autocomplete="off" /></span>
+      <span><label for="genB">RIGHT</label><input id="genB" type="text" inputmode="numeric" autocomplete="off" /></span>
+    </div>
+    <div id="genFeedback" aria-live="polite"></div>
+    <div id="genActions">
+      <button class="btn primary" id="genSubmit">Submit</button>
+      <button class="btn" id="genReveal" style="display:none;">Show one valid pair</button>
+      <button class="btn" id="genQuit">Exit</button>
+    </div>
+  </div>
+  <div id="genSummary">
+    <table></table>
+    <div id="genActions2" style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn primary" id="genAgain">New block</button>
+      <button class="btn" id="genClose">Close</button>
+    </div>
+  </div>
+</div>`;
+    document.body.appendChild(ov);
+    // The game binds global keys (Space starts a block); nothing typed inside
+    // the overlay may leak to those handlers.
+    ov.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if(e.key === "Enter"){ e.preventDefault(); genHandleSubmit(); }
+      if(e.key === "Escape"){ e.preventDefault(); genCloseOverlay(); }
+    });
+    ov.addEventListener("keyup", (e) => e.stopPropagation());
+    ov.addEventListener("keypress", (e) => e.stopPropagation());
+    ov.querySelector("#genSubmit").addEventListener("click", genHandleSubmit);
+    ov.querySelector("#genQuit").addEventListener("click", genCloseOverlay);
+    ov.querySelector("#genClose").addEventListener("click", genCloseOverlay);
+    ov.querySelector("#genAgain").addEventListener("click", () => { genStartSession(); });
+    ov.querySelector("#genReveal").addEventListener("click", genHandleReveal);
+    _ui = ov;
+    return ov;
+  }
+
+  function genRenderTrial(){
+    const ov = _ui, s = _uiSession;
+    if(!ov || !s) return;
+    const t = s.current;
+    ov.querySelector("#genWork").style.display = t ? "" : "none";
+    ov.querySelector("#genSummary").style.display = t ? "none" : "";
+    if(!t){ genRenderSummary(); return; }
+    const target = generativeCurrentTarget(s);
+    ov.querySelector("#genProgress").textContent = `Trial ${s.idx} of ${s.blockSize} · witness ${t.phaseIdx + 1} of 2`;
+    const phase = ov.querySelector("#genPhase");
+    phase.textContent = target ? "Make the answer YES" : "Make the answer NO";
+    phase.className = target ? "yes" : "no";
+    ov.querySelector("#genClaim").innerHTML = `<div class="qstep section"><strong>Question:</strong> ${genEsc(t.q)}</div>`;
+    ov.querySelector("#genRange").textContent = `Enter whole numbers from 1 to ${s.cap}. LEFT and RIGHT play the same roles as in ordinary trials.`;
+    const a = ov.querySelector("#genA"), b = ov.querySelector("#genB");
+    a.value = ""; b.value = "";
+    ov.querySelector("#genReveal").style.display = "none";
+    setTimeout(() => { try{ a.focus(); }catch(_){ } }, 30);
+  }
+
+  function genHandleSubmit(){
+    const ov = _ui, s = _uiSession;
+    if(!ov || !s || !s.current) return;
+    const fb = ov.querySelector("#genFeedback");
+    const res = generativeJudge(s, ov.querySelector("#genA").value, ov.querySelector("#genB").value);
+    if(!res.ok){
+      fb.className = "err";
+      fb.textContent = res.reason === "range"
+        ? `Both values must be whole numbers from 1 to ${res.cap}.`
+        : "This question could not be checked — please try a different trial.";
+      return;
+    }
+    if(res.correct){
+      fb.className = "ok";
+      fb.textContent = res.trialDone
+        ? "Both witnesses found. Next question…"
+        : `Correct — (${res.pair[0]}, ${res.pair[1]}) makes the answer ${res.target ? "YES" : "NO"}. Now the other side.`;
+      if(res.sessionDone){ genRenderTrial(); return; }
+      if(res.trialDone){ generativeNextTrial(s); }
+      setTimeout(genRenderTrial, res.trialDone ? 650 : 500);
+    } else if(res.phaseDone){
+      fb.className = "miss";
+      fb.textContent = `(${res.pair[0]}, ${res.pair[1]}) makes the answer ${res.value ? "YES" : "NO"} — recorded as missed.`;
+      if(res.sessionDone){ genRenderTrial(); return; }
+      if(res.trialDone){ generativeNextTrial(s); }
+      setTimeout(genRenderTrial, 650);
+    } else {
+      fb.className = "miss";
+      fb.textContent = `(${res.pair[0]}, ${res.pair[1]}) makes the answer ${res.value ? "YES" : "NO"} — it is a witness for the opposite side. Try again.`;
+      const revealFloor = Math.max(2, Number((typeof CONFIG === "object" && CONFIG && CONFIG.generativeRevealAfterAttempts) || 3));
+      if(!s.oneShot && res.attempts >= revealFloor) ov.querySelector("#genReveal").style.display = "";
+    }
+  }
+
+  function genHandleReveal(){
+    const ov = _ui, s = _uiSession;
+    if(!ov || !s) return;
+    const pair = generativeReveal(s);
+    const fb = ov.querySelector("#genFeedback");
+    if(pair){
+      fb.className = "miss";
+      fb.textContent = `One valid pair: LEFT ${pair[0]}, RIGHT ${pair[1]}. Enter it (or another) — this trial is marked assisted.`;
+    }
+  }
+
+  function genRenderSummary(){
+    const ov = _ui, s = _uiSession;
+    if(!ov || !s) return;
+    const sum = s.summary || generativeSummary(s);
+    ov.querySelector("#genSummary table").innerHTML = `
+<tr><td>Trials completed</td><td>${sum.trials}</td></tr>
+<tr><td>Both witnesses on first try</td><td>${sum.firstTryBoth}</td></tr>
+<tr><td>Assisted trials</td><td>${sum.assisted}</td></tr>
+<tr><td>Total submissions</td><td>${sum.totalAttempts}</td></tr>
+<tr><td>Mean time per question</td><td>${(sum.meanMs / 1000).toFixed(1)} s</td></tr>`;
+  }
+
+  function genStartSession(opts={}){
+    const ov = genBuildOverlay();
+    _uiSession = generativeNewSession(opts);
+    if(!_uiSession.pool.length){
+      ov.classList.add("open");
+      ov.querySelector("#genWork").style.display = "none";
+      ov.querySelector("#genSummary").style.display = "";
+      ov.querySelector("#genSummary table").innerHTML = `<tr><td>No eligible questions at the current magnitude yet — train a little more first.</td></tr>`;
+      return _uiSession;
+    }
+    generativeNextTrial(_uiSession);
+    ov.classList.add("open");
+    ov.querySelector("#genFeedback").textContent = "";
+    ov.querySelector("#genFeedback").className = "";
+    genRenderTrial();
+    return _uiSession;
+  }
+
+  function genCloseOverlay(){
+    if(_uiSession && !_uiSession.finished && _uiSession.results && _uiSession.results.length){
+      generativeFinish(_uiSession); // partial blocks still count their completed trials
+    }
+    if(_ui) _ui.classList.remove("open");
+    _uiSession = null;
+  }
+
+  function openGenerativeMode(){
+    try{
+      if(typeof State !== "undefined" && State && State.running && !State.paused){
+        genWarn("blocked while a training block is running");
+        return null;
+      }
+    }catch(_){ }
+    return genStartSession();
+  }
+
+  /* ════════════════ 5 · LAUNCHER + stale version-surface normalization ════════════════ */
+
+  function genBoot(){
+    try{
+      // Normalize fossil version surfaces: the footer literal and the guide
+      // title have not tracked APP_VERSION since v6.5.9x (the runtime title
+      // patch only matches v6.6.x in <title>/meta).
+      const appV = (typeof APP_VERSION !== "undefined") ? String(APP_VERSION) : VERSION;
+      document.querySelectorAll("[data-app-version]").forEach(el => { el.textContent = appV; });
+      const tpl = document.getElementById("guideTemplate");
+      const gTitle = tpl && tpl.content ? tpl.content.querySelector("#guideTitle") : null;
+      if(gTitle) gTitle.textContent = gTitle.textContent.replace(/v\d+\.\d+\.\d+[^\s<]*/g, appV);
+    }catch(_){ }
+    try{
+      if(typeof CONFIG === "object" && CONFIG && CONFIG.generativeModeEnabled === false) return;
+      const anchor = document.getElementById("guideBtn");
+      if(!anchor || document.getElementById("generativeBtn")) return;
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.id = "generativeBtn";
+      btn.style.cssText = "width:100%;margin-top:10px;background:#1a1a1f;font-size:0.75rem;";
+      btn.textContent = "✏ Generative mode · build the pairs";
+      btn.addEventListener("click", openGenerativeMode);
+      anchor.insertAdjacentElement("afterend", btn);
+    }catch(e){ genWarn("launcher injection failed", e); }
+  }
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", genBoot);
+      else genBoot();
+    }
+  }catch(_){ }
+
+  /* ════════════════ 6 · AUDITS ════════════════ */
+
+  // Every eligible cat must be a healthy dual-witness task: pure boolean
+  // deterministic verify, both sides satisfiable within the value universe at
+  // its own minimum magnitude, token-clean prompt. WARN on needle predicates
+  // (rarity < 2%) so frustration risk stays visible without blocking.
+  function auditGenerativeCatalog(opts={}){
+    const block = [], warn = [], rows = [];
+    try{
+      const tiers = 5;
+      const mValues = Array.isArray(opts.mValues) && opts.mValues.length ? opts.mValues : [6, (typeof currentMax === "function" ? currentMax() : 9), 12];
+      const seen = new Set();
+      for(const mRaw of mValues){
+        const m = Math.max(2, Math.floor(Number(mRaw) || 6));
+        if(seen.has(m)) continue; seen.add(m);
+        const pool = generativePool(m, tiers);
+        if(!pool.length && m >= 6) block.push(`empty generative pool at m=${m}`);
+        for(const row of pool){
+          // determinism probe on one pair per side
+          for(const pair of [row.grid.truePairs[0], row.grid.falsePairs[0]]){
+            if(!pair) continue;
+            const v1 = row.cat.verify(pair[0], pair[1], m);
+            const v2 = row.cat.verify(pair[0], pair[1], m);
+            if(v1 !== v2) block.push(`${row.cat.id}: non-deterministic verify at m=${m}`);
+          }
+          if(row.rarity < 0.02) warn.push(`${row.cat.id}: needle predicate at m=${m} (rarity ${(row.rarity*100).toFixed(1)}%)`);
+          if(rows.length < 200) rows.push({id:row.cat.id, m, tier:row.cat.tier || 1, trueCount:row.grid.trueCount, falseCount:row.grid.falseCount, rarity:+row.rarity.toFixed(4)});
+        }
+      }
+      // contract coherence with the diversified fallback's filter: anything the
+      // fallback would serve must also be generatively eligible (same simple-cat
+      // notion), so the two surfaces cannot drift apart silently.
+      if(typeof _fallbackDiverseSafeCat === "function"){
+        // structural check only: the filter predicates must agree on a sample
+        const cats = (typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).slice(0, 400);
+        for(const c of cats){
+          const gen = generativeEligibleCat(c);
+          const fallbackish = !!(c && c.id && c.id !== "identical" && typeof c.gen === "function" && typeof c.verify === "function"
+            && !c.checkVisual && !c.questionVisualGate && !c.choiceBuilder && !c.options && !c.choiceSpec
+            && !c.balanceSpec && !c.vennGate && !c.vennConditionId && !c.graphRelationGate && !c.graphConditionalId
+            && !c.paperFoldingAnalogyId && !c.shepardConditional && !c.l0RelationEquivalenceId
+            && !c.needsStimSeed && !c.requiredRep
+            && (c.responseFormat === undefined || c.responseFormat === "yesno")
+            && (c.variants || []).some(v => v && v.q && !v.negate && !v.swap));
+          if(gen !== fallbackish){ block.push(`eligibility drift between generative and fallback filters at ${c && c.id}`); break; }
+        }
+      }
+    }catch(e){ block.push(`generative catalog audit exception: ${e && e.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : (warn.length ? "WARN" : "PASS"),
+      {appVersion:(typeof APP_VERSION !== "undefined" ? APP_VERSION : null), patch:PATCH_ID, poolSample:rows.slice(0, 40), poolRows:rows.length, warnings:warn.slice(0, 24), block:block.slice(0, 24)});
+  }
+
+  // Behavioural quarantine: run a REAL session through the pure engine with
+  // grid-derived witnesses and assert the receptive curriculum's state is
+  // byte-identical before and after, while generative bookkeeping moved only
+  // inside the session object (dryRun keeps persistent telemetry untouched).
+  function auditGenerativeStatsQuarantine(){
+    const block = [], details = {};
+    try{
+      const snap = (k) => { try{ return JSON.stringify((typeof State !== "undefined" && State) ? State[k] : null); }catch(_){ return "unserializable"; } };
+      const before = {posnerCatStats:snap("posnerCatStats"), stats:snap("stats"), levelByMode:snap("levelByMode"), metaLevel:snap("metaLevel"), generativeStats:snap("generativeStats")};
+      const session = generativeNewSession({dryRun:true, blockSize:4, m:(typeof currentMax === "function" ? currentMax() : 9)});
+      if(!session.pool.length){ block.push("quarantine audit could not build a pool"); }
+      let guard = 0;
+      while(!session.finished && guard++ < 200){
+        const t = session.current || generativeNextTrial(session);
+        if(!t) break;
+        const target = generativeCurrentTarget(session);
+        const pair = (target ? t.grid.truePairs : t.grid.falsePairs)[0];
+        if(!pair){ block.push(`no witness available for ${t.catId}`); break; }
+        const res = generativeJudge(session, pair[0], pair[1]);
+        if(!res.ok || !res.correct){ block.push(`engine rejected a grid witness for ${t.catId} (${JSON.stringify(res)})`); break; }
+      }
+      details.completedTrials = (session.results || []).length;
+      details.summary = session.summary || generativeSummary(session);
+      if(!session.finished) block.push("synthetic session did not finish");
+      // one-shot leg: a deliberate wrong witness must close the phase, mark it
+      // failed, never open retries, and leave first-try credit at zero.
+      const probe = generativeNewSession({dryRun:true, oneShot:true, blockSize:2, m:(typeof currentMax === "function" ? currentMax() : 9)});
+      let pGuard = 0;
+      while(!probe.finished && pGuard++ < 60){
+        const t = probe.current || generativeNextTrial(probe);
+        if(!t) break;
+        const target = generativeCurrentTarget(probe);
+        const wrong = (target ? t.grid.falsePairs : t.grid.truePairs)[0];
+        const r = generativeJudge(probe, wrong[0], wrong[1]);
+        if(r.correct) { block.push("one-shot leg: wrong witness judged correct"); break; }
+        if(!r.phaseDone || !r.phaseFailed) { block.push("one-shot leg: miss did not close the phase"); break; }
+      }
+      details.oneShot = probe.summary || generativeSummary(probe);
+      if(!probe.finished) block.push("one-shot probe session did not finish");
+      if(probe.finished && (details.oneShot.firstTryBoth !== 0 || details.oneShot.failedPhases !== 4)) block.push(`one-shot bookkeeping wrong: ${JSON.stringify(details.oneShot)}`);
+      const after = {posnerCatStats:snap("posnerCatStats"), stats:snap("stats"), levelByMode:snap("levelByMode"), metaLevel:snap("metaLevel"), generativeStats:snap("generativeStats")};
+      for(const k of ["posnerCatStats", "stats", "levelByMode", "metaLevel", "generativeStats"]){
+        if(before[k] !== after[k]) block.push(`quarantine breach: State.${k} changed during a dry generative session`);
+      }
+    }catch(e){ block.push(`quarantine audit exception: ${e && e.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : "PASS",
+      {appVersion:(typeof APP_VERSION !== "undefined" ? APP_VERSION : null), patch:PATCH_ID, ...details, block});
+  }
+
+  // Structural UI contract: overlay builds, carries exactly two numeric
+  // inputs, renders a residue-free claim, and never steals the global Space
+  // shortcut (stopPropagation is wired on all key events).
+  function auditGenerativeUIContract(){
+    const block = [], details = {};
+    try{
+      if(typeof document === "undefined"){ return auditResultLocal("PASS", {skipped:"no DOM"}); }
+      const ov = genBuildOverlay();
+      const inputs = ov.querySelectorAll("input");
+      details.inputs = inputs.length;
+      if(inputs.length !== 2) block.push(`overlay must carry exactly 2 inputs, got ${inputs.length}`);
+      const s = generativeNewSession({dryRun:true, blockSize:1});
+      if(s.pool.length){
+        const prevSession = _uiSession; _uiSession = s;
+        generativeNextTrial(s);
+        genRenderTrial();
+        const claim = ov.querySelector("#genClaim").textContent || "";
+        details.claimSample = claim.slice(0, 80);
+        if(!claim.trim()) block.push("claim card rendered empty");
+        if(/\{[A-Za-z_]\w*\}/.test(claim)) block.push("token residue reached the claim card");
+        _uiSession = prevSession;
+        ov.classList.remove("open");
+      }
+      details.launcher = !!document.getElementById("generativeBtn");
+    }catch(e){ block.push(`UI contract audit exception: ${e && e.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : "PASS",
+      {appVersion:(typeof APP_VERSION !== "undefined" ? APP_VERSION : null), patch:PATCH_ID, ...details, block});
+  }
+
+  /* ════════════════ exports ════════════════ */
+  try{
+    window.openGenerativeMode = openGenerativeMode;
+    window.auditGenerativeCatalog = auditGenerativeCatalog;
+    window.auditGenerativeStatsQuarantine = auditGenerativeStatsQuarantine;
+    window.auditGenerativeUIContract = auditGenerativeUIContract;
+    window.EUCALCULIA_GENERATIVE = {
+      version:VERSION, patch:PATCH_ID,
+      start:openGenerativeMode,
+      newSession:generativeNewSession, nextTrial:generativeNextTrial, judge:generativeJudge,
+      reveal:generativeReveal, summary:generativeSummary, pool:generativePool,
+      gridStats:generativeGridStats, cap:generativeValueCap, loadStats:generativeLoadStats,
+      audits:{catalog:auditGenerativeCatalog, quarantine:auditGenerativeStatsQuarantine, ui:auditGenerativeUIContract}
+    };
+  }catch(_){ }
+})();
+
+</script>
 </body>
 </html>
