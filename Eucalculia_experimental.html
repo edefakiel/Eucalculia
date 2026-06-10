@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.7.0-generative-mode</title>
+<title>Eucalculia v6.7.8-forensic-merge</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3010,7 +3010,7 @@ select.cs-native {
 <div class="tier-item"><b>Exact division:</b> evaluate whether one value can be divided by the other with no remainder.</div>
 <div class="tier-item"><b>Difference equals smaller, larger = 2 × smaller + 1, difference &gt; half the larger:</b> evaluate a relation between a derived gap and a role-bound value.</div>
 </div>
-<p>L0 categories are not all equally likely from the beginning. The app uses soft relational frontiers: direct comparisons appear first, then joint numerical properties, explicit set-membership questions, role/property binding, metric and factor relations, and finally compound relations. User-facing wording avoids raw internal labels such as “case”, “in/out” or “vacuous truth”. Boolean gates are introduced by their rule first; for example the NAND rule is shown as “Answer YES unless both conditions are true.” The current value range still matters, but recent accuracy, response time, relational-frame weaknesses and recent sampling concentration also shape which categories are emphasized.</p>
+<p>L0 categories are not all equally likely from the beginning. The app uses soft relational frontiers: direct comparisons appear first, then joint numerical properties, explicit set-membership questions, role/property binding, metric and factor relations, and finally compound relations. User-facing wording avoids raw internal labels such as “case”, “in/out” or “vacuous truth”. Boolean gates are introduced by their rule first; for example the NAND rule is shown as “Answer NO only when both conditions are true; otherwise answer YES.” The current value range still matters, but recent accuracy, response time, relational-frame weaknesses and recent sampling concentration also shape which categories are emphasized.</p>
 <p><strong>Update Chains:</strong> after frame-burst performance is stable, a sparse advanced L0 family may appear. A burst asks several questions about the same fixed LEFT/RIGHT state. An Update Chain instead tells you to replace LEFT or RIGHT internally and then answer a YES/NO question about the updated state. For example: “Replace LEFT with the gap between LEFT and RIGHT. Is LEFT now even?” A later probe may then use that updated LEFT: “Now replace RIGHT with LEFT + 2. Is RIGHT now greater than original RIGHT?” These items remain L0: no numpad is used, and the answer channel stays YES/NO. They are initially kept out of MEM/META history so mutable-state practice does not interfere with ordinary retained-pair integration. A sparse advanced subfamily, <strong>truth-gated update</strong>, also lives here: an internal relation about the current state selects the update branch before the final YES/NO check. For example: “If GAP is prime, replace LEFT with GAP; otherwise, replace RIGHT with GAP. After the update, is LEFT greater than RIGHT?” This is operational metarelational control inside the same Update Chain architecture, not a separate mode.</p>
 <p><strong>Paper folding checks:</strong> in late L0, the question frame may show a folded-paper sequence, including horizontal, vertical, partial and diagonal folds. Mentally unfold the sheet and count the resulting holes, then compare that hole count with the flashed LEFT/RIGHT values. The answer is still YES or NO; the hole count is not typed. The paper-folding analogy family now uses the same shared numeric-rule catalogue as the induction-chain rule checks, adapted to the paper format: LEFT/RIGHT provide the source values and the unfolded hole count is the derived third value.</p>
 <p><strong>Shepard cube checks:</strong> in late L0, the question frame may show two cube figures. Decide whether the right figure is a rotation of the left figure or a mirror image, then apply the corresponding numerical rule to the flashed LEFT/RIGHT values. These items combine mental rotation with conditional rule selection, but they remain ordinary L0 relational trials.</p>
@@ -3309,7 +3309,7 @@ select.cs-native {
 // =====================
 
 // ============================================================================
-// EUCALCULIA v6.7.0-generative-mode — generative mode v1 (dual boundary witnesses) over the audit-closed v6.6.26 base
+// EUCALCULIA v6.7.8-forensic-merge — epistemic public-sum calculation over the audit-closed v6.6.26 base
 // ============================================================================
 // v6.5.26x: paper-folding boundary punches may unfold into multiple complete holes; no residual half-holes.
 // This build consolidates the 6.4.2 telemetry-cleanup fork and the 6.4.3
@@ -3323,7 +3323,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.7.0-generative-mode";
+const APP_VERSION = "v6.7.8-forensic-merge";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -4910,6 +4910,10 @@ function answerBudgetPickChoice4Target(family="global"){
   return choice(pool).i;
 }
 function answerBudgetRecord(info={}){
+  // v6.7.8: inline constructive trials carry isTrue for review semantics but
+  // must not feed the receptive yes/no ledger — the 50/50 budget governs
+  // receptive answer keys only (contamination measured on v6.7.7).
+  if(info.responseFormat === "generative_pair" || String(info.family || info.catFamily || "") === "generative_constructive") return;
   const b = ensureAnswerBudget();
   const family = info.family || info.catId || info.opId || "unknown";
   const fb = answerBudgetFamilyBucket(family);
@@ -8083,7 +8087,7 @@ function shouldLevelDownD(){
 }
 
 function canEvaluateModeDLevelChange(trialLevel, mode, info=State.trialInfo){
-  return trialLevel === 0 && mode === "D" && !(isL0MultiProbeInfo(info) && !isFinalL0MultiProbe(info));
+  return trialLevel === 0 && mode === "D" && info?.countsForAdaptation !== false && !(isL0MultiProbeInfo(info) && !isFinalL0MultiProbe(info));
 }
 
 function syncAutoReadingRangeAfterRelationalLevelUp(){
@@ -11235,14 +11239,34 @@ function showLearningTransitionBadge(title, sub="", detail="", durationMs=null){
   attachBadgeDismiss(el);
 }
 
+function eucaOnboardingSeenKey(kind, title, prompt){
+  try{
+    const profile = String((State && State.activeProfile) || 1);
+    const raw = String(kind || title || prompt || "auto_onboarding").toLowerCase().replace(/[^a-z0-9_:-]+/g,"_").slice(0,80);
+    return `euca:onboarding_seen:v1:${profile}:${raw}`;
+  }catch(_){ return `euca:onboarding_seen:v1:1:${String(kind || title || prompt || "auto_onboarding")}`; }
+}
+function eucaHasSeenOnboarding(kind, title, prompt){
+  try{ const k=eucaOnboardingSeenKey(kind,title,prompt); return !!(typeof localStorage !== "undefined" && localStorage.getItem(k)==="1"); }catch(_){ return false; }
+}
+function eucaMarkSeenOnboarding(kind, title, prompt){
+  try{ const k=eucaOnboardingSeenKey(kind,title,prompt); if(typeof localStorage !== "undefined") localStorage.setItem(k,"1"); }catch(_){ }
+}
 function showAutoOnboardingScreen({kind="auto_onboarding", title="New training step", sub="", detail="", prompt="NEW STEP", aria="Auto curriculum briefing.", forceAutoPhase=null, resume=null, level=1, _fromPendingQueue=false}={}){
   const payload = {kind, title, sub, detail, prompt, aria, forceAutoPhase, resume, level};
+  if(!_fromPendingQueue && eucaHasSeenOnboarding(kind, title, prompt)){
+    if(forceAutoPhase) State.forcedNextAutoPhase = forceAutoPhase;
+    const cont = typeof resume === "function" ? resume : (() => startTrial(0, null));
+    setTimeout(cont, 0);
+    return true;
+  }
   if(!_fromPendingQueue && shouldDeferAutoOnboardingScreen()){
     return enqueuePendingAutoOnboardingScreen(payload, "showAutoOnboardingScreen_guard");
   }
   const ac = State.modeChoice === "auto" ? ensureAutoCurriculumState() : null;
   State.autoBriefingKind = kind;
   if(forceAutoPhase) State.forcedNextAutoPhase = forceAutoPhase;
+  eucaMarkSeenOnboarding(kind, title, prompt);
   showLearningTransitionBadge(title, sub, detail, CONFIG.autoPhaseBriefMs || 2150);
   setPrompt(prompt);
   setGameAriaLabel(aria);
@@ -16186,7 +16210,7 @@ const L0_BOOLEAN_COMPOUND_SPECS = [
   { id:"left_even_xor_right_gt5", connective:"xor", left:"left_even", right:"right_gt5", tier:4, minLevel:5, stage:4, minM:6,
     prompt:"Is exactly one true: left is even; right is greater than 5?" },
   { id:"left_even_nand_right_gt5", connective:"nand", left:"left_even", right:"right_gt5", tier:4, minLevel:5, stage:4, minM:6,
-    prompt:"Answer YES unless both conditions are true: left is even; right is greater than 5." },
+    prompt:"Answer NO only when both conditions are true: left is even; right is greater than 5. Otherwise answer YES." },
   { id:"left_prime_nor_right_odd", connective:"nor", left:"left_prime", right:"right_odd", tier:4, minLevel:5, stage:4, minM:3,
     prompt:"Are both conditions false: left is prime; right is odd?" },
   { id:"larger_even_or_gap_gt2", connective:"or", left:"larger_even", right:"gap_gt2", tier:4, minLevel:4, stage:4, minM:5,
@@ -16212,7 +16236,7 @@ function l0BooleanConnectiveReviewLine(spec, p, q, result){
     case "and": return `Rule: answer YES only if both conditions are true → ${out}.`;
     case "or": return `Rule: answer YES if at least one condition is true → ${out}.`;
     case "xor": return `Rule: answer YES if exactly one condition is true → ${out}.`;
-    case "nand": return `Rule: answer YES unless both conditions are true → ${out}.`;
+    case "nand": return `Rule: answer NO only when both conditions are true; otherwise YES → ${out}.`;
     case "nor": return `Rule: answer YES only if both conditions are false → ${out}.`;
     default: return `Rule result for the two conditions → ${out}.`;
   }
@@ -16980,186 +17004,186 @@ function l0AnalogySharedUnaryRuleCatalog(){
   for(let k=1; k<=8; k++){
     add(`pair_add_${k}`, `Add ${k}.`, "linear_step", n => n + k, {
       distractorType:"linear_near_miss",
-      paperPromptLeft:`are the holes ${k === 1 ? "one" : k} more than LEFT?`,
-      paperPromptRight:`are the holes ${k === 1 ? "one" : k} more than RIGHT?`,
-      paperNegLeft:`are the holes not ${k === 1 ? "one" : k} more than LEFT?`,
-      paperNegRight:`are the holes not ${k === 1 ? "one" : k} more than RIGHT?`
+      paperPromptLeft:`is the hole count ${k === 1 ? "one" : k} more than LEFT?`,
+      paperPromptRight:`is the hole count ${k === 1 ? "one" : k} more than RIGHT?`,
+      paperNegLeft:`is the hole count not ${k === 1 ? "one" : k} more than LEFT?`,
+      paperNegRight:`is the hole count not ${k === 1 ? "one" : k} more than RIGHT?`
     });
     add(`pair_subtract_${k}`, `Subtract ${k}.`, "linear_step", n => n - k, {
       distractorType:"linear_direction_flip",
-      paperPromptLeft:`are the holes ${k === 1 ? "one" : k} less than LEFT?`,
-      paperPromptRight:`are the holes ${k === 1 ? "one" : k} less than RIGHT?`,
-      paperNegLeft:`are the holes not ${k === 1 ? "one" : k} less than LEFT?`,
-      paperNegRight:`are the holes not ${k === 1 ? "one" : k} less than RIGHT?`
+      paperPromptLeft:`is the hole count ${k === 1 ? "one" : k} less than LEFT?`,
+      paperPromptRight:`is the hole count ${k === 1 ? "one" : k} less than RIGHT?`,
+      paperNegLeft:`is the hole count not ${k === 1 ? "one" : k} less than LEFT?`,
+      paperNegRight:`is the hole count not ${k === 1 ? "one" : k} less than RIGHT?`
     });
   }
   add("pair_double", "Double the value.", "multiplicative", n => n * 2, {
     distractorType:"operation_flip",
-    paperPromptLeft:"are the holes twice LEFT?",
-    paperPromptRight:"are the holes twice RIGHT?",
-    paperNegLeft:"are the holes not twice LEFT?",
-    paperNegRight:"are the holes not twice RIGHT?"
+    paperPromptLeft:"is the hole count twice LEFT?",
+    paperPromptRight:"is the hole count twice RIGHT?",
+    paperNegLeft:"is the hole count not twice LEFT?",
+    paperNegRight:"is the hole count not twice RIGHT?"
   });
   add("pair_triple", "Triple the value.", "multiplicative", n => n * 3, {
     distractorType:"factor_flip",
-    paperPromptLeft:"are the holes three times LEFT?",
-    paperPromptRight:"are the holes three times RIGHT?",
-    paperNegLeft:"are the holes not three times LEFT?",
-    paperNegRight:"are the holes not three times RIGHT?"
+    paperPromptLeft:"is the hole count three times LEFT?",
+    paperPromptRight:"is the hole count three times RIGHT?",
+    paperNegLeft:"is the hole count not three times LEFT?",
+    paperNegRight:"is the hole count not three times RIGHT?"
   });
   add("pair_half", "Take half of the value.", "multiplicative", n => n % 2 === 0 ? n / 2 : null, {
     distractorType:"operation_flip",
-    paperPromptLeft:"are the holes half of LEFT?",
-    paperPromptRight:"are the holes half of RIGHT?",
-    paperNegLeft:"are the holes not half of LEFT?",
-    paperNegRight:"are the holes not half of RIGHT?"
+    paperPromptLeft:"is the hole count half of LEFT?",
+    paperPromptRight:"is the hole count half of RIGHT?",
+    paperNegLeft:"is the hole count not half of LEFT?",
+    paperNegRight:"is the hole count not half of RIGHT?"
   });
   add("pair_third", "Take one third of the value.", "multiplicative", n => n % 3 === 0 ? n / 3 : null, {
     distractorType:"factor_flip",
-    paperPromptLeft:"are the holes one third of LEFT?",
-    paperPromptRight:"are the holes one third of RIGHT?",
-    paperNegLeft:"are the holes not one third of LEFT?",
-    paperNegRight:"are the holes not one third of RIGHT?"
+    paperPromptLeft:"is the hole count one third of LEFT?",
+    paperPromptRight:"is the hole count one third of RIGHT?",
+    paperNegLeft:"is the hole count not one third of LEFT?",
+    paperNegRight:"is the hole count not one third of RIGHT?"
   });
   for(const k of [1,2,3]){
     add(`pair_double_plus_${k}`, `Double the value, then add ${k}.`, "affine", n => 2*n + k, {
       distractorType:"affine_offset_flip",
-      paperPromptLeft:`are the holes twice LEFT plus ${k}?`,
-      paperPromptRight:`are the holes twice RIGHT plus ${k}?`,
-      paperNegLeft:`are the holes not twice LEFT plus ${k}?`,
-      paperNegRight:`are the holes not twice RIGHT plus ${k}?`
+      paperPromptLeft:`is the hole count twice LEFT plus ${k}?`,
+      paperPromptRight:`is the hole count twice RIGHT plus ${k}?`,
+      paperNegLeft:`is the hole count not twice LEFT plus ${k}?`,
+      paperNegRight:`is the hole count not twice RIGHT plus ${k}?`
     });
     add(`pair_double_minus_${k}`, `Double the value, then subtract ${k}.`, "affine", n => 2*n - k, {
       distractorType:"affine_offset_flip",
-      paperPromptLeft:`are the holes twice LEFT minus ${k}?`,
-      paperPromptRight:`are the holes twice RIGHT minus ${k}?`,
-      paperNegLeft:`are the holes not twice LEFT minus ${k}?`,
-      paperNegRight:`are the holes not twice RIGHT minus ${k}?`
+      paperPromptLeft:`is the hole count twice LEFT minus ${k}?`,
+      paperPromptRight:`is the hole count twice RIGHT minus ${k}?`,
+      paperNegLeft:`is the hole count not twice LEFT minus ${k}?`,
+      paperNegRight:`is the hole count not twice RIGHT minus ${k}?`
     });
   }
   add("pair_triple_plus_1", "Triple the value, then add 1.", "affine", n => 3*n + 1, {
     distractorType:"affine_factor_flip",
-    paperPromptLeft:"are the holes three times LEFT plus one?",
-    paperPromptRight:"are the holes three times RIGHT plus one?",
-    paperNegLeft:"are the holes not three times LEFT plus one?",
-    paperNegRight:"are the holes not three times RIGHT plus one?"
+    paperPromptLeft:"is the hole count three times LEFT plus one?",
+    paperPromptRight:"is the hole count three times RIGHT plus one?",
+    paperNegLeft:"is the hole count not three times LEFT plus one?",
+    paperNegRight:"is the hole count not three times RIGHT plus one?"
   });
   add("pair_triple_minus_1", "Triple the value, then subtract 1.", "affine", n => 3*n - 1, {
     distractorType:"affine_factor_flip",
-    paperPromptLeft:"are the holes three times LEFT minus one?",
-    paperPromptRight:"are the holes three times RIGHT minus one?",
-    paperNegLeft:"are the holes not three times LEFT minus one?",
-    paperNegRight:"are the holes not three times RIGHT minus one?"
+    paperPromptLeft:"is the hole count three times LEFT minus one?",
+    paperPromptRight:"is the hole count three times RIGHT minus one?",
+    paperNegLeft:"is the hole count not three times LEFT minus one?",
+    paperNegRight:"is the hole count not three times RIGHT minus one?"
   });
   add("pair_square", "Square the value.", "power_root", n => n*n, {
     distractorType:"power_root_flip",
-    paperPromptLeft:"are the holes LEFT squared?",
-    paperPromptRight:"are the holes RIGHT squared?",
-    paperNegLeft:"are the holes not LEFT squared?",
-    paperNegRight:"are the holes not RIGHT squared?"
+    paperPromptLeft:"is the hole count LEFT squared?",
+    paperPromptRight:"is the hole count RIGHT squared?",
+    paperNegLeft:"is the hole count not LEFT squared?",
+    paperNegRight:"is the hole count not RIGHT squared?"
   });
   add("pair_square_root", "Take the square root.", "power_root", n => { const r=Math.sqrt(n); return Number.isInteger(r) ? r : null; }, {
     distractorType:"power_root_flip",
-    paperPromptLeft:"are the holes the square root of LEFT?",
-    paperPromptRight:"are the holes the square root of RIGHT?",
-    paperNegLeft:"are the holes not the square root of LEFT?",
-    paperNegRight:"are the holes not the square root of RIGHT?"
+    paperPromptLeft:"is the hole count the square root of LEFT?",
+    paperPromptRight:"is the hole count the square root of RIGHT?",
+    paperNegLeft:"is the hole count not the square root of LEFT?",
+    paperNegRight:"is the hole count not the square root of RIGHT?"
   });
   const anchorLabel = anchor => anchor === 5 ? "five" : String(anchor);
   for(const anchor of [5,7,9,10,12,20]){
     add(`pair_fill_to_${anchor}`, `Count up to ${anchor}.`, "anchor_completion", n => anchor - n, {
       distractorType:"anchor_flip",
-      paperPromptLeft:`are the holes what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
-      paperPromptRight:`are the holes what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`,
-      paperNegLeft:`are the holes not what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
-      paperNegRight:`are the holes not what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`
+      paperPromptLeft:`is the hole count what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
+      paperPromptRight:`is the hole count what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`,
+      paperNegLeft:`is the hole count not what remains when LEFT is counted up to ${anchorLabel(anchor)}?`,
+      paperNegRight:`is the hole count not what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`
     });
   }
   add("pair_mirror_1_12", "Reflect it across the midpoint of the 1–12 range.", "anchor_completion", n => 13 - n, {
     distractorType:"mirror_anchor_flip",
-    paperPromptLeft:"are the holes the mirror of LEFT on the 1–12 line?",
-    paperPromptRight:"are the holes the mirror of RIGHT on the 1–12 line?",
-    paperNegLeft:"are the holes not the mirror of LEFT on the 1–12 line?",
-    paperNegRight:"are the holes not the mirror of RIGHT on the 1–12 line?"
+    paperPromptLeft:"is the hole count the mirror of LEFT on the 1–12 line?",
+    paperPromptRight:"is the hole count the mirror of RIGHT on the 1–12 line?",
+    paperNegLeft:"is the hole count not the mirror of LEFT on the 1–12 line?",
+    paperNegRight:"is the hole count not the mirror of RIGHT on the 1–12 line?"
   });
   for(let k=1; k<=5; k++){
     add(`pair_clock_forward_${k}`, l0ClockClockwiseLabel(k), "clock_move", n => l0AnalogyClock(n, k), {
       distractorType:"clock_direction_flip",
       paperEnabled:k !== 1,
       canApply:n => l0ClockMoveCrossesBoundary(n, k),
-      paperPromptLeft:`on a 12-clock, are the holes what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
-      paperPromptRight:`on a 12-clock, are the holes what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`,
-      paperNegLeft:`on a 12-clock, are the holes not what you get after moving LEFT ${l0ClockHoursText(k)} clockwise?`,
-      paperNegRight:`on a 12-clock, are the holes not what you get after moving RIGHT ${l0ClockHoursText(k)} clockwise?`
+      paperPromptLeft:`is the hole count the hour you reach moving ${l0ClockHoursText(k)} clockwise from LEFT on a 12-clock?`,
+      paperPromptRight:`is the hole count the hour you reach moving ${l0ClockHoursText(k)} clockwise from RIGHT on a 12-clock?`,
+      paperNegLeft:`is the hole count not the hour you reach moving ${l0ClockHoursText(k)} clockwise from LEFT on a 12-clock?`,
+      paperNegRight:`is the hole count not the hour you reach moving ${l0ClockHoursText(k)} clockwise from RIGHT on a 12-clock?`
     });
     add(`pair_clock_back_${k}`, l0ClockCounterLabel(k), "clock_move", n => l0AnalogyClock(n, -k), {
       distractorType:"clock_direction_flip",
       paperEnabled:k !== 1,
       canApply:n => l0ClockMoveCrossesBoundary(n, -k),
-      paperPromptLeft:`on a 12-clock, are the holes what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperPromptRight:`on a 12-clock, are the holes what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperNegLeft:`on a 12-clock, are the holes not what you get after moving LEFT ${l0ClockHoursText(k)} counterclockwise?`,
-      paperNegRight:`on a 12-clock, are the holes not what you get after moving RIGHT ${l0ClockHoursText(k)} counterclockwise?`
+      paperPromptLeft:`is the hole count the hour you reach moving ${l0ClockHoursText(k)} counterclockwise from LEFT on a 12-clock?`,
+      paperPromptRight:`is the hole count the hour you reach moving ${l0ClockHoursText(k)} counterclockwise from RIGHT on a 12-clock?`,
+      paperNegLeft:`is the hole count not the hour you reach moving ${l0ClockHoursText(k)} counterclockwise from LEFT on a 12-clock?`,
+      paperNegRight:`is the hole count not the hour you reach moving ${l0ClockHoursText(k)} counterclockwise from RIGHT on a 12-clock?`
     });
   }
   add("pair_clock_opposite", "Use the opposite hour on a 12-clock.", "clock_opposite", n => l0AnalogyClock(n, 6), {
     distractorType:"clock_opposite_flip",
-    paperPromptLeft:"on a 12-clock, are the holes the opposite hour from LEFT?",
-    paperPromptRight:"on a 12-clock, are the holes the opposite hour from RIGHT?",
-    paperNegLeft:"on a 12-clock, are the holes not the opposite hour from LEFT?",
-    paperNegRight:"on a 12-clock, are the holes not the opposite hour from RIGHT?",
+    paperPromptLeft:"on a 12-clock, is the hole count the opposite hour from LEFT?",
+    paperPromptRight:"on a 12-clock, is the hole count the opposite hour from RIGHT?",
+    paperNegLeft:"on a 12-clock, is the hole count not the opposite hour from LEFT?",
+    paperNegRight:"on a 12-clock, is the hole count not the opposite hour from RIGHT?",
     canApply:n => l0AnalogyInRange(n, 12)
   });
   for(const anchor of [5,10,12]){
     add(`pair_distance_from_${anchor}`, `Use the distance from ${anchor}.`, "anchor_distance", n => Math.abs(n - anchor), {
       distractorType:"anchor_distance_flip",
-      paperPromptLeft:`are the holes the distance from LEFT to ${anchor}?`,
-      paperPromptRight:`are the holes the distance from RIGHT to ${anchor}?`,
-      paperNegLeft:`are the holes not the distance from LEFT to ${anchor}?`,
-      paperNegRight:`are the holes not the distance from RIGHT to ${anchor}?`
+      paperPromptLeft:`is the hole count the distance from LEFT to ${anchor}?`,
+      paperPromptRight:`is the hole count the distance from RIGHT to ${anchor}?`,
+      paperNegLeft:`is the hole count not the distance from LEFT to ${anchor}?`,
+      paperNegRight:`is the hole count not the distance from RIGHT to ${anchor}?`
     });
   }
   add("pair_5_plus_distance_from_5", "Move from 5 by the same distance upward.", "anchor_distance", n => 5 + Math.abs(n - 5), {
     distractorType:"anchor_direction_flip",
-    paperPromptLeft:"are the holes 5 plus LEFT's distance from 5?",
-    paperPromptRight:"are the holes 5 plus RIGHT's distance from 5?",
-    paperNegLeft:"are the holes not 5 plus LEFT's distance from 5?",
-    paperNegRight:"are the holes not 5 plus RIGHT's distance from 5?"
+    paperPromptLeft:"is the hole count 5 plus LEFT's distance from 5?",
+    paperPromptRight:"is the hole count 5 plus RIGHT's distance from 5?",
+    paperNegLeft:"is the hole count not 5 plus LEFT's distance from 5?",
+    paperNegRight:"is the hole count not 5 plus RIGHT's distance from 5?"
   });
   add("pair_10_minus_distance_from_10", "Move below 10 by the same distance.", "anchor_distance", n => 10 - Math.abs(n - 10), {
     distractorType:"anchor_direction_flip",
-    paperPromptLeft:"are the holes 10 minus LEFT's distance from 10?",
-    paperPromptRight:"are the holes 10 minus RIGHT's distance from 10?",
-    paperNegLeft:"are the holes not 10 minus LEFT's distance from 10?",
-    paperNegRight:"are the holes not 10 minus RIGHT's distance from 10?"
+    paperPromptLeft:"is the hole count 10 minus LEFT's distance from 10?",
+    paperPromptRight:"is the hole count 10 minus RIGHT's distance from 10?",
+    paperNegLeft:"is the hole count not 10 minus LEFT's distance from 10?",
+    paperNegRight:"is the hole count not 10 minus RIGHT's distance from 10?"
   });
   add("pair_next_even", "Go to the next even number.", "parity_step", n => n + (n % 2 === 0 ? 2 : 1), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the holes the next even number after LEFT?",
-    paperPromptRight:"are the holes the next even number after RIGHT?",
-    paperNegLeft:"are the holes not the next even number after LEFT?",
-    paperNegRight:"are the holes not the next even number after RIGHT?"
+    paperPromptLeft:"is the hole count the next even number after LEFT?",
+    paperPromptRight:"is the hole count the next even number after RIGHT?",
+    paperNegLeft:"is the hole count not the next even number after LEFT?",
+    paperNegRight:"is the hole count not the next even number after RIGHT?"
   });
   add("pair_previous_even", "Go to the previous even number.", "parity_step", n => n - (n % 2 === 0 ? 2 : 1), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the holes the previous even number before LEFT?",
-    paperPromptRight:"are the holes the previous even number before RIGHT?",
-    paperNegLeft:"are the holes not the previous even number before LEFT?",
-    paperNegRight:"are the holes not the previous even number before RIGHT?"
+    paperPromptLeft:"is the hole count the previous even number before LEFT?",
+    paperPromptRight:"is the hole count the previous even number before RIGHT?",
+    paperNegLeft:"is the hole count not the previous even number before LEFT?",
+    paperNegRight:"is the hole count not the previous even number before RIGHT?"
   });
   add("pair_next_odd", "Go to the next odd number.", "parity_step", n => n + (n % 2 === 0 ? 1 : 2), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the holes the next odd number after LEFT?",
-    paperPromptRight:"are the holes the next odd number after RIGHT?",
-    paperNegLeft:"are the holes not the next odd number after LEFT?",
-    paperNegRight:"are the holes not the next odd number after RIGHT?"
+    paperPromptLeft:"is the hole count the next odd number after LEFT?",
+    paperPromptRight:"is the hole count the next odd number after RIGHT?",
+    paperNegLeft:"is the hole count not the next odd number after LEFT?",
+    paperNegRight:"is the hole count not the next odd number after RIGHT?"
   });
   add("pair_previous_odd", "Go to the previous odd number.", "parity_step", n => n - (n % 2 === 0 ? 1 : 2), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"are the holes the previous odd number before LEFT?",
-    paperPromptRight:"are the holes the previous odd number before RIGHT?",
-    paperNegLeft:"are the holes not the previous odd number before LEFT?",
-    paperNegRight:"are the holes not the previous odd number before RIGHT?"
+    paperPromptLeft:"is the hole count the previous odd number before LEFT?",
+    paperPromptRight:"is the hole count the previous odd number before RIGHT?",
+    paperNegLeft:"is the hole count not the previous odd number before LEFT?",
+    paperNegRight:"is the hole count not the previous odd number before RIGHT?"
   });
   for(const k of [3,4,5]){
     add(`pair_next_multiple_${k}`, `Go to the next higher multiple of ${k}.`, "multiple_step", n => {
@@ -17170,10 +17194,10 @@ function l0AnalogySharedUnaryRuleCatalog(){
       return x <= 12 ? x : null;
     }, {
       distractorType:"multiple_direction_flip",
-      paperPromptLeft:`are the holes the next higher multiple of ${k} after LEFT?`,
-      paperPromptRight:`are the holes the next higher multiple of ${k} after RIGHT?`,
-      paperNegLeft:`are the holes not the next higher multiple of ${k} after LEFT?`,
-      paperNegRight:`are the holes not the next higher multiple of ${k} after RIGHT?`,
+      paperPromptLeft:`is the hole count the next higher multiple of ${k} after LEFT?`,
+      paperPromptRight:`is the hole count the next higher multiple of ${k} after RIGHT?`,
+      paperNegLeft:`is the hole count not the next higher multiple of ${k} after LEFT?`,
+      paperNegRight:`is the hole count not the next higher multiple of ${k} after RIGHT?`,
       canApply:n => {
         n = l0AnalogyInt(n);
         if(n === null) return false;
@@ -17183,39 +17207,39 @@ function l0AnalogySharedUnaryRuleCatalog(){
     });
     add(`pair_previous_multiple_${k}`, `Go to the previous multiple of ${k}.`, "multiple_step", n => n - (n % k || k), {
       distractorType:"multiple_direction_flip",
-      paperPromptLeft:`are the holes the previous multiple of ${k} before LEFT?`,
-      paperPromptRight:`are the holes the previous multiple of ${k} before RIGHT?`,
-      paperNegLeft:`are the holes not the previous multiple of ${k} before LEFT?`,
-      paperNegRight:`are the holes not the previous multiple of ${k} before RIGHT?`
+      paperPromptLeft:`is the hole count the previous multiple of ${k} before LEFT?`,
+      paperPromptRight:`is the hole count the previous multiple of ${k} before RIGHT?`,
+      paperNegLeft:`is the hole count not the previous multiple of ${k} before LEFT?`,
+      paperNegRight:`is the hole count not the previous multiple of ${k} before RIGHT?`
     });
   }
   add("pair_next_prime", "Go to the next prime number.", "prime_step", n => l0AnalogyNextPrime(n), {
     distractorType:"prime_direction_flip",
-    paperPromptLeft:"are the holes the next prime number after LEFT?",
-    paperPromptRight:"are the holes the next prime number after RIGHT?",
-    paperNegLeft:"are the holes not the next prime number after LEFT?",
-    paperNegRight:"are the holes not the next prime number after RIGHT?"
+    paperPromptLeft:"is the hole count the next prime number after LEFT?",
+    paperPromptRight:"is the hole count the next prime number after RIGHT?",
+    paperNegLeft:"is the hole count not the next prime number after LEFT?",
+    paperNegRight:"is the hole count not the next prime number after RIGHT?"
   });
   add("pair_previous_prime", "Go to the previous prime number.", "prime_step", n => l0AnalogyPrevPrime(n), {
     distractorType:"prime_direction_flip",
-    paperPromptLeft:"are the holes the previous prime number before LEFT?",
-    paperPromptRight:"are the holes the previous prime number before RIGHT?",
-    paperNegLeft:"are the holes not the previous prime number before LEFT?",
-    paperNegRight:"are the holes not the previous prime number before RIGHT?"
+    paperPromptLeft:"is the hole count the previous prime number before LEFT?",
+    paperPromptRight:"is the hole count the previous prime number before RIGHT?",
+    paperNegLeft:"is the hole count not the previous prime number before LEFT?",
+    paperNegRight:"is the hole count not the previous prime number before RIGHT?"
   });
   add("pair_next_square", "Go to the next square number.", "square_step", n => l0AnalogyNextSquare(n), {
     distractorType:"square_direction_flip",
-    paperPromptLeft:"are the holes the next square number after LEFT?",
-    paperPromptRight:"are the holes the next square number after RIGHT?",
-    paperNegLeft:"are the holes not the next square number after LEFT?",
-    paperNegRight:"are the holes not the next square number after RIGHT?"
+    paperPromptLeft:"is the hole count the next square number after LEFT?",
+    paperPromptRight:"is the hole count the next square number after RIGHT?",
+    paperNegLeft:"is the hole count not the next square number after LEFT?",
+    paperNegRight:"is the hole count not the next square number after RIGHT?"
   });
   add("pair_previous_square", "Go to the previous square number.", "square_step", n => l0AnalogyPrevSquare(n), {
     distractorType:"square_direction_flip",
-    paperPromptLeft:"are the holes the previous square number before LEFT?",
-    paperPromptRight:"are the holes the previous square number before RIGHT?",
-    paperNegLeft:"are the holes not the previous square number before LEFT?",
-    paperNegRight:"are the holes not the previous square number before RIGHT?"
+    paperPromptLeft:"is the hole count the previous square number before LEFT?",
+    paperPromptRight:"is the hole count the previous square number before RIGHT?",
+    paperNegLeft:"is the hole count not the previous square number before LEFT?",
+    paperNegRight:"is the hole count not the previous square number before RIGHT?"
   });
   return (l0AnalogySharedUnaryRuleCatalog._cache = rules);
 }
@@ -17282,31 +17306,31 @@ function l0AnalogySharedPaperRuleCatalog(){
     predicate:(a,b,x)=> x === compute(a,b),
     applicable:(a,b,maxX)=> l0AnalogyInRange(compute(a,b), maxX)
   });
-  addExact("paper_x_eq_diff", "X = |RIGHT − LEFT|", "are the holes the gap between LEFT and RIGHT?", "are the holes not the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a), {family:"dyadic_gap"});
-  addExact("paper_x_eq_sum", "X = LEFT + RIGHT", "are the holes the total of LEFT and RIGHT?", "are the holes not the total of LEFT and RIGHT?", (a,b)=>a+b, {family:"dyadic_sum"});
-  addExact("paper_x_eq_avg", "X = average of LEFT and RIGHT", "are the holes the exact middle value between LEFT and RIGHT?", "are the holes not the exact middle value between LEFT and RIGHT?", (a,b)=>(a+b)%2===0 ? (a+b)/2 : null, {family:"dyadic_midpoint"});
-  addExact("paper_x_continues_progression", "X = RIGHT + (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the holes the next value after the same step?", "starting with LEFT then RIGHT, are the holes not the next value after the same step?", (a,b)=>2*b-a, {family:"dyadic_step"});
-  addExact("paper_x_precedes_progression", "X = LEFT − (RIGHT − LEFT)", "starting with LEFT then RIGHT, are the holes the value just before LEFT using the same step?", "starting with LEFT then RIGHT, are the holes not the value just before LEFT using the same step?", (a,b)=>2*a-b, {family:"dyadic_step"});
-  addExact("paper_x_eq_max", "X = max(LEFT, RIGHT)", "are the holes equal to the larger of LEFT and RIGHT?", "are the holes not equal to the larger of LEFT and RIGHT?", (a,b)=>Math.max(a,b), {family:"role_value"});
-  addExact("paper_x_eq_min", "X = min(LEFT, RIGHT)", "are the holes equal to the smaller of LEFT and RIGHT?", "are the holes not equal to the smaller of LEFT and RIGHT?", (a,b)=>Math.min(a,b), {family:"role_value"});
-  addExact("paper_x_eq_max_plus_1", "X = larger value + 1", "are the holes one more than the larger value?", "are the holes not one more than the larger value?", (a,b)=>Math.max(a,b)+1, {family:"role_value"});
-  addExact("paper_x_eq_min_plus_1", "X = smaller value + 1", "are the holes one more than the smaller value?", "are the holes not one more than the smaller value?", (a,b)=>Math.min(a,b)+1, {family:"role_value"});
-  addExact("paper_x_eq_max_minus_1", "X = larger value − 1", "are the holes one less than the larger value?", "are the holes not one less than the larger value?", (a,b)=>Math.max(a,b)-1, {family:"role_value"});
-  addExact("paper_x_eq_gap_plus_1", "X = gap + 1", "are the holes one more than the gap between LEFT and RIGHT?", "are the holes not one more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+1, {family:"dyadic_gap"});
-  addExact("paper_x_eq_gap_plus_2", "X = gap + 2", "are the holes two more than the gap between LEFT and RIGHT?", "are the holes not two more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+2, {family:"dyadic_gap"});
-  addExact("paper_x_eq_double_gap", "X = 2 × gap", "are the holes twice the gap between LEFT and RIGHT?", "are the holes not twice the gap between LEFT and RIGHT?", (a,b)=>2*Math.abs(b-a), {family:"dyadic_gap"});
-  addExact("paper_x_eq_half_gap", "X = gap ÷ 2", "are the holes half the gap between LEFT and RIGHT?", "are the holes not half the gap between LEFT and RIGHT?", (a,b)=>{ const g=Math.abs(b-a); return g%2===0 ? g/2 : null; }, {family:"dyadic_gap"});
-  addExact("paper_x_eq_sum_minus_1", "X = LEFT + RIGHT − 1", "are the holes one less than the total of LEFT and RIGHT?", "are the holes not one less than the total of LEFT and RIGHT?", (a,b)=>a+b-1, {family:"dyadic_sum"});
-  addExact("paper_x_eq_sum_plus_1", "X = LEFT + RIGHT + 1", "are the holes one more than the total of LEFT and RIGHT?", "are the holes not one more than the total of LEFT and RIGHT?", (a,b)=>a+b+1, {family:"dyadic_sum"});
-  addExact("paper_x_eq_product", "X = LEFT × RIGHT", "are the holes LEFT times RIGHT?", "are the holes not LEFT times RIGHT?", (a,b)=>a*b, {family:"dyadic_product"});
-  addExact("paper_x_eq_larger_minus_smaller_plus_1", "X = larger − smaller + 1", "are the holes one more than the distance from the smaller value to the larger value?", "are the holes not one more than the distance from the smaller value to the larger value?", (a,b)=>Math.max(a,b)-Math.min(a,b)+1, {family:"role_gap"});
+  addExact("paper_x_eq_diff", "X = |RIGHT − LEFT|", "is the hole count the gap between LEFT and RIGHT?", "is the hole count not the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a), {family:"dyadic_gap"});
+  addExact("paper_x_eq_sum", "X = LEFT + RIGHT", "is the hole count the total of LEFT and RIGHT?", "is the hole count not the total of LEFT and RIGHT?", (a,b)=>a+b, {family:"dyadic_sum"});
+  addExact("paper_x_eq_avg", "X = average of LEFT and RIGHT", "is the hole count the exact middle value between LEFT and RIGHT?", "is the hole count not the exact middle value between LEFT and RIGHT?", (a,b)=>(a+b)%2===0 ? (a+b)/2 : null, {family:"dyadic_midpoint"});
+  addExact("paper_x_continues_progression", "X = RIGHT + (RIGHT − LEFT)", "starting with LEFT then RIGHT, is the hole count the next value after the same step?", "starting with LEFT then RIGHT, is the hole count not the next value after the same step?", (a,b)=>2*b-a, {family:"dyadic_step"});
+  addExact("paper_x_precedes_progression", "X = LEFT − (RIGHT − LEFT)", "starting with LEFT then RIGHT, is the hole count the value just before LEFT using the same step?", "starting with LEFT then RIGHT, is the hole count not the value just before LEFT using the same step?", (a,b)=>2*a-b, {family:"dyadic_step"});
+  addExact("paper_x_eq_max", "X = max(LEFT, RIGHT)", "is the hole count equal to the larger of LEFT and RIGHT?", "is the hole count not equal to the larger of LEFT and RIGHT?", (a,b)=>Math.max(a,b), {family:"role_value"});
+  addExact("paper_x_eq_min", "X = min(LEFT, RIGHT)", "is the hole count equal to the smaller of LEFT and RIGHT?", "is the hole count not equal to the smaller of LEFT and RIGHT?", (a,b)=>Math.min(a,b), {family:"role_value"});
+  addExact("paper_x_eq_max_plus_1", "X = larger value + 1", "is the hole count one more than the larger value?", "is the hole count not one more than the larger value?", (a,b)=>Math.max(a,b)+1, {family:"role_value"});
+  addExact("paper_x_eq_min_plus_1", "X = smaller value + 1", "is the hole count one more than the smaller value?", "is the hole count not one more than the smaller value?", (a,b)=>Math.min(a,b)+1, {family:"role_value"});
+  addExact("paper_x_eq_max_minus_1", "X = larger value − 1", "is the hole count one less than the larger value?", "is the hole count not one less than the larger value?", (a,b)=>Math.max(a,b)-1, {family:"role_value"});
+  addExact("paper_x_eq_gap_plus_1", "X = gap + 1", "is the hole count one more than the gap between LEFT and RIGHT?", "is the hole count not one more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+1, {family:"dyadic_gap"});
+  addExact("paper_x_eq_gap_plus_2", "X = gap + 2", "is the hole count two more than the gap between LEFT and RIGHT?", "is the hole count not two more than the gap between LEFT and RIGHT?", (a,b)=>Math.abs(b-a)+2, {family:"dyadic_gap"});
+  addExact("paper_x_eq_double_gap", "X = 2 × gap", "is the hole count twice the gap between LEFT and RIGHT?", "is the hole count not twice the gap between LEFT and RIGHT?", (a,b)=>2*Math.abs(b-a), {family:"dyadic_gap"});
+  addExact("paper_x_eq_half_gap", "X = gap ÷ 2", "is the hole count half the gap between LEFT and RIGHT?", "is the hole count not half the gap between LEFT and RIGHT?", (a,b)=>{ const g=Math.abs(b-a); return g%2===0 ? g/2 : null; }, {family:"dyadic_gap"});
+  addExact("paper_x_eq_sum_minus_1", "X = LEFT + RIGHT − 1", "is the hole count one less than the total of LEFT and RIGHT?", "is the hole count not one less than the total of LEFT and RIGHT?", (a,b)=>a+b-1, {family:"dyadic_sum"});
+  addExact("paper_x_eq_sum_plus_1", "X = LEFT + RIGHT + 1", "is the hole count one more than the total of LEFT and RIGHT?", "is the hole count not one more than the total of LEFT and RIGHT?", (a,b)=>a+b+1, {family:"dyadic_sum"});
+  addExact("paper_x_eq_product", "X = LEFT × RIGHT", "is the hole count LEFT times RIGHT?", "is the hole count not LEFT times RIGHT?", (a,b)=>a*b, {family:"dyadic_product"});
+  addExact("paper_x_eq_larger_minus_smaller_plus_1", "X = larger − smaller + 1", "is the hole count one more than the distance from the smaller value to the larger value?", "is the hole count not one more than the distance from the smaller value to the larger value?", (a,b)=>Math.max(a,b)-Math.min(a,b)+1, {family:"role_gap"});
   const property = (id, label, prompt, negPrompt, predicate, compute, applicable) => add({
     id, label, prompt, negPrompt, family:"property_alignment", kind:"property",
     computeTargetX:compute,
     predicate,
     applicable
   });
-  property("paper_x_shares_parity", "LEFT, RIGHT and X have the same parity", "do LEFT, RIGHT, and the holes all have the same even/odd type?", "are LEFT, RIGHT, and the holes not all the same even/odd type?",
+  property("paper_x_shares_parity", "LEFT, RIGHT and X have the same parity", "do LEFT, RIGHT, and the hole count all have the same even/odd type?", "do LEFT, RIGHT, and the hole count fail to all have the same even/odd type?",
     (a,b,x)=> (a%2===b%2) && (x%2===a%2),
     (a,b)=> {
       if(a%2 !== b%2) return null;
@@ -17315,12 +17339,12 @@ function l0AnalogySharedPaperRuleCatalog(){
     },
     (a,b,maxX)=> a%2===b%2 && Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===a%2)
   );
-  property("paper_x_same_parity_left", "X has the same parity as LEFT", "do the holes have the same even/odd type as LEFT?", "do the holes not have the same even/odd type as LEFT?",
+  property("paper_x_same_parity_left", "X has the same parity as LEFT", "does the hole count have the same even/odd type as LEFT?", "does the hole count not have the same even/odd type as LEFT?",
     (a,b,x)=> x%2===a%2,
     (a,b)=> { for(let x=1; x<=12; x++) if(x%2===a%2 && x!==a) return x; return a; },
     (a,b,maxX)=> Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===a%2)
   );
-  property("paper_x_same_parity_right", "X has the same parity as RIGHT", "do the holes have the same even/odd type as RIGHT?", "do the holes not have the same even/odd type as RIGHT?",
+  property("paper_x_same_parity_right", "X has the same parity as RIGHT", "does the hole count have the same even/odd type as RIGHT?", "does the hole count not have the same even/odd type as RIGHT?",
     (a,b,x)=> x%2===b%2,
     (a,b)=> { for(let x=1; x<=12; x++) if(x%2===b%2 && x!==b) return x; return b; },
     (a,b,maxX)=> Array.from({length:maxX},(_,i)=>i+1).some(x=>x%2===b%2)
@@ -26333,7 +26357,7 @@ const FRIENDLY_POSNER_VARIANTS = {
   left_plus_gap_eq_10:[{q:"Does LEFT plus the gap between LEFT and RIGHT equal 10?"},{q:"Compute the gap between LEFT and RIGHT. If you add that gap to LEFT, is the result 10?"},{q:"Is LEFT plus the gap between LEFT and RIGHT not equal to 10?", negate:true}],
   bool_left_prime_or_right_gt5:[{q:"Is the left number prime, or is the right number greater than 5 (or both)?"},{q:"Is at least one of these true: the left is prime, or the right is greater than 5?"},{q:"Is the left a prime number, or does the right exceed 5?"}],
   bool_left_even_xor_right_gt5:[{q:"Is exactly one true: the left number is even, or the right number is greater than 5?"},{q:"Is exactly one of these true: the left is even; the right exceeds 5?"}],
-  bool_left_even_nand_right_gt5:[{q:"Answer YES unless both conditions are true: LEFT is even; RIGHT is greater than 5."}],
+  bool_left_even_nand_right_gt5:[{q:"Answer NO only when both conditions are true: LEFT is even; RIGHT is greater than 5. Otherwise answer YES."}],
   bool_left_prime_nor_right_odd:[{q:"Are both false: left is prime, right is odd?"},{q:"Is the left non-prime AND the right even?"}],
   bool_larger_even_or_gap_gt2:[{q:"Is the larger value even, or is the gap more than 2 (or both)?"},{q:"Is at least one true: the bigger number is even, or the difference is more than 2?"}],
   bool_larger_even_xor_gap_gt2:[{q:"Is exactly one true: the larger value is even, or the absolute difference is more than 2?"},{q:"Is exactly one of these true: the bigger number is even; the absolute difference exceeds 2?"}],
@@ -37099,6 +37123,19 @@ function witnessTryGenerate(p1, p2, config){
 
   const cands = witnessSearchCandidates(lo, hi, predicates);
   if(cands.length === 0) return null;
+  // v6.7.8 non-vacuity contract: (1) a selection qualifier must actually
+  // select — a single candidate makes "closest to X" decorative noise (the
+  // equal_to_anchor degenerates); (2) every predicate must bind — dropping it
+  // must change the candidate set, or the prompt states a constraint the task
+  // ignores.
+  if(!qual.requireUnique && cands.length < 2 && !/boundary/.test(String(config.qualifierId || ""))) return null;
+  if(predicates.length > 1){
+    for(let pi = 0; pi < predicates.length; pi++){
+      const without = predicates.filter((_, j) => j !== pi);
+      const candsWithout = witnessSearchCandidates(lo, hi, without);
+      if(candsWithout.length === cands.length) return null;
+    }
+  }
   const answer = qual.pick(cands, anchors);
   if(answer == null) return null;
   if(qual.requireUnique && cands.length !== 1) return null;
@@ -56849,6 +56886,13 @@ function startTrial(attempt = 0, forcedLevel = null){
   $("answerDisplay").classList.remove("typing");
   _markStartTrial("reset_ui");
 
+  if(typeof maybeStartInlineGenerativeTrialAfterReset === "function" && maybeStartInlineGenerativeTrialAfterReset(attempt, forcedLevel, _startTrialMarks)){
+    _markStartTrial("inline_generative_commit");
+    recordStartTrialBuildBreakdown(_startTrialMarks, {prepared:false, kind:State.trialInfo?.kind||null, catId:State.trialInfo?.catId||null, family:State.trialInfo?.family||null, autoPhase:State.trialInfo?.autoPhase||null});
+    ensureRuntimeDebug().lastStartTrialResult = "inline_generative_trial";
+    return true;
+  }
+
   if(attempt === 0 && forcedLevel === null && CONFIG.nextTrialPregenerationEnabled){
     const prepared = takePreparedTrial();
     if(prepared){
@@ -57860,7 +57904,9 @@ function schedulePostAnswerAccounting(ctx){
 // ── v6.5.45 retrospective L0 meta-classification wrapper ────────────────
 const L0_META_CLASSIFICATION_PUBLIC_OPTIONS = Object.freeze([
   {id:"property_value", label:"a number property", publicLabel:"a number property"},
-  {id:"order_relation", label:"an order comparison", publicLabel:"an order comparison"},
+  // v6.7.8: "order" excludes equality in plain reading, yet the bucket holds
+  // every two-value relation (=, <, >, gap, distance). Label what it is.
+  {id:"order_relation", label:"a value comparison", publicLabel:"a value comparison"},
   {id:"spatial_transform", label:"a spatial transform", publicLabel:"a spatial transform"},
   {id:"rule_procedure", label:"a step-by-step rule", publicLabel:"a step-by-step rule"}
 ]);
@@ -57988,8 +58034,15 @@ function l0MetaClassAmbiguous(info){
   // question_type and mental_move classifications for these cases so the learner is never marked
   // wrong on a genuinely two-sided question; the answer_source dimension still applies.
   const id = String(info?.catId || "").toLowerCase();
+  const fam = String(info?.family || info?.catFamily || "").toLowerCase();
   const move = (typeof projectL0TrialToMentalMove === "function") ? projectL0TrialToMentalMove(info) : "";
   if(move !== "test_property" && move !== "compare_two") return false;
+  // v6.7.8: visual-readout cats whose relational kind is a comparison or a
+  // property sit in a second gray zone — the dominant WORK is reading a
+  // visual structure (count the coin kinds), so "a spatial transform" is a
+  // defensible answer. Withhold question_type and mental_move; answer_source
+  // still classifies them, and classifies them correctly as visually-sourced.
+  if(info?.checkVisual === true || /visual_readout|visual_property/.test(fam)) return true;
   const propertyTok = /_even\b|_odd\b|parity|prime|composite|square|cube|fibonacci|lucas|triangular|power2|multiple|divisor|divisible/.test(id);
   const relationTok = /larger|smaller|greater|less|closer|farther|nearer|_gt\b|_lt\b|diff|gap|distance|between|midpoint|same_|different_|identical|opposite/.test(id);
   return propertyTok && relationTok;
@@ -58640,7 +58693,7 @@ function processInputPostAnswer(ctx){
 
     // Update global mode-D ET on L0 success — stimulus speed is uniform
     // across values in relational mode.
-    if(trialLevel === 0 && m === "D"){
+    if(trialLevel === 0 && m === "D" && State.trialInfo?.countsForAdaptation !== false){
       // Relational encoding should not accelerate when the user was still
       // protected by a novelty floor; otherwise the hidden base ET erodes
       // before the category has actually been trained at that speed.
@@ -58653,7 +58706,7 @@ function processInputPostAnswer(ctx){
     // Track L0 exposure in mode D's rolling window. Frame bursts count as
     // one META/readiness exposure, recorded only on the final probe and using
     // all-probe accuracy/mean RT for the episode.
-    if(trialLevel === 0 && m === "D" && isFinalL0MultiProbe(State.trialInfo)){
+    if(trialLevel === 0 && m === "D" && State.trialInfo?.countsForAdaptation !== false && isFinalL0MultiProbe(State.trialInfo)){
       const l0Outcome = l0FrameBurstEpisodeOutcome(true, rt);
       const baselineCatId = State.trialInfo?.catId || null;
       const baselineFamily = State.trialInfo?.family || null;
@@ -58682,7 +58735,8 @@ function processInputPostAnswer(ctx){
     let leveledDown = false;
     let levelUpInfo = null;
     let levelDownInfo = null;
-    const canEvaluateLevelChange = !(trialLevel === 0 && m === "D" && isL0MultiProbeInfo(State.trialInfo) && !isFinalL0MultiProbe(State.trialInfo));
+    const canEvaluateLevelChange = !(trialLevel === 0 && m === "D" && isL0MultiProbeInfo(State.trialInfo) && !isFinalL0MultiProbe(State.trialInfo))
+      && !(trialLevel === 0 && m === "D" && State.trialInfo?.countsForAdaptation === false);
     if(trialLevel === 0 && canEvaluateLevelChange){
       if(m === "A" && State.levelByMode[m] < maxLevelIndexForMode(m)){
         if(shouldLevelUpA()){
@@ -58835,14 +58889,14 @@ function processInputPostAnswer(ctx){
     }
 
     // Penalize global mode-D ET on L0 error
-    if(trialLevel === 0 && m === "D"){
+    if(trialLevel === 0 && m === "D" && State.trialInfo?.countsForAdaptation !== false){
       State.etByMode.D = Math.min(currentStartET(), State.etByMode.D + modePenalty("D"));
     }
 
     // Track L0 exposure in mode D's rolling window. Frame bursts count as
     // one META/readiness exposure, recorded only on the final probe and using
     // all-probe accuracy/mean RT for the episode.
-    if(trialLevel === 0 && m === "D" && isFinalL0MultiProbe(State.trialInfo)){
+    if(trialLevel === 0 && m === "D" && State.trialInfo?.countsForAdaptation !== false && isFinalL0MultiProbe(State.trialInfo)){
       const l0Outcome = l0FrameBurstEpisodeOutcome(false, rt);
       const baselineCatId = State.trialInfo?.catId || null;
       const baselineFamily = State.trialInfo?.family || null;
@@ -67875,7 +67929,21 @@ function contractWarningsForTrialInfo(info){
   const warn = [];
   if(c.responseFormat === "choice"){
     if(c.optionCount < 2) warn.push({code:"choice_without_options", detail:c.optionCount});
-    if(!Number.isInteger(c.correctIndex) || c.correctIndex < 0 || c.correctIndex >= c.optionCount) warn.push({code:"choice_correct_index_out_of_range", correctIndex:c.correctIndex, optionCount:c.optionCount});
+    // v6.7.1: relation-equivalence and similar dual-selection choice trials use
+    // correctIndices/requiredSelections and intentionally leave correctIndex
+    // null. Validate that shape separately instead of reporting a false
+    // single-choice contract breach.
+    const multiSelect = Number(info?.requiredSelections) >= 2 || (Array.isArray(info?.correctIndices) && info.correctIndices.length >= 2);
+    if(multiSelect){
+      const idxs = Array.isArray(info?.correctIndices) ? info.correctIndices.map(Number) : [];
+      const need = Number(info?.requiredSelections) || idxs.length;
+      const distinct = new Set(idxs);
+      if(!idxs.length || idxs.length !== need || distinct.size !== idxs.length || idxs.some(i => !Number.isInteger(i) || i < 0 || i >= c.optionCount)){
+        warn.push({code:"multiselect_correct_indices_invalid", correctIndices:idxs, requiredSelections:need, optionCount:c.optionCount});
+      }
+    } else if(!Number.isInteger(c.correctIndex) || c.correctIndex < 0 || c.correctIndex >= c.optionCount){
+      warn.push({code:"choice_correct_index_out_of_range", correctIndex:c.correctIndex, optionCount:c.optionCount});
+    }
     if(typeof choiceTrayUsesOrdinalLabels === "function" && !choiceTrayUsesOrdinalLabels()) warn.push({code:"choice_tray_not_ordinal"});
     if(c.family === "memory_bridge" && /pair_identity/i.test(String(info?.payload?.bridgeType || ""))){
       const optionText = c.options.join(" | ");
@@ -68132,6 +68200,15 @@ function l0ChoiceFormatWeight(cat){
     const s = l0RecentChoiceShare(64);
     if(s.total < 8) return 1.08;
     const target = Number(CONFIG.l0CategoricalChoiceTargetShare || 0.24);
+    // v6.7.1: this governor was boost-only. When choice trials overshot the
+    // target share, the sampler kept full weight, which let choice4 slots drift
+    // into dominance in live diagnostics. Make the curve symmetric: undershoot
+    // boosts, overshoot suppresses toward a bounded floor.
+    if(s.share > target && s.total >= 12){
+      const minSuppress = clamp(Number(CONFIG.l0CategoricalChoiceMinSuppress || 0.55), 0.2, 1);
+      const overshoot = clamp((s.share - target) / Math.max(0.01, 1 - target), 0, 1);
+      return clamp(1 - overshoot * (1 - minSuppress), minSuppress, 1);
+    }
     if(s.share >= target) return 1;
     const boost = 1 + clamp((target - s.share) / Math.max(0.01, target), 0, 1) * (Number(CONFIG.l0CategoricalChoiceMaxBoost || 1.72) - 1);
     return clamp(boost, 1, Number(CONFIG.l0CategoricalChoiceMaxBoost || 1.72));
@@ -68140,13 +68217,15 @@ function l0ChoiceFormatWeight(cat){
 function l0ChoiceFormatGovernanceSnapshot(){
   const s = l0RecentChoiceShare(80);
   const choiceCats = (Array.isArray(POSNER_CATS) ? POSNER_CATS : []).filter(c => c && (c.responseFormat === "choice" || typeof c.buildChoiceTrial === "function" || c.l0RelationEquivalenceId)).length;
-  return {target:Number(CONFIG.l0CategoricalChoiceTargetShare || 0.24), recent:s, choiceCats, boostNow:s.share < Number(CONFIG.l0CategoricalChoiceTargetShare || 0.24)};
+  const tgt = Number(CONFIG.l0CategoricalChoiceTargetShare || 0.24);
+  return {target:tgt, recent:s, choiceCats, boostNow:s.share < tgt, suppressNow:s.share > tgt && s.total >= 12};
 }
 function auditL0CategoricalChoiceGovernance(opts={}){
   const snap = l0ChoiceFormatGovernanceSnapshot();
   const block = [], warnings=[];
   if(snap.choiceCats < 8) warnings.push("few_l0_choice_categories_registered");
   if(snap.recent.total >= 20 && snap.recent.share < snap.target * 0.45) warnings.push("recent_l0_choice_share_far_below_target");
+  if(snap.recent.total >= 20 && snap.recent.share > snap.target * 1.8 && !snap.suppressNow) block.push("recent_l0_choice_share_far_above_target_without_suppression");
   return auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentAppVersion(), warnings, snapshot:snap});
 }
 function inferErrorRepairHypothesis(info, qualityDetail){
@@ -68342,8 +68421,8 @@ function auditL0BooleanCompoundClarity(opts={}){
     if(row.id === "bool_left_even_nand_right_gt5" && row.negate) block.push(`${row.id}: NAND prompt should not be served through negated wording`);
   }
   const samplesToCheck = [
-    {id:"bool_left_even_nand_right_gt5", a:3, b:5, expectedResult:true, expect:/unless both (?:conditions )?are true/i},
-    {id:"bool_left_even_nand_right_gt5", a:2, b:6, expectedResult:false, expect:/unless both (?:conditions )?are true/i},
+    {id:"bool_left_even_nand_right_gt5", a:3, b:5, expectedResult:true, expect:/NO only when both conditions are true/i},
+    {id:"bool_left_even_nand_right_gt5", a:2, b:6, expectedResult:false, expect:/NO only when both conditions are true/i},
     {id:"bool_left_even_xor_right_gt5", a:2, b:5, expect:/exactly one condition is true/i},
     {id:"bool_left_gt_and_sum_gt10", a:7, b:5, expect:/both conditions are true/i},
     {id:"bool_left_prime_nor_right_odd", a:4, b:6, expect:/both conditions are false/i},
@@ -72184,7 +72263,10 @@ function loop(ts){
   if(typeof WITNESS_PREDS_UNARY !== "undefined"){
     ["not_in_set","multiple_of_6"].forEach(x => pushUnique(WITNESS_PREDS_UNARY, x));
   }
-  if(typeof WITNESS_PREDS_BINARY !== "undefined") pushUnique(WITNESS_PREDS_BINARY, "equal_to_anchor");
+  // v6.7.8: equal_to_anchor pins the solution set to a singleton, so any
+  // selection qualifier paired with it is vacuous by construction. The
+  // non-vacuity guard in witnessTryGenerate now rejects such compositions
+  // structurally, and the predicate stays out of the sampled pools.
 
   if(typeof WITNESS_QUALIFIERS !== "undefined"){
     if(!WITNESS_QUALIFIERS.lower_boundary){
@@ -72225,7 +72307,7 @@ function loop(ts){
     {id:"witness_closest_to_anchor", qualifierIds:["closest_to"], predIds:["even","odd","prime","square"], anchorIds:["mid_all","p1_sum","p2_sum","gap_max","max_all"], minLevel:5, minM:6, tags:["metric_relation","class_inclusion","anchor_distance"]},
     {id:"witness_unique_in_interval", qualifierIds:["unique_in_open","unique_in_closed"], predIds:["prime","square","multiple_of_3","multiple_of_4","multiple_of_6","not_in_set"], anchorPairs:[["min_all","max_all"],["p1_min","p2_max"],["p1_max","p2_max"],["p1_sum","p2_sum"],["gap_min","sum_all"]], minLevel:6, minM:8, tags:["class_inclusion","conditionality_relation","interval_relation"]},
     {id:"witness_equidistant", qualifierIds:["equidistant_between"], predIds:["even","odd","not_in_set"], anchorPairs:[["min_all","max_all"],["p1_min","p2_max"],["p1_max","p2_max"],["p1_sum","p2_sum"]], minLevel:6, minM:8, tags:["metric_relation","anchor_distance","class_inclusion"]},
-    {id:"witness_relational_anchored", qualifierIds:["largest_le","smallest_ge","closest_to"], binaryPredIds:["divisor_of","coprime_with","same_parity_as","equal_to_anchor"], anchorIds:["max_all","min_all","p1_sum","p2_sum","mid_all"], predicateAnchorIds:["p1_min","p1_max","p2_min","p2_max","gap_max"], minLevel:6, minM:8, tags:["metric_relation","class_inclusion","relation_binding"]},
+    {id:"witness_relational_anchored", qualifierIds:["largest_le","smallest_ge","closest_to"], binaryPredIds:["divisor_of","coprime_with","same_parity_as"], anchorIds:["max_all","min_all","p1_sum","p2_sum","mid_all"], predicateAnchorIds:["p1_min","p1_max","p2_min","p2_max","gap_max"], minLevel:6, minM:8, tags:["metric_relation","class_inclusion","relation_binding"]},
     {id:"witness_negative_largest", qualifierIds:["largest_le"], predIds:["not_in_set"], anchorIds:["max_all","p1_sum","p2_sum","p1_max","p2_max"], minLevel:6, minM:8, tags:["class_inclusion","opposition","ordered_search"]},
     {id:"witness_multiple6_smallest", qualifierIds:["smallest_ge"], predIds:["multiple_of_6"], anchorIds:["min_all","gap_min","p1_min","p2_min"], minLevel:6, minM:8, tags:["class_inclusion","composite_property","ordered_search"]},
     {id:"witness_lower_boundary", qualifierIds:["lower_boundary"], predIds:["not_in_set"], anchorPairs:[["min_all","max_all"],["p1_min","p2_max"],["p1_sum","p2_sum"],["gap_min","sum_all"]], minLevel:7, minM:8, tags:["class_inclusion","boundary_value","conditionality_relation"]},
@@ -72810,10 +72892,18 @@ function migrateLateL1AdditionsToRegistry(){
   function epAllSubsetLabels(){
     return [[],["Ada"],["Ben"],["Cy"],["Ada","Ben"],["Ada","Cy"],["Ben","Cy"],["Ada","Ben","Cy"]].map(xs=>({agents:xs,label:epSubsetLabel(xs),key:epSubsetKey(xs)}));
   }
-  function epAgentInfoText(agent, k, targetText){
-    if(k.exactLeft === "actual" && k.exactRight === "actual") return `${agent} knows LEFT and RIGHT.`;
-    if(k.exactLeft === "actual" && !k.exactRight) return `${agent} knows only LEFT.`;
-    if(k.exactRight === "actual" && !k.exactLeft) return `${agent} knows only RIGHT.`;
+  function epAgentInfoText(agent, k, targetText, actual=null){
+    const publicSum = k.publicExactSum && actual ? `heard public sum: LEFT+RIGHT = ${Number(actual.left) + Number(actual.right)}` : "";
+    if(k.exactLeft === "actual" && k.exactRight === "actual"){
+      return publicSum ? `${agent} knows LEFT and RIGHT; ${publicSum}.` : `${agent} knows LEFT and RIGHT.`;
+    }
+    if(k.exactLeft === "actual" && !k.exactRight){
+      return publicSum ? `${agent} knows LEFT; ${publicSum}.` : `${agent} knows only LEFT.`;
+    }
+    if(k.exactRight === "actual" && !k.exactLeft){
+      return publicSum ? `${agent} knows RIGHT; ${publicSum}.` : `${agent} knows only RIGHT.`;
+    }
+    if(k.publicExactSum && actual) return `${agent} heard public sum: LEFT+RIGHT = ${Number(actual.left) + Number(actual.right)}.`;
     if(k.publicTargetTruth) return `${agent} heard an announcement giving the YES/NO answer to the target.`;
     if(k.publicSumParity) return `${agent} heard an announcement giving whether LEFT+RIGHT is even or odd.`;
     if(k.publicGapTruth) return `${agent} heard an announcement giving whether the gap target is true.`;
@@ -72828,6 +72918,7 @@ function migrateLateL1AdditionsToRegistry(){
         const w={left:L,right:R};
         const actualTruth = epEval(target, actual);
         if(k.publicTargetTruth && epEval(target, w) !== actualTruth) continue;
+        if(k.publicExactSum && (L + R !== actual.left + actual.right)) continue;
         if(k.publicSumParity && ((L+R)%2 !== (actual.left+actual.right)%2)) continue;
         if(k.publicGapTruth && epEval(target, w) !== actualTruth) continue;
         worlds.push(w);
@@ -72849,22 +72940,22 @@ function migrateLateL1AdditionsToRegistry(){
         agents:{Ada:{exactLeft:"actual",exactRight:"actual"}, Ben:{exactLeft:"actual"}, Cy:{exactRight:"actual"}}
       },
       {
-        id:"public_comparison",
+        id:"public_sum_comparison",
         target:{kind:"left_gt_right"},
         lead:"Public/private knowledge. Target: ${target}. Who can determine whether the target is YES or NO?",
-        agents:{Ada:{publicTargetTruth:true}, Ben:{exactLeft:"actual"}, Cy:{exactLeft:"actual",exactRight:"actual"}}
+        agents:{Ada:{publicExactSum:true}, Ben:{exactLeft:"actual",publicExactSum:true}, Cy:{exactRight:"actual",publicExactSum:true}}
       },
       {
         id:"sum_parity_public",
         target:{kind:"sum_parity",parity:"even"},
         lead:"Public/private knowledge. Target: ${target}. Who can determine whether the target is YES or NO?",
-        agents:{Ada:{publicTargetTruth:true}, Ben:{exactLeft:"actual",exactRight:"actual"}, Cy:{exactRight:"actual"}}
+        agents:{Ada:{publicExactSum:true}, Ben:{exactLeft:"actual",exactRight:"actual"}, Cy:{exactRight:"actual",publicExactSum:true}}
       },
       {
         id:"gap_lt_three",
         target:{kind:"gap_cmp",cmp:"lt",threshold:3},
         lead:"Information check. Target: ${target}. Who can determine whether the target is YES or NO?",
-        agents:{Ada:{exactLeft:"actual"}, Ben:{exactLeft:"actual",exactRight:"actual"}, Cy:{publicTargetTruth:true}}
+        agents:{Ada:{exactLeft:"actual"}, Ben:{exactLeft:"actual",exactRight:"actual"}, Cy:{exactRight:"actual",publicExactSum:true}}
       },
       {
         id:"right_greater_than_left",
@@ -72883,7 +72974,7 @@ function migrateLateL1AdditionsToRegistry(){
       const worlds = epWorldsForKnowledge(knowledge, target, actual, max);
       const canDetermine = epDeterminesFromWorlds(worlds, target);
       const truthValues = Array.isArray(worlds) ? uniq(worlds.map(w => epEval(target,w) ? "YES" : "NO")) : [];
-      return {agent, knowledge, worlds, worldCount:worlds.length, canDetermine, truthValues, text:epAgentInfoText(agent, knowledge, targetText)};
+      return {agent, knowledge, worlds, worldCount:worlds.length, canDetermine, truthValues, text:epAgentInfoText(agent, knowledge, targetText, actual)};
     });
     const determiners = agentRows.filter(r => r.canDetermine).map(r => r.agent);
     const correctLabel = epSubsetLabel(determiners);
@@ -72988,7 +73079,8 @@ function migrateLateL1AdditionsToRegistry(){
         const rows = epOptionRows(res.correctKey);
         const idx = rows.findIndex(r=>r.key===res.correctKey);
         if(idx < 0) block.push(`${tpl.id}/${label}: correct subset missing from options`);
-        if(tpl.id === "public_comparison" && a === 1 && res.correctKey !== "Ada|Ben|Cy") block.push("public_comparison edge LEFT=1 should make all three agents able to determine the answer");
+        if(tpl.id === "public_sum_comparison" && !res.agentRows.some(r => /LEFT\+RIGHT =/i.test(r.text || ""))) block.push("public_sum_comparison must expose an exact public sum");
+        if(tpl.id === "public_sum_comparison" && a > 1 && a < epMax(12) && res.correctKey !== "Ben|Cy") block.push("public_sum_comparison middle cases should require one side plus public sum");
         samples.push({scenario:tpl.id, edge:label, target:res.targetText, correct:res.correctLabel, determiners:res.determiners, optionCount:rows.length});
       }
     }
@@ -74168,11 +74260,19 @@ openModal("overlay"); setStatus("MENU"); updateMenu({force:true});
       const cat = (typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).find(c=>c?.id === "bool_left_even_nand_right_gt5");
       const text = JSON.stringify(cat?.variants || []);
       if(/NAND\s*\/\s*NOT-BOTH\s+check/i.test(text)) block.push("NAND prompt still starts with label instead of the rule.");
-      if(!/Answer YES unless both conditions are true/i.test(text)) block.push("NAND prompt does not state the public rule directly.");
+      if(!/Answer NO only when both conditions are true/i.test(text)) block.push("NAND prompt does not state the public rule directly.");
+      const oldNandText = String(text || "").toLowerCase();
+      const oldNandSurfaces = [
+        "at least one condition " + "false",
+        "left is " + "not even",
+        "right is not " + "greater than 5",
+        "yes unless both conditions are " + "true"
+      ];
+      if(oldNandSurfaces.some(x => oldNandText.includes(x))) block.push("NAND prompt still exposes the older double-negation wording.");
       if(typeof renderBooleanCompoundReview === "function"){
         const r = renderBooleanCompoundReview("nand", false);
         if(/NAND\s*\/\s*NOT-BOTH/i.test(r)) warnings.push("NAND review still names the gate; acceptable only if prompt remains rule-first.");
-        if(!/unless both conditions are true/i.test(r)) block.push("NAND review does not explain the rule.");
+        if(!/NO only when both conditions are true/i.test(r)) block.push("NAND review does not explain the rule.");
       }
     }catch(e){ block.push(e?.message || String(e)); }
     return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), warnings, block};
@@ -74221,7 +74321,7 @@ openModal("overlay"); setStatus("MENU"); updateMenu({force:true});
       safeRegisterAtomic("l1_ternary_triangle_relation", {kind:"ternary_relation", desc:"Use three independent retained values as side lengths and apply the strict triangle inequality."});
       safeRegisterAtomic("triangle_inequality_general", {kind:"relation_contract", desc:"A triangle is possible exactly when the two smaller sides add to more than the largest side."});
       safeRegisterAtomic("retained_three_side_selection", {kind:"episodic_binding", desc:"Select three side lengths from two retained pairs without printing the values in the prompt."});
-      safeRegisterAtomic("nand_rule_first_prompt", {kind:"prompt_contract", desc:"Public NAND prompt states the rule directly: answer YES unless both conditions are true."});
+      safeRegisterAtomic("nand_rule_first_prompt", {kind:"prompt_contract", desc:"Public NAND prompt states the rule directly: answer NO only when both conditions are true; otherwise YES."});
     }
   }catch(_){ }
   try{ if(typeof window !== "undefined") window.EUCA_V6590_TRIANGLE_NAND = {patch:PATCH_VERSION}; }catch(_){ }
@@ -74846,9 +74946,8 @@ try{
 
   // One true NAND prompt had two display-equivalent surfaces after polishing.
   addFriendly("bool_left_even_nand_right_gt5", [
-    "Answer YES unless both conditions are true: LEFT is even; RIGHT is greater than 5.",
-    "Say NO only when LEFT is even and RIGHT is greater than 5; otherwise say YES.",
-    "Is at least one condition false: LEFT is not even, or RIGHT is not greater than 5?"
+    "Answer NO only when both conditions are true: LEFT is even; RIGHT is greater than 5. Otherwise answer YES.",
+    "Say NO only when LEFT is even and RIGHT is greater than 5; otherwise say YES."
   ]);
 
   // Recursive/process families: make the seed, loop rule and threshold explicit in at least three public phrasings.
@@ -75157,10 +75256,29 @@ try{
     return `${labels.some(x => /^not\s+/i.test(String(x))) ? "value" : "number"} that is ${labels.join(" and ")}`;
   }
   function witnessTrailingPredicates(unaryPredLabels, binaryPredLabels, binaryNounLabel){
+    // v6.7.8: the main noun consumes either the unary labels or the FIRST
+    // binary noun. The old code re-pushed every binary label into the trailing
+    // clause regardless, so a single predicate rendered twice: "value equal to
+    // X … and equal to X" — measured at 56/120 prompts in the anchored
+    // profile on v6.7.7. Account for what the noun already said, and never
+    // repeat a clause verbatim.
+    const unary = arr(unaryPredLabels), binary = arr(binaryPredLabels);
+    // The noun has ABSOLUTE binary priority (witnessReadableMainNoun returns
+    // binaryNounLabel whenever it exists, even with unary labels present), so
+    // the accounting is: whatever the noun consumed never trails; everything
+    // else must trail or it becomes a hidden constraint. Concretely: when the
+    // binary noun exists it consumed binary[0], so the trailing clause carries
+    // ALL unary labels plus binary[1..]; otherwise the noun was unary-built
+    // and only the binary labels trail.
     const parts = [];
-    if(binaryNounLabel && arr(unaryPredLabels).length) parts.push(...arr(unaryPredLabels));
-    parts.push(...arr(binaryPredLabels));
-    return parts.length ? ` and ${parts.join(" and ")}` : "";
+    if(binaryNounLabel){
+      parts.push(...unary, ...binary.slice(1));
+    } else {
+      parts.push(...binary);
+    }
+    const seen = new Set();
+    const deduped = parts.filter(x => { const k = String(x).trim().toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; });
+    return deduped.length ? ` and ${deduped.join(" and ")}` : "";
   }
   function witnessPromptRangePhrase(qualifierId, anchors){
     const q = (typeof WITNESS_QUALIFIERS !== "undefined") ? WITNESS_QUALIFIERS[qualifierId] : null;
@@ -79598,7 +79716,7 @@ try{
 (function(){
   "use strict";
   const PATCH_ID = "v6.6.18-meta-lure-fix";
-  const VERSION = "v6.7.0-generative-mode";
+  const VERSION = "v6.7.8-forensic-merge";
   function warn(){ try{ console.warn.apply(console, arguments); }catch(_){ } }
   function uniqLocal(arr){ return Array.from(new Set((Array.isArray(arr)?arr:[]).filter(x=>x!=null))); }
   function currentVersionLocal(){ try{ return (typeof APP_VERSION !== "undefined") ? APP_VERSION : VERSION; }catch(_){ return VERSION; } }
@@ -79882,7 +80000,7 @@ try{
 // and reduces waiting for a prepared trial that probably will not arrive.
 (function(){
   const PATCH_ID = "v6.6.19-question-diversity";
-  const VERSION = "v6.7.0-generative-mode";
+  const VERSION = "v6.7.8-forensic-merge";
 
   try{
     if(typeof CONFIG !== "undefined" && CONFIG){
@@ -80178,7 +80296,7 @@ try{
    ║ warnings, suppresses identical/direct dominance, and audits it.      ║
    ╚══════════════════════════════════════════════════════════════════════╝ */
 (function(){
-  const VERSION = "v6.7.0-generative-mode";
+  const VERSION = "v6.7.8-forensic-merge";
   const PATCH_ID = "2026-06-08.v6620.coverage-governance";
 
   function _v6620SafeArray(x){ return Array.isArray(x) ? x : []; }
@@ -80511,7 +80629,7 @@ try{
 // equality questions dominate the pool.
 (function(){
   "use strict";
-  const VERSION = "v6.7.0-generative-mode";
+  const VERSION = "v6.7.8-forensic-merge";
   const PATCH_ID = "2026-06-08.v6621.mobile-prep-governance";
 
   function safeNow(){ try{ return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now(); }catch(_){ return Date.now(); } }
@@ -80834,7 +80952,7 @@ try{
    non-overlapping ontology.
 */
 (function(){
-  const VERSION = "v6.7.0-generative-mode";
+  const VERSION = "v6.7.8-forensic-merge";
   const PATCH_ID = "2026-06-09.v6622-l1-meta-classification-rebalance";
   try{ if(typeof APP_VERSION !== "undefined") APP_VERSION; }catch(_){}
   // (removed dead lines: APP_VERSION is `const` so reassignment always threw and
@@ -81265,7 +81383,7 @@ try{
 // =============================================================================
 (function(){
   "use strict";
-  const VERSION = "v6.7.0-generative-mode";
+  const VERSION = "v6.7.8-forensic-merge";
   window.EUCA_V6625_AUDITED_POLISH = true;
 
   function auditV6625AuditedPolish(opts={}){
@@ -81368,7 +81486,7 @@ try{
    ═══════════════════════════════════════════════════════════════════════ */
 (function(){
   "use strict";
-  const VERSION = "v6.7.0-generative-mode";
+  const VERSION = "v6.7.8-forensic-merge";
   const PATCH_ID = "2026-06-10.generative-witness-v1";
 
   function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){} return {status, details}; }
@@ -81822,6 +81940,9 @@ try{
       const gTitle = tpl && tpl.content ? tpl.content.querySelector("#guideTitle") : null;
       if(gTitle) gTitle.textContent = gTitle.textContent.replace(/v\d+\.\d+\.\d+[^\s<]*/g, appV);
     }catch(_){ }
+    // v6.7.3: generative work is integrated as ordinary in-block trials. The
+    // old standalone launcher is intentionally retired from the public menu.
+    return;
     try{
       if(typeof CONFIG === "object" && CONFIG && CONFIG.generativeModeEnabled === false) return;
       const anchor = document.getElementById("guideBtn");
@@ -81982,13 +82103,1248 @@ try{
       version:VERSION, patch:PATCH_ID,
       start:openGenerativeMode,
       newSession:generativeNewSession, nextTrial:generativeNextTrial, judge:generativeJudge,
-      reveal:generativeReveal, summary:generativeSummary, pool:generativePool,
+      reveal:generativeReveal, summary:generativeSummary, finish:generativeFinish, currentTarget:generativeCurrentTarget, pool:generativePool,
       gridStats:generativeGridStats, cap:generativeValueCap, loadStats:generativeLoadStats,
       audits:{catalog:auditGenerativeCatalog, quarantine:auditGenerativeStatsQuarantine, ui:auditGenerativeUIContract}
     };
   }catch(_){ }
 })();
 
+</script>
+<script>
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.7.8-forensic-merge";
+  const AUDIT_NAMES = new Set([
+    "v671_ux_forensics",
+    "ux_forensics",
+    "prompt_composition_clarity",
+    "witness_paper_prompt_contracts",
+    "paper_prompt_contracts",
+    "witness_composition_contracts"
+  ]);
+  const auditResultLocal = (status, details) => {
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){}
+    return {ok:status === "PASS", status, details};
+  };
+  const safeVersion = () => {
+    try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){}
+    try{ if(typeof APP_VERSION !== "undefined") return APP_VERSION; }catch(_){}
+    return PATCH_ID;
+  };
+  function auditPromptAndCompositionClarity(opts={}){
+    const block = [], warnings = [];
+    const details = {appVersion:safeVersion(), patch:PATCH_ID};
+    try{
+      const cat = (typeof l0AnalogySharedPaperRuleCatalog === "function") ? l0AnalogySharedPaperRuleCatalog() : [];
+      const fields = ["paperPromptLeft","paperPromptRight","paperNegLeft","paperNegRight","prompt","promptAlt","negPrompt"];
+      details.paperOps = cat.length;
+      let holesPlural = 0, directionCollision = 0, clockChecked = 0;
+      const badClock = [];
+      for(const op of cat){
+        for(const key of fields){
+          const q = String(op && op[key] || "");
+          if(!q) continue;
+          if(/\bthe holes\b/i.test(q)) holesPlural++;
+          if(/\bmoving\s+(LEFT|RIGHT)\s+/i.test(q)) directionCollision++;
+          if(/12-clock/i.test(q) && /\bmoving\b/i.test(q)){
+            clockChecked++;
+            if(!/from\s+(LEFT|RIGHT)\s+on a 12-clock/i.test(q) && !/apply this rule to\s+(LEFT|RIGHT)\s*:/i.test(q)){
+              badClock.push({id:op.id || null, key, q:q.slice(0,140)});
+            }
+          }
+        }
+      }
+      details.clockChecked = clockChecked;
+      details.badClock = badClock.slice(0, 8);
+      if(holesPlural) block.push(`${holesPlural} paper rule prompts still say "the holes" instead of "the hole count"`);
+      if(directionCollision) block.push(`${directionCollision} paper prompts attach the motion verb to LEFT/RIGHT`);
+      if(badClock.length) block.push(`${badClock.length} clock paper prompts lack an explicit from-anchor`);
+    }catch(e){ block.push("paper prompt audit exception: " + (e && e.message || e)); }
+
+    try{
+      const ops = (typeof L1_OPS !== "undefined" && Array.isArray(L1_OPS)) ? L1_OPS.filter(o => o && o.family === "witness") : [];
+      details.witnessOps = ops.length;
+      const rp = m => ({a:1 + Math.floor(Math.random()*m), b:1 + Math.floor(Math.random()*m)});
+      let generated = 0, duplicateClauses = 0, repeatedEqualAnchor = 0;
+      const samples = [];
+      for(const op of ops){
+        let got = 0, tries = 0;
+        while(got < 10 && tries++ < 80){
+          let inst = null;
+          try{ inst = typeof op.fn === "function" ? op.fn(rp(12), rp(12), 12) : null; }catch(_){}
+          const q = String(inst && (inst.question || inst.q || inst.prompt) || "");
+          if(!q) continue;
+          got++; generated++;
+          const segs = q.replace(/\?$/,"").split(/\s+and\s+/i).map(x => x.trim().toLowerCase()).filter(x => x.length >= 6);
+          const seen = new Set();
+          let dupHere = false;
+          for(const sg of segs){
+            if(seen.has(sg)){ dupHere = true; break; }
+            seen.add(sg);
+          }
+          const eqAnchors = [...q.matchAll(/\bequal to\s+([^?.,]+?)(?=\s+(?:closest|largest|smallest|and|that|which)\b|[?.]|$)/ig)]
+            .map(m => m[1].trim().toLowerCase().replace(/\s+/g, " "))
+            .filter(Boolean);
+          const eqDup = eqAnchors.length > new Set(eqAnchors).size;
+          // v6.7.8: segment-equality alone is blind to the real pattern — the
+          // first occurrence lives INSIDE the noun segment ("the value equal
+          // to X closest to Y" vs "equal to X"), so exact-segment comparison
+          // never fires. A binary-predicate phrase appearing twice in one
+          // prompt is the decisive signal (it found 56/120 on v6.7.7).
+          const ql = q.toLowerCase();
+          const phraseDouble = ["equal to ", "same parity as ", "divisor of ", "coprime with "].some(ph => ql.split(ph).length - 1 >= 2);
+          if(phraseDouble) dupHere = true;
+          if(dupHere || eqDup){
+            if(dupHere) duplicateClauses++;
+            if(eqDup) repeatedEqualAnchor++;
+            if(samples.length < 6) samples.push({op:op.id || null, duplicateClauses:dupHere, repeatedEqualAnchor:eqDup, q:q.slice(0,220)});
+          }
+        }
+      }
+      details.witnessGenerated = generated;
+      details.duplicateClauses = duplicateClauses;
+      details.repeatedEqualAnchor = repeatedEqualAnchor;
+      details.witnessSamples = samples;
+      if(ops.length && !generated) warnings.push("witness ops produced no instances in budget");
+      if(duplicateClauses) block.push(`${duplicateClauses} witness prompts contain a repeated clause`);
+      if(repeatedEqualAnchor) block.push(`${repeatedEqualAnchor} witness prompts repeat the same equal-to anchor`);
+    }catch(e){ block.push("witness composition audit exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
+  }
+  try{ window.auditPromptAndCompositionClarity = auditPromptAndCompositionClarity; }catch(_){}
+  try{
+    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v671UxForensicsWrapped){
+      const wrapped = function runFeatureAuditV671UxForensics(feature, opts={}){
+        if(AUDIT_NAMES.has(String(feature || ""))) return auditPromptAndCompositionClarity(opts);
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v671UxForensicsWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){}
+      try{ runFeatureAudit = wrapped; }catch(_){}
+    }
+  }catch(_){}
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.7.8-forensic-merge";
+  const AUDIT_NAMES = new Set([
+    "v672_generative_integration",
+    "generative_integration",
+    "generative_fast_pair_builder",
+    "generative_ui_contract"
+  ]);
+  let ui = null, session = null, activeSide = "a", chosen = {a:null, b:null}, autoTimer = null;
+
+  const esc = s => String(s == null ? "" : s).replace(/[&<>'"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch]));
+  const engine = () => (typeof window !== "undefined" && window.EUCALCULIA_GENERATIVE) ? window.EUCALCULIA_GENERATIVE : null;
+  const version = () => {
+    try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){}
+    try{ if(typeof APP_VERSION !== "undefined") return APP_VERSION; }catch(_){}
+    return PATCH_ID;
+  };
+  const auditResultLocal = (status, details) => {
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){}
+    return {ok:status === "PASS", status, details};
+  };
+  function targetNow(){
+    const g = engine();
+    try{ if(g && typeof g.currentTarget === "function") return !!g.currentTarget(session); }catch(_){}
+    const t = session && session.current;
+    return !!(t && t.order && t.order[t.phaseIdx] === "true");
+  }
+  function currentStatsText(){
+    const g = engine();
+    let st = null;
+    try{ st = g && typeof g.loadStats === "function" ? g.loadStats() : null; }catch(_){}
+    if(st && Number(st.trials || 0) > 0){
+      const trials = Number(st.trials || 0);
+      const ft = Number(st.firstTryBoth || 0);
+      const assisted = Number(st.assisted || 0);
+      return `Constructive practice: ${trials} trials, ${ft} first-try dual witnesses, ${assisted} assisted.`;
+    }
+    return "Constructive practice: build one pair that makes the claim YES and one that makes it NO.";
+  }
+  function injectStyle(){
+    if(document.getElementById("genIntegratedStyles")) return;
+    const st = document.createElement("style");
+    st.id = "genIntegratedStyles";
+    st.textContent = `
+#genMenuPanel{margin-top:10px;padding:9px 10px;border:1px solid rgba(255,255,255,0.08);background:#111117;border-radius:10px;}
+#genMenuPanel .gen-menu-row{display:flex;gap:8px;align-items:center;}
+#genMenuPanel .btn{flex:0 0 auto;min-height:36px;font-size:0.72rem;}
+#genMenuStats{font-size:0.66rem;line-height:1.35;color:var(--muted,#9a9aa6);flex:1;text-align:left;}
+#genIntegratedOverlay{position:fixed;inset:0;z-index:9991;display:none;align-items:center;justify-content:center;background:rgba(6,6,10,0.94);backdrop-filter:blur(5px);padding:12px;}
+#genIntegratedOverlay.open{display:flex;}
+#genIntegratedShell{width:min(620px,96vw);max-height:94svh;overflow:auto;background:#101017;border:1px solid #30303c;border-radius:14px;padding:clamp(12px,2.2svh,20px);color:#eee;font-family:inherit;box-shadow:0 22px 70px rgba(0,0,0,0.45);}
+#genIntegratedTop{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;margin-bottom:10px;}
+#genIntegratedTitle{font-size:0.82rem;font-weight:850;letter-spacing:0.04em;text-transform:uppercase;}
+#genIntegratedProgress{font-size:0.66rem;color:var(--muted,#9a9aa6);margin-top:3px;}
+#genIntegratedPhase{justify-self:end;border-radius:999px;padding:5px 10px;font-size:0.68rem;font-weight:850;}
+#genIntegratedPhase.yes{background:#12391f;color:#86e7a4;}
+#genIntegratedPhase.no{background:#3a1420;color:#ea8ba3;}
+#genIntegratedClaim{font-size:0.82rem;line-height:1.4;margin:8px 0 12px;}
+#genIntegratedRange{font-size:0.65rem;color:var(--muted,#9a9aa6);text-align:center;margin:4px 0 10px;}
+#genPairSlots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 10px;}
+.gen-slot{min-height:58px;border:1px solid #2c2c38;background:#16161f;color:#f4f4f8;border-radius:10px;padding:8px;text-align:center;}
+.gen-slot.active{border-color:var(--accent,#6c5ce7);box-shadow:0 0 0 1px rgba(108,92,231,0.35) inset;}
+.gen-slot-label{font-size:0.64rem;color:var(--muted,#9a9aa6);font-weight:800;letter-spacing:0.08em;}
+.gen-slot-value{font-size:1.35rem;font-weight:900;line-height:1.15;margin-top:2px;min-height:1.4rem;}
+#genValueGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:8px 0;}
+.gen-value-btn{min-height:42px;border-radius:9px;border:1px solid #2f2f3c;background:#1b1b25;color:#fff;font-size:1rem;font-weight:850;}
+.gen-value-btn:active{transform:translateY(1px);}
+#genIntegratedFeedback{min-height:2.7em;text-align:center;font-size:0.72rem;line-height:1.35;margin:8px 0;}
+#genIntegratedFeedback.ok{color:#83e6a5;}
+#genIntegratedFeedback.miss{color:#e7bc83;}
+#genIntegratedFeedback.err{color:#e48686;}
+#genIntegratedActions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;}
+#genIntegratedActions .btn{min-height:36px;font-size:0.70rem;}
+#genIntegratedSummary{display:none;}
+#genIntegratedSummary table{width:100%;border-collapse:collapse;font-size:0.74rem;margin:8px 0;}
+#genIntegratedSummary td{padding:5px 6px;border-bottom:1px solid #242430;}
+@media (max-width:430px){#genMenuPanel .gen-menu-row{display:block;}#genMenuPanel .btn{width:100%;margin-bottom:6px;}#genValueGrid{gap:6px}.gen-value-btn{min-height:40px}}
+`;
+    document.head.appendChild(st);
+  }
+  function buildOverlay(){
+    if(ui) return ui;
+    injectStyle();
+    const old = document.getElementById("genOverlay");
+    if(old) old.classList.remove("open");
+    const ov = document.createElement("div");
+    ov.id = "genIntegratedOverlay";
+    ov.innerHTML = `
+<div id="genIntegratedShell" role="dialog" aria-modal="true" aria-labelledby="genIntegratedTitle">
+  <div id="genIntegratedTop">
+    <div>
+      <div id="genIntegratedTitle">Constructive practice</div>
+      <div id="genIntegratedProgress"></div>
+    </div>
+    <div id="genIntegratedPhase"></div>
+  </div>
+  <div id="genIntegratedWork">
+    <div id="genIntegratedClaim"></div>
+    <div id="genIntegratedRange"></div>
+    <div id="genPairSlots" aria-label="Pair builder">
+      <button type="button" class="gen-slot active" data-side="a" aria-label="Set LEFT value"><div class="gen-slot-label">LEFT</div><div class="gen-slot-value" id="genSlotA">-</div></button>
+      <button type="button" class="gen-slot" data-side="b" aria-label="Set RIGHT value"><div class="gen-slot-label">RIGHT</div><div class="gen-slot-value" id="genSlotB">-</div></button>
+    </div>
+    <div id="genValueGrid" aria-label="Choose a value"></div>
+    <div id="genIntegratedFeedback" aria-live="polite"></div>
+    <div id="genIntegratedActions">
+      <button type="button" class="btn" id="genIntegratedClear">Clear</button>
+      <button type="button" class="btn primary" id="genIntegratedCheck">Check pair</button>
+      <button type="button" class="btn" id="genIntegratedReveal" style="display:none;">Show valid pair</button>
+      <button type="button" class="btn" id="genIntegratedExit">Exit</button>
+    </div>
+  </div>
+  <div id="genIntegratedSummary">
+    <table></table>
+    <div id="genIntegratedSummaryActions" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button type="button" class="btn primary" id="genIntegratedAgain">New constructive block</button>
+      <button type="button" class="btn" id="genIntegratedClose">Close</button>
+    </div>
+  </div>
+</div>`;
+    document.body.appendChild(ov);
+    ov.querySelectorAll(".gen-slot").forEach(btn => btn.addEventListener("click", () => setActive(btn.dataset.side || "a")));
+    ov.querySelector("#genIntegratedClear").addEventListener("click", clearPair);
+    ov.querySelector("#genIntegratedCheck").addEventListener("click", submitPair);
+    ov.querySelector("#genIntegratedReveal").addEventListener("click", revealPair);
+    ov.querySelector("#genIntegratedExit").addEventListener("click", closeMode);
+    ov.querySelector("#genIntegratedClose").addEventListener("click", closeMode);
+    ov.querySelector("#genIntegratedAgain").addEventListener("click", () => startMode());
+    ov.addEventListener("keydown", handleKey, true);
+    ov.addEventListener("keyup", e => e.stopPropagation(), true);
+    ov.addEventListener("keypress", e => e.stopPropagation(), true);
+    ui = ov;
+    return ui;
+  }
+  function setActive(side){
+    activeSide = side === "b" ? "b" : "a";
+    if(!ui) return;
+    ui.querySelectorAll(".gen-slot").forEach(btn => btn.classList.toggle("active", btn.dataset.side === activeSide));
+    renderValueGrid();
+  }
+  function clearPair(){
+    if(autoTimer){ clearTimeout(autoTimer); autoTimer = null; }
+    chosen = {a:null, b:null};
+    setActive("a");
+    renderSlots();
+  }
+  function renderSlots(){
+    if(!ui) return;
+    const a = ui.querySelector("#genSlotA"), b = ui.querySelector("#genSlotB");
+    if(a) a.textContent = chosen.a == null ? "-" : String(chosen.a);
+    if(b) b.textContent = chosen.b == null ? "-" : String(chosen.b);
+    ui.querySelectorAll(".gen-slot").forEach(btn => btn.classList.toggle("active", btn.dataset.side === activeSide));
+  }
+  function selectValue(v){
+    v = Math.floor(Number(v));
+    if(!session || !Number.isInteger(v) || v < 1 || v > session.cap) return;
+    if(autoTimer){ clearTimeout(autoTimer); autoTimer = null; }
+    chosen[activeSide] = v;
+    if(activeSide === "a") setActive("b");
+    else {
+      setActive("b");
+      autoTimer = setTimeout(() => submitPair(), 120);
+    }
+    renderSlots();
+  }
+  function renderValueGrid(){
+    if(!ui || !session) return;
+    const grid = ui.querySelector("#genValueGrid");
+    grid.innerHTML = "";
+    for(let i=1;i<=session.cap;i++){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "gen-value-btn";
+      btn.textContent = String(i);
+      btn.setAttribute("aria-label", `Use ${i} for ${activeSide === "a" ? "LEFT" : "RIGHT"}`);
+      btn.addEventListener("click", () => selectValue(i));
+      grid.appendChild(btn);
+    }
+  }
+  function renderTrial(){
+    const ov = buildOverlay();
+    const g = engine();
+    if(!g || !session) return;
+    const t = session.current;
+    const work = ov.querySelector("#genIntegratedWork");
+    const summary = ov.querySelector("#genIntegratedSummary");
+    work.style.display = t ? "" : "none";
+    summary.style.display = t ? "none" : "";
+    if(!t){ renderSummary(); return; }
+    const target = targetNow();
+    ov.querySelector("#genIntegratedProgress").textContent = `Trial ${session.idx} of ${session.blockSize} - witness ${t.phaseIdx + 1} of 2`;
+    const phase = ov.querySelector("#genIntegratedPhase");
+    phase.textContent = target ? "Make YES" : "Make NO";
+    phase.className = target ? "yes" : "no";
+    ov.querySelector("#genIntegratedClaim").innerHTML = `<strong>Question:</strong> ${esc(t.q)}`;
+    ov.querySelector("#genIntegratedRange").textContent = `Tap LEFT, then RIGHT. Values: 1 to ${session.cap}.`;
+    ov.querySelector("#genIntegratedReveal").style.display = "none";
+    ov.querySelector("#genIntegratedFeedback").className = "";
+    ov.querySelector("#genIntegratedFeedback").textContent = "";
+    chosen = {a:null, b:null};
+    setActive("a");
+    renderValueGrid();
+    renderSlots();
+  }
+  function showFeedback(cls, text){
+    if(!ui) return;
+    const fb = ui.querySelector("#genIntegratedFeedback");
+    fb.className = cls || "";
+    fb.textContent = text || "";
+  }
+  function submitPair(){
+    const g = engine();
+    if(autoTimer){ clearTimeout(autoTimer); autoTimer = null; }
+    if(!g || !session || !session.current) return;
+    if(chosen.a == null || chosen.b == null){
+      showFeedback("err", "Choose LEFT and RIGHT first.");
+      return;
+    }
+    const res = g.judge(session, chosen.a, chosen.b);
+    if(!res || !res.ok){
+      showFeedback("err", res && res.reason === "range" ? `Use whole values from 1 to ${res.cap}.` : "This pair could not be checked.");
+      clearPair();
+      return;
+    }
+    if(res.correct){
+      showFeedback("ok", res.trialDone ? "Both witnesses found." : `Correct. (${res.pair[0]}, ${res.pair[1]}) makes ${res.target ? "YES" : "NO"}.`);
+      if(res.sessionDone){ setTimeout(renderTrial, 450); return; }
+      if(res.trialDone && typeof g.nextTrial === "function") g.nextTrial(session);
+      setTimeout(renderTrial, res.trialDone ? 520 : 420);
+      return;
+    }
+    if(res.phaseDone){
+      showFeedback("miss", `(${res.pair[0]}, ${res.pair[1]}) makes ${res.value ? "YES" : "NO"} - recorded as missed.`);
+      if(res.sessionDone){ setTimeout(renderTrial, 500); return; }
+      if(res.trialDone && typeof g.nextTrial === "function") g.nextTrial(session);
+      setTimeout(renderTrial, 560);
+      return;
+    }
+    showFeedback("miss", `(${res.pair[0]}, ${res.pair[1]}) makes ${res.value ? "YES" : "NO"}. Try a different pair for ${res.target ? "YES" : "NO"}.`);
+    const revealFloor = Math.max(2, Number((typeof CONFIG === "object" && CONFIG && CONFIG.generativeRevealAfterAttempts) || 3));
+    if(res.attempts >= revealFloor) ui.querySelector("#genIntegratedReveal").style.display = "";
+    clearPair();
+  }
+  function revealPair(){
+    const g = engine();
+    if(!g || !session || typeof g.reveal !== "function") return;
+    const pair = g.reveal(session);
+    if(pair && pair.length >= 2){
+      chosen = {a:pair[0], b:pair[1]};
+      setActive("b");
+      renderSlots();
+      showFeedback("miss", `Suggested pair loaded: LEFT ${pair[0]}, RIGHT ${pair[1]}.`);
+    }
+  }
+  function renderSummary(){
+    const g = engine();
+    if(!ui || !session || !g) return;
+    const sum = (session.summary || (typeof g.summary === "function" ? g.summary(session) : null)) || {};
+    ui.querySelector("#genIntegratedProgress").textContent = "Constructive block complete";
+    ui.querySelector("#genIntegratedPhase").textContent = "";
+    ui.querySelector("#genIntegratedPhase").className = "";
+    ui.querySelector("#genIntegratedSummary table").innerHTML = `
+<tr><td>Trials completed</td><td>${Number(sum.trials || 0)}</td></tr>
+<tr><td>Both witnesses on first try</td><td>${Number(sum.firstTryBoth || 0)}</td></tr>
+<tr><td>Assisted trials</td><td>${Number(sum.assisted || 0)}</td></tr>
+<tr><td>Total submissions</td><td>${Number(sum.totalAttempts || 0)}</td></tr>
+<tr><td>Mean time per question</td><td>${((Number(sum.meanMs || 0)) / 1000).toFixed(1)} s</td></tr>`;
+    updateMenuPanel();
+  }
+  function startMode(opts={}){
+    const g = engine();
+    const ov = buildOverlay();
+    if(!g || typeof g.newSession !== "function"){
+      ov.classList.add("open");
+      showFeedback("err", "Generative engine is not available.");
+      return null;
+    }
+    try{
+      if(typeof State !== "undefined" && State && State.running){
+        const msg = "Finish or resume the current block before constructive practice.";
+        const stat = document.getElementById("genMenuStats");
+        if(stat) stat.textContent = msg;
+        return null;
+      }
+    }catch(_){}
+    session = g.newSession(opts || {});
+    ov.classList.add("open");
+    if(!session.pool || !session.pool.length){
+      session.current = null;
+      ov.querySelector("#genIntegratedWork").style.display = "none";
+      ov.querySelector("#genIntegratedSummary").style.display = "";
+      ov.querySelector("#genIntegratedSummary table").innerHTML = `<tr><td>No eligible constructive questions at the current range yet.</td></tr>`;
+      return session;
+    }
+    if(typeof g.nextTrial === "function") g.nextTrial(session);
+    renderTrial();
+    return session;
+  }
+  function closeMode(){
+    const g = engine();
+    try{
+      if(session && !session.finished && session.results && session.results.length && g && typeof g.finish === "function") g.finish(session);
+    }catch(_){}
+    if(ui) ui.classList.remove("open");
+    session = null;
+    updateMenuPanel();
+  }
+  function handleKey(e){
+    if(!ui || !ui.classList.contains("open")) return;
+    e.stopPropagation();
+    if(e.key === "Escape"){ e.preventDefault(); closeMode(); return; }
+    if(e.key === "Enter"){ e.preventDefault(); submitPair(); return; }
+    if(e.key === "Backspace" || e.key === "Delete"){ e.preventDefault(); clearPair(); return; }
+    if(e.key === "ArrowLeft"){ e.preventDefault(); setActive("a"); return; }
+    if(e.key === "ArrowRight" || e.key === "Tab"){ e.preventDefault(); setActive("b"); return; }
+    if(/^[1-9]$/.test(e.key)){ e.preventDefault(); selectValue(Number(e.key)); return; }
+    if(e.key === "0" && session && session.cap >= 10){ e.preventDefault(); selectValue(10); }
+  }
+  function updateMenuPanel(){
+    const el = document.getElementById("genMenuStats");
+    if(el) el.textContent = currentStatsText();
+  }
+  function installMenuPanel(){
+    try{
+      document.getElementById("genMenuPanel")?.remove();
+      document.getElementById("generativeBtn")?.remove();
+    }catch(_){}
+    return;
+    if(typeof document === "undefined") return;
+    injectStyle();
+    const oldBtn = document.getElementById("generativeBtn");
+    if(oldBtn && !oldBtn.closest("#genMenuPanel")) oldBtn.remove();
+    let panel = document.getElementById("genMenuPanel");
+    if(!panel){
+      panel = document.createElement("div");
+      panel.id = "genMenuPanel";
+      panel.innerHTML = `<div class="gen-menu-row"><button type="button" class="btn" id="generativeBtn">Construct pairs</button><div id="genMenuStats"></div></div>`;
+      const guide = document.getElementById("guideBtn");
+      const resumeHint = document.getElementById("resumeHint");
+      if(resumeHint && resumeHint.parentNode) resumeHint.insertAdjacentElement("afterend", panel);
+      else if(guide && guide.parentNode) guide.insertAdjacentElement("beforebegin", panel);
+      else document.body.appendChild(panel);
+    } else if(!panel.querySelector("#generativeBtn")){
+      panel.innerHTML = `<div class="gen-menu-row"><button type="button" class="btn" id="generativeBtn">Construct pairs</button><div id="genMenuStats"></div></div>`;
+    }
+    const btn = document.getElementById("generativeBtn");
+    if(btn && !btn.__v672GenerativeBound){
+      btn.__v672GenerativeBound = true;
+      btn.addEventListener("click", () => startMode());
+    }
+    updateMenuPanel();
+  }
+  function auditGenerativeIntegratedUIContract(opts={}){
+    const block = [], warnings = [], details = {appVersion:version(), patch:PATCH_ID};
+    try{
+      const g = engine();
+      if(!g) block.push("generative engine export missing");
+      if(g && typeof g.finish !== "function") block.push("generative finish export missing");
+      if(g && typeof g.currentTarget !== "function") block.push("generative currentTarget export missing");
+      installMenuPanel();
+      const ov = buildOverlay();
+      details.inputs = ov.querySelectorAll("input").length;
+      if(details.inputs) block.push(`integrated generative UI must not use text inputs, got ${details.inputs}`);
+      // v6.7.8: the standalone launcher is intentionally absent — v6.7.3 made
+      // inline trials the product surface and block7 removes the menu entry.
+      // The dual-witness mode must remain reachable programmatically until a
+      // UI entry point is ratified.
+      details.menuPanel = !!document.getElementById("genMenuPanel");
+      details.dualModeExport = typeof window.openGenerativeMode === "function";
+      if(!details.dualModeExport) block.push("dual-witness constructive mode export missing");
+      const s = g && g.newSession ? g.newSession({dryRun:true, blockSize:1}) : null;
+      details.pool = s && s.pool ? s.pool.length : 0;
+      if(s && s.pool && s.pool.length){
+        session = s;
+        g.nextTrial(session);
+        renderTrial();
+        details.valueButtons = ov.querySelectorAll(".gen-value-btn").length;
+        if(details.valueButtons !== session.cap) block.push(`value grid mismatch: ${details.valueButtons} buttons for cap ${session.cap}`);
+        if(!ov.querySelector("#genPairSlots")) block.push("pair slots missing");
+        if(!String(ov.querySelector("#genIntegratedClaim")?.textContent || "").trim()) block.push("claim rendered empty");
+        ov.classList.remove("open");
+        session = null;
+      } else warnings.push("no generative pool available for UI probe");
+    }catch(e){ block.push("generative integration audit exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
+  }
+  function boot(){
+    try{
+      installMenuPanel();
+      const g = engine();
+      if(g){
+        g.start = startMode;
+        if(g.audits) g.audits.ui = auditGenerativeIntegratedUIContract;
+      }
+      window.openGenerativeMode = startMode;
+      window.auditGenerativeUIContract = auditGenerativeIntegratedUIContract;
+      window.auditGenerativeIntegratedUIContract = auditGenerativeIntegratedUIContract;
+    }catch(_){}
+  }
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot, 0);
+      setTimeout(boot, 250);
+    }
+  }catch(_){}
+  try{
+    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v672GenerativeIntegrationWrapped){
+      const wrapped = function runFeatureAuditV672GenerativeIntegration(feature, opts={}){
+        const key = String(feature || "").toLowerCase().replace(/[-\s]+/g, "_");
+        if(AUDIT_NAMES.has(key)) return auditGenerativeIntegratedUIContract(opts || {});
+        if(key === "generative_catalog" && engine() && engine().audits && typeof engine().audits.catalog === "function") return engine().audits.catalog(opts || {});
+        if(key === "generative_quarantine" && engine() && engine().audits && typeof engine().audits.quarantine === "function") return engine().audits.quarantine(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v672GenerativeIntegrationWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){}
+      try{ runFeatureAudit = wrapped; }catch(_){}
+    }
+  }catch(_){}
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.7.8-forensic-merge";
+  const AUDIT_NAMES = new Set([
+    "v673_inline_generative",
+    "inline_generative",
+    "generative_integration",
+    "v672_generative_integration",
+    "generative_fast_pair_builder",
+    "generative_ui_contract"
+  ]);
+
+  const auditResultLocal = (status, details) => {
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){}
+    return {ok:status === "PASS", status, details};
+  };
+  const appVersion = () => {
+    try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){}
+    try{ if(typeof APP_VERSION !== "undefined") return APP_VERSION; }catch(_){}
+    return PATCH_ID;
+  };
+  const engine = () => {
+    try{ return (typeof window !== "undefined" && window.EUCALCULIA_GENERATIVE) ? window.EUCALCULIA_GENERATIVE : null; }catch(_){ return null; }
+  };
+
+  const inline = {
+    activeSide:"a",
+    chosen:{a:null, b:null},
+    cap:8,
+    submitTimer:null,
+    blockCount:0,
+    lastBlockTrial:-99
+  };
+
+  function installInlineConfig(){
+    try{
+      if(typeof CONFIG === "object" && CONFIG){
+        if(CONFIG.generativeInlineEnabled === undefined) CONFIG.generativeInlineEnabled = true;
+        if(CONFIG.generativeInlineProbability === undefined) CONFIG.generativeInlineProbability = 0.10;
+        if(CONFIG.generativeInlineMinDLevel === undefined) CONFIG.generativeInlineMinDLevel = 3;
+        if(CONFIG.generativeInlineCooldownTrials === undefined) CONFIG.generativeInlineCooldownTrials = 5;
+        if(CONFIG.generativeInlineMaxPerBlock === undefined) CONFIG.generativeInlineMaxPerBlock = 3;
+        if(CONFIG.generativeInlineSkipWhenPrepared === undefined) CONFIG.generativeInlineSkipWhenPrepared = false;
+      }
+    }catch(_){}
+    try{ if(typeof VALID_PENDING_PANELS !== "undefined" && VALID_PENDING_PANELS && typeof VALID_PENDING_PANELS.add === "function") VALID_PENDING_PANELS.add("genpair"); }catch(_){}
+  }
+
+  function injectInlineStyle(){
+    if(typeof document === "undefined" || document.getElementById("genInlineStyles")) return;
+    const style = document.createElement("style");
+    style.id = "genInlineStyles";
+    style.textContent = `
+#panelGenPair{padding:8px 10px 10px;}
+#panelGenPair .genPairShell{width:100%;display:grid;grid-template-columns:minmax(0,0.62fr) minmax(0,1fr);gap:9px;align-items:stretch;}
+#panelGenPair .genPairSlots{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-width:0;}
+#panelGenPair .genPairSlot{border:1px solid rgba(255,255,255,0.16);background:#15151d;color:#f7f7fb;border-radius:8px;min-height:50px;padding:7px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+#panelGenPair .genPairSlot.active{border-color:var(--accent,#6c5ce7);box-shadow:0 0 0 1px rgba(108,92,231,0.35) inset;background:#191824;}
+#panelGenPair .genPairSlotLabel{font-size:0.58rem;line-height:1;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted,#9a9aa6);font-weight:850;}
+#panelGenPair .genPairSlotValue{font-size:1.18rem;line-height:1.15;margin-top:4px;font-weight:900;min-height:1.25rem;}
+#panelGenPair .genPairGrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;min-width:0;}
+#panelGenPair .genPairBtn{border:1px solid rgba(255,255,255,0.14);background:#1a1a22;color:#fff;border-radius:8px;min-height:40px;font-size:0.95rem;font-weight:850;}
+#panelGenPair .genPairBtn:active{transform:translateY(1px);}
+#panelGenPair .genPairBtn.submit{background:var(--accent,#6c5ce7);border-color:rgba(255,255,255,0.22);}
+#app.genpair-mode #trayPanels{min-height:104px;}
+@media (max-width:520px){
+  #panelGenPair .genPairShell{grid-template-columns:1fr;gap:7px;}
+  #panelGenPair .genPairGrid{grid-template-columns:repeat(6,minmax(0,1fr));}
+  #panelGenPair .genPairSlot{min-height:44px;}
+  #panelGenPair .genPairBtn{min-height:36px;font-size:0.88rem;}
+}`;
+    document.head.appendChild(style);
+  }
+
+  function removeStandaloneGenerativeLauncher(){
+    try{
+      const panel = document.getElementById("genMenuPanel");
+      if(panel) panel.remove();
+      const btn = document.getElementById("generativeBtn");
+      if(btn) btn.remove();
+      const oldOverlay = document.getElementById("genIntegratedOverlay");
+      if(oldOverlay) oldOverlay.classList.remove("open");
+      const oldInputOverlay = document.getElementById("genOverlay");
+      if(oldInputOverlay) oldInputOverlay.classList.remove("open");
+    }catch(_){}
+  }
+
+  function ensureGenPairPanel(){
+    injectInlineStyle();
+    let panel = document.getElementById("panelGenPair");
+    if(panel) return panel;
+    panel = document.createElement("div");
+    panel.id = "panelGenPair";
+    panel.className = "panel";
+    panel.innerHTML = `
+<div class="genPairShell" role="group" aria-label="Build a LEFT and RIGHT pair">
+  <div class="genPairSlots">
+    <button type="button" class="genPairSlot active" data-side="a" aria-label="Set LEFT value">
+      <span class="genPairSlotLabel">LEFT</span><span class="genPairSlotValue" id="genPairSlotA">-</span>
+    </button>
+    <button type="button" class="genPairSlot" data-side="b" aria-label="Set RIGHT value">
+      <span class="genPairSlotLabel">RIGHT</span><span class="genPairSlotValue" id="genPairSlotB">-</span>
+    </button>
+  </div>
+  <div class="genPairGrid" aria-label="Choose a value"></div>
+</div>`;
+    const host = document.getElementById("trayPanels") || document.getElementById("app") || document.body;
+    host.appendChild(panel);
+    panel.querySelectorAll(".genPairSlot").forEach(btn => {
+      btn.addEventListener("click", () => setGenPairSide(btn.dataset.side || "a"));
+    });
+    return panel;
+  }
+
+  function currentInlineCap(){
+    try{
+      const m = Math.max(2, Math.floor(Number(State?.maxValue || (typeof currentMax === "function" ? currentMax() : 8)) || 8));
+      const g = engine();
+      return Math.max(2, Math.min(12, Number(g && typeof g.cap === "function" ? g.cap(m) : m) || m));
+    }catch(_){ return 8; }
+  }
+
+  function renderGenPairPanel(){
+    const panel = ensureGenPairPanel();
+    inline.cap = Math.max(2, Math.min(12, Math.floor(Number(inline.cap || currentInlineCap()) || 8)));
+    const a = panel.querySelector("#genPairSlotA");
+    const b = panel.querySelector("#genPairSlotB");
+    if(a) a.textContent = inline.chosen.a == null ? "-" : String(inline.chosen.a);
+    if(b) b.textContent = inline.chosen.b == null ? "-" : String(inline.chosen.b);
+    panel.querySelectorAll(".genPairSlot").forEach(btn => btn.classList.toggle("active", btn.dataset.side === inline.activeSide));
+    const grid = panel.querySelector(".genPairGrid");
+    if(!grid) return;
+    const sig = `${inline.cap}|${inline.activeSide}`;
+    if(grid.dataset.sig !== sig){
+      grid.dataset.sig = sig;
+      grid.innerHTML = "";
+      for(let i = 1; i <= inline.cap; i++){
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "genPairBtn";
+        btn.textContent = String(i);
+        btn.setAttribute("aria-label", `Use ${i} for ${inline.activeSide === "a" ? "LEFT" : "RIGHT"}`);
+        btn.addEventListener("click", () => chooseGenPairValue(i));
+        grid.appendChild(btn);
+      }
+      const submit = document.createElement("button");
+      submit.type = "button";
+      submit.className = "genPairBtn submit";
+      submit.textContent = "OK";
+      submit.setAttribute("aria-label", "Submit pair");
+      submit.addEventListener("click", () => submitGenPair());
+      grid.appendChild(submit);
+    }
+  }
+
+  function resetGenPairPanel(cap){
+    if(inline.submitTimer){ clearTimeout(inline.submitTimer); inline.submitTimer = null; }
+    inline.chosen = {a:null, b:null};
+    inline.activeSide = "a";
+    inline.cap = Math.max(2, Math.min(12, Math.floor(Number(cap || currentInlineCap()) || 8)));
+    renderGenPairPanel();
+  }
+
+  function setGenPairSide(side){
+    inline.activeSide = side === "b" ? "b" : "a";
+    renderGenPairPanel();
+  }
+
+  function chooseGenPairValue(v){
+    v = Math.floor(Number(v));
+    if(!Number.isInteger(v) || v < 1 || v > inline.cap) return;
+    if(inline.submitTimer){ clearTimeout(inline.submitTimer); inline.submitTimer = null; }
+    inline.chosen[inline.activeSide] = v;
+    if(inline.activeSide === "a") inline.activeSide = "b";
+    else inline.submitTimer = setTimeout(() => submitGenPair(), 120);
+    renderGenPairPanel();
+  }
+
+  function submitGenPair(){
+    if(inline.submitTimer){ clearTimeout(inline.submitTimer); inline.submitTimer = null; }
+    if(inline.chosen.a == null){ setGenPairSide("a"); return false; }
+    if(inline.chosen.b == null){ setGenPairSide("b"); return false; }
+    try{ return processInput({a:inline.chosen.a, b:inline.chosen.b}); }catch(_){ return false; }
+  }
+
+  function normalizedFeatureKey(feature){
+    return String(feature || "").toLowerCase().replace(/[-\s]+/g, "_");
+  }
+
+  function hasMetaMemoryWorkPending(){
+    try{
+      const plans = (typeof ensureMetaMemoryPlans === "function") ? ensureMetaMemoryPlans() : null;
+      if(plans && Object.values(plans).some(p => p && (p.active || p.due || p.pending))) return true;
+    }catch(_){}
+    try{ if(typeof shouldExtendBlockForMetaMemory === "function" && shouldExtendBlockForMetaMemory()) return true; }catch(_){}
+    return false;
+  }
+
+  function sourceCatFamily(cat){
+    try{ if(typeof posnerFamily === "function") return posnerFamily(cat); }catch(_){}
+    return cat?.family || "generative_constructive";
+  }
+
+  function buildInlineGenerativePayload(opts={}){
+    const g = engine();
+    if(!g || typeof g.pool !== "function") return null;
+    const m = Math.max(2, Math.floor(Number(opts.m || State?.maxValue || (typeof currentMax === "function" ? currentMax() : 8)) || 8));
+    const tier = Math.max(1, Math.floor(Number(opts.tier || (typeof getPosnerTier === "function" ? getPosnerTier() : 1)) || 1));
+    let pool = [];
+    try{ pool = g.pool(m, tier) || []; }catch(_){ pool = []; }
+    pool = pool.filter(row => row && row.cat && row.cat.id && row.q && typeof row.cat.verify === "function" && row.cat.id !== "identical");
+    if(!pool.length) return null;
+    try{
+      const recent = State?.productionMonitor?.inlineGenerative?.recentSourceCats || [];
+      const fresh = pool.filter(row => !recent.includes(row.cat.id));
+      if(fresh.length) pool = fresh;
+    }catch(_){}
+    const row = pool[Math.floor(Math.random() * pool.length)];
+    const targetTruth = opts.targetTruth === undefined ? Math.random() < 0.5 : !!opts.targetTruth;
+    const cap = Math.max(2, Math.min(12, Number(g && typeof g.cap === "function" ? g.cap(m) : m) || m));
+    const label = targetTruth ? "YES" : "NO";
+    const prompt = `Make the claim answer ${label}: ${row.q}`;
+    return {row, m, tier, cap, targetTruth, prompt};
+  }
+
+  function shouldStartInlineGenerativeTrial(attempt, forcedLevel){
+    try{
+      if(typeof CONFIG === "object" && CONFIG && CONFIG.generativeInlineEnabled === false) return false;
+      if(attempt !== 0 || forcedLevel !== null) return false;
+      if(!State || !State.running || State.paused) return false;
+      if(State.mode !== "D" || State.modeChoice !== "auto") return false;
+      if(State.currentTrialLevel && State.currentTrialLevel > 0) return false;
+      if(CONFIG.generativeInlineSkipWhenPrepared !== false && (State.nextTrialPrepared || State.nextTrialPrepareInFlight)) return false;
+      if(hasMetaMemoryWorkPending()) return false;
+      const level = Math.max(0, Number(State.levelByMode?.D || 0));
+      if(level < Math.max(0, Number(CONFIG.generativeInlineMinDLevel || 0))) return false;
+      const blockTrial = Math.max(0, Number(State.blockTrials || 0));
+      if(blockTrial === 0 || blockTrial < inline.lastBlockTrial){
+        inline.blockCount = 0;
+        inline.lastBlockTrial = -99;
+      }
+      if(blockTrial < 2) return false;
+      const cooldown = Math.max(0, Number(CONFIG.generativeInlineCooldownTrials || 0));
+      if(blockTrial - inline.lastBlockTrial < cooldown) return false;
+      const maxPerBlock = Math.max(0, Number(CONFIG.generativeInlineMaxPerBlock || 0));
+      if(maxPerBlock && inline.blockCount >= maxPerBlock) return false;
+      const p = Math.max(0, Math.min(1, Number(CONFIG.generativeInlineProbability || 0)));
+      if(Math.random() >= p) return false;
+      return true;
+    }catch(_){ return false; }
+  }
+
+  function maybeStartInlineGenerativeTrialAfterReset(attempt, forcedLevel){
+    installInlineConfig();
+    removeStandaloneGenerativeLauncher();
+    if(!shouldStartInlineGenerativeTrial(attempt, forcedLevel)) return false;
+    const payload = buildInlineGenerativePayload();
+    if(!payload) return false;
+    const {row, m, tier, cap, targetTruth, prompt} = payload;
+    const sourceCat = row.cat;
+    const sourceFamily = sourceCatFamily(sourceCat);
+    try{
+      if(typeof invalidatePreparedTrial === "function") invalidatePreparedTrial("inline_generative_commit");
+      else {
+        State.nextTrialPrepared = null;
+        State.nextTrialPrepareInFlight = false;
+      }
+      State.maxValue = m;
+      State.currentTrialLevel = 0;
+      State.currentTrialValue = null;
+      State.currentTrialRep = null;
+      State.targetValue = "correct";
+      State.pendingPanel = "genpair";
+      State.autoPhase = "L0";
+      State.trialInfo = {
+        kind:"generative_inline",
+        level:0,
+        statsMode:"D",
+        autoPhase:"L0",
+        family:"generative_constructive",
+        catFamily:"generative_constructive",
+        catId:`construct_${sourceCat.id}`,
+        sourceCatId:sourceCat.id,
+        sourceFamily,
+        responseFormat:"generative_pair",
+        answerKind:"generative_pair",
+        question:prompt,
+        delayedPrompt:prompt,
+        sourceQuestion:row.q,
+        targetTruth,
+        targetOutcome:targetTruth ? 1 : 0,
+        isTrue:targetTruth,
+        m,
+        cap,
+        tier,
+        frameTags:["constructive_generation","l0_relation","boundary_witness"],
+        mechanismTags:["constructive_pair_generation"],
+        countsForMetaHistory:false,
+        countsForAdaptation:false,
+        countsForMastery:false,
+        memoryEligible:false,
+        generativeInline:{sourceCatId:sourceCat.id, sourceFamily, q:row.q, targetTruth, cap, m, tier}
+      };
+      resetGenPairPanel(cap);
+      showMetaQuestion(0, prompt, `Target: ${targetTruth ? "YES" : "NO"}. Tap LEFT, then RIGHT. Values: 1 to ${cap}.`);
+      setPrompt("CONSTRUCT");
+      setGameAriaLabel(`Constructive relational trial. Make the claim answer ${targetTruth ? "YES" : "NO"}. Choose LEFT and RIGHT. ${row.q}`);
+      inline.blockCount++;
+      inline.lastBlockTrial = Math.max(0, Number(State.blockTrials || 0));
+      const mon = State.productionMonitor || (State.productionMonitor = {});
+      const ig = mon.inlineGenerative || (mon.inlineGenerative = {shown:0, correct:0, recentSourceCats:[]});
+      ig.shown = (ig.shown || 0) + 1;
+      ig.recentSourceCats = Array.isArray(ig.recentSourceCats) ? ig.recentSourceCats : [];
+      ig.recentSourceCats.push(sourceCat.id);
+      ig.recentSourceCats = ig.recentSourceCats.slice(-8);
+      beginInputPhase();
+      return true;
+    }catch(e){
+      try{ recordRuntimeError(e, {source:"inline_generative_start", catId:sourceCat?.id || null}); }catch(_){}
+      return false;
+    }
+  }
+
+  function findInlineSourceCat(info){
+    const id = info?.sourceCatId || info?.generativeInline?.sourceCatId;
+    try{ return (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS.find(c => c && c.id === id) : null; }catch(_){ return null; }
+  }
+
+  function processInlineGenerativeInput(pair){
+    try{
+      if(State.status !== "INPUT" || State.pendingPanel !== "genpair" || State.trialInfo?.kind !== "generative_inline") return false;
+      const a = Math.floor(Number(pair && pair.a));
+      const b = Math.floor(Number(pair && pair.b));
+      const cap = Math.max(2, Math.floor(Number(State.trialInfo?.cap || inline.cap || currentInlineCap()) || 8));
+      if(!Number.isInteger(a) || !Number.isInteger(b) || a < 1 || b < 1 || a > cap || b > cap){
+        resetGenPairPanel(cap);
+        return false;
+      }
+      const info = State.trialInfo;
+      const cat = findInlineSourceCat(info);
+      if(!cat || typeof cat.verify !== "function") return false;
+      let actual = null;
+      try{ actual = !!cat.verify(a, b, Math.max(2, Number(info.m || State.maxValue || cap))); }catch(_){ return false; }
+      const target = !!info.targetTruth;
+      const correct = actual === target;
+      info.userPair = {a, b};
+      info.userPairLabel = `LEFT ${a}, RIGHT ${b}`;
+      info.constructiveActualTruth = actual;
+      info.constructiveTargetTruth = target;
+      info.constructiveVerdict = correct ? "matched_target" : "opposite_target";
+      info.correctAnswer = `Any LEFT/RIGHT pair that makes ${target ? "YES" : "NO"}`;
+      State.targetValue = "correct";
+      const coreProcessInput = inline.prevProcessInput || processInput;
+      const ok = coreProcessInput(correct ? "correct" : "wrong");
+      try{
+        const ig = State.productionMonitor?.inlineGenerative;
+        if(ig){
+          ig.last = {catId:info.sourceCatId, targetTruth:target, actualTruth:actual, correct, pair:{a,b}, ts:Date.now()};
+          if(correct) ig.correct = (ig.correct || 0) + 1;
+        }
+      }catch(_){}
+      return ok;
+    }catch(e){
+      try{ recordRuntimeError(e, {source:"process_inline_generative_input"}); }catch(_){}
+      return false;
+    }
+  }
+
+  function drawInlineGenerativeReview(){
+    const info = State.trialInfo || {};
+    try{
+      ctx.fillStyle = "#050508";
+      ctx.fillRect(0,0,W,H);
+      drawMetaScreen();
+      const actual = typeof info.constructiveActualTruth === "boolean" ? info.constructiveActualTruth : null;
+      const target = !!info.targetTruth;
+      const targetLabel = target ? "YES" : "NO";
+      const actualLabel = actual === null ? "UNKNOWN" : (actual ? "YES" : "NO");
+      const pair = info.userPair ? `LEFT ${info.userPair.a}, RIGHT ${info.userPair.b}` : "No pair recorded";
+      let example = "";
+      try{
+        const cat = findInlineSourceCat(info);
+        const cap = Math.max(2, Math.floor(Number(info.cap || inline.cap || currentInlineCap()) || 8));
+        const m = Math.max(2, Number(info.m || State.maxValue || cap) || cap);
+        if(cat && typeof cat.verify === "function"){
+          outer: for(let x=1; x<=cap; x++){ for(let y=1; y<=cap; y++){
+            if(!!cat.verify(x, y, m) === target){ example = ` Example ${targetLabel} pair: LEFT ${x}, RIGHT ${y}.`; break outer; }
+          }}
+        }
+      }catch(_){ }
+      drawReviewCard({
+        label:"L0 REVIEW · CONSTRUCT PAIR",
+        question:info.sourceQuestion || info.delayedPrompt || "Make the claim answer YES or NO.",
+        details:`This round asked for a ${targetLabel} pair. Your pair: ${pair}. It made ${actualLabel}.${example}`,
+        answer: actual === target ? `Correct: your pair makes ${targetLabel}.` : `Correct: make the claim answer ${targetLabel}.`,
+        color:"#ff9f43"
+      });
+      drawInstructionalReviewTip(info);
+      drawReviewContinueHint();
+      updateParticles();
+      renderParticles();
+      return true;
+    }catch(_){ return false; }
+  }
+
+  function installFunctionWrappers(){
+    try{
+      if(typeof showPanel === "function" && !showPanel.__v673InlineGenerativeWrapped){
+        const prevShowPanel = showPanel;
+        const wrappedShowPanel = function showPanelV673(w){
+          if(w === "genpair"){
+            if(typeof hideAllPanels === "function") hideAllPanels();
+            const panel = ensureGenPairPanel();
+            renderGenPairPanel();
+            panel.classList.add("active");
+            document.getElementById("app")?.classList.add("genpair-mode");
+            State.pendingPanel = "genpair";
+            return;
+          }
+          return prevShowPanel.apply(this, arguments);
+        };
+        wrappedShowPanel.__v673InlineGenerativeWrapped = true;
+        showPanel = wrappedShowPanel;
+        try{ window.showPanel = showPanel; globalThis.showPanel = showPanel; }catch(_){}
+      }
+    }catch(_){}
+
+    try{
+      if(typeof hideAllPanels === "function" && !hideAllPanels.__v673InlineGenerativeWrapped){
+        const prevHideAllPanels = hideAllPanels;
+        const wrappedHideAllPanels = function hideAllPanelsV673(){
+          const out = prevHideAllPanels.apply(this, arguments);
+          try{
+            const panel = document.getElementById("panelGenPair");
+            if(panel) panel.classList.remove("active");
+            document.getElementById("app")?.classList.remove("genpair-mode");
+          }catch(_){}
+          return out;
+        };
+        wrappedHideAllPanels.__v673InlineGenerativeWrapped = true;
+        hideAllPanels = wrappedHideAllPanels;
+        try{ window.hideAllPanels = hideAllPanels; globalThis.hideAllPanels = hideAllPanels; }catch(_){}
+      }
+    }catch(_){}
+
+    try{
+      if(typeof validateCurrentInputOperability === "function" && !validateCurrentInputOperability.__v673InlineGenerativeWrapped){
+        const prevValidateCurrentInputOperability = validateCurrentInputOperability;
+        const wrappedValidateCurrentInputOperability = function validateCurrentInputOperabilityV673(){
+          const res = prevValidateCurrentInputOperability.apply(this, arguments) || {ok:true, errors:[]};
+          if(State.status === "INPUT" && State.pendingPanel === "genpair"){
+            const errs = Array.isArray(res.errors) ? res.errors.filter(e => !/invalid pendingPanel genpair/.test(String(e))) : [];
+            const panel = document.getElementById("panelGenPair");
+            const buttons = panel ? Array.from(panel.querySelectorAll(".genPairBtn")).filter(b => b.offsetParent !== null) : [];
+            if(!panel || !panel.classList.contains("active")) errs.push("genpair panel not active");
+            if(buttons.length < 3) errs.push("genpair buttons missing");
+            return {ok:errs.length === 0, errors:errs};
+          }
+          return res;
+        };
+        wrappedValidateCurrentInputOperability.__v673InlineGenerativeWrapped = true;
+        validateCurrentInputOperability = wrappedValidateCurrentInputOperability;
+        try{ window.validateCurrentInputOperability = validateCurrentInputOperability; globalThis.validateCurrentInputOperability = validateCurrentInputOperability; }catch(_){}
+      }
+    }catch(_){}
+
+    try{
+      if(typeof processInput === "function" && !processInput.__v673InlineGenerativeWrapped){
+        const prevProcessInput = processInput;
+        inline.prevProcessInput = prevProcessInput;
+        const wrappedProcessInput = function processInputV673(val){
+          if(State?.status === "INPUT" && State?.pendingPanel === "genpair" && State?.trialInfo?.kind === "generative_inline"){
+            return processInlineGenerativeInput(val);
+          }
+          return prevProcessInput.apply(this, arguments);
+        };
+        wrappedProcessInput.__v673InlineGenerativeWrapped = true;
+        processInput = wrappedProcessInput;
+        try{ window.processInput = processInput; globalThis.processInput = processInput; }catch(_){}
+      }
+    }catch(_){}
+
+    try{
+      if(typeof draw === "function" && !draw.__v673InlineGenerativeWrapped){
+        const prevDraw = draw;
+        const wrappedDraw = function drawV673(){
+          if((State.status === "REVIEW" || State.status === "REVIEW_CLOSING") && State.trialInfo?.kind === "generative_inline"){
+            if(drawInlineGenerativeReview()) return;
+          }
+          return prevDraw.apply(this, arguments);
+        };
+        wrappedDraw.__v673InlineGenerativeWrapped = true;
+        draw = wrappedDraw;
+        try{ window.draw = draw; globalThis.draw = draw; }catch(_){}
+      }
+    }catch(_){}
+  }
+
+  function installKeyboardSupport(){
+    if(typeof document === "undefined" || document.__v673InlineGenerativeKeys) return;
+    document.__v673InlineGenerativeKeys = true;
+    document.addEventListener("keydown", e => {
+      try{
+        if(State?.status !== "INPUT" || State?.pendingPanel !== "genpair") return;
+        if(e.key === "ArrowLeft"){ e.preventDefault(); e.stopPropagation(); setGenPairSide("a"); return; }
+        if(e.key === "ArrowRight" || e.key === "Tab"){ e.preventDefault(); e.stopPropagation(); setGenPairSide("b"); return; }
+        if(e.key === "Backspace" || e.key === "Delete"){
+          e.preventDefault(); e.stopPropagation();
+          inline.chosen[inline.activeSide] = null;
+          renderGenPairPanel();
+          return;
+        }
+        if(e.key === "Enter"){ e.preventDefault(); e.stopPropagation(); submitGenPair(); return; }
+        if(/^[1-9]$/.test(e.key)){ e.preventDefault(); e.stopPropagation(); chooseGenPairValue(Number(e.key)); return; }
+        if(e.key === "0" && inline.cap >= 10){ e.preventDefault(); e.stopPropagation(); chooseGenPairValue(10); }
+      }catch(_){}
+    }, true);
+  }
+
+  function auditInlineGenerative(opts={}){
+    const block = [], warnings = [];
+    const details = {appVersion:appVersion(), patch:PATCH_ID};
+    try{
+      installInlineConfig();
+      installFunctionWrappers();
+      ensureGenPairPanel();
+      removeStandaloneGenerativeLauncher();
+      details.hasEngine = !!engine();
+      if(!details.hasEngine) block.push("generative engine export missing");
+      try{ details.panelRegistered = typeof VALID_PENDING_PANELS !== "undefined" && VALID_PENDING_PANELS.has("genpair"); }catch(_){ details.panelRegistered = false; }
+      if(!details.panelRegistered) block.push("genpair panel not registered");
+      details.panel = !!document.getElementById("panelGenPair");
+      if(!details.panel) block.push("genpair panel missing");
+      details.standaloneMenu = !!document.getElementById("genMenuPanel") || !!document.getElementById("generativeBtn");
+      if(details.standaloneMenu) block.push("standalone generative launcher still visible");
+      const payload = buildInlineGenerativePayload({m:Math.max(6, Number(opts.m || 8)), tier:Math.max(1, Number(opts.tier || 2)), targetTruth:true});
+      details.poolSampleCat = payload?.row?.cat?.id || null;
+      details.poolHasPayload = !!payload;
+      if(!payload) warnings.push("no inline generative payload available for audit range");
+      const prevStatus = State.status, prevPanel = State.pendingPanel, prevCap = inline.cap, prevChosen = {...inline.chosen}, prevSide = inline.activeSide;
+      State.pendingPanel = "genpair";
+      inline.cap = 6;
+      resetGenPairPanel(6);
+      showPanel("genpair");
+      details.valueButtons = document.querySelectorAll("#panelGenPair .genPairBtn").length;
+      if(details.valueButtons < 7) block.push(`genpair value buttons missing: ${details.valueButtons}`);
+      hideAllPanels();
+      State.status = prevStatus;
+      State.pendingPanel = prevPanel;
+      inline.cap = prevCap;
+      inline.chosen = prevChosen;
+      inline.activeSide = prevSide;
+      if(typeof maybeStartInlineGenerativeTrialAfterReset !== "function") block.push("startTrial inline hook missing");
+      if(typeof processInput !== "function" || !processInput.__v673InlineGenerativeWrapped) block.push("processInput wrapper missing");
+      if(typeof showPanel !== "function" || !showPanel.__v673InlineGenerativeWrapped) block.push("showPanel wrapper missing");
+    }catch(e){ block.push("inline generative audit exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
+  }
+
+  function boot(){
+    try{
+      installInlineConfig();
+      injectInlineStyle();
+      ensureGenPairPanel();
+      installFunctionWrappers();
+      installKeyboardSupport();
+      removeStandaloneGenerativeLauncher();
+      window.maybeStartInlineGenerativeTrialAfterReset = maybeStartInlineGenerativeTrialAfterReset;
+      window.auditInlineGenerativeTrials = auditInlineGenerative;
+      try{ globalThis.maybeStartInlineGenerativeTrialAfterReset = maybeStartInlineGenerativeTrialAfterReset; }catch(_){}
+      const g = engine();
+      if(g && g.audits) g.audits.inline = auditInlineGenerative;
+    }catch(_){}
+  }
+
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot, 0);
+      setTimeout(boot, 300);
+      setTimeout(removeStandaloneGenerativeLauncher, 700);
+    }
+  }catch(_){}
+
+  try{
+    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v673InlineGenerativeWrapped){
+      const wrapped = function runFeatureAuditV673InlineGenerative(feature, opts={}){
+        if(AUDIT_NAMES.has(normalizedFeatureKey(feature))) return auditInlineGenerative(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v673InlineGenerativeWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){}
+      try{ runFeatureAudit = wrapped; }catch(_){}
+    }
+  }catch(_){}
+
+  try{
+    window.EUCA_V673_INLINE_GENERATIVE = {
+      patch:PATCH_ID,
+      audit:auditInlineGenerative,
+      startHook:maybeStartInlineGenerativeTrialAfterReset,
+      buildPayload:buildInlineGenerativePayload
+    };
+  }catch(_){}
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.7.8-forensic-merge";
+  const AUDIT_NAMES = new Set(["v674_nand_wording_clarity", "nand_wording_clarity", "nand_prompt", "nand_concise"]);
+  const auditResultLocal = (status, details) => {
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){}
+    return {ok:status === "PASS", status, details};
+  };
+  function appVersion(){
+    try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){}
+    try{ if(typeof APP_VERSION !== "undefined") return APP_VERSION; }catch(_){}
+    return PATCH_ID;
+  }
+  function textsForNandCat(){
+    const out = [];
+    try{
+      const spec = (typeof L0_BOOLEAN_COMPOUND_SPECS !== "undefined" && Array.isArray(L0_BOOLEAN_COMPOUND_SPECS))
+        ? L0_BOOLEAN_COMPOUND_SPECS.find(x => x && x.id === "left_even_nand_right_gt5")
+        : null;
+      if(spec?.prompt) out.push(spec.prompt);
+    }catch(_){}
+    try{
+      const cat = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS))
+        ? POSNER_CATS.find(c => c && c.id === "bool_left_even_nand_right_gt5")
+        : null;
+      for(const v of (cat?.variants || [])) out.push(String(v?.q || v?.text || v || ""));
+    }catch(_){}
+    try{
+      const fv = (typeof FRIENDLY_POSNER_VARIANTS !== "undefined") ? FRIENDLY_POSNER_VARIANTS.bool_left_even_nand_right_gt5 : null;
+      for(const v of (Array.isArray(fv) ? fv : [])) out.push(String(v?.q || v?.text || v || ""));
+    }catch(_){}
+    try{
+      if(typeof l0BooleanConnectiveReviewLine === "function"){
+        out.push(l0BooleanConnectiveReviewLine({connective:"nand"}, true, true, false));
+      }
+    }catch(_){}
+    return out.map(x => String(x || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+  }
+  function auditNandWordingClarity(){
+    const block = [], warnings = [];
+    const texts = textsForNandCat();
+    const joined = texts.join(" || ");
+    if(!texts.length) block.push("NAND wording surfaces missing");
+    if(!/NO only when both conditions are true/i.test(joined)) block.push("NAND public wording must use NO-only-when-both-true contract");
+    const oldText = String(joined || "").toLowerCase();
+    const oldSurfaces = [
+      "at least one condition " + "false",
+      "left is " + "not even",
+      "right is not " + "greater than 5",
+      "yes unless both conditions are " + "true"
+    ];
+    if(oldSurfaces.some(x => oldText.includes(x))){
+      block.push("NAND wording still exposes double-negation or unless wording");
+    }
+    if(/NAND\s*\/\s*NOT-BOTH/i.test(joined)) warnings.push("formal NAND label leaked into user-facing wording");
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {
+      appVersion:appVersion(),
+      patch:PATCH_ID,
+      checked:texts.length,
+      samples:texts.slice(0,12),
+      warnings,
+      block
+    });
+  }
+  try{
+    window.auditNandWordingClarity = auditNandWordingClarity;
+    window.EUCA_V674_NAND_WORDING_CLARITY = {patch:PATCH_ID, audit:auditNandWordingClarity};
+  }catch(_){}
+  try{
+    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v674NandWordingWrapped){
+      const wrapped = function runFeatureAuditV674NandWording(feature, opts={}){
+        const key = String(feature || "").toLowerCase().replace(/[-\s]+/g, "_");
+        if(AUDIT_NAMES.has(key)) return auditNandWordingClarity(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v674NandWordingWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){}
+      try{ runFeatureAudit = wrapped; }catch(_){}
+    }
+  }catch(_){}
+})();
 </script>
 </body>
 </html>
