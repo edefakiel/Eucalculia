@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.6-choice-integrity-auditfix</title>
+<title>Eucalculia v6.8.5-choice-integrity</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3309,7 +3309,7 @@ select.cs-native {
 // =====================
 
 // ============================================================================
-// EUCALCULIA v6.8.6-choice-integrity-auditfix — semantic-entropy contract for choice items: no dead options, no
+// EUCALCULIA v6.8.5-choice-integrity — semantic-entropy contract for choice items: no dead options, no
 // constant answers, no co-correct distractors; over the v6.8.4 episodic-probe base
 // ============================================================================
 // v6.5.26x: paper-folding boundary punches may unfold into multiple complete holes; no residual half-holes.
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.6-choice-integrity-auditfix";
+const APP_VERSION = "v6.8.5-choice-integrity";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -58615,11 +58615,6 @@ function processInputPostAnswer(ctx){
     isTrue:typeof State.trialInfo?.isTrue === "boolean" ? State.trialInfo.isTrue : null,
     correctIndex:Number.isInteger(State.trialInfo?.correctIndex) ? State.trialInfo.correctIndex : null,
     semanticCorrectIndex:Number.isInteger(State.trialInfo?.semanticCorrectIndex) ? State.trialInfo.semanticCorrectIndex : null,
-    requestedDisplayIndex:Number.isInteger(State.trialInfo?.displayTargetIndex)
-      && State.trialInfo.displayTargetIndex >= 0
-      && State.trialInfo.displayTargetIndex < (Number(State.trialInfo?.semanticOptionCount) || (Array.isArray(State.trialInfo?.options) ? State.trialInfo.options.length : 4))
-        ? State.trialInfo.displayTargetIndex
-        : null,
     targetOutcome:State.trialInfo?.targetOutcome,
   };
   answerBudgetRecord(budgetEntry);
@@ -84044,6 +84039,12 @@ try{
         btn.addEventListener("pointerdown", e => { e.preventDefault(); chooseL1PairValue(i); });
         grid.appendChild(btn);
       }
+      const ok = document.createElement("button");
+      ok.type = "button";
+      ok.className = "genL1Btn submit";
+      ok.textContent = "OK";
+      ok.addEventListener("pointerdown", e => { e.preventDefault(); submitL1Pair(); });
+      grid.appendChild(ok);
     }
   }
   function resetL1PairPanel(cap){
@@ -84995,7 +84996,7 @@ try{
      over uniform-pair proxies of retained L0 pairs report at WARN severity
      (their rare corners are legitimate rare events of the retained stream).
   ════════════════════════════════════════════════════════════════════════ */
-  const PATCH_ID = "v6.8.6-choice-integrity-auditfix";
+  const PATCH_ID = "v6.8.5-choice-integrity";
   const AUDIT_NAMES = new Set([
     "v685_choice_semantic_entropy", "choice_semantic_entropy", "semantic_entropy", "choice_integrity"
   ]);
@@ -85177,80 +85178,6 @@ try{
         return prevRun.apply(this, arguments);
       };
       wrapped.__v685ChoiceIntegrityWrapped = true;
-      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
-      try{ runFeatureAudit = wrapped; }catch(_){ }
-    }
-  }catch(_){ }
-  try{ boot(); }catch(_){ }
-})();
-</script>
-
-<script>
-(function(){
-  "use strict";
-  const PATCH_ID = "v6.8.6-choice-integrity-auditfix";
-  const AUDIT_NAMES = new Set(["v686_choice_integrity_auditfix", "choice_integrity_auditfix", "choice_requested_slot_integrity"]);
-  const norm = x => String(x || "").toLowerCase().replace(/[-\s]+/g, "_");
-  const auditResultLocal = (status, details) => {
-    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
-    return {ok:status === "PASS", status, details};
-  };
-  const appVersion = () => {
-    try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){ }
-    try{ if(typeof APP_VERSION !== "undefined") return APP_VERSION; }catch(_){ }
-    return PATCH_ID;
-  };
-  function auditChoiceRequestedSlotIntegrity(){
-    const block = [], warnings = [], details = {appVersion:appVersion(), patch:PATCH_ID};
-    try{
-      const src = String(processInputPostAnswer || "");
-      const l1PanelSrc = String(renderL1PairPanel || "");
-      details.hasRequestedDisplayIndex = /requestedDisplayIndex\s*:/.test(src);
-      details.guardsOptionCount = /semanticOptionCount/.test(src) && /displayTargetIndex\s*</.test(src);
-      details.l1OkButtonRemoved = !/genL1Btn\s+submit/.test(l1PanelSrc) && !/textContent\s*=\s*["']OK["']/.test(l1PanelSrc);
-      if(!details.hasRequestedDisplayIndex) block.push("post-answer budget entry does not pass requestedDisplayIndex");
-      if(!details.guardsOptionCount) block.push("requestedDisplayIndex is not guarded by semantic option count");
-      if(!details.l1OkButtonRemoved) block.push("L1 constructive panel still renders an OK button");
-      if(typeof answerBudgetRecord === "function"){
-        const prev = State.answerBudget;
-        State.answerBudget = null;
-        answerBudgetRecord({responseFormat:"choice", correctIndex:1, semanticCorrectIndex:1, requestedDisplayIndex:null, family:"qa_choice3"});
-        details.choice3Misses = ensureAnswerBudget().misses.length;
-        if(details.choice3Misses !== 0) block.push("Choice3 impossible target created a placement miss");
-        State.answerBudget = null;
-        answerBudgetRecord({responseFormat:"choice", correctIndex:2, semanticCorrectIndex:0, requestedDisplayIndex:2, family:"qa_choice4"});
-        details.choice4HonoredMisses = ensureAnswerBudget().misses.length;
-        if(details.choice4HonoredMisses !== 0) block.push("honored Choice4 requested slot created a placement miss");
-        State.answerBudget = null;
-        answerBudgetRecord({responseFormat:"choice", correctIndex:2, semanticCorrectIndex:0, requestedDisplayIndex:1, family:"qa_choice4"});
-        details.choice4FailedMisses = ensureAnswerBudget().misses.length;
-        if(details.choice4FailedMisses !== 1) block.push("failed Choice4 requested slot did not create a placement miss");
-        State.answerBudget = prev;
-      } else warnings.push("answerBudgetRecord not visible to audit");
-    }catch(e){ block.push("choice requested-slot audit exception: " + (e && e.message || e)); }
-    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
-  }
-  function boot(){
-    try{
-      window.auditChoiceRequestedSlotIntegrity = auditChoiceRequestedSlotIntegrity;
-      window.EUCA_V686_CHOICE_INTEGRITY_AUDITFIX = {patch:PATCH_ID, audit:auditChoiceRequestedSlotIntegrity};
-    }catch(_){ }
-  }
-  try{
-    if(typeof document !== "undefined"){
-      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-      else boot();
-      setTimeout(boot, 0);
-    }
-  }catch(_){ }
-  try{
-    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v686ChoiceIntegrityAuditfixWrapped){
-      const wrapped = function runFeatureAuditV686(feature, opts={}){
-        if(AUDIT_NAMES.has(norm(feature))) return auditChoiceRequestedSlotIntegrity(opts || {});
-        return prevRun.apply(this, arguments);
-      };
-      wrapped.__v686ChoiceIntegrityAuditfixWrapped = true;
       try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
       try{ runFeatureAudit = wrapped; }catch(_){ }
     }
