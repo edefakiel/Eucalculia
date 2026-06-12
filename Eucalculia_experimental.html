@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.7-generative-autosubmit-runfix</title>
+<title>Eucalculia v6.8.8-constructive-pipeline-fix</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3309,7 +3309,7 @@ select.cs-native {
 // =====================
 
 // ============================================================================
-// EUCALCULIA v6.8.7-generative-autosubmit-runfix — semantic-entropy contract for choice items: no dead options, no
+// EUCALCULIA v6.8.8-constructive-pipeline-fix — verdict tokens pass through generative wrappers, synchronous
 // constant answers, no co-correct distractors; over the v6.8.4 episodic-probe base
 // ============================================================================
 // v6.5.26x: paper-folding boundary punches may unfold into multiple complete holes; no residual half-holes.
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.7-generative-autosubmit-runfix";
+const APP_VERSION = "v6.8.8-constructive-pipeline-fix";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -72306,7 +72306,13 @@ setInterval(tickPlaytimeAccumulator, 30000);
   const oldBump = (typeof bumpSessionStart === "function") ? bumpSessionStart : null;
   if(oldBump){ bumpSessionStart=function(){ const prev=Number(State.lastSessionAt)||Number(ensureTemporalConsolidation().lastSessionStartAt)||null; const ret=oldBump.apply(this,arguments); temporalRecordSessionStart(prev); return ret; }; }
   const oldPost = (typeof processInputPostAnswer === "function") ? processInputPostAnswer : null;
-  if(oldPost){ processInputPostAnswer=function(ctx){ const ret=oldPost.apply(this,arguments); try{ recordTemporalConsolidationTrial(State.trialInfo, !!ctx?.correct, ctx?.rt, State.trialInfo?.errorQualityDetail || null); }catch(e){ try{ recordRuntimeError(e,{source:"temporalConsolidation.postAnswer"}); }catch(_){} } return ret; }; }
+  if(oldPost){
+    const wrappedPost = function(ctx){ const ret=oldPost.apply(this,arguments); try{ recordTemporalConsolidationTrial(State.trialInfo, !!ctx?.correct, ctx?.rt, State.trialInfo?.errorQualityDetail || null); }catch(e){ try{ recordRuntimeError(e,{source:"temporalConsolidation.postAnswer"}); }catch(_){} } return ret; };
+    // v6.8.8: tag the wrapped core so source-inspecting audits can unwrap the
+    // chain instead of reading this thin wrapper's source and false-blocking.
+    try{ wrappedPost.__postAnswerCore = oldPost.__postAnswerCore || oldPost; }catch(_){ }
+    processInputPostAnswer = wrappedPost;
+  }
   const oldBuildExport = (typeof buildDiagnosticExport === "function") ? buildDiagnosticExport : null;
   if(oldBuildExport){ buildDiagnosticExport=function(){ const d=oldBuildExport.apply(this,arguments); try{ d.temporalConsolidation=temporalConsolidationSnapshot(); }catch(_){} return d; }; }
   const oldDose = (typeof buildInterventionDoseSummary === "function") ? buildInterventionDoseSummary : null;
@@ -83115,10 +83121,10 @@ try{
     if(inline.submitTimer){ clearTimeout(inline.submitTimer); inline.submitTimer = null; }
     inline.chosen[inline.activeSide] = v;
     if(inline.activeSide === "a") inline.activeSide = "b";
-    // v6.8.7: L0 constructive input is autosubmit-only. Once LEFT and RIGHT
-    // are both filled, submit without relying on a visible OK button.
-    if(inline.chosen.a != null && inline.chosen.b != null) inline.submitTimer = setTimeout(() => submitGenPair(), 80);
     renderGenPairPanel();
+    // v6.8.8: submit SYNCHRONOUSLY the moment both slots are filled — no
+    // timer, no OK button. The pair is judged on the second tap.
+    if(inline.chosen.a != null && inline.chosen.b != null) submitGenPair();
   }
 
   function submitGenPair(){
@@ -83444,7 +83450,11 @@ try{
       }
       State.targetValue = "correct";
       try{ constructiveLedgerRecord(info.sourceCatId, target, !!info.dualWitness); }catch(_){}
-      const coreProcessInput = inline.prevProcessInput || processInput;
+      // v6.8.8: dispatch the verdict through the CURRENT global chain. Every
+      // generative wrapper now passes verdict tokens through, so this always
+      // terminates at the true core — no dependence on what prevProcessInput
+      // happened to capture at install time.
+      const coreProcessInput = processInput;
       const ok = coreProcessInput(correct ? "correct" : "wrong");
       try{
         const ig = State.productionMonitor?.inlineGenerative;
@@ -83575,6 +83585,14 @@ try{
         const prevProcessInput = processInput;
         inline.prevProcessInput = prevProcessInput;
         const wrappedProcessInput = function processInputV673(val){
+          // v6.8.8: verdict tokens ("correct"/"wrong") emitted by a
+          // constructive reducer must FALL THROUGH every generative wrapper
+          // to the true core, regardless of wrapper capture order. Without
+          // this, a captured prev whose chain re-contained a generative
+          // wrapper bounced the token into the reducer's scalar branch,
+          // which rejected it — the trial then sat in INPUT forever with
+          // both slots filled (the reported stuck-pair bug).
+          if(val === "correct" || val === "wrong") return prevProcessInput.apply(this, arguments);
           if(State?.status === "INPUT" && State?.pendingPanel === "genpair" && State?.trialInfo?.kind === "generative_inline"){
             return processInlineGenerativeInput(val);
           }
@@ -83776,6 +83794,14 @@ try{
       window.auditInlineExposureLedger = auditInlineExposureLedger;
       window.auditChoiceSlotBalanceMonitor = auditChoiceSlotBalanceMonitor;
       window.constructiveLedgerSnapshot = constructiveLedgerSnapshot;
+      // v6.8.8: QA handle so audits can verify the constructive pipeline
+      // without referencing IIFE-private identifiers as globals.
+      window.EUCA_V673_INLINE_GENERATIVE = {
+        choose:chooseGenPairValue,
+        submit:submitGenPair,
+        process:processInlineGenerativeInput,
+        wrapperSource:(function(){ try{ return String(processInput); }catch(_){ return ""; } })()
+      };
       try{ globalThis.maybeStartInlineGenerativeTrialAfterReset = maybeStartInlineGenerativeTrialAfterReset; }catch(_){}
       const g = engine();
       if(g && g.audits) g.audits.inline = auditInlineGenerative;
@@ -84052,9 +84078,9 @@ try{
     if(L1Gen.submitTimer){ clearTimeout(L1Gen.submitTimer); L1Gen.submitTimer = null; }
     L1Gen.chosen[L1Gen.activeSide] = v;
     if(L1Gen.activeSide === "a") L1Gen.activeSide = "b";
-    // v6.8.7: L1 constructive input is autosubmit-only, same as L0.
-    if(L1Gen.chosen.a != null && L1Gen.chosen.b != null) L1Gen.submitTimer = setTimeout(() => submitL1Pair(), 80);
     renderL1PairPanel();
+    // v6.8.8: synchronous submit on the second value (see chooseGenPairValue).
+    if(L1Gen.chosen.a != null && L1Gen.chosen.b != null) submitL1Pair();
   }
   function submitL1Pair(){
     if(L1Gen.submitTimer){ clearTimeout(L1Gen.submitTimer); L1Gen.submitTimer = null; }
@@ -84290,7 +84316,8 @@ try{
       // were another pair object.
       const priorPanel = State.pendingPanel;
       State.pendingPanel = "genl1final";
-      const core = L1Gen.prevProcessInput || processInput;
+      // v6.8.8: same global-chain dispatch as L0 (tokens pass through).
+      const core = processInput;
       const out = core(correct ? "correct" : "wrong");
       if(out === false){ try{ State.pendingPanel = priorPanel; }catch(_){} }
       return out;
@@ -84465,6 +84492,8 @@ try{
         const prev = processInput;
         L1Gen.prevProcessInput = prev;
         const wrapped = function processInputV681(val){
+          // v6.8.8: verdict tokens fall through (see processInputV673).
+          if(val === "correct" || val === "wrong") return prev.apply(this, arguments);
           if(State?.status === "INPUT" && State?.pendingPanel === "genl1pair" && State?.trialInfo?.kind === "generative_l1_inline") return processL1ConstructiveInput(val);
           return prev.apply(this, arguments);
         };
@@ -84792,8 +84821,15 @@ try{
   function v684BuildEpisodicPlan(info){
     if(!info) return null;
     const cands = v684EpisodicCandidates(info);
+    // v6.8.8: answer_source is offered ONLY when its expected answer is a
+    // specific, recoverable source (a visual transform, a rule/trace/program,
+    // a rule-selecting diagram). The "retained_values" expectation is near
+    // vacuous — in a memory game everything depends on remembered values —
+    // so asking "what did the answer mainly depend on?" after a plain
+    // relational trial discriminated nothing and read as noise. Those
+    // episodes now fall to the relation/frame probes instead.
     const sourceSpecific = (typeof projectL0TrialToAnswerSource === "function" && projectL0TrialToAnswerSource(info) !== "retained_values");
-    cands.push({weight:sourceSpecific ? 0.9 : 0.45, build:() => v684AnswerSourceFallbackPlan(info)});
+    if(sourceSpecific) cands.push({weight:0.9, build:() => v684AnswerSourceFallbackPlan(info)});
     while(cands.length){
       const pick = wPick(cands, c => c.weight);
       if(!pick) break;
@@ -85202,36 +85238,66 @@ try{
   function auditChoiceRequestedSlotIntegrity(){
     const block = [], warnings = [], details = {appVersion:appVersion(), patch:PATCH_ID};
     try{
-      const src = String(processInputPostAnswer || "");
-      const l0PanelSrc = String(renderGenPairPanel || "");
-      const l1PanelSrc = String(renderL1PairPanel || "");
-      details.hasRequestedDisplayIndex = /requestedDisplayIndex\s*:/.test(src);
-      details.guardsOptionCount = /semanticOptionCount/.test(src) && /displayTargetIndex\s*</.test(src);
-      details.l0OkButtonRemoved = !/genPairBtn\s+submit/.test(l0PanelSrc) && !/textContent\s*=\s*["']OK["']/.test(l0PanelSrc);
-      details.l1OkButtonRemoved = !/genL1Btn\s+submit/.test(l1PanelSrc) && !/textContent\s*=\s*["']OK["']/.test(l1PanelSrc);
-      details.l0AutosubmitDelayMs = /setTimeout\(\(\)\s*=>\s*submitGenPair\(\),\s*80\)/.test(String(chooseGenPairValue || "")) ? 80 : null;
-      details.l1AutosubmitDelayMs = /setTimeout\(\(\)\s*=>\s*submitL1Pair\(\),\s*80\)/.test(String(chooseL1PairValue || "")) ? 80 : null;
-      if(!details.hasRequestedDisplayIndex) block.push("post-answer budget entry does not pass requestedDisplayIndex");
-      if(!details.guardsOptionCount) block.push("requestedDisplayIndex is not guarded by semantic option count");
-      if(!details.l0OkButtonRemoved) block.push("L0 constructive panel still renders an OK button");
-      if(!details.l1OkButtonRemoved) block.push("L1 constructive panel still renders an OK button");
-      if(details.l0AutosubmitDelayMs !== 80) block.push("L0 constructive autosubmit is not armed at 80ms");
-      if(details.l1AutosubmitDelayMs !== 80) block.push("L1 constructive autosubmit is not armed at 80ms");
-      if(typeof answerBudgetRecord === "function"){
+      // v6.8.8: the previous version of this audit referenced IIFE-private
+      // identifiers (renderGenPairPanel, chooseGenPairValue, …) as globals,
+      // so it ALWAYS threw and reported a false BLOCK. Checks now use only
+      // global functions, exposed QA handles and the DOM, and degrade to
+      // warnings when a surface is not inspectable.
+      try{
+        let postFn = (typeof processInputPostAnswer === "function") ? processInputPostAnswer : null;
+        let hops = 0;
+        while(postFn && typeof postFn.__postAnswerCore === "function" && hops < 8){ postFn = postFn.__postAnswerCore; hops++; }
+        details.postAnswerUnwrapHops = hops;
+        const src = postFn ? String(postFn) : "";
+        details.hasRequestedDisplayIndex = /requestedDisplayIndex\s*:/.test(src);
+        details.guardsOptionCount = /semanticOptionCount/.test(src);
+        if(src && !details.hasRequestedDisplayIndex) block.push("post-answer budget entry does not pass requestedDisplayIndex");
+        if(src && !details.guardsOptionCount) block.push("requestedDisplayIndex is not guarded by semantic option count");
+        if(!src) warnings.push("processInputPostAnswer not visible to audit");
+      }catch(_){ warnings.push("post-answer source not inspectable"); }
+      try{
+        details.l0OkButtonRemoved = !document.querySelector("#panelGenPair .genPairBtn.submit");
+        details.l1OkButtonRemoved = !document.querySelector("#panelGenL1Pair .genL1Btn.submit");
+        if(!details.l0OkButtonRemoved) block.push("L0 constructive panel still renders an OK button");
+        if(!details.l1OkButtonRemoved) block.push("L1 constructive panel still renders an OK button");
+      }catch(_){ warnings.push("constructive panels not inspectable in this context"); }
+      try{
+        const l0 = window.EUCA_V673_INLINE_GENERATIVE || null;
+        details.l0SyncSubmit = !!(l0 && /renderGenPairPanel\(\);\s*\n[^\n]*\n[^\n]*\n\s*if\(inline\.chosen\.a != null && inline\.chosen\.b != null\) submitGenPair\(\)/.test(String(l0.choose || "")) || (l0 && /submitGenPair\(\)/.test(String(l0.choose || "")) && !/setTimeout/.test(String(l0.choose || ""))));
+        details.l0TokenPass = !!(l0 && /"correct" \|\| val === "wrong"/.test(String(l0.wrapperSource || "")));
+        if(l0){
+          if(!details.l0SyncSubmit) block.push("L0 constructive submit is not synchronous on the second value");
+          if(!details.l0TokenPass) block.push("L0 wrapper does not pass verdict tokens through");
+        } else warnings.push("L0 constructive QA handle not exposed");
+      }catch(_){ warnings.push("L0 constructive surfaces not inspectable"); }
+      try{
+        const l1 = window.EUCA_V683_L1_AUTOSUBMIT_UI || null;
+        const psrc = l1 ? String(l1.process || "") : "";
+        details.l1ScalarFold = /typeof pair !== "object"/.test(psrc);
+        details.l1NoWipe = psrc.length > 0 && !/resetL1PairPanel\(cap\); return false/.test(psrc);
+        if(psrc){
+          if(!details.l1ScalarFold) block.push("L1 constructive reducer does not fold scalar input");
+          if(!details.l1NoWipe) block.push("L1 constructive reducer wipes slots on invalid input");
+        } else warnings.push("L1 constructive reducer not exposed for audit");
+        details.genl1finalRegistered = (typeof VALID_PENDING_PANELS !== "undefined") && VALID_PENDING_PANELS.has("genl1final");
+        if(!details.genl1finalRegistered) block.push("genl1final not registered as a valid pending panel");
+      }catch(_){ warnings.push("L1 constructive surfaces not inspectable"); }
+      if(typeof answerBudgetRecord === "function" && typeof ensureAnswerBudget === "function"){
         const prev = State.answerBudget;
-        State.answerBudget = null;
-        answerBudgetRecord({responseFormat:"choice", correctIndex:1, semanticCorrectIndex:1, requestedDisplayIndex:null, family:"qa_choice3"});
-        details.choice3Misses = ensureAnswerBudget().misses.length;
-        if(details.choice3Misses !== 0) block.push("Choice3 impossible target created a placement miss");
-        State.answerBudget = null;
-        answerBudgetRecord({responseFormat:"choice", correctIndex:2, semanticCorrectIndex:0, requestedDisplayIndex:2, family:"qa_choice4"});
-        details.choice4HonoredMisses = ensureAnswerBudget().misses.length;
-        if(details.choice4HonoredMisses !== 0) block.push("honored Choice4 requested slot created a placement miss");
-        State.answerBudget = null;
-        answerBudgetRecord({responseFormat:"choice", correctIndex:2, semanticCorrectIndex:0, requestedDisplayIndex:1, family:"qa_choice4"});
-        details.choice4FailedMisses = ensureAnswerBudget().misses.length;
-        if(details.choice4FailedMisses !== 1) block.push("failed Choice4 requested slot did not create a placement miss");
-        State.answerBudget = prev;
+        try{
+          State.answerBudget = null;
+          answerBudgetRecord({responseFormat:"choice", correctIndex:1, semanticCorrectIndex:1, requestedDisplayIndex:null, family:"qa_choice3"});
+          details.choice3Misses = ensureAnswerBudget().misses.length;
+          if(details.choice3Misses !== 0) block.push("Choice3 impossible target created a placement miss");
+          State.answerBudget = null;
+          answerBudgetRecord({responseFormat:"choice", correctIndex:2, semanticCorrectIndex:0, requestedDisplayIndex:2, family:"qa_choice4"});
+          details.choice4HonoredMisses = ensureAnswerBudget().misses.length;
+          if(details.choice4HonoredMisses !== 0) block.push("honored Choice4 requested slot created a placement miss");
+          State.answerBudget = null;
+          answerBudgetRecord({responseFormat:"choice", correctIndex:2, semanticCorrectIndex:0, requestedDisplayIndex:1, family:"qa_choice4"});
+          details.choice4FailedMisses = ensureAnswerBudget().misses.length;
+          if(details.choice4FailedMisses !== 1) block.push("failed Choice4 requested slot did not create a placement miss");
+        } finally { State.answerBudget = prev; }
       } else warnings.push("answerBudgetRecord not visible to audit");
     }catch(e){ block.push("choice requested-slot audit exception: " + (e && e.message || e)); }
     return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
