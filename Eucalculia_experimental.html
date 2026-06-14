@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.19-prompt-logic-ideal-design</title>
+<title>Eucalculia v6.8.20-runtime-review-witness-sourcefix</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.19-prompt-logic-ideal-design";
+const APP_VERSION = "v6.8.20-runtime-review-witness-sourcefix";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -88442,6 +88442,281 @@ try{
       wrapped.__v6819IdealPromptLogicWrapped = true;
       try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
       try{ runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ boot(); }catch(_){ }
+})();
+</script>
+
+
+<script>
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.20-runtime-review-witness-sourcefix";
+  const HIGH_RISK_WITNESS_IDS = new Set(["witness_negative_largest", "witness_lower_boundary", "witness_upper_boundary"]);
+
+  function now(){ return (typeof Date !== "undefined" && Date.now) ? Date.now() : 0; }
+  function str(x){ return String(x == null ? "" : x); }
+  function low(x){ return str(x).toLowerCase(); }
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function uniq(xs){ return Array.from(new Set(arr(xs).filter(x => x != null && x !== ""))); }
+  function safeCall(fn, fallback){ try{ return typeof fn === "function" ? fn() : fallback; }catch(_){ return fallback; } }
+  function log(event, detail){
+    try{
+      if(!State.meta) State.meta = {};
+      if(!State.meta.diagnostics || typeof State.meta.diagnostics !== "object") State.meta.diagnostics = {};
+      if(!State.meta.diagnostics.v6820RuntimeWitnessFix) State.meta.diagnostics.v6820RuntimeWitnessFix = {events:[], disabledWitnessOps:[], reviewDelegateErrors:0};
+      const root = State.meta.diagnostics.v6820RuntimeWitnessFix;
+      root.events.push(Object.assign({ts:now(), event}, detail || {}));
+      if(root.events.length > 80) root.events.splice(0, root.events.length - 80);
+    }catch(_){ }
+  }
+  function auditResultLocal(status, details){
+    if(typeof auditResult === "function") return auditResult(status, details);
+    return {status, ok:status === "PASS", details};
+  }
+
+  function quotedSource(info){
+    const src = str(info?.sourceQuestion || info?.originalTrialInfo?.sourceQuestion || info?.originalTrialInfo?.question || info?.originalTrialInfo?.relationQuestion || info?.originalTrialInfo?.delayedPrompt || "").trim();
+    return src ? ` The source prompt was: “${src}”` : "";
+  }
+  function safeMetaReviewText(info){
+    const dim = str(info?.metaClassificationDimension || "");
+    const fam = str(info?.family || info?.catId || "");
+    const kind = str(info?.kind || "");
+    const quote = quotedSource(info);
+    if(dim === "prompt_answer_rule") return "Rule: recover the public YES/NO mapping stated by the words; do not name an internal gate." + quote;
+    if(dim === "prompt_scope") return "Rule: recover the public scope operator: all, some, none, exactly one, not all, or same status." + quote;
+    if(dim === "prompt_condition_shape") return "Rule: decide whether one direct rule was used or whether IF/otherwise selected a branch." + quote;
+    if(dim === "prompt_polarity") return "Rule: decide what made YES true: the stated relation itself or NOT / the opposite relation." + quote;
+    if(dim === "meta_question_type" || dim === "meta_mental_move" || /l1_meta_question_type|l1_meta_mental_move/.test(fam) || kind === "l1_meta_classification"){
+      return "Rule: classify the actual META task you just performed — source/role readout, calculation across retained pairs, rule/source following, or evidence-case testing." + quote;
+    }
+    if(dim === "bridge_probe_kind" || /bridge.*classification/.test(fam)){
+      return "Rule: classify the bridge task: identify a pair, recall a side value, compare the pairs, or recall the original YES/NO." + quote;
+    }
+    if(dim === "question_type") return "Rule: classify the L0 task by the public operation it asked for: property check, value comparison, spatial transform, or rule/procedure." + quote;
+    if(dim === "mental_move") return "Rule: classify the main mental move used in the previous L0 question." + quote;
+    if(dim === "answer_source") return "Rule: classify what controlled the answer: retained values, visual layout/transform, rule trace/program, or a diagram-selected rule." + quote;
+    if(dim === "episodic_frame") return "Rule: legacy QUESTION FORM is retired; current builds ask only public prompt-logic or task-demand questions." + quote;
+    return null;
+  }
+  function fallbackMetaReviewText(info){
+    const lab = str(info?.metaClassificationDimensionLabel || info?.metaClassificationDimension || "this task").trim() || "this task";
+    return `Rule: choose the public task demand for ${lab}, using the wording and the operation you just performed.` + quotedSource(info);
+  }
+  function installMetaReviewRecursionGuard(){
+    try{
+      const previous = (typeof metaClassificationRuleTextForReview === "function") ? metaClassificationRuleTextForReview : null;
+      if(previous && previous.__v6820ReviewRecursionGuard) return;
+      let active = false;
+      const wrapped = function metaClassificationRuleTextForReviewV6820(info){
+        const direct = safeMetaReviewText(info);
+        if(direct) return direct;
+        if(active) return fallbackMetaReviewText(info);
+        const prevName = str(previous?.name || "");
+        const delegateLooksRecursive = /V6818|V6819|PromptLogic|IdealPromptLogic/i.test(prevName);
+        if(previous && previous !== wrapped && !delegateLooksRecursive){
+          active = true;
+          try{
+            const txt = previous.apply(this, arguments);
+            if(typeof txt === "string" && txt.trim()) return txt;
+          }catch(e){
+            try{
+              if(State?.meta?.diagnostics?.v6820RuntimeWitnessFix) State.meta.diagnostics.v6820RuntimeWitnessFix.reviewDelegateErrors++;
+              if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"v6820_meta_review_delegate"});
+            }catch(_){ }
+            log("review_delegate_failed", {message:str(e?.message || e), dim:str(info?.metaClassificationDimension || "")});
+          }finally{ active = false; }
+        }
+        return fallbackMetaReviewText(info);
+      };
+      wrapped.__v6820ReviewRecursionGuard = true;
+      // Mark as already handled by the two prompt-logic installers, so a later
+      // audit/boot pass cannot wrap this guard back into the v6.8.18↔v6.8.19 cycle.
+      wrapped.__v6818PromptLogicWrapped = true;
+      wrapped.__v6819IdealPromptLogicWrapped = true;
+      metaClassificationRuleTextForReview = wrapped;
+      try{ window.metaClassificationRuleTextForReview = wrapped; globalThis.metaClassificationRuleTextForReview = wrapped; }catch(_){ }
+      log("review_guard_installed", {previousName:prevName || null});
+    }catch(e){ try{ if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"v6820_install_review_guard"}); }catch(_){ } }
+  }
+
+  function disableHighRiskWitnessOps(){
+    const removed = [];
+    function scrub(name, xs){
+      if(!Array.isArray(xs)) return;
+      for(let i=xs.length-1; i>=0; i--){
+        const id = str(xs[i]?.id || "");
+        if(HIGH_RISK_WITNESS_IDS.has(id)){
+          removed.push({bank:name, id});
+          xs.splice(i, 1);
+        }
+      }
+    }
+    try{ scrub("L1_OPS", L1_OPS); }catch(_){ }
+    try{ scrub("L1_WITNESS_OPS", L1_WITNESS_OPS); }catch(_){ }
+    try{
+      if(Array.isArray(WITNESS_PREDS_UNARY)){
+        for(let i=WITNESS_PREDS_UNARY.length-1; i>=0; i--) if(WITNESS_PREDS_UNARY[i] === "not_in_set") WITNESS_PREDS_UNARY.splice(i, 1);
+      }
+    }catch(_){ }
+    try{
+      if(!State.meta) State.meta = {};
+      if(!State.meta.diagnostics || typeof State.meta.diagnostics !== "object") State.meta.diagnostics = {};
+      if(!State.meta.diagnostics.v6820RuntimeWitnessFix) State.meta.diagnostics.v6820RuntimeWitnessFix = {events:[], disabledWitnessOps:[], reviewDelegateErrors:0};
+      State.meta.diagnostics.v6820RuntimeWitnessFix.disabledWitnessOps = removed;
+    }catch(_){ }
+    if(removed.length) log("high_risk_witness_ops_disabled", {removed});
+  }
+
+  function configHasComplementPredicate(config){
+    try{ return arr(config?.predicates).some(p => str(p?.id || p?.predId || p) === "not_in_set"); }
+    catch(_){ return false; }
+  }
+  function installWitnessComplementGuard(){
+    try{
+      if(typeof witnessTryGenerate === "function" && !witnessTryGenerate.__v6820SourceSafeComplementGuard){
+        const previous = witnessTryGenerate;
+        const wrapped = function witnessTryGenerateV6820(p1, p2, config){
+          if(configHasComplementPredicate(config) && !config?.allowRetainedComplement){
+            log("range_complement_witness_blocked", {qualifier:str(config?.qualifierId || ""), anchorIds:arr(config?.anchorIds).slice(0,3)});
+            return null;
+          }
+          return previous.apply(this, arguments);
+        };
+        wrapped.__v6820SourceSafeComplementGuard = true;
+        witnessTryGenerate = wrapped;
+        try{ window.witnessTryGenerate = wrapped; globalThis.witnessTryGenerate = wrapped; }catch(_){ }
+      }
+    }catch(e){ try{ if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"v6820_witness_complement_guard"}); }catch(_){ } }
+  }
+
+  function isPrimeLocal(n){
+    n = Math.floor(Number(n));
+    if(!Number.isFinite(n) || n < 2) return false;
+    try{ if(typeof witnessIsPrime === "function") return !!witnessIsPrime(n); }catch(_){ }
+    try{ if(typeof isPrime === "function") return !!isPrime(n); }catch(_){ }
+    if(n < 4) return true;
+    if(n % 2 === 0) return false;
+    for(let d=3; d*d<=n; d+=2) if(n % d === 0) return false;
+    return true;
+  }
+  function retainedSlots(p1, p2){
+    return [
+      {label:"Pair 1 LEFT",  value:Number(p1?.a), pair:1, side:"left"},
+      {label:"Pair 1 RIGHT", value:Number(p1?.b), pair:1, side:"right"},
+      {label:"Pair 2 LEFT",  value:Number(p2?.a), pair:2, side:"left"},
+      {label:"Pair 2 RIGHT", value:Number(p2?.b), pair:2, side:"right"}
+    ].filter(s => Number.isInteger(s.value));
+  }
+  function largestNonPrimeSlot(p1, p2){
+    const slots = retainedSlots(p1, p2);
+    if(slots.length !== 4) return null;
+    const hits = slots.filter(s => !isPrimeLocal(s.value));
+    if(!hits.length) return null;
+    const max = Math.max(...hits.map(s => s.value));
+    const winners = hits.filter(s => s.value === max);
+    return winners.length === 1 ? {slot:winners[0], index:slots.indexOf(winners[0]), slots, max} : null;
+  }
+  function installSourceSafeWitnessReplacement(){
+    try{
+      if(typeof L1_OPS === "undefined" || !Array.isArray(L1_OPS)) return;
+      if(L1_OPS.some(op => op && op.id === "witness_retained_largest_nonprime_slot")) return;
+      const op = {
+        id:"witness_retained_largest_nonprime_slot",
+        symmetric:true,
+        family:"witness",
+        minLevel:6,
+        minM:3,
+        responseFormat:"choice",
+        choiceLabels:["Pair 1 LEFT", "Pair 1 RIGHT", "Pair 2 LEFT", "Pair 2 RIGHT"],
+        atomicsUsed:["witness_qualifier", "witness_negative_predicate", "retained_value_selection"],
+        frameTags:["class_inclusion", "source_safe", "retained_value_selection", "opposition", "ordered_search"],
+        canUse:(p1,p2)=> !!largestNonPrimeSlot(p1,p2),
+        fn:(p1,p2)=>{
+          const picked = largestNonPrimeSlot(p1,p2);
+          if(!picked) return null;
+          return {
+            correctIndex:picked.index,
+            choiceLabels:picked.slots.map(s => s.label),
+            question:"Among the four retained values, which slot held the largest non-prime value?",
+            distractorTypes:picked.slots.map((s,i)=> i === picked.index ? "correct" : (isPrimeLocal(s.value) ? "prime_source_lure" : "smaller_nonprime_lure")),
+            tags:picked.slots.map(s => `${s.pair}:${s.side}`),
+            witnessTelemetry:{family:"witness", opId:"witness_retained_largest_nonprime_slot", qualifier:"retained_largest", predicates:["not_in_set"], anchorIds:["retained_four"], sourceSafe:true, answerSlot:picked.slot.label}
+          };
+        }
+      };
+      L1_OPS.push(op);
+      try{ if(Array.isArray(L1_WITNESS_OPS)) L1_WITNESS_OPS.push(op); }catch(_){ }
+      try{ if(typeof registerAtomic === "function" && typeof ATOMIC_REGISTRY !== "undefined" && !ATOMIC_REGISTRY.retained_value_selection){ registerAtomic({id:"retained_value_selection", kind:"witness", label:"Retained-value source selection", evaluate:()=>true, phrase:()=>"retained-value source selection"}); } }catch(_){ }
+      try{ if(typeof migrateLegacyCatalogueEntryToSpec === "function") migrateLegacyCatalogueEntryToSpec("L1", op); }catch(_){ }
+      log("source_safe_witness_added", {id:op.id});
+    }catch(e){ try{ if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"v6820_source_safe_witness_add"}); }catch(_){ } }
+  }
+  function invalidateRegistryAndPrepared(){
+    try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+    try{ if(typeof REGISTRY_LAYER_ENTRIES_CACHE !== "undefined" && REGISTRY_LAYER_ENTRIES_CACHE){ REGISTRY_LAYER_ENTRIES_CACHE.sig = ""; REGISTRY_LAYER_ENTRIES_CACHE.rows = {}; } }catch(_){ }
+    try{ if(typeof invalidatePreparedTrial === "function") invalidatePreparedTrial("v6820_runtime_review_witness_sourcefix"); else if(State){ State.nextTrialPrepared = null; State.nextTrialPrepareInFlight = false; } }catch(_){ }
+  }
+
+  function install(){
+    installMetaReviewRecursionGuard();
+    disableHighRiskWitnessOps();
+    installWitnessComplementGuard();
+    installSourceSafeWitnessReplacement();
+    invalidateRegistryAndPrepared();
+  }
+
+  function auditV6820RuntimeReviewWitnessFix(){
+    const block = [], warnings = [];
+    install();
+    let review = "";
+    try{
+      review = metaClassificationRuleTextForReview({kind:"l1_meta_classification", metaClassificationDimension:"meta_question_type", family:"l1_meta_question_type_classification", sourceQuestion:"What is the largest non-prime value?"});
+    }catch(e){ block.push("metaClassificationRuleTextForReview still throws: " + str(e?.message || e)); }
+    if(!review || /Maximum call stack|RangeError/i.test(review)) block.push("review guard did not return safe text");
+    try{
+      const ids = arr(L1_OPS).map(op => op && op.id).filter(Boolean);
+      for(const id of HIGH_RISK_WITNESS_IDS){ if(ids.includes(id)) block.push(`high-risk range complement witness still in L1_OPS: ${id}`); }
+      if(!ids.includes("witness_retained_largest_nonprime_slot")) block.push("source-safe retained non-prime witness not installed");
+    }catch(e){ block.push("could not inspect L1_OPS: " + str(e?.message || e)); }
+    try{ if(Array.isArray(WITNESS_PREDS_UNARY) && WITNESS_PREDS_UNARY.includes("not_in_set")) block.push("not_in_set still present in open witness predicate pool"); }catch(_){ }
+    try{
+      const safeOp = arr(L1_OPS).find(op => op && op.id === "witness_retained_largest_nonprime_slot");
+      if(safeOp){
+        const p1 = {a:2,b:4}, p2 = {a:5,b:7};
+        const r = safeOp.fn(p1,p2,8);
+        if(!r || r.correctIndex !== 1) block.push("source-safe retained non-prime witness computes wrong slot");
+        if(safeOp.canUse({a:2,b:3},{a:5,b:7},8)) block.push("all-prime retained values should withhold retained non-prime witness");
+      }
+    }catch(e){ block.push("source-safe witness smoke test threw: " + str(e?.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_ID), patch:PATCH_ID, reviewText:review, warnings, block});
+  }
+
+  function boot(){ install(); }
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot, 0); setTimeout(boot, 350); setTimeout(boot, 1200);
+    } else boot();
+  }catch(_){ }
+  try{
+    window.auditV6820RuntimeReviewWitnessFix = auditV6820RuntimeReviewWitnessFix;
+    globalThis.auditV6820RuntimeReviewWitnessFix = auditV6820RuntimeReviewWitnessFix;
+  }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6820RuntimeReviewWitnessFixWrapped){
+      const wrappedRun = function runFeatureAuditV6820(feature, opts={}){
+        const key = str(feature).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+        if(["v6820", "v6_8_20", "v6820_runtime_review_witness_fix", "runtime_review_witness_sourcefix", "witness_sourcefix", "review_recursion_guard"].includes(key)) return auditV6820RuntimeReviewWitnessFix(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrappedRun.__v6820RuntimeReviewWitnessFixWrapped = true;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; }catch(_){ }
+      try{ runFeatureAudit = wrappedRun; }catch(_){ }
     }
   }catch(_){ }
   try{ boot(); }catch(_){ }
