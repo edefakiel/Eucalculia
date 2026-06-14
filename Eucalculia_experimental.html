@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.22-clarity-relevance-audit</title>
+<title>Eucalculia v6.8.23-visual-epistemic-reconfiguration</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.22-clarity-relevance-audit";
+const APP_VERSION = "v6.8.23-visual-epistemic-reconfiguration";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -89602,7 +89602,997 @@ try{
   }catch(_){ }
   try{ boot(); }catch(_){ }
 })();
+
+
+// =============================================================================
+// v6.8.23 — visual-comparison and epistemic-relevance refinement
+// -----------------------------------------------------------------------------
+// 1) Adds a higher-cadence, broader visual transformation comparison family.
+//    The user must classify the relation between two stimuli: rotation, mirror
+//    reversal, or same-count-but-different structure. This keeps number-only
+//    coding unsafe without making every visual pair a predictable branch gate.
+// 2) Replaces the abstract "who can know?" public/private scenarios with
+//    possible-world determinability instances that require a witness, parity,
+//    sum, or calculation-based inference. No agent gets the trivial pattern
+//    "knows both values vs only left/right" as the intended solution.
+// =============================================================================
+(function registerV6823VisualEpistemicRelevance(){
+  if(typeof globalThis !== "undefined" && globalThis.__EUCA_V6823_VISUAL_EPISTEMIC_RELEVANCE__) return;
+  try{ if(typeof globalThis !== "undefined") globalThis.__EUCA_V6823_VISUAL_EPISTEMIC_RELEVANCE__ = true; }catch(_){ }
+  const warn = (msg,e)=>{ try{ if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia v6.8.23] " + msg, e || ""); }catch(_){ } };
+  const clampLocal = (x,a,b)=>{ x=Number(x); return Math.max(a, Math.min(b, Number.isFinite(x)?x:a)); };
+  const pick = arr => Array.isArray(arr) && arr.length ? arr[Math.floor(Math.random()*arr.length)] : null;
+  const shuf = arr => { arr=(arr||[]).slice(); for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=arr[i]; arr[i]=arr[j]; arr[j]=t; } return arr; };
+  const uniqLocal = arr => Array.from(new Set((arr||[]).filter(Boolean).map(String)));
+
+  try{
+    if(typeof CONFIG === "object" && CONFIG){
+      CONFIG.l0VisualComparisonChoiceEnabled = CONFIG.l0VisualComparisonChoiceEnabled !== false;
+      CONFIG.l0VisualComparisonChoiceMinLevel = Number.isFinite(Number(CONFIG.l0VisualComparisonChoiceMinLevel)) ? Number(CONFIG.l0VisualComparisonChoiceMinLevel) : 5;
+      CONFIG.l0VisualComparisonChoiceMinM = Number.isFinite(Number(CONFIG.l0VisualComparisonChoiceMinM)) ? Number(CONFIG.l0VisualComparisonChoiceMinM) : 6;
+      CONFIG.l0VisualComparisonChoiceFamilyWeight = Number.isFinite(Number(CONFIG.l0VisualComparisonChoiceFamilyWeight)) ? Number(CONFIG.l0VisualComparisonChoiceFamilyWeight) : 0.072;
+      CONFIG.l0ShepardConditionalFamilyWeight = Number.isFinite(Number(CONFIG.l0ShepardConditionalFamilyWeight)) ? Number(CONFIG.l0ShepardConditionalFamilyWeight) : 0.058;
+      CONFIG.l0EpistemicAbstractFamilyWeight = Number.isFinite(Number(CONFIG.l0EpistemicAbstractFamilyWeight)) ? Number(CONFIG.l0EpistemicAbstractFamilyWeight) : 0.050;
+    }
+  }catch(e){ warn("config install failed", e); }
+
+  // ───────────────────────── Visual comparison engine ─────────────────────────
+  function vcCellsNormalize(cells){
+    const xs=(cells||[]).map(p=>[Number(p[0]),Number(p[1])]).filter(p=>Number.isInteger(p[0])&&Number.isInteger(p[1]));
+    if(!xs.length) return [];
+    const minR=Math.min(...xs.map(p=>p[0])), minC=Math.min(...xs.map(p=>p[1]));
+    return xs.map(([r,c])=>[r-minR,c-minC]).sort((a,b)=>(a[0]-b[0])||(a[1]-b[1]));
+  }
+  function vcCellsKey(cells){ return vcCellsNormalize(cells).map(p=>p.join(",")).join("|"); }
+  function vcRotateCells(cells){ return vcCellsNormalize((cells||[]).map(([r,c])=>[c,-r])); }
+  function vcMirrorCells(cells){ return vcCellsNormalize((cells||[]).map(([r,c])=>[r,-c])); }
+  function vcRotations(cells){ const out=[]; let cur=vcCellsNormalize(cells); for(let i=0;i<4;i++){ out.push(cur); cur=vcRotateCells(cur); } return out; }
+  function vcEquivalentRotation(a,b){ const kb=vcCellsKey(b); return vcRotations(a).some(x=>vcCellsKey(x)===kb); }
+  function vcEquivalentMirror(a,b){ const mb=vcMirrorCells(a); const kb=vcCellsKey(b); return vcRotations(mb).some(x=>vcCellsKey(x)===kb); }
+  function vcIsChiral(cells){ return !vcEquivalentRotation(cells, vcMirrorCells(cells)); }
+  const VC_GRID_PATTERNS = Object.freeze([
+    {id:"zig6", cells:[[0,0],[1,0],[1,1],[2,1],[3,1],[3,2]]},
+    {id:"hook6", cells:[[0,0],[1,0],[2,0],[2,1],[2,2],[3,2]]},
+    {id:"stair6", cells:[[0,0],[1,0],[1,1],[2,1],[2,2],[3,2]]},
+    {id:"fork6", cells:[[0,1],[1,1],[2,1],[2,0],[2,2],[3,2]]},
+    {id:"bend7", cells:[[0,0],[0,1],[1,1],[2,1],[2,2],[2,3],[3,3]]},
+    {id:"snake7", cells:[[0,0],[0,1],[1,1],[1,2],[2,2],[3,2],[3,3]]}
+  ]);
+  function vcGridBox(cells){
+    cells=vcCellsNormalize(cells);
+    const maxR=cells.length?Math.max(...cells.map(p=>p[0])):0, maxC=cells.length?Math.max(...cells.map(p=>p[1])):0;
+    return {cells, rows:maxR+1, cols:maxC+1};
+  }
+  function vcRenderGridPattern(cells, ox, oy, label){
+    const box=vcGridBox(cells), unit=18, pad=6;
+    const w=Math.max(4, box.cols)*unit, h=Math.max(4, box.rows)*unit;
+    const set=new Set(box.cells.map(p=>p.join(",")));
+    let s=`<g transform="translate(${ox},${oy})">`;
+    s+=`<text x="${w/2}" y="-10" font-size="11" fill="#888" text-anchor="middle">${label}</text>`;
+    s+=`<rect x="${-pad}" y="${-pad}" width="${w+pad*2}" height="${h+pad*2}" rx="8" fill="rgba(255,255,255,0.035)" stroke="rgba(255,255,255,0.12)"/>`;
+    for(let r=0;r<Math.max(4,box.rows);r++) for(let c=0;c<Math.max(4,box.cols);c++){
+      const filled=set.has(`${r},${c}`), x=c*unit, y=r*unit;
+      s+=`<rect x="${x}" y="${y}" width="${unit-3}" height="${unit-3}" rx="4" fill="${filled?'#8f7cff':'rgba(255,255,255,0.08)'}" stroke="${filled?'#c9c1ff':'rgba(255,255,255,0.06)'}" stroke-width="1"/>`;
+    }
+    s+=`</g>`; return s;
+  }
+  function vcRenderGridPairSVG(leftCells,rightCells){
+    const W=420,H=168;
+    let s=`<svg class="visual-comparison-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:min(100%,560px);height:auto;" aria-label="two abstract grid stimuli">`;
+    s+=vcRenderGridPattern(leftCells,92,52,"LEFT STIMULUS");
+    s+=`<line x1="210" y1="22" x2="210" y2="148" stroke="rgba(255,255,255,0.16)"/>`;
+    s+=vcRenderGridPattern(rightCells,258,52,"RIGHT STIMULUS");
+    s+=`</svg>`;
+    return s;
+  }
+  function vcBuildGridInstance(relation){
+    relation = relation || pick(["rotation","mirror","different"]);
+    for(let attempt=0; attempt<60; attempt++){
+      const basePool = (relation === "rotation" || relation === "mirror") ? VC_GRID_PATTERNS.filter(p=>vcIsChiral(p.cells)) : VC_GRID_PATTERNS;
+      const base=pick(basePool); if(!base) return null;
+      let left=vcCellsNormalize(base.cells), right=null, other=null;
+      if(relation === "rotation"){
+        const rots=vcRotations(left).filter(x=>vcCellsKey(x)!==vcCellsKey(left));
+        right=pick(rots) || vcRotateCells(left);
+        if(!vcEquivalentRotation(left,right) || vcEquivalentMirror(left,right)) continue;
+      } else if(relation === "mirror"){
+        right=pick(vcRotations(vcMirrorCells(left))) || vcMirrorCells(left);
+        if(!vcEquivalentMirror(left,right) || vcEquivalentRotation(left,right)) continue;
+      } else {
+        const sameCount=VC_GRID_PATTERNS.filter(p=>p.id!==base.id && p.cells.length===base.cells.length);
+        other=pick(sameCount); if(!other) continue;
+        right=pick(vcRotations(other.cells)) || vcCellsNormalize(other.cells);
+        if(vcEquivalentRotation(left,right) || vcEquivalentMirror(left,right)) continue;
+      }
+      return {kind:"grid_2d", relation, sourceId:base.id, targetId:other?.id || base.id, leftCells:left, rightCells:right, count:left.length, svg:vcRenderGridPairSVG(left,right)};
+    }
+    return null;
+  }
+  function vcBuildShepardInstance(relation, maxCount){
+    if(typeof SHEPARD_CATALOG === "undefined" || typeof SHEPARD_OCTAHEDRAL === "undefined") return null;
+    relation = relation || pick(["rotation","mirror","different"]);
+    const cap = Math.max(6, Math.floor(Number(maxCount)||9));
+    const pool = (SHEPARD_CATALOG||[]).filter(e=>e && Number(e.n)<=cap);
+    if(!pool.length) return null;
+    for(let attempt=0; attempt<60; attempt++){
+      const entry=pick(pool); if(!entry) return null;
+      const R1=pick(SHEPARD_OCTAHEDRAL), R2=pick(SHEPARD_OCTAHEDRAL);
+      const left=shepardFigureNormalize(shepardFigureApplyMatrix(entry.voxels, R1));
+      let right=null, other=null;
+      if(relation === "rotation"){
+        right=shepardFigureNormalize(shepardFigureApplyMatrix(entry.voxels, R2));
+        if(shepardFigureToKey(left) === shepardFigureToKey(right)) continue;
+        if(!shepardFiguresEquivalentUnderRotation(left,right)) continue;
+        if(shepardFiguresEquivalentUnderRotation(shepardFigureMirror(left), right)) continue;
+      } else if(relation === "mirror"){
+        right=shepardFigureNormalize(shepardFigureApplyMatrix(shepardFigureMirror(entry.voxels), R2));
+        if(!shepardFiguresEquivalentUnderRotation(shepardFigureMirror(left), right)) continue;
+        if(shepardFiguresEquivalentUnderRotation(left,right)) continue;
+      } else {
+        const sameCount=pool.filter(e=>e.id!==entry.id && Number(e.n)===Number(entry.n));
+        other=pick(sameCount); if(!other) continue;
+        right=shepardFigureNormalize(shepardFigureApplyMatrix(other.voxels, R2));
+        if(shepardFiguresEquivalentUnderRotation(left,right)) continue;
+        if(shepardFiguresEquivalentUnderRotation(shepardFigureMirror(left), right)) continue;
+      }
+      const svg = (typeof shepardRenderPairSVG === "function") ? shepardRenderPairSVG(left,right) : "";
+      return {kind:"shepard_3d", relation, sourceId:entry.id, targetId:other?.id || entry.id, figureLeft:left, figureRight:right, count:Number(entry.n)||6, svg};
+    }
+    return null;
+  }
+  function vcRelationLabels(){
+    return [
+      {id:"rotation", text:"same structure after rotation"},
+      {id:"mirror", text:"mirror image / handedness reversed"},
+      {id:"different", text:"neither rotation nor mirror: same count, different structure"}
+    ];
+  }
+  function buildL0VisualComparisonChoice(cat,m){
+    if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function") return null;
+    const relation = pick(["rotation","mirror","different"]);
+    const engine = Math.random() < 0.56 ? "shepard" : "grid";
+    let item = engine === "shepard" ? vcBuildShepardInstance(relation, m) : vcBuildGridInstance(relation);
+    if(!item) item = engine === "shepard" ? vcBuildGridInstance(relation) : vcBuildShepardInstance(relation, m);
+    if(!item) return null;
+    const labels = vcRelationLabels();
+    const correctIndex = labels.findIndex(x=>x.id===item.relation);
+    if(correctIndex < 0) return null;
+    const qVariants = [
+      "Ignore the number first: what visual relation maps LEFT stimulus to RIGHT stimulus?",
+      "Compare the two visual stimuli. Which description is true?",
+      "Classify the shape-to-shape map between LEFT and RIGHT."
+    ];
+    const options = labels.map((x,i)=>l0ChoiceOption(x.text, i===correctIndex, i===correctIndex?"correct":"visual_transform_contrast", {visualRelation:x.id}));
+    const payload = {visualComparison:{kind:item.kind, relation:item.relation, sourceId:item.sourceId, targetId:item.targetId, count:item.count, engine:item.kind}, mechanismTags:["visual_comparison","mental_rotation","mirror_discrimination","source_shape_encoding"]};
+    const trial = buildL0ChoiceTrialFromOptions(cat, m, item.count, item.count, pick(qVariants), options, correctIndex, payload);
+    if(!trial) return null;
+    trial.family = "visual_transform_comparison";
+    trial.catId = cat.id;
+    trial.countsForMetaHistory = false;
+    trial.memoryEligible = false;
+    trial.experienceAxis = "visual_spatial_comparison";
+    trial.visualComparison = {...payload.visualComparison, svg:item.svg, leftCells:item.leftCells || null, rightCells:item.rightCells || null, figureLeft:item.figureLeft || null, figureRight:item.figureRight || null};
+    trial.payload = {...(trial.payload||{}), visualComparison:trial.visualComparison};
+    trial.frameTags = uniqLocal([...(trial.frameTags||[]), "visual_transform_comparison", "mental_rotation", "mirror_relation", "spatial_relation", "source_relation"]);
+    trial.mechanismTags = uniqLocal([...(trial.mechanismTags||[]), "visual_comparison", "source_shape_encoding"]);
+    trial.responseSubformat = "visual_relation_choice";
+    return trial;
+  }
+  function makeV6823VisualComparisonCats(){
+    return [
+      {id:"decl_visual_transform_map_choice", tier:4, stage:5, minM:6, minLevel:5, family:"visual_transform_comparison", responseFormat:"choice", questionVisualGate:true, checkVisual:false,
+        frameTags:["visual_transform_comparison","mental_rotation","mirror_relation","spatial_relation","source_relation","choice_readout"], atomicsUsed:["op_visual_rotation","op_visual_reflection","quantity_preservation"],
+        canUse:m=>CONFIG.l0VisualComparisonChoiceEnabled !== false && Number(m) >= (CONFIG.l0VisualComparisonChoiceMinM||6) && ((State.levelByMode&&Number(State.levelByMode.D))||0) >= (CONFIG.l0VisualComparisonChoiceMinLevel||5),
+        variants:[{q:"Classify the visual transformation between the two stimuli."}], buildChoiceTrial:buildL0VisualComparisonChoice,
+        gen(m,t){ return [Math.min(Math.max(6,Number(m)||6),9), Math.min(Math.max(6,Number(m)||6),9)]; }, verify(){ return INAPPLICABLE; }}
+    ];
+  }
+  function registerV6823VisualCats(){
+    if(!Array.isArray(POSNER_CATS)) return 0;
+    const existing=new Set(POSNER_CATS.map(c=>c&&c.id).filter(Boolean));
+    let added=0;
+    for(const cat of makeV6823VisualComparisonCats()){
+      if(!existing.has(cat.id)){ POSNER_CATS.push(cat); existing.add(cat.id); added++; }
+      else {
+        const c=POSNER_CATS.find(x=>x&&x.id===cat.id);
+        if(c){ Object.assign(c, cat); }
+      }
+    }
+    return added;
+  }
+  const visualCatsAdded = (()=>{ try{return registerV6823VisualCats();}catch(e){warn("visual cat registration failed",e);return 0;} })();
+
+  try{
+    const prevMetaSvg = (typeof metaStimulusSVGForTrialInfo === "function") ? metaStimulusSVGForTrialInfo : null;
+    if(prevMetaSvg && !prevMetaSvg.__v6823VisualComparisonWrapped){
+      const wrapped = function metaStimulusSVGForTrialInfoV6823(info){
+        try{ if(info?.visualComparison?.svg) return info.visualComparison.svg; }catch(_){ }
+        return prevMetaSvg.apply(this, arguments);
+      };
+      wrapped.__v6823VisualComparisonWrapped = true;
+      metaStimulusSVGForTrialInfo = wrapped;
+      try{ window.metaStimulusSVGForTrialInfo = wrapped; globalThis.metaStimulusSVGForTrialInfo = wrapped; }catch(_){ }
+    }
+  }catch(e){ warn("visual stimulus renderer wrap failed", e); }
+
+  // ─────────────────────── Epistemic determinability v2 ──────────────────────
+  const EP_AGENTS = Object.freeze(["Ada","Ben","Cy"]);
+  function ep23Max(m){ return Math.max(6, Math.min(12, Math.floor(Number(m || (typeof currentMax === "function" ? currentMax() : 12)) || 12))); }
+  function ep23Prime(n){ n=Number(n); if(n<2||n%1!==0) return false; for(let d=2; d*d<=n; d++) if(n%d===0) return false; return true; }
+  function ep23TargetSpecs(max){
+    const thr = Math.max(8, Math.min(14, Math.floor(max*1.05)));
+    return [
+      {id:"any_odd", text:"at least one value is odd", eval:w=>(w.left%2===1)||(w.right%2===1)},
+      {id:"both_even", text:"both values are even", eval:w=>(w.left%2===0)&&(w.right%2===0)},
+      {id:"left_gt_right", text:"LEFT is greater than RIGHT", eval:w=>w.left>w.right},
+      {id:"sum_gt_threshold", text:`LEFT + RIGHT is greater than ${thr}`, eval:w=>(w.left+w.right)>thr},
+      {id:"one_divides_other", text:"one value divides the other exactly", eval:w=>(w.left>0&&w.right>0)&&(w.left%w.right===0||w.right%w.left===0)},
+      {id:"exactly_one_prime", text:"exactly one value is prime", eval:w=>ep23Prime(w.left)!==ep23Prime(w.right)}
+    ];
+  }
+  function ep23Worlds(max){ const out=[]; for(let L=1;L<=max;L++) for(let R=1;R<=max;R++) out.push({left:L,right:R}); return out; }
+  function ep23Fact(id,line,test,kind="private",load=1){ return {id,line,test,kind,load}; }
+  function ep23Facts(actual,max){
+    const L=actual.left,R=actual.right,S=L+R,G=Math.abs(L-R);
+    return {
+      left_exact: ep23Fact("left_exact", `LEFT = ${L}`, w=>w.left===L, "exact_side", 1),
+      right_exact: ep23Fact("right_exact", `RIGHT = ${R}`, w=>w.right===R, "exact_side", 1),
+      left_parity: ep23Fact("left_parity", `LEFT is ${L%2?"odd":"even"}`, w=>w.left%2===L%2, "property_witness", 1),
+      right_parity: ep23Fact("right_parity", `RIGHT is ${R%2?"odd":"even"}`, w=>w.right%2===R%2, "property_witness", 1),
+      left_prime_status: ep23Fact("left_prime_status", `LEFT is ${ep23Prime(L)?"prime":"not prime"}`, w=>ep23Prime(w.left)===ep23Prime(L), "property_witness", 1),
+      right_prime_status: ep23Fact("right_prime_status", `RIGHT is ${ep23Prime(R)?"prime":"not prime"}`, w=>ep23Prime(w.right)===ep23Prime(R), "property_witness", 1),
+      public_sum: ep23Fact("public_sum", `public: LEFT + RIGHT = ${S}`, w=>w.left+w.right===S, "aggregate_inference", 2),
+      public_gap: ep23Fact("public_gap", `public: the gap is ${G}`, w=>Math.abs(w.left-w.right)===G, "aggregate_inference", 2),
+      public_sum_parity: ep23Fact("public_sum_parity", `public: LEFT + RIGHT is ${S%2?"odd":"even"}`, w=>(w.left+w.right)%2===S%2, "aggregate_property", 1),
+      public_order: ep23Fact("public_order", `public: LEFT is ${L>R?"greater than":(L<R?"less than":"equal to")} RIGHT`, w=>(w.left>w.right)===(L>R) && (w.left<w.right)===(L<R), "relation_announcement", 1)
+    };
+  }
+  function ep23Templates(max){
+    const specs=ep23TargetSpecs(max); const by=id=>specs.find(s=>s.id===id);
+    return [
+      {id:"odd_witness_or_public_parity", target:by("any_odd"), facts:a=>({Ada:["left_exact"], Ben:["right_exact"], Cy:["public_sum_parity"]})},
+      {id:"both_even_counterevidence", target:by("both_even"), facts:a=>({Ada:["left_parity"], Ben:["right_parity"], Cy:["public_sum_parity"]})},
+      {id:"order_from_sum_and_one_side", target:by("left_gt_right"), facts:a=>({Ada:["left_exact","public_sum"], Ben:["right_exact","public_sum"], Cy:["public_sum"]})},
+      {id:"sum_threshold_from_bounds", target:by("sum_gt_threshold"), facts:a=>({Ada:["left_exact","public_gap"], Ben:["right_exact","public_gap"], Cy:["public_sum_parity"]})},
+      {id:"divisibility_from_sum", target:by("one_divides_other"), facts:a=>({Ada:["left_exact","public_sum"], Ben:["right_exact","public_sum"], Cy:["public_sum"]})},
+      {id:"prime_status_with_sum_inference", target:by("exactly_one_prime"), facts:a=>({Ada:["left_prime_status","public_sum"], Ben:["right_prime_status","public_sum"], Cy:["public_sum"]})}
+    ].filter(t=>t.target);
+  }
+  function ep23SubsetKey(xs){ return (Array.isArray(xs)?xs:[]).slice().sort().join("|") || "none"; }
+  function ep23SubsetLabel(xs){ xs=(Array.isArray(xs)?xs:[]).slice(); if(!xs.length) return "No one"; if(xs.length===EP_AGENTS.length) return "all three"; if(xs.length===1) return `${xs[0]} only`; return xs.slice(0,-1).join(", ") + " and " + xs[xs.length-1]; }
+  function ep23AllSubsetRows(){
+    const rows=[]; for(let mask=0; mask<(1<<EP_AGENTS.length); mask++){ const xs=EP_AGENTS.filter((_,i)=>mask&(1<<i)); rows.push({agents:xs, key:ep23SubsetKey(xs), label:ep23SubsetLabel(xs)}); } return rows;
+  }
+  function ep23CompatibleWorlds(facts,target,max){
+    const worlds=ep23Worlds(max).filter(w=>(facts||[]).every(f=>{ try{return !!f.test(w);}catch(_){return false;} }));
+    const truths=worlds.map(w=>!!target.eval(w));
+    const can=worlds.length>0 && truths.every(t=>t===truths[0]);
+    return {worlds, truths, canDetermine:can, answer:can ? (truths[0] ? "YES" : "NO") : "MIXED"};
+  }
+  function ep23Resolve(template,actual,max){
+    const factMap=ep23Facts(actual,max), keysBy=template.facts(actual,max), target=template.target;
+    const agents=EP_AGENTS.map(agent=>{
+      const facts=(keysBy[agent]||[]).map(k=>factMap[k]).filter(Boolean);
+      const res=ep23CompatibleWorlds(facts,target,max);
+      const hasExactBoth=facts.some(f=>f.id==="left_exact") && facts.some(f=>f.id==="right_exact");
+      const inferential=facts.some(f=>/aggregate|public_sum|public_gap|public_order|relation_announcement/.test(f.kind+":"+f.id)) || (res.canDetermine && res.worlds.length>1);
+      return {agent, facts, ...res, hasExactBoth, inferential, line:`${agent} knows: ${facts.map(f=>f.line).join("; ")}.`};
+    });
+    const determiners=agents.filter(a=>a.canDetermine).map(a=>a.agent);
+    const key=ep23SubsetKey(determiners);
+    const actualTruth=target.eval(actual)?"YES":"NO";
+    return {templateId:template.id,target,actual,actualTruth,agents,determiners,key,label:ep23SubsetLabel(determiners)};
+  }
+  function ep23QualityOK(res){
+    if(!res) return false;
+    if(res.agents.some(a=>a.hasExactBoth)) return false;
+    if(!res.determiners.length || res.determiners.length >= EP_AGENTS.length) return false;
+    const detRows=res.agents.filter(a=>a.canDetermine);
+    if(!detRows.some(a=>a.inferential)) return false;
+    if(!res.agents.some(a=>!a.canDetermine)) return false;
+    const uniquePatterns=new Set(res.agents.map(a=>`${a.canDetermine?"D":"?"}:${a.answer}:${a.worlds.length}`));
+    return uniquePatterns.size >= 2;
+  }
+  function ep23OptionRows(correctKey){
+    const all=ep23AllSubsetRows(); const correct=all.find(r=>r.key===correctKey) || all[0];
+    const cset=new Set(correct.agents);
+    const distractors=all.filter(r=>r.key!==correctKey).map(r=>{
+      const rset=new Set(r.agents); let overlap=0; for(const a of rset) if(cset.has(a)) overlap++;
+      return {...r, score:Math.abs(r.agents.length-correct.agents.length)*1.1 - overlap*0.35 + (r.agents.length===0||r.agents.length===3?0.18:0) + Math.random()*0.01};
+    }).sort((a,b)=>a.score-b.score).slice(0,3);
+    return shuf([correct,...distractors]).slice(0,4);
+  }
+  function buildL0EpistemicAbstractCalculationChoice(cat,m){
+    if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function") return null;
+    const max=ep23Max(m), templates=ep23Templates(max);
+    for(let attempt=0; attempt<160; attempt++){
+      const tpl=pick(templates); if(!tpl) return null;
+      const actual={left:1+Math.floor(Math.random()*max), right:1+Math.floor(Math.random()*max)};
+      const res=ep23Resolve(tpl, actual, max);
+      if(!ep23QualityOK(res)) continue;
+      const rows=ep23OptionRows(res.key), idx=rows.findIndex(r=>r.key===res.key);
+      if(idx<0) continue;
+      const opts=rows.map((r,i)=>l0ChoiceOption(r.label, i===idx, i===idx?"correct":"epistemic_determiner_near_miss", {subsetKey:r.key, agents:r.agents.slice()}));
+      const question = `Epistemic calculation. Target: ${res.target.text}.\nYou saw the actual LEFT and RIGHT. Each person only has the information listed. Who can determine whether the target is YES or NO?\n${res.agents.map(a=>a.line).join(" ")}`;
+      const payload={
+        epistemicAbstract:{
+          solver:"v6823_calculation_determinability", scenarioId:res.templateId, target:res.target.id, targetText:res.target.text,
+          actualWorld:{left:actual.left,right:actual.right}, actualTruth:res.actualTruth,
+          agents:res.agents.map(a=>({agent:a.agent, info:a.line, canDetermine:a.canDetermine, answer:a.answer, worldCount:a.worlds.length, facts:a.facts.map(f=>f.id), inferential:!!a.inferential, truthValues:uniqLocal(a.truths.map(t=>t?"YES":"NO"))})),
+          determiners:res.determiners.slice(), correct:res.label, correctKey:res.key, design:"no_exact_both; possible-world solver; witness/calculation inference"
+        },
+        mechanismTags:["epistemic_calculation","possible_worlds_solver","determinability","public_private_knowledge"]
+      };
+      const trial=buildL0ChoiceTrialFromOptions(cat, max, actual.left, actual.right, question, opts, idx, payload);
+      if(!trial) continue;
+      trial.family="epistemic_abstract"; trial.catId=cat.id; trial.memoryEligible=false; trial.countsForMetaHistory=false;
+      trial.payload = {...(trial.payload||{}), epistemicAbstract:payload.epistemicAbstract};
+      trial.epistemicAbstract=payload.epistemicAbstract;
+      trial.frameTags=uniqLocal([...(trial.frameTags||[]), "epistemic_reasoning", "possible_worlds_solver", "calculation_determinability"]);
+      trial.mechanismTags=uniqLocal([...(trial.mechanismTags||[]), "epistemic_calculation", "possible_worlds_solver"]);
+      return trial;
+    }
+    return null;
+  }
+  function patchEpistemicAbstractCatsV6823(){
+    if(!Array.isArray(POSNER_CATS)) return 0;
+    let patched=0;
+    for(const c of POSNER_CATS){
+      if(c && c.family === "epistemic_abstract"){
+        c.buildChoiceTrial = buildL0EpistemicAbstractCalculationChoice;
+        c.variants = [{q:"Who can determine the target by witness or calculation?"}];
+        c.frameTags = uniqLocal([...(c.frameTags||[]), "epistemic_reasoning", "possible_worlds_solver", "calculation_determinability"]);
+        c.mechanismTags = uniqLocal([...(c.mechanismTags||[]), "epistemic_calculation", "possible_worlds_solver"]);
+        c.atomicsUsed = uniqLocal([...(c.atomicsUsed||[]), "epistemic_determinability_possible_worlds", "epistemic_public_private_agent_capacity"]);
+        c._v6823CalculationDeterminability = true;
+        patched++;
+      }
+    }
+    return patched;
+  }
+  const epistemicCatsPatched = (()=>{ try{return patchEpistemicAbstractCatsV6823();}catch(e){warn("epistemic patch failed",e); return 0;} })();
+
+  // Sampler and axis tuning: increase frequency without taking over the block.
+  try{
+    const prevWeights = (typeof posnerFamilyWeights === "function") ? posnerFamilyWeights : null;
+    if(prevWeights && !prevWeights.__v6823VisualEpistemicWrapped){
+      const wrapped = function posnerFamilyWeightsV6823(maxTier){
+        const w = {...(prevWeights.apply(this, arguments) || {})};
+        if(Number(maxTier) >= 4){
+          w.visual_transform_comparison = Math.max(Number(w.visual_transform_comparison)||0, Number(CONFIG.l0VisualComparisonChoiceFamilyWeight)||0.072);
+          w.l0_shepard_conditional = Math.max(Number(w.l0_shepard_conditional)||0, Number(CONFIG.l0ShepardConditionalFamilyWeight)||0.058);
+          w.epistemic_abstract = Math.max(Number(w.epistemic_abstract)||0, Number(CONFIG.l0EpistemicAbstractFamilyWeight)||0.050);
+        }
+        return w;
+      };
+      wrapped.__v6823VisualEpistemicWrapped = true;
+      posnerFamilyWeights = wrapped;
+      try{ window.posnerFamilyWeights = wrapped; globalThis.posnerFamilyWeights = wrapped; }catch(_){ }
+    }
+  }catch(e){ warn("family weight wrap failed", e); }
+  try{
+    const prevAxis = (typeof l0ExperientialAxisFromCat === "function") ? l0ExperientialAxisFromCat : null;
+    if(prevAxis && !prevAxis.__v6823VisualEpistemicWrapped){
+      const wrappedAxis = function l0ExperientialAxisFromCatV6823(cat){
+        if(cat?.family === "visual_transform_comparison") return "visual_spatial_comparison";
+        if(cat?.family === "epistemic_abstract") return "epistemic_calculation";
+        return prevAxis.apply(this, arguments);
+      };
+      wrappedAxis.__v6823VisualEpistemicWrapped = true;
+      l0ExperientialAxisFromCat = wrappedAxis;
+      try{ window.l0ExperientialAxisFromCat = wrappedAxis; globalThis.l0ExperientialAxisFromCat = wrappedAxis; }catch(_){ }
+    }
+  }catch(e){ warn("experience axis wrap failed", e); }
+  try{
+    const prevChoiceWeight = (typeof l0ChoiceFormatWeight === "function") ? l0ChoiceFormatWeight : null;
+    if(prevChoiceWeight && !prevChoiceWeight.__v6823VisualEpistemicWrapped){
+      const wrappedChoiceWeight = function l0ChoiceFormatWeightV6823(cat){
+        let w=1; try{ w*=Number(prevChoiceWeight.apply(this, arguments))||1; }catch(_){ }
+        if(cat?.family === "visual_transform_comparison") w*=1.45;
+        if(cat?.family === "epistemic_abstract") w*=1.20;
+        return clampLocal(w,0.40,3.5);
+      };
+      wrappedChoiceWeight.__v6823VisualEpistemicWrapped = true;
+      l0ChoiceFormatWeight = wrappedChoiceWeight;
+      try{ window.l0ChoiceFormatWeight = wrappedChoiceWeight; globalThis.l0ChoiceFormatWeight = wrappedChoiceWeight; }catch(_){ }
+    }
+  }catch(e){ warn("choice weight wrap failed", e); }
+
+  // Reviews: make the cognitive object explicit instead of a bare option label.
+  try{
+    const prevDetails = (typeof l0GenericChoiceReviewDetails === "function") ? l0GenericChoiceReviewDetails : null;
+    if(prevDetails && !prevDetails.__v6823VisualEpistemicWrapped){
+      const wrappedDetails = function l0GenericChoiceReviewDetailsV6823(info){
+        const vc = info?.payload?.visualComparison || info?.visualComparison;
+        if(vc){
+          const correct = (typeof choiceReviewCorrectIndices === "function") ? choiceReviewCorrectIndices(info) : [];
+          const selected = (typeof choiceReviewSelectedIndices === "function") ? choiceReviewSelectedIndices(info) : [];
+          const optText = i => (typeof choiceReviewOptionText === "function") ? choiceReviewOptionText(info,i) : (info?.options?.[i]?.text || `option ${i+1}`);
+          const rel = vc.relation === "rotation" ? "RIGHT is the same structure under rotation" : (vc.relation === "mirror" ? "RIGHT is a mirror image: handedness is reversed" : "RIGHT is neither a rotation nor a mirror: same count, different structure");
+          return [`Visual relation: ${rel}.`, `Stimulus family: ${vc.kind || vc.engine || "visual"}; count per stimulus: ${vc.count || "?"}.`, correct.length ? `Correct option: ${correct.map(optText).join(" + ")}.` : "", `You selected: ${selected.length ? selected.map(optText).join(" + ") : "—"}.`].filter(Boolean).join("\n");
+        }
+        const ep = info?.payload?.epistemicAbstract || info?.epistemicAbstract;
+        if(ep && ep.solver === "v6823_calculation_determinability"){
+          const correct = (typeof choiceReviewCorrectIndices === "function") ? choiceReviewCorrectIndices(info) : [];
+          const selected = (typeof choiceReviewSelectedIndices === "function") ? choiceReviewSelectedIndices(info) : [];
+          const optText = i => (typeof choiceReviewOptionText === "function") ? choiceReviewOptionText(info,i) : (info?.options?.[i]?.text || `option ${i+1}`);
+          const lines=[];
+          lines.push(`Values: left ${ep.actualWorld?.left}, right ${ep.actualWorld?.right}.`);
+          lines.push(`Target: ${ep.targetText || "target"}. Actual answer: ${ep.actualTruth || "—"}.`);
+          lines.push(`Can determine: ${ep.correct || ep.determiners?.join(", ") || "—"}.`);
+          for(const a of (Array.isArray(ep.agents)?ep.agents:[]).slice(0,3)){
+            const vals = Array.isArray(a.truthValues) && a.truthValues.length ? a.truthValues.join("/") : "—";
+            lines.push(`${a.agent}: ${a.canDetermine ? `can determine ${a.answer}` : "cannot determine"} (${a.worldCount} compatible worlds; possible answers ${vals}).`);
+          }
+          if(correct.length) lines.push(`Correct option: ${correct.map(optText).join(" + ")}.`);
+          lines.push(`You selected: ${selected.length ? selected.map(optText).join(" + ") : "—"}.`);
+          return lines.join("\n");
+        }
+        return prevDetails.apply(this, arguments);
+      };
+      wrappedDetails.__v6823VisualEpistemicWrapped = true;
+      l0GenericChoiceReviewDetails = wrappedDetails;
+      try{ window.l0GenericChoiceReviewDetails = wrappedDetails; globalThis.l0GenericChoiceReviewDetails = wrappedDetails; }catch(_){ }
+    }
+  }catch(e){ warn("review wrapper failed", e); }
+
+  function auditV6823VisualEpistemicRelevance(opts={}){
+    const block=[], warnings=[], samples=[];
+    try{
+      const cats=(POSNER_CATS||[]).filter(c=>c?.family==="visual_transform_comparison");
+      if(!cats.length) block.push("no visual_transform_comparison cat registered");
+      const seenRel=new Set(), seenKind=new Set();
+      for(let i=0;i<18;i++){
+        const c=cats[0]; const t=c&&c.buildChoiceTrial?c.buildChoiceTrial(c, Math.max(9, (typeof currentMax==="function"?currentMax():9))):null;
+        if(!t){ block.push(`visual sample ${i}: unbuildable`); continue; }
+        const cc=(t.options||[]).filter(o=>o.correct).length;
+        if(cc!==1) block.push(`visual sample ${i}: correct count ${cc}`);
+        if(!t.visualComparison || !t.visualComparison.svg) block.push(`visual sample ${i}: missing visualComparison/svg`);
+        seenRel.add(t.visualComparison?.relation); seenKind.add(t.visualComparison?.kind);
+      }
+      if(seenRel.size < 3) warnings.push(`visual relation diversity low in audit sample: ${Array.from(seenRel).join(",")}`);
+      if(seenKind.size < 2) warnings.push(`visual engine diversity low in audit sample: ${Array.from(seenKind).join(",")}`);
+      samples.push({visualRelations:Array.from(seenRel), visualKinds:Array.from(seenKind), visualCats:cats.length});
+    }catch(e){ block.push("visual audit exception: "+(e?.message||e)); }
+    try{
+      const cats=(POSNER_CATS||[]).filter(c=>c?.family==="epistemic_abstract");
+      if(!cats.length) block.push("no epistemic_abstract cat registered");
+      if(!cats.every(c=>c._v6823CalculationDeterminability)) block.push("not all epistemic_abstract cats patched to v6.8.23 calculator");
+      const determinerShapes=new Set();
+      for(let i=0;i<24;i++){
+        const c=cats[0]; const t=c&&c.buildChoiceTrial?c.buildChoiceTrial(c, Math.max(12, (typeof currentMax==="function"?currentMax():12))):null;
+        if(!t){ block.push(`epistemic sample ${i}: unbuildable`); continue; }
+        const ep=t.payload?.epistemicAbstract || t.epistemicAbstract;
+        const q=String(t.question||"");
+        if(/knows LEFT and RIGHT|knows both values|knows only LEFT|knows only RIGHT/i.test(q)) block.push(`epistemic sample ${i}: trivial both/only wording leaked`);
+        if(!ep || ep.solver!=="v6823_calculation_determinability") block.push(`epistemic sample ${i}: wrong solver`);
+        if((t.options||[]).filter(o=>o.correct).length!==1) block.push(`epistemic sample ${i}: non-unique correct`);
+        if(!(ep?.agents||[]).some(a=>a.inferential && a.canDetermine)) block.push(`epistemic sample ${i}: no inferential determiner`);
+        determinerShapes.add(ep?.correctKey || "?");
+      }
+      if(determinerShapes.size < 3) warnings.push(`epistemic determiner diversity low: ${Array.from(determinerShapes).join(",")}`);
+      samples.push({epistemicShapes:Array.from(determinerShapes), epistemicCats:cats.length});
+    }catch(e){ block.push("epistemic audit exception: "+(e?.message||e)); }
+    return (typeof auditResult === "function") ? auditResult(block.length?"BLOCK":(warnings.length?"WARN":"PASS"), {appVersion:currentAppVersion(), visualCatsAdded, epistemicCatsPatched, samples, warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), visualCatsAdded, epistemicCatsPatched, samples, warnings, block};
+  }
+  try{ window.auditV6823VisualEpistemicRelevance = auditV6823VisualEpistemicRelevance; globalThis.auditV6823VisualEpistemicRelevance = auditV6823VisualEpistemicRelevance; }catch(_){ }
+  try{
+    const oldRun = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(oldRun && !oldRun.__v6823VisualEpistemicWrapped){
+      const wrappedRun = function runFeatureAuditV6823(feature, opts={}){
+        const f=String(feature||"").toLowerCase();
+        if(["v6823","v6.8.23","visual_epistemic_relevance","visual_transform_comparison","epistemic_relevance"].includes(f)) return auditV6823VisualEpistemicRelevance(opts);
+        return oldRun.apply(this, arguments);
+      };
+      wrappedRun.__v6823VisualEpistemicWrapped = true;
+      runFeatureAudit = wrappedRun;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; }catch(_){ }
+    }
+  }catch(e){ warn("runFeatureAudit wrap failed", e); }
+
+  try{ if(typeof State === "object" && State) State.nextTrialPrepared = null; }catch(_){ }
+  try{ if(typeof window !== "undefined") window.EUCA_V6823_VISUAL_EPISTEMIC_RELEVANCE = {visualCatsAdded, epistemicCatsPatched}; }catch(_){ }
+})();
 </script>
 
+
+<script>
+
+// v6.8.23b: non-answer-relevant visual relation decoys.
+// Seeing a rotated / mirrored same-value pair should not by itself announce that
+// the upcoming question will be a visual-comparison question. This wrapper
+// occasionally steers ordinary same-value L0 displays into grid/frame rotation
+// or mirror pairs while preserving the displayed quantity and leaving the
+// question semantics untouched.
+(function registerV6823VisualDecoySteering(){
+  if(typeof globalThis !== "undefined" && globalThis.__EUCA_V6823_VISUAL_DECOY_STEERING__) return;
+  try{ if(typeof globalThis !== "undefined") globalThis.__EUCA_V6823_VISUAL_DECOY_STEERING__ = true; }catch(_){ }
+  const warn = (msg,e)=>{ try{ if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia v6.8.23 visual decoy] " + msg, e || ""); }catch(_){ } };
+  const pick = arr => Array.isArray(arr) && arr.length ? arr[Math.floor(Math.random()*arr.length)] : null;
+  const shuf = arr => { arr=(arr||[]).slice(); for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=arr[i]; arr[i]=arr[j]; arr[j]=t; } return arr; };
+  function activeReps(){ try{ return (State?.reps || []).map(String); }catch(_){ return []; } }
+  function repOn(rep){ return activeReps().includes(rep); }
+  function diag(){
+    try{
+      const root = (State.meta ||= {}); const d = (root.diagnostics ||= {});
+      return (d.v6823VisualDecoySteering ||= {attempts:0, injected:0, byRep:{}, byRelation:{}, skippedBridge:0, skippedVisualCat:0});
+    }catch(_){ return null; }
+  }
+  function isVisualQuestionCat(cat){
+    const id=String(cat?.id||""), fam=String(cat?.family||"");
+    if(cat?.checkVisual || cat?.questionVisualGate) return true;
+    return /visual|shepard|cube_3d|morphology|transform_map|mirror|rotation/.test(id+" "+fam);
+  }
+  function canInjectForCat(a,b,cat,forceRepShift){
+    if(Number(a)!==Number(b)) return false;
+    if(forceRepShift) return false;
+    try{ if(State?._v689Bridge && !State._v689Bridge.consumed){ const d=diag(); if(d) d.skippedBridge++; return false; } }catch(_){ }
+    if(isVisualQuestionCat(cat)){ const d=diag(); if(d) d.skippedVisualCat++; return false; }
+    const lv = Number(State?.levelByMode?.D || 0);
+    if(lv < 5) return false;
+    const p = Number(CONFIG?.l0VisualRelationDecoyProbability ?? 0.085);
+    return Math.random() < Math.max(0, Math.min(0.25, p));
+  }
+  function buildGridDecoy(value, relation){
+    if(!repOn("grid") || typeof gridVisualRelationCandidates !== "function" || typeof gridMakeVisualFromLayout !== "function") return null;
+    const cands = gridVisualRelationCandidates(Number(value), relation, true) || [];
+    const picked = pick(cands.filter(p=>p && p.A && p.B));
+    if(!picked) return null;
+    const A = gridMakeVisualFromLayout(picked.A), B = gridMakeVisualFromLayout(picked.B);
+    return A && B ? [A,B,"grid"] : null;
+  }
+  function buildFrameDecoy(value, relation){
+    if(!repOn("ten") || typeof frameVisualRelationCandidates !== "function" || typeof frameMakeVisualFromPattern !== "function") return null;
+    const cands = frameVisualRelationCandidates(Number(value), relation, true) || [];
+    const picked = pick(cands.filter(p=>p && p.A && p.B));
+    if(!picked) return null;
+    const A = frameMakeVisualFromPattern(picked.A), B = frameMakeVisualFromPattern(picked.B);
+    return A && B ? [A,B,"ten"] : null;
+  }
+  function buildVisualDecoyPair(value){
+    const relations = shuf(["rotation","mirror"]);
+    const builders = shuf([buildGridDecoy, buildFrameDecoy]);
+    for(const rel of relations){
+      for(const fn of builders){
+        try{ const out = fn(value, rel); if(out) return {visA:out[0], visB:out[1], rep:out[2], relation:rel}; }catch(_){ }
+      }
+    }
+    return null;
+  }
+  try{
+    if(typeof CONFIG === "object" && CONFIG && !Number.isFinite(Number(CONFIG.l0VisualRelationDecoyProbability))){
+      CONFIG.l0VisualRelationDecoyProbability = 0.085;
+    }
+  }catch(_){ }
+  try{
+    const prev = (typeof pickValueComparisonVisuals === "function") ? pickValueComparisonVisuals : null;
+    if(prev && !prev.__v6823VisualDecoySteering){
+      const wrapped = function pickValueComparisonVisualsV6823VisualDecoy(a,b,cat,forceRepShift){
+        const d = diag(); if(d) d.attempts++;
+        try{
+          if(canInjectForCat(a,b,cat,forceRepShift)){
+            const injected = buildVisualDecoyPair(a);
+            if(injected){
+              if(d){ d.injected++; d.byRep[injected.rep]=(d.byRep[injected.rep]||0)+1; d.byRelation[injected.relation]=(d.byRelation[injected.relation]||0)+1; }
+              try{ injected.visA._v6823VisualDecoy = {relation:injected.relation, rep:injected.rep}; injected.visB._v6823VisualDecoy = {relation:injected.relation, rep:injected.rep}; }catch(_){ }
+              return [injected.visA, injected.visB];
+            }
+          }
+        }catch(e){ warn("decoy injection failed", e); }
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v6823VisualDecoySteering = true;
+      pickValueComparisonVisuals = wrapped;
+      try{ window.pickValueComparisonVisuals = wrapped; globalThis.pickValueComparisonVisuals = wrapped; }catch(_){ }
+    }
+  }catch(e){ warn("wrapper install failed", e); }
+  function auditV6823VisualDecoySteering(){
+    const block=[], warnings=[]; let sample=null;
+    try{
+      if(typeof pickValueComparisonVisuals !== "function" || !pickValueComparisonVisuals.__v6823VisualDecoySteering) block.push("pickValueComparisonVisuals decoy wrapper not installed");
+      sample = buildVisualDecoyPair(Math.max(4, Math.min(8, Number(typeof currentMax === "function" ? currentMax() : 8) || 8)));
+      if(!sample) warnings.push("decoy sample did not build for current reps/value; this can happen if grid/ten are inactive");
+    }catch(e){ block.push("decoy audit exception: " + (e?.message||e)); }
+    return (typeof auditResult === "function") ? auditResult(block.length?"BLOCK":(warnings.length?"WARN":"PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : "v6.8.23"), sample:sample?{rep:sample.rep,relation:sample.relation}:null, diagnostics:diag(), warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), sample, warnings, block};
+  }
+  try{ window.auditV6823VisualDecoySteering = auditV6823VisualDecoySteering; globalThis.auditV6823VisualDecoySteering = auditV6823VisualDecoySteering; }catch(_){ }
+  try{
+    const oldRun = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(oldRun && !oldRun.__v6823VisualDecoyWrapped){
+      const wrappedRun = function runFeatureAuditV6823VisualDecoy(feature, opts={}){
+        const f=String(feature||"").toLowerCase();
+        if(["v6823_visual_decoy","visual_decoy_steering","visual_relation_decoy"].includes(f)) return auditV6823VisualDecoySteering(opts);
+        if(["v6823","v6.8.23","visual_epistemic_relevance"].includes(f)){
+          const main = oldRun.apply(this, arguments);
+          const decoy = auditV6823VisualDecoySteering(opts);
+          try{
+            const status = (main?.status === "BLOCK" || decoy?.status === "BLOCK") ? "BLOCK" : ((main?.status === "WARN" || decoy?.status === "WARN") ? "WARN" : "PASS");
+            return (typeof auditResult === "function") ? auditResult(status, {main, visualDecoy:decoy}) : {status, main, visualDecoy:decoy};
+          }catch(_){ return main; }
+        }
+        return oldRun.apply(this, arguments);
+      };
+      wrappedRun.__v6823VisualDecoyWrapped = true;
+      runFeatureAudit = wrappedRun;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; }catch(_){ }
+    }
+  }catch(e){ warn("runFeatureAudit decoy wrap failed", e); }
+})();
+
+</script>
+<script>
+
+// =============================================================================
+// v6.8.23b — visual cue unpredictability + broader transform relation engine
+// -----------------------------------------------------------------------------
+// Complements the v6.8.23 visual/epistemic patch:
+// - broadens the transform comparison family to exact / rotation / mirror / different;
+// - adds ten-frame/grid/Shepard engines where available;
+// - injects low-share rotated/mirrored visual decoys into ordinary same-value
+//   numeric trials, so a rotation/mirror-looking pair no longer guarantees that
+//   the answer will be about the visual relation;
+// - increases the visual family through drought rescue, but blocks rescue while
+//   a META memory plan is active/due.
+// =============================================================================
+(function registerV6823VisualEpistemicReconfigurationExtra(){
+  if(typeof globalThis !== "undefined" && globalThis.__EUCA_V6823_VISUAL_EPISTEMIC_RECONFIG_EXTRA__) return;
+  try{ if(typeof globalThis !== "undefined") globalThis.__EUCA_V6823_VISUAL_EPISTEMIC_RECONFIG_EXTRA__ = true; }catch(_){ }
+  const PATCH_ID = "v6.8.23-visual-epistemic-reconfiguration";
+  const warn = (msg,e)=>{ try{ if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia v6.8.23b] " + msg, e || ""); }catch(_){ } };
+  const pick = arr => Array.isArray(arr) && arr.length ? arr[Math.floor(Math.random()*arr.length)] : null;
+  const shuf = arr => { arr=(arr||[]).slice(); for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=arr[i]; arr[i]=arr[j]; arr[j]=t; } return arr; };
+  const uniqLocal = arr => Array.from(new Set((arr||[]).filter(Boolean).map(String)));
+  const clamp = (x,a,b)=>Math.max(a, Math.min(b, Number.isFinite(Number(x))?Number(x):a));
+
+  try{
+    if(typeof CONFIG === "object" && CONFIG){
+      CONFIG.l0VisualComparisonChoiceFamilyWeight = Math.max(Number(CONFIG.l0VisualComparisonChoiceFamilyWeight)||0, 0.086);
+      CONFIG.l0VisualComparisonDroughtForceAfter = Number.isFinite(Number(CONFIG.l0VisualComparisonDroughtForceAfter)) ? Number(CONFIG.l0VisualComparisonDroughtForceAfter) : 13;
+      CONFIG.l0VisualComparisonDroughtForceProb = Number.isFinite(Number(CONFIG.l0VisualComparisonDroughtForceProb)) ? Number(CONFIG.l0VisualComparisonDroughtForceProb) : 0.68;
+      CONFIG.l0VisualRelationDecoyEnabled = CONFIG.l0VisualRelationDecoyEnabled !== false;
+      CONFIG.l0VisualRelationDecoySameValueProb = Number.isFinite(Number(CONFIG.l0VisualRelationDecoySameValueProb)) ? Number(CONFIG.l0VisualRelationDecoySameValueProb) : 0.10;
+      CONFIG.l0EpistemicExpandedFormatMix = CONFIG.l0EpistemicExpandedFormatMix || {};
+      CONFIG.l0EpistemicExpandedFormatMix.agent_capacity = Math.min(Number(CONFIG.l0EpistemicExpandedFormatMix.agent_capacity ?? 0.30), 0.10);
+      CONFIG.l0EpistemicExpandedFormatMix.conditional_observation = Math.max(Number(CONFIG.l0EpistemicExpandedFormatMix.conditional_observation ?? 0.15), 0.22);
+      CONFIG.l0EpistemicExpandedFormatMix.closure_identification = Math.max(Number(CONFIG.l0EpistemicExpandedFormatMix.closure_identification ?? 0.05), 0.14);
+    }
+  }catch(e){ warn("configuration tuning failed", e); }
+
+  function metaMemoryBusyV6823b(){
+    try{
+      if(typeof ensureMetaMemoryPlans !== "function") return false;
+      const plans = ensureMetaMemoryPlans();
+      return [1,2,3].some(lv => !!(plans && plans[lv] && (plans[lv].active || plans[lv].due || Number(plans[lv].collected)>0)));
+    }catch(_){ return false; }
+  }
+  function levelDV6823b(){ try{return Number(State?.levelByMode?.D)||0;}catch(_){return 0;} }
+  function trialCountV6823b(){ try{return Number(State?.stats?.trials)||Number(State?.blockTrials)||0;}catch(_){return 0;} }
+
+  // Generic cell transforms for the custom transform-relation card.
+  function cellsNorm(cells){
+    const xs=(cells||[]).map(p=>[Number(p[0]),Number(p[1])]).filter(p=>Number.isInteger(p[0])&&Number.isInteger(p[1]));
+    if(!xs.length) return [];
+    const minR=Math.min(...xs.map(p=>p[0])), minC=Math.min(...xs.map(p=>p[1]));
+    return xs.map(([r,c])=>[r-minR,c-minC]).sort((a,b)=>(a[0]-b[0])||(a[1]-b[1]));
+  }
+  function cellsKey(cells){ return cellsNorm(cells).map(p=>p.join(",")).join("|"); }
+  function rotCells(cells){ return cellsNorm((cells||[]).map(([r,c])=>[c,-r])); }
+  function mirCells(cells){ return cellsNorm((cells||[]).map(([r,c])=>[r,-c])); }
+  function rotations(cells){ const out=[]; let cur=cellsNorm(cells); for(let i=0;i<4;i++){ out.push(cur); cur=rotCells(cur); } return out; }
+  function eqRot(a,b){ const kb=cellsKey(b); return rotations(a).some(x=>cellsKey(x)===kb); }
+  function eqMir(a,b){ const kb=cellsKey(b); return rotations(mirCells(a)).some(x=>cellsKey(x)===kb); }
+  function relFromCells(a,b){
+    if(cellsKey(a) === cellsKey(b)) return "exact";
+    const r=eqRot(a,b), m=eqMir(a,b);
+    if(r && !m) return "rotation";
+    if(m && !r) return "mirror";
+    if(r && m) return "rotation";
+    return "different";
+  }
+  const CELL_PATTERNS = Object.freeze([
+    {id:"zig6", cells:[[0,0],[1,0],[1,1],[2,1],[3,1],[3,2]]},
+    {id:"hook6", cells:[[0,0],[1,0],[2,0],[2,1],[2,2],[3,2]]},
+    {id:"stair6", cells:[[0,0],[1,0],[1,1],[2,1],[2,2],[3,2]]},
+    {id:"fork6", cells:[[0,1],[1,1],[2,1],[2,0],[2,2],[3,2]]},
+    {id:"bend7", cells:[[0,0],[0,1],[1,1],[2,1],[2,2],[2,3],[3,3]]},
+    {id:"snake7", cells:[[0,0],[0,1],[1,1],[1,2],[2,2],[3,2],[3,3]]}
+  ]);
+  function renderCellStim(cells, ox, oy, label, colsHint=4, rowsHint=4){
+    const cs=cellsNorm(cells), maxR=cs.length?Math.max(...cs.map(p=>p[0])):0, maxC=cs.length?Math.max(...cs.map(p=>p[1])):0;
+    const cols=Math.max(colsHint,maxC+1), rows=Math.max(rowsHint,maxR+1), unit=18, pad=6, set=new Set(cs.map(p=>p.join(",")));
+    let s=`<g transform="translate(${ox},${oy})">`;
+    s+=`<text x="${cols*unit/2}" y="-10" font-size="11" fill="#888" text-anchor="middle">${label}</text>`;
+    s+=`<rect x="${-pad}" y="${-pad}" width="${cols*unit+pad*2}" height="${rows*unit+pad*2}" rx="8" fill="rgba(255,255,255,0.035)" stroke="rgba(255,255,255,0.12)"/>`;
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const filled=set.has(`${r},${c}`), x=c*unit, y=r*unit;
+      s+=`<rect x="${x}" y="${y}" width="${unit-3}" height="${unit-3}" rx="4" fill="${filled?'#8f7cff':'rgba(255,255,255,0.08)'}" stroke="${filled?'#c9c1ff':'rgba(255,255,255,0.06)'}" stroke-width="1"/>`;
+    }
+    s+=`</g>`; return s;
+  }
+  function renderPairSVG(left,right,kind){
+    const W=430,H=168;
+    let s=`<svg class="visual-comparison-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:min(100%,560px);height:auto;" aria-label="two visual stimuli">`;
+    s+=renderCellStim(left,82,52,"LEFT STIMULUS", kind==="frame_2x5"?5:4, kind==="frame_2x5"?2:4);
+    s+=`<line x1="215" y1="22" x2="215" y2="148" stroke="rgba(255,255,255,0.16)"/>`;
+    s+=renderCellStim(right,262,52,"RIGHT STIMULUS", kind==="frame_2x5"?5:4, kind==="frame_2x5"?2:4);
+    s+=`</svg>`; return s;
+  }
+  function buildGridRel(relation){
+    for(let guard=0; guard<80; guard++){
+      const base=pick(CELL_PATTERNS); if(!base) return null;
+      const left=cellsNorm(base.cells); let right=null, target=base;
+      if(relation === "exact") right=left;
+      else if(relation === "rotation"){
+        const rs=rotations(left).filter(x=>cellsKey(x)!==cellsKey(left) && !eqMir(left,x)); right=pick(rs)||rotCells(left);
+      } else if(relation === "mirror"){
+        const ms=rotations(mirCells(left)).filter(x=>cellsKey(x)!==cellsKey(left) && !eqRot(left,x)); right=pick(ms)||mirCells(left);
+      } else {
+        const pool=CELL_PATTERNS.filter(p=>p.id!==base.id && p.cells.length===base.cells.length); target=pick(pool); if(!target) continue; right=pick(rotations(target.cells));
+        if(eqRot(left,right) || eqMir(left,right)) continue;
+      }
+      const actual=relFromCells(left,right); if(actual!==relation && !(relation==="rotation" && actual==="rotation")) continue;
+      return {kind:"grid_2d", relation:actual, count:left.length, sourceId:base.id, targetId:target.id, svg:renderPairSVG(left,right,"grid_2d")};
+    }
+    return null;
+  }
+  function frameCellsToNorm(pattern){ return cellsNorm((pattern||[]).map(p=>[Number(p[0]),Number(p[1])])); }
+  function frameEq(a,b){ return cellsKey(frameCellsToNorm(a))===cellsKey(frameCellsToNorm(b)); }
+  function frameRel(a,b){
+    const A=frameCellsToNorm(a), B=frameCellsToNorm(b);
+    if(cellsKey(A)===cellsKey(B)) return "exact";
+    try{
+      if(typeof framePatternHas180Rotation === "function" && framePatternHas180Rotation(a,b)) return "rotation";
+      if(typeof framePatternHasMirror === "function" && framePatternHasMirror(a,b)) return "mirror";
+    }catch(_){ }
+    return relFromCells(A,B);
+  }
+  function buildFrameRel(relation){
+    if(typeof robustFrameEnumeratePatterns !== "function" || typeof frameVisualTransformPattern !== "function") return null;
+    for(let guard=0; guard<120; guard++){
+      const value=3+Math.floor(Math.random()*5), bases=robustFrameEnumeratePatterns(value); const base=pick(bases); if(!base) continue;
+      let right=null;
+      if(relation === "exact") right=base.map(p=>p.slice());
+      else if(relation === "rotation") right=frameVisualTransformPattern(base,"rot180");
+      else if(relation === "mirror") right=frameVisualTransformPattern(base, Math.random()<0.5?"mirror_lr":"mirror_tb");
+      else {
+        const others=bases.filter(p=>!frameEq(p,base) && frameRel(base,p)==="different"); right=pick(others);
+      }
+      if(!right || (relation!=="exact" && frameEq(base,right))) continue;
+      const actual=frameRel(base,right); if(actual!==relation) continue;
+      return {kind:"frame_2x5", relation:actual, count:value, sourceId:"ten_frame", targetId:"ten_frame", svg:renderPairSVG(frameCellsToNorm(base), frameCellsToNorm(right), "frame_2x5")};
+    }
+    return null;
+  }
+  function buildShepardRel(relation,m){
+    try{
+      if(typeof SHEPARD_CATALOG === "undefined" || typeof SHEPARD_OCTAHEDRAL === "undefined" || typeof shepardFigureNormalize !== "function") return null;
+      const cap=Math.max(6, Math.min(10, Math.floor(Number(m)||9))), pool=(SHEPARD_CATALOG||[]).filter(e=>e&&Number(e.n)<=cap);
+      for(let guard=0; guard<80; guard++){
+        const entry=pick(pool); if(!entry) return null; const R1=pick(SHEPARD_OCTAHEDRAL), R2=pick(SHEPARD_OCTAHEDRAL);
+        const left=shepardFigureNormalize(shepardFigureApplyMatrix(entry.voxels,R1)); let right=null, other=entry, actual=relation;
+        if(relation === "exact") right=left;
+        else if(relation === "rotation"){
+          right=shepardFigureNormalize(shepardFigureApplyMatrix(entry.voxels,R2));
+          if(shepardFigureToKey(left)===shepardFigureToKey(right)) continue;
+          actual="rotation";
+        } else if(relation === "mirror"){
+          right=shepardFigureNormalize(shepardFigureApplyMatrix(shepardFigureMirror(entry.voxels),R2));
+          if(shepardFiguresEquivalentUnderRotation(left,right)) continue;
+          actual="mirror";
+        } else {
+          const same=pool.filter(e=>e.id!==entry.id && Number(e.n)===Number(entry.n)); other=pick(same); if(!other) continue;
+          right=shepardFigureNormalize(shepardFigureApplyMatrix(other.voxels,R2));
+          if(shepardFiguresEquivalentUnderRotation(left,right)) continue;
+          if(shepardFiguresEquivalentUnderRotation(shepardFigureMirror(left),right)) continue;
+          actual="different";
+        }
+        const svg = (typeof shepardRenderPairSVG === "function") ? shepardRenderPairSVG(left,right) : "";
+        return {kind:"shepard_3d", relation:actual, count:Number(entry.n)||6, sourceId:entry.id, targetId:other?.id||entry.id, svg};
+      }
+    }catch(_){ }
+    return null;
+  }
+  function relationLabels(){
+    return [
+      {id:"exact", text:"exact same visual layout"},
+      {id:"rotation", text:"same structure after rotation / viewpoint change"},
+      {id:"mirror", text:"mirror image / handedness reversed"},
+      {id:"different", text:"same count, but different structure"}
+    ];
+  }
+  function pickRelation(){
+    const r=Math.random();
+    if(r<0.16) return "exact";
+    if(r<0.46) return "rotation";
+    if(r<0.76) return "mirror";
+    return "different";
+  }
+  function buildVisualItem(m){
+    const relation=pickRelation();
+    const engines=[];
+    engines.push(()=>buildGridRel(relation));
+    if(typeof robustFrameEnumeratePatterns === "function") engines.push(()=>buildFrameRel(relation));
+    if(typeof SHEPARD_CATALOG !== "undefined") engines.push(()=>buildShepardRel(relation,m));
+    for(const f of shuf(engines)){
+      const item=f(); if(item && item.svg) return item;
+    }
+    return null;
+  }
+  function buildBetterVisualTransformChoice(cat,m){
+    if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function") return null;
+    const item=buildVisualItem(m); if(!item) return null;
+    const labels=relationLabels(); const correctIndex=labels.findIndex(x=>x.id===item.relation); if(correctIndex<0) return null;
+    const options=labels.map((x,i)=>l0ChoiceOption(x.text, i===correctIndex, i===correctIndex?"correct":"visual_transform_contrast", {visualRelation:x.id}));
+    const questions=[
+      "Classify the visual relationship between LEFT and RIGHT.",
+      "Do not rely on number alone: how does the right stimulus relate to the left?",
+      "Compare the two stimuli as shapes. Which description is true?"
+    ];
+    const payload={visualComparison:{kind:item.kind, relation:item.relation, sourceId:item.sourceId, targetId:item.targetId, count:item.count, engine:item.kind, design:"four-way_exact_rotation_mirror_different"}, mechanismTags:["visual_comparison","mental_rotation","mirror_discrimination","source_shape_encoding"]};
+    const trial=buildL0ChoiceTrialFromOptions(cat, m, item.count, item.count, pick(questions), options, correctIndex, payload); if(!trial) return null;
+    trial.family="visual_transform_comparison"; trial.catId=cat.id; trial.countsForMetaHistory=false; trial.memoryEligible=false; trial.experienceAxis="visual_spatial_comparison";
+    trial.visualComparison={...payload.visualComparison, svg:item.svg}; trial.payload={...(trial.payload||{}), visualComparison:trial.visualComparison};
+    trial.frameTags=uniqLocal([...(trial.frameTags||[]), "visual_transform_comparison", "mental_rotation", "mirror_relation", "spatial_relation", "source_relation", "four_way_visual_relation"]);
+    trial.mechanismTags=uniqLocal([...(trial.mechanismTags||[]), "visual_comparison", "source_shape_encoding"]); trial.responseSubformat="visual_relation_choice";
+    return trial;
+  }
+  function installBetterVisualCat(){
+    let patched=0;
+    try{
+      if(!Array.isArray(POSNER_CATS)) return 0;
+      for(const c of POSNER_CATS){
+        if(c && c.family === "visual_transform_comparison"){
+          c.buildChoiceTrial=buildBetterVisualTransformChoice;
+          c.variants=[{q:"Classify the visual relationship between the two stimuli."}];
+          c._v6823bFourWayVisualRelation=true; patched++;
+        }
+      }
+    }catch(e){ warn("visual cat override failed",e); }
+    return patched;
+  }
+  const visualCatsPatchedV6823b = installBetterVisualCat();
+
+  function ordinaryNumericCatV6823b(cat){
+    if(!cat) return false;
+    if(cat.responseFormat === "choice" || cat.checkVisual || cat.questionVisualGate || cat.family === "visual_transform_comparison") return false;
+    if(cat.checkRep || cat.requiredRep || cat.reqRep) return false;
+    const fam=String(cat.family||cat.id||"").toLowerCase();
+    if(/epistemic|meta|shepard|visual|cube_3d|graph|prompt_logic|range_witness/.test(fam)) return false;
+    return true;
+  }
+  function makeSameValueDecoy(value){
+    const relation=Math.random()<0.5?"rotation":"mirror";
+    try{
+      if(typeof allowedReps === "function" && typeof gridVisualRelationCandidates === "function" && typeof gridMakeVisualFromLayout === "function" && (allowedReps(value)||[]).includes("grid")){
+        const rows=gridVisualRelationCandidates(value, relation, true); const row=pick(rows);
+        if(row){ const A=gridMakeVisualFromLayout(row.A), B=gridMakeVisualFromLayout(row.B); if(A&&B) return [A,B]; }
+      }
+    }catch(_){ }
+    try{
+      if(typeof allowedReps === "function" && typeof frameVisualRelationCandidates === "function" && typeof frameMakeVisualFromPattern === "function" && (allowedReps(value)||[]).includes("ten")){
+        const rows=frameVisualRelationCandidates(value, relation, true); const row=pick(rows);
+        if(row){ const A=frameMakeVisualFromPattern(row.A), B=frameMakeVisualFromPattern(row.B); if(A&&B) return [A,B]; }
+      }
+    }catch(_){ }
+    return null;
+  }
+  try{
+    const prevPickVisuals = (typeof pickValueComparisonVisuals === "function") ? pickValueComparisonVisuals : null;
+    if(prevPickVisuals && !prevPickVisuals.__v6823bVisualDecoyWrapped){
+      const wrappedPickVisuals = function pickValueComparisonVisualsV6823b(a,b,cat,forceRepShift=false){
+        try{
+          const v=Number(a);
+          const p=Number(CONFIG?.l0VisualRelationDecoySameValueProb ?? 0.10);
+          if(CONFIG?.l0VisualRelationDecoyEnabled !== false && !forceRepShift && Number(a)===Number(b) && v>=3 && v<=9 && ordinaryNumericCatV6823b(cat) && levelDV6823b()>=5 && !metaMemoryBusyV6823b() && Math.random()<p){
+            const pair=makeSameValueDecoy(v);
+            if(pair && pair[0] && pair[1]) return pair;
+          }
+        }catch(_){ }
+        return prevPickVisuals.apply(this, arguments);
+      };
+      wrappedPickVisuals.__v6823bVisualDecoyWrapped=true;
+      pickValueComparisonVisuals=wrappedPickVisuals;
+      try{ window.pickValueComparisonVisuals=wrappedPickVisuals; globalThis.pickValueComparisonVisuals=wrappedPickVisuals; }catch(_){ }
+    }
+  }catch(e){ warn("visual decoy wrapper failed", e); }
+
+  try{
+    const prevChoose = (typeof chooseFamilyBalancedPosnerCat === "function") ? chooseFamilyBalancedPosnerCat : null;
+    if(prevChoose && !prevChoose.__v6823bVisualDroughtWrapped){
+      let lastVisualAt = -9999;
+      const wrappedChoose = function chooseFamilyBalancedPosnerCatV6823b(cats,maxTier){
+        let chosen = prevChoose.apply(this, arguments);
+        try{
+          const now=trialCountV6823b();
+          if(chosen && chosen.family === "visual_transform_comparison") { lastVisualAt=now; return chosen; }
+          if(metaMemoryBusyV6823b() || levelDV6823b() < 5) return chosen;
+          const eligible=(Array.isArray(cats)?cats:[]).filter(c=>c && c.family==="visual_transform_comparison" && (!c.canUse || c.canUse(typeof currentMax==="function"?currentMax():12)));
+          if(!eligible.length) return chosen;
+          const drought=now-lastVisualAt;
+          const forceAfter=Number(CONFIG?.l0VisualComparisonDroughtForceAfter ?? 13);
+          const forceProb=clamp(CONFIG?.l0VisualComparisonDroughtForceProb ?? 0.68,0,1);
+          if(drought>=forceAfter && Math.random()<forceProb){ chosen=pick(eligible); lastVisualAt=now; return chosen; }
+          if(drought>=6 && Math.random()<0.08){ chosen=pick(eligible); lastVisualAt=now; return chosen; }
+        }catch(_){ }
+        return chosen;
+      };
+      wrappedChoose.__v6823bVisualDroughtWrapped=true;
+      chooseFamilyBalancedPosnerCat=wrappedChoose;
+      try{ window.chooseFamilyBalancedPosnerCat=wrappedChoose; globalThis.chooseFamilyBalancedPosnerCat=wrappedChoose; }catch(_){ }
+    }
+  }catch(e){ warn("visual drought wrapper failed", e); }
+
+  try{
+    const prevDetails = (typeof l0GenericChoiceReviewDetails === "function") ? l0GenericChoiceReviewDetails : null;
+    if(prevDetails && !prevDetails.__v6823bReviewWrapped){
+      const wrappedDetails = function l0GenericChoiceReviewDetailsV6823b(info){
+        const vc=info?.payload?.visualComparison || info?.visualComparison;
+        if(vc && vc.design === "four-way_exact_rotation_mirror_different"){
+          const correct=(typeof choiceReviewCorrectIndices === "function") ? choiceReviewCorrectIndices(info) : [];
+          const selected=(typeof choiceReviewSelectedIndices === "function") ? choiceReviewSelectedIndices(info) : [];
+          const optText=i=>(typeof choiceReviewOptionText === "function") ? choiceReviewOptionText(info,i) : (info?.options?.[i]?.text || `option ${i+1}`);
+          const rel={exact:"the layouts were exactly the same", rotation:"the same structure appeared under a rotation/viewpoint change", mirror:"handedness was reversed by a mirror/reflection", different:"the count matched, but the structure did not match by rotation or mirror"}[vc.relation] || vc.relation;
+          return [`Visual relation: ${rel}.`, `Stimulus family: ${vc.kind || "visual"}; count per stimulus: ${vc.count || "?"}.`, `Why this matters: the number is deliberately insufficient; encode shape, orientation, and handedness.`, correct.length?`Correct option: ${correct.map(optText).join(" + ")}.`:"", `You selected: ${selected.length ? selected.map(optText).join(" + ") : "—"}.`].filter(Boolean).join("\n");
+        }
+        return prevDetails.apply(this, arguments);
+      };
+      wrappedDetails.__v6823bReviewWrapped=true;
+      l0GenericChoiceReviewDetails=wrappedDetails;
+      try{ window.l0GenericChoiceReviewDetails=wrappedDetails; globalThis.l0GenericChoiceReviewDetails=wrappedDetails; }catch(_){ }
+    }
+  }catch(e){ warn("review refinement failed", e); }
+
+  function auditV6823VisualEpistemicReconfiguration(){
+    const block=[], warnings=[], samples=[];
+    try{
+      const cats=(POSNER_CATS||[]).filter(c=>c?.family==="visual_transform_comparison");
+      if(!cats.length) block.push("visual transform cat missing");
+      if(!cats.every(c=>c._v6823bFourWayVisualRelation)) warnings.push("not every visual transform cat has four-way v6.8.23b builder");
+      const seenRel=new Set(), seenKind=new Set();
+      for(let i=0;i<24;i++){
+        const t=cats[0]?.buildChoiceTrial?.(cats[0], Math.max(9, typeof currentMax==="function"?currentMax():9));
+        if(!t){ block.push(`visual sample ${i}: unbuildable`); continue; }
+        if((t.options||[]).filter(o=>o.correct).length!==1) block.push(`visual sample ${i}: wrong correct count`);
+        const vc=t.payload?.visualComparison || t.visualComparison; if(!vc?.svg) block.push(`visual sample ${i}: missing svg`);
+        seenRel.add(vc?.relation); seenKind.add(vc?.kind);
+      }
+      if(seenRel.size<3) warnings.push(`visual relation diversity low: ${Array.from(seenRel).join(",")}`);
+      if(seenKind.size<2) warnings.push(`visual engine diversity low: ${Array.from(seenKind).join(",")}`);
+      samples.push({visualRelations:Array.from(seenRel), visualKinds:Array.from(seenKind), visualCats:cats.length, visualCatsPatchedV6823b});
+    }catch(e){ block.push("visual audit exception: "+(e?.message||e)); }
+    try{
+      const epCats=(POSNER_CATS||[]).filter(c=>c?.family==="epistemic_abstract");
+      if(!epCats.length) block.push("epistemic_abstract cats missing");
+      if(!epCats.every(c=>c._v6823CalculationDeterminability)) block.push("epistemic abstract cats not patched to calculation determinability");
+      for(let i=0;i<16;i++){
+        const t=epCats[0]?.buildChoiceTrial?.(epCats[0], Math.max(12, typeof currentMax==="function"?currentMax():12));
+        if(!t){ block.push(`epistemic sample ${i}: unbuildable`); continue; }
+        const ep=t.payload?.epistemicAbstract || t.epistemicAbstract;
+        if(!ep || ep.solver!=="v6823_calculation_determinability") block.push(`epistemic sample ${i}: wrong solver`);
+        if(/knows LEFT and RIGHT|knows both values|knows only LEFT|knows only RIGHT/i.test(String(t.question||""))) block.push(`epistemic sample ${i}: trivial wording leaked`);
+        if(!(ep?.agents||[]).some(a=>a.inferential && a.canDetermine)) block.push(`epistemic sample ${i}: no inferential determiner`);
+      }
+      samples.push({epistemicCats:epCats.length, expandedMix:CONFIG?.l0EpistemicExpandedFormatMix || null});
+    }catch(e){ block.push("epistemic audit exception: "+(e?.message||e)); }
+    const status=block.length?"BLOCK":(warnings.length?"WARN":"PASS");
+    return (typeof auditResult === "function") ? auditResult(status, {patch:PATCH_ID, samples, warnings, block}) : {status, patch:PATCH_ID, samples, warnings, block};
+  }
+  try{ window.auditV6823VisualEpistemicReconfiguration=auditV6823VisualEpistemicReconfiguration; globalThis.auditV6823VisualEpistemicReconfiguration=auditV6823VisualEpistemicReconfiguration; }catch(_){ }
+  try{
+    const oldRun=(typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(oldRun && !oldRun.__v6823bReconfigurationWrapped){
+      const wrappedRun=function runFeatureAuditV6823b(feature, opts={}){
+        const f=String(feature||"").toLowerCase();
+        if(["v6823_reconfiguration","v6.8.23_reconfiguration","visual_epistemic_reconfiguration","visual_spatial_epistemic"].includes(f)) return auditV6823VisualEpistemicReconfiguration(opts);
+        return oldRun.apply(this, arguments);
+      };
+      wrappedRun.__v6823bReconfigurationWrapped=true; runFeatureAudit=wrappedRun;
+      try{ window.runFeatureAudit=wrappedRun; globalThis.runFeatureAudit=wrappedRun; }catch(_){ }
+    }
+  }catch(e){ warn("audit hook failed", e); }
+  try{ if(typeof State === "object" && State) State.nextTrialPrepared = null; }catch(_){ }
+  try{ if(typeof window !== "undefined") window.EUCA_V6823_VISUAL_EPISTEMIC_RECONFIGURATION = {patch:PATCH_ID, visualCatsPatchedV6823b}; }catch(_){ }
+})();
+</script>
 </body>
 </html>
