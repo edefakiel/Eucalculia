@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.21-range-witness-clarity</title>
+<title>Eucalculia v6.8.22-clarity-relevance-audit</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.21-range-witness-clarity";
+const APP_VERSION = "v6.8.22-clarity-relevance-audit";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -89176,6 +89176,426 @@ try{
         return prevRun.apply(this, arguments);
       };
       wrappedRun.__v6821RangeWitnessClarityWrapped = true;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; }catch(_){ }
+      try{ runFeatureAudit = wrappedRun; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ boot(); }catch(_){ }
+})();
+</script>
+
+
+<script>
+(function(){
+  "use strict";
+  /* ════════════════════════════════════════════════════════════════════════
+     EUCALCULIA v6.8.22 — CLARITY / RELEVANCE AUDIT
+     ────────────────────────────────────────────────────────────────────────
+     Two user-visible contracts are enforced here:
+       1. Transformation-choice questions must state the goal precisely:
+          keep the YES/NO answer, make it YES, or make it NO.  They no longer
+          ask to "preserve the truth of" a relation when the base relation is
+          false, which read as if there were a positive truth to preserve.
+       2. Prompt-logic negation probes must translate a concrete NOT wording
+          into the concrete condition that made YES correct.  The low-value
+          generic prompt "What made a YES answer? stated vs opposite relation"
+          is suppressed when no concrete public relation can be named.
+  ════════════════════════════════════════════════════════════════════════ */
+  const PATCH_ID = "v6.8.22-clarity-relevance-audit";
+  const AUDIT_KEYS = new Set([
+    "v6822", "v6_8_22", "clarity_relevance", "question_clarity", "question_relevance",
+    "operation_effect_choice", "prompt_logic_negation_rewrite"
+  ]);
+  const str = x => String(x == null ? "" : x);
+  const low = x => str(x).toLowerCase();
+  const boolWord = v => v ? "YES" : "NO";
+  const auditResultLocal = (status, details) => {
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {ok:status === "PASS", status, details};
+  };
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function shuffleLocal(xs){
+    const a = arr(xs).slice();
+    for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; }
+    return a;
+  }
+  function qTextLocal(info){
+    const parts = [info?.sourceQuestion, info?.question, info?.relationQuestion, info?.delayedPrompt, info?.prompt];
+    for(const p of parts){ const s = str(p).trim(); if(s) return s; }
+    return "";
+  }
+  function tagsLocal(info){
+    return new Set([].concat(
+      arr(info?.frameTags), arr(info?.mechanismTags), arr(info?.linguisticFrames),
+      info?.linguisticFrame ? [info.linguisticFrame] : []
+    ).map(x => low(x)).filter(Boolean));
+  }
+  function quoteShort(s, max=150){
+    const t = str(s).replace(/\s+/g," ").trim();
+    if(!t) return "";
+    return t.length > max ? t.slice(0, max - 1).trimEnd() + "…" : t;
+  }
+  function predicateLabel(id){
+    const key = str(id || "");
+    if(key === "comparison_greater_than") return "RIGHT is greater than LEFT";
+    if(key === "same_parity") return "both values have the same even/odd type";
+    if(key === "gap_eq_1") return "the gap is exactly 1";
+    if(key === "sum_even") return "the sum is even";
+    if(key === "same_distance_from_5") return "both values are the same distance from 5";
+    if(key === "one_divides_other") return "one value divides the other exactly";
+    try{ if(typeof operationInvariancePredicateLabel === "function") return operationInvariancePredicateLabel(key); }catch(_){ }
+    return key.replace(/_/g," ") || "the relation";
+  }
+  function evalPredicate(id, a, b){
+    try{ if(typeof operationInvariancePredicateEval === "function") return !!operationInvariancePredicateEval(id, a, b); }catch(_){ }
+    if(id === "same_parity") return (a % 2) === (b % 2);
+    if(id === "gap_eq_1") return Math.abs(a-b) === 1;
+    if(id === "sum_even") return (a+b) % 2 === 0;
+    if(id === "same_distance_from_5") return Math.abs(a-5) === Math.abs(b-5);
+    if(id === "one_divides_other") return (a > 0 && b > 0) && (a % b === 0 || b % a === 0);
+    return b > a;
+  }
+  function applyTransform(n, t){
+    try{ if(typeof operationInvarianceApply === "function") return operationInvarianceApply(n, t); }catch(_){ }
+    const v = Number(n);
+    if(t?.id === "add_constant") return v + Number(t.k || 0);
+    if(t?.id === "multiply_positive") return v * Number(t.k || 1);
+    if(t?.id === "reflect_anchor") return Number(t.anchor || 0) - v;
+    if(t?.id === "modulo_wrap"){
+      const mod = Math.max(2, Number(t.mod || 5));
+      return ((v % mod) + mod) % mod;
+    }
+    return v;
+  }
+  function transformChoices(m){
+    try{ if(typeof operationInvarianceTransformChoices === "function") return operationInvarianceTransformChoices(m); }catch(_){ }
+    return [];
+  }
+  function effectEval(a, b, transform, predicateId){
+    const leftAfter = applyTransform(a, transform), rightAfter = applyTransform(b, transform);
+    const beforeTruth = evalPredicate(predicateId, a, b);
+    const afterTruth = evalPredicate(predicateId, leftAfter, rightAfter);
+    return {beforeTruth, afterTruth, preserved:beforeTruth === afterTruth, leftAfter, rightAfter, transform};
+  }
+  function goalDefs(before){
+    const keep = before
+      ? {id:"keep_yes", kind:"keep", label:"keep the answer YES", targetWord:"YES", check:e => e.afterTruth === true,
+         question:label => `For the displayed pair, “${label}” was YES. Which operation keeps the answer YES after applying it to both values?`}
+      : {id:"keep_no", kind:"keep", label:"keep the answer NO", targetWord:"NO", check:e => e.afterTruth === false,
+         question:label => `For the displayed pair, “${label}” was NO. Which operation keeps the answer NO after applying it to both values?`};
+    const change = before
+      ? {id:"make_no", kind:"change", label:"change the answer to NO", targetWord:"NO", check:e => e.afterTruth === false,
+         question:label => `For the displayed pair, “${label}” was YES. Which operation changes the answer to NO after applying it to both values?`}
+      : {id:"make_yes", kind:"change", label:"change the answer to YES", targetWord:"YES", check:e => e.afterTruth === true,
+         question:label => `For the displayed pair, “${label}” was NO. Which operation changes the answer to YES after applying it to both values?`};
+    // Prefer the constructive change question when it has a unique answer, but
+    // keep-invariance remains in the mix when it is the clean unique contrast.
+    return Math.random() < 0.58 ? [change, keep] : [keep, change];
+  }
+  function buildOperationEffectChoice(cat, m){
+    const pred = cat?.predicateId || "comparison_greater_than";
+    const label = predicateLabel(pred);
+    const max = Math.max(8, Math.min(Number(m) || (typeof currentMax === "function" ? currentMax() : 12), 12));
+    for(let tries=0; tries<260; tries++){
+      const transforms = transformChoices(m);
+      if(transforms.length !== 4) return null;
+      const a = (typeof randInt === "function") ? randInt(1, max + 1) : (1 + Math.floor(Math.random()*max));
+      const b = (typeof randInt === "function") ? randInt(1, max + 1) : (1 + Math.floor(Math.random()*max));
+      if(a === b && pred === "comparison_greater_than") continue;
+      const evals = transforms.map(t => effectEval(a, b, t, pred));
+      const before = evals[0]?.beforeTruth;
+      if(typeof before !== "boolean") continue;
+      for(const goal of goalDefs(before)){
+        const flags = evals.map(e => !!goal.check(e));
+        if(flags.filter(Boolean).length !== 1) continue;
+        const semanticCorrectIndex = flags.findIndex(Boolean);
+        const options = transforms.map((t,i) => {
+          const ev = evals[i];
+          const correct = i === semanticCorrectIndex;
+          const reason = correct ? "correct" : (ev.afterTruth === before ? "keeps_wrong_target" : "changes_wrong_target");
+          return l0ChoiceOption(t.phrase, correct, reason, {
+            transformId:t.id,
+            transform:t,
+            effect:{leftAfter:ev.leftAfter, rightAfter:ev.rightAfter, beforeTruth:before, afterTruth:ev.afterTruth, preserved:ev.preserved, predicateId:pred, predicateLabel:label, goalId:goal.id, goalLabel:goal.label, goalTarget:goal.targetWord}
+          });
+        });
+        const question = goal.question(label);
+        return buildL0ChoiceTrialFromOptions(cat, m, a, b, question, options, semanticCorrectIndex, {
+          operationEffectChoice:{predicateId:pred, predicateLabel:label, goalId:goal.id, goalLabel:goal.label, beforeTruth:before, transforms:transforms.map(t=>t.id), evaluations:evals.map(e => ({leftAfter:e.leftAfter, rightAfter:e.rightAfter, afterTruth:e.afterTruth, preserved:e.preserved}))},
+          operationInvarianceChoice:{predicateId:pred, goalId:goal.id, evaluations:evals, transforms:transforms.map(t=>t.id)},
+          mechanismTags:["operation_effect_choice","operation_invariance_choice"]
+        });
+      }
+    }
+    return null;
+  }
+  function effectOptionLine(opt, prefix="Option"){
+    const e = opt?.effect || opt?.payload?.effect;
+    if(!e) return `${prefix}: ${str(opt?.text || "—")}.`;
+    return `${prefix}: ${str(opt?.text || "—")} → left ${e.leftAfter}, right ${e.rightAfter}; “${e.predicateLabel || predicateLabel(e.predicateId)}” becomes ${boolWord(!!e.afterTruth)}.`;
+  }
+  function correctIndicesLocal(info){
+    try{ if(typeof choiceReviewCorrectIndices === "function") return choiceReviewCorrectIndices(info); }catch(_){ }
+    if(Number.isInteger(info?.correctIndex)) return [info.correctIndex];
+    return arr(info?.options).map((o,i)=>o?.correct ? i : -1).filter(i=>i>=0);
+  }
+  function selectedIndicesLocal(info){
+    try{ if(typeof choiceReviewSelectedIndices === "function") return choiceReviewSelectedIndices(info); }catch(_){ }
+    if(Number.isInteger(info?.selectedIndex)) return [info.selectedIndex];
+    if(Number.isInteger(info?.userAnswer)) return [info.userAnswer];
+    return [];
+  }
+  function optionTextLocal(info, i){
+    try{ if(typeof choiceReviewOptionText === "function") return choiceReviewOptionText(info, i); }catch(_){ }
+    return arr(info?.options)[i]?.text || `Option ${Number(i)+1}`;
+  }
+  function operationEffectReviewDetails(info){
+    const p = info?.payload?.operationEffectChoice || info?.operationEffectChoice;
+    if(!p) return "";
+    const a = Number(info?.a), b = Number(info?.b);
+    const label = p.predicateLabel || predicateLabel(p.predicateId);
+    const before = typeof p.beforeTruth === "boolean" ? p.beforeTruth : evalPredicate(p.predicateId, a, b);
+    const correct = correctIndicesLocal(info);
+    const selected = selectedIndicesLocal(info);
+    const opts = arr(info?.options);
+    const lines = [];
+    if(Number.isFinite(a) && Number.isFinite(b)) lines.push(`Values: left ${a}, right ${b}.`);
+    lines.push(`Before any operation: “${label}” was ${boolWord(!!before)}.`);
+    lines.push(`Goal of this question: ${p.goalLabel || "keep or change the YES/NO answer as requested"}.`);
+    if(correct.length){
+      const ci = correct[0], opt = opts[ci];
+      lines.push(effectOptionLine(opt, `Correct option ${ci+1}`));
+    }
+    if(selected.length){
+      const si = selected[0], opt = opts[si];
+      if(!correct.includes(si)) lines.push(effectOptionLine(opt, `Your choice ${si+1}`));
+    }
+    if(correct.length) lines.push(`Correct option: ${correct.map(i => optionTextLocal(info, i)).join(" + ")}.`);
+    lines.push(`You selected: ${selected.length ? selected.map(i => optionTextLocal(info, i)).join(" + ") : "—"}.`);
+    return lines.join("\n");
+  }
+
+  function hasExplicitNegation(info){
+    const q = low(qTextLocal(info));
+    const tags = tagsLocal(info);
+    return info?.negate === true || tags.has("negation_scope") || /\bnot\b|\bno\b|other\s+than|false\s+that|fails?\b|without\b|outside\b/.test(q);
+  }
+  function relationLabelsFromPublicWording(info){
+    const q = low(qTextLocal(info));
+    const h = low([info?.catId, info?.family, info?.relationMode, info?.predicateId, info?.label].join(" "));
+    const both = q + " " + h;
+    if(/one\s+(?:value\s+)?divides\s+the\s+other|divides?\s+.*exactly|evenly\s+divides?/.test(both)) return {positive:"one value divided the other exactly", negative:"no value divided the other exactly"};
+    if(/right[^.?;:]*greater\s+than[^.?;:]*left|right_gt_left|comparison_greater_than/.test(both)) return {positive:"RIGHT was greater than LEFT", negative:"RIGHT was not greater than LEFT"};
+    if(/left[^.?;:]*greater\s+than[^.?;:]*right|left_gt_right/.test(both)) return {positive:"LEFT was greater than RIGHT", negative:"LEFT was not greater than RIGHT"};
+    if(/right[^.?;:]*less\s+than[^.?;:]*left/.test(both)) return {positive:"RIGHT was less than LEFT", negative:"RIGHT was not less than LEFT"};
+    if(/left[^.?;:]*less\s+than[^.?;:]*right/.test(both)) return {positive:"LEFT was less than RIGHT", negative:"LEFT was not less than RIGHT"};
+    if(/same\s+(?:even\/odd|parity)|same_parity|same\s+parity/.test(both)) return {positive:"both values had the same even/odd type", negative:"the values had different even/odd types"};
+    if(/same\s+distance\s+from\s+5|same_distance_from_5/.test(both)) return {positive:"both values were the same distance from 5", negative:"the values were not the same distance from 5"};
+    if(/gap[^0-9]*(?:exactly\s*)?1|gap_eq_1/.test(both)) return {positive:"the gap was exactly 1", negative:"the gap was not exactly 1"};
+    if(/sum[^.?;:]*even|sum_even/.test(both)) return {positive:"the sum was even", negative:"the sum was not even"};
+    if(/equal|same\s+value/.test(both)) return {positive:"LEFT and RIGHT were equal", negative:"LEFT and RIGHT were not equal"};
+    return null;
+  }
+  function makeConcreteNegationPlan(originalInfo){
+    if(!hasExplicitNegation(originalInfo)) return null;
+    const labels = relationLabelsFromPublicWording(originalInfo);
+    if(!labels || !labels.positive || !labels.negative) return null;
+    if(typeof buildMetaClassificationOptions !== "function") return null;
+    const rows = [
+      {id:"yes_positive_relation", publicLabel:`YES meant: ${labels.positive}`},
+      {id:"yes_negative_relation", publicLabel:`YES meant: ${labels.negative}`}
+    ];
+    const expected = "yes_negative_relation";
+    const built = buildMetaClassificationOptions(rows, expected, "l0_prompt_negation_meaning_classification");
+    if(!built || !Array.isArray(built.options) || built.options.filter(o=>!!o.correct).length !== 1) return null;
+    const src = quoteShort(qTextLocal(originalInfo), 160);
+    return {
+      level:0,
+      dimensionId:"prompt_negation_meaning",
+      dimensionLabel:"NEGATION MEANING",
+      question:"Under the previous NOT wording, what did YES mean?",
+      sub:src ? `Previous prompt: “${src}”` : "Choose the concrete condition that made YES correct.",
+      aria:"Choose the concrete condition that made YES correct under the previous NOT wording.",
+      expected,
+      expectedLabel:rows[1].publicLabel,
+      options:built.options,
+      correctIndex:built.correctIndex,
+      family:"l0_prompt_negation_meaning_classification",
+      promptLogicPatch:PATCH_ID,
+      promptLogicDesign:PATCH_ID,
+      promptLogicKind:"negation_meaning",
+      promptLogicSalience:"high_concrete",
+      sourceQuestion:qTextLocal(originalInfo) || null,
+      originalInfo
+    };
+  }
+  function planText(plan){
+    try{ return [plan?.dimensionId, plan?.dimensionLabel, plan?.question, plan?.sub, plan?.expectedLabel, ...arr(plan?.options).map(o=>o?.text || o?.publicLabel || o?.label || "")].map(str).join("\n"); }
+    catch(_){ return ""; }
+  }
+  function enrichSourceSub(plan, originalInfo){
+    if(!plan || !/^prompt_/.test(str(plan.dimensionId))) return plan;
+    const src = quoteShort(qTextLocal(originalInfo) || plan.sourceQuestion, 150);
+    if(!src) return plan;
+    const out = Object.assign({}, plan);
+    const sub = str(out.sub || "").trim();
+    if(!/previous prompt:/i.test(sub)) out.sub = `${sub ? sub + " " : ""}Previous prompt: “${src}”`;
+    out.sourceQuestion = out.sourceQuestion || qTextLocal(originalInfo) || null;
+    return out;
+  }
+  function sanitizePromptLogicPlan(plan, originalInfo){
+    const dim = str(plan?.dimensionId);
+    const txt = planText(plan);
+    if(dim === "prompt_polarity" || /What made a YES answer in the previous wording\?/i.test(txt) || /YES followed the stated relation/i.test(txt)){
+      return makeConcreteNegationPlan(originalInfo) || null;
+    }
+    if(dim === "prompt_condition_shape" && /one rule checked the pair directly/i.test(txt) && !/if|otherwise|branch/i.test(low(qTextLocal(originalInfo)))){
+      return null;
+    }
+    if(/^prompt_/.test(dim)) return enrichSourceSub(plan, originalInfo);
+    return plan;
+  }
+  function install(){
+    try{
+      if(typeof buildL0OperationInvarianceChoice === "function" && !buildL0OperationInvarianceChoice.__v6822ClarityWrapped){
+        buildL0OperationInvarianceChoice = buildOperationEffectChoice;
+        buildL0OperationInvarianceChoice.__v6822ClarityWrapped = true;
+        try{ window.buildL0OperationInvarianceChoice = buildOperationEffectChoice; globalThis.buildL0OperationInvarianceChoice = buildOperationEffectChoice; }catch(_){ }
+      }
+      try{
+        const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : window.POSNER_CATS);
+        for(const cat of cats){
+          if(cat && cat.family === "operation_invariance" && cat.responseFormat === "choice" && /^decl_operation_invariance_property_choice_/.test(str(cat.id))){
+            cat.buildChoiceTrial = buildOperationEffectChoice;
+            cat.variants = [{q:"Choose the operation that has the requested effect on the YES/NO answer."}];
+            cat.mechanismTags = Array.from(new Set([].concat(arr(cat.mechanismTags), ["operation_effect_choice"])));
+          }
+        }
+      }catch(_){ }
+      if(typeof l0GenericChoiceReviewDetails === "function" && !l0GenericChoiceReviewDetails.__v6822ClarityWrapped){
+        const prevDetails = l0GenericChoiceReviewDetails;
+        const wrappedDetails = function l0GenericChoiceReviewDetailsV6822(info){
+          try{
+            const d = operationEffectReviewDetails(info);
+            if(d) return d;
+          }catch(_){ }
+          return prevDetails.apply(this, arguments);
+        };
+        wrappedDetails.__v6822ClarityWrapped = true;
+        l0GenericChoiceReviewDetails = wrappedDetails;
+        try{ window.l0GenericChoiceReviewDetails = wrappedDetails; globalThis.l0GenericChoiceReviewDetails = wrappedDetails; }catch(_){ }
+      }
+      if(typeof beginMetaClassificationWrapper === "function" && !beginMetaClassificationWrapper.__v6822ClarityWrapped){
+        const prevBegin = beginMetaClassificationWrapper;
+        const wrappedBegin = function beginMetaClassificationWrapperV6822(originalInfo, substantiveCorrect, originalTargetValue, plan, wrapperKind){
+          try{
+            const sanitized = sanitizePromptLogicPlan(plan, originalInfo);
+            if(!sanitized) return false;
+            const ok = prevBegin.call(this, originalInfo, substantiveCorrect, originalTargetValue, sanitized, wrapperKind);
+            try{
+              if(ok && State?.trialInfo && sanitized.promptLogicDesign === PATCH_ID){
+                State.trialInfo.promptLogicDesign = PATCH_ID;
+                State.trialInfo.promptLogicKind = sanitized.promptLogicKind || "prompt_logic";
+                State.trialInfo.sourceQuestion = sanitized.sourceQuestion || qTextLocal(originalInfo) || State.trialInfo.sourceQuestion || null;
+                State.trialInfo.frameTags = Array.from(new Set([].concat(arr(State.trialInfo.frameTags), ["prompt_logic", "concrete_public_operator", sanitized.promptLogicKind]).filter(Boolean)));
+                State.trialInfo.mechanismTags = Array.from(new Set([].concat(arr(State.trialInfo.mechanismTags), ["operator_rephrase", "public_wording_repair"]).filter(Boolean)));
+              }
+            }catch(_){ }
+            return ok;
+          }catch(e){
+            try{ if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"v6822_begin_meta_sanitize"}); }catch(_){ }
+            return false;
+          }
+        };
+        wrappedBegin.__v6822ClarityWrapped = true;
+        beginMetaClassificationWrapper = wrappedBegin;
+        try{ window.beginMetaClassificationWrapper = wrappedBegin; globalThis.beginMetaClassificationWrapper = wrappedBegin; }catch(_){ }
+      }
+      if(typeof metaClassificationRuleTextForReview === "function" && !metaClassificationRuleTextForReview.__v6822ClarityWrapped){
+        const prevRule = metaClassificationRuleTextForReview;
+        const wrappedRule = function metaClassificationRuleTextForReviewV6822(info){
+          const dim = str(info?.metaClassificationDimension);
+          const src = quoteShort(info?.sourceQuestion || info?.originalTrialInfo?.sourceQuestion || info?.originalTrialInfo?.question || info?.originalTrialInfo?.delayedPrompt, 150);
+          if(dim === "prompt_negation_meaning") return "Rule: translate the public NOT wording into the concrete condition that made YES correct." + (src ? ` The prompt was: “${src}”` : "");
+          if(dim === "prompt_polarity") return "Rule: generic polarity probes are deprecated; current builds ask for concrete NOT meaning only." + (src ? ` The prompt was: “${src}”` : "");
+          return prevRule.apply(this, arguments);
+        };
+        wrappedRule.__v6822ClarityWrapped = true;
+        metaClassificationRuleTextForReview = wrappedRule;
+        try{ window.metaClassificationRuleTextForReview = wrappedRule; globalThis.metaClassificationRuleTextForReview = wrappedRule; }catch(_){ }
+      }
+      try{ if(typeof invalidatePreparedTrial === "function") invalidatePreparedTrial("v6822_clarity_relevance_audit"); else if(typeof State === "object" && State){ State.nextTrialPrepared = null; State.nextTrialPrepareInFlight = false; } }catch(_){ }
+      try{
+        const diag = (State.meta.diagnostics.questionClarityRelevanceV6822 ||= {installedAt:Date.now(), patch:PATCH_ID, events:[]});
+        diag.installed = true;
+      }catch(_){ }
+    }catch(e){ try{ if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"v6822_install"}); }catch(_){ } }
+  }
+  function auditV6822QuestionClarityRelevance(){
+    const block = [], warnings = [];
+    try{ install(); }catch(e){ block.push("install threw: " + str(e?.message || e)); }
+    try{
+      const add2 = {id:"add_constant", k:2, phrase:"add 2 to both values"};
+      const mul2 = {id:"multiply_positive", k:2, phrase:"multiply both values by 2"};
+      const before = evalPredicate("one_divides_other", 10, 4);
+      const a = effectEval(10, 4, add2, "one_divides_other");
+      const m = effectEval(10, 4, mul2, "one_divides_other");
+      if(before !== false) block.push("10 and 4 divisibility base truth should be NO");
+      if(a.afterTruth !== true) block.push("add 2 to 10/4 should make divisibility YES");
+      if(m.afterTruth !== false || m.preserved !== true) block.push("multiply 10/4 by 2 should keep divisibility NO");
+    }catch(e){ block.push("operation effect smoke threw: " + str(e?.message || e)); }
+    try{
+      const fakeCat = {id:"decl_operation_invariance_property_choice_one_divides_other", family:"operation_invariance", responseFormat:"choice", predicateId:"one_divides_other", frameTags:[]};
+      const sample = buildOperationEffectChoice(fakeCat, 12);
+      if(!sample) warnings.push("random operation-effect sample did not build in audit smoke; generator may need more tries on this engine");
+      else if(/preserves\s+the\s+truth\s+of/i.test(sample.question)) block.push("operation effect prompt still uses ambiguous 'preserves the truth of' wording");
+      else if(!/YES|NO|answer/i.test(sample.question)) block.push("operation effect prompt does not state a YES/NO goal");
+    }catch(e){ warnings.push("operation-effect build smoke threw: " + str(e?.message || e)); }
+    try{
+      const negInfo = {question:"Is LEFT not greater than RIGHT?", negate:true, linguisticFrame:"negation_scope", catId:"left_gt_right"};
+      const plan = makeConcreteNegationPlan(negInfo);
+      if(!plan) block.push("concrete negation plan failed to build");
+      else{
+        const txt = planText(plan);
+        if(/YES followed the stated relation|What made a YES answer/i.test(txt)) block.push("concrete negation plan still uses generic polarity wording");
+        if(!/LEFT was not greater than RIGHT/i.test(txt)) block.push("concrete negation plan does not name the negative condition");
+        if(!/Previous prompt:/i.test(plan.sub || "")) block.push("concrete negation plan does not quote the source prompt");
+      }
+      const vague = makeConcreteNegationPlan({question:"Was that not the case?", negate:true});
+      if(vague) block.push("vague negation without public relation should be withheld");
+    }catch(e){ block.push("negation plan smoke threw: " + str(e?.message || e)); }
+    try{
+      const old = {dimensionId:"prompt_polarity", dimensionLabel:"NEGATION", question:"What made a YES answer in the previous wording?", sub:"Separate the stated relation from NOT / opposite-relation wording.", options:[{text:"YES followed the stated relation", correct:false},{text:"YES followed NOT / the opposite relation", correct:true}], expected:"polarity_negated"};
+      const repl = sanitizePromptLogicPlan(old, {question:"Is LEFT not greater than RIGHT?", negate:true, catId:"left_gt_right"});
+      if(!repl || repl.dimensionId !== "prompt_negation_meaning") block.push("generic polarity plan was not replaced by concrete negation meaning");
+      const suppressed = sanitizePromptLogicPlan(old, {question:"Was that not it?", negate:true});
+      if(suppressed) block.push("generic polarity plan with no concrete relation should be suppressed");
+    }catch(e){ block.push("plan sanitization smoke threw: " + str(e?.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_ID), patch:PATCH_ID, block, warnings});
+  }
+  function boot(){ try{ install(); }catch(_){ } }
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot, 0); setTimeout(boot, 300); setTimeout(boot, 1200);
+    } else boot();
+  }catch(_){ }
+  try{
+    window.auditV6822QuestionClarityRelevance = auditV6822QuestionClarityRelevance;
+    globalThis.auditV6822QuestionClarityRelevance = auditV6822QuestionClarityRelevance;
+    window.EUCA_V6822_CLARITY_RELEVANCE_AUDIT = {patch:PATCH_ID, audit:auditV6822QuestionClarityRelevance};
+    globalThis.EUCA_V6822_CLARITY_RELEVANCE_AUDIT = window.EUCA_V6822_CLARITY_RELEVANCE_AUDIT;
+  }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6822ClarityWrapped){
+      const wrappedRun = function runFeatureAuditV6822(feature, opts={}){
+        const key = str(feature).toLowerCase().replace(/[\s.-]+/g,"_");
+        if(AUDIT_KEYS.has(key)) return auditV6822QuestionClarityRelevance(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrappedRun.__v6822ClarityWrapped = true;
       try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; }catch(_){ }
       try{ runFeatureAudit = wrappedRun; }catch(_){ }
     }
