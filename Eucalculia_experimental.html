@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.20-runtime-review-witness-sourcefix</title>
+<title>Eucalculia v6.8.21-range-witness-clarity</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.20-runtime-review-witness-sourcefix";
+const APP_VERSION = "v6.8.21-range-witness-clarity";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -88715,6 +88715,467 @@ try{
         return prevRun.apply(this, arguments);
       };
       wrappedRun.__v6820RuntimeReviewWitnessFixWrapped = true;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; }catch(_){ }
+      try{ runFeatureAudit = wrappedRun; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ boot(); }catch(_){ }
+})();
+</script>
+
+
+
+<script>
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.21-range-witness-clarity";
+  const RANGE_OP_IDS = [
+    "witness_range_largest_composite",
+    "witness_range_smallest_composite",
+    "witness_range_unique_prime",
+    "witness_range_largest_multiple",
+    "witness_retained_largest_composite_slot"
+  ];
+  const RETIRED_RANGE_OP_IDS = [
+    "witness_negative_largest",
+    "witness_lower_boundary",
+    "witness_upper_boundary",
+    "witness_retained_largest_nonprime_slot"
+  ];
+
+  function str(x){ return String(x == null ? "" : x); }
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function now(){ return (typeof Date !== "undefined" && Date.now) ? Date.now() : 0; }
+  function uniq(xs){ return Array.from(new Set(arr(xs).filter(x => x != null && x !== ""))); }
+  function lowerKey(x){ return str(x).toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,""); }
+  function sample(xs){ return xs[Math.floor(Math.random() * xs.length)]; }
+  function auditResultLocal(status, details){
+    if(typeof auditResult === "function") return auditResult(status, details);
+    return {status, ok:status === "PASS", details};
+  }
+  function log(event, detail){
+    try{
+      if(!State.meta) State.meta = {};
+      if(!State.meta.diagnostics || typeof State.meta.diagnostics !== "object") State.meta.diagnostics = {};
+      if(!State.meta.diagnostics.v6821RangeWitnessClarity) State.meta.diagnostics.v6821RangeWitnessClarity = {events:[]};
+      const root = State.meta.diagnostics.v6821RangeWitnessClarity;
+      root.events.push(Object.assign({ts:now(), event}, detail || {}));
+      if(root.events.length > 100) root.events.splice(0, root.events.length - 100);
+    }catch(_){ }
+  }
+
+  function isPrimeLocal(n){
+    n = Math.floor(Number(n));
+    if(!Number.isFinite(n) || n < 2) return false;
+    try{ if(typeof witnessIsPrime === "function") return !!witnessIsPrime(n); }catch(_){ }
+    try{ if(typeof isPrime === "function") return !!isPrime(n); }catch(_){ }
+    if(n < 4) return true;
+    if(n % 2 === 0) return false;
+    for(let d=3; d*d<=n; d+=2) if(n % d === 0) return false;
+    return true;
+  }
+  function isCompositeLocal(n){ return Number.isInteger(n) && n > 1 && !isPrimeLocal(n); }
+  function isSquareLocal(n){
+    if(!Number.isInteger(n) || n < 0) return false;
+    const r = Math.round(Math.sqrt(n));
+    return r*r === n;
+  }
+
+  const RANGE_ANCHORS = {
+    min_all:{label:"the smallest retained value", extract:(p1,p2)=>Math.min(p1.a,p1.b,p2.a,p2.b)},
+    max_all:{label:"the largest retained value", extract:(p1,p2)=>Math.max(p1.a,p1.b,p2.a,p2.b)},
+    p1_min:{label:"Pair 1's smaller value", extract:(p1)=>Math.min(p1.a,p1.b)},
+    p1_max:{label:"Pair 1's larger value", extract:(p1)=>Math.max(p1.a,p1.b)},
+    p2_min:{label:"Pair 2's smaller value", extract:(p1,p2)=>Math.min(p2.a,p2.b)},
+    p2_max:{label:"Pair 2's larger value", extract:(p1,p2)=>Math.max(p2.a,p2.b)},
+    p1_sum:{label:"Pair 1's total", extract:(p1)=>p1.a+p1.b},
+    p2_sum:{label:"Pair 2's total", extract:(p1,p2)=>p2.a+p2.b},
+    p1_gap:{label:"Pair 1's gap", extract:(p1)=>Math.abs(p1.a-p1.b)},
+    p2_gap:{label:"Pair 2's gap", extract:(p1,p2)=>Math.abs(p2.a-p2.b)},
+    gap_min:{label:"the smaller pair-gap", extract:(p1,p2)=>Math.min(Math.abs(p1.a-p1.b), Math.abs(p2.a-p2.b))},
+    gap_max:{label:"the larger pair-gap", extract:(p1,p2)=>Math.max(Math.abs(p1.a-p1.b), Math.abs(p2.a-p2.b))}
+  };
+  const RANGE_ANCHOR_PAIRS = [
+    ["min_all", "max_all"],
+    ["p1_min", "p2_max"],
+    ["p2_min", "p1_max"],
+    ["p1_sum", "p2_sum"],
+    ["min_all", "p1_sum"],
+    ["min_all", "p2_sum"],
+    ["gap_min", "max_all"],
+    ["gap_max", "p1_sum"],
+    ["gap_max", "p2_sum"]
+  ];
+  const RANGE_PREDICATES = {
+    composite:{label:"composite number", plural:"composite numbers", test:isCompositeLocal},
+    prime:{label:"prime number", plural:"prime numbers", test:isPrimeLocal},
+    square:{label:"perfect square", plural:"perfect squares", test:isSquareLocal},
+    multiple3:{label:"multiple of 3", plural:"multiples of 3", test:n=>Number.isInteger(n) && n !== 0 && n % 3 === 0},
+    multiple4:{label:"multiple of 4", plural:"multiples of 4", test:n=>Number.isInteger(n) && n !== 0 && n % 4 === 0},
+    multiple5:{label:"multiple of 5", plural:"multiples of 5", test:n=>Number.isInteger(n) && n !== 0 && n % 5 === 0}
+  };
+  function rangeResolveAnchor(id, p1, p2){
+    const spec = RANGE_ANCHORS[id] || null;
+    if(!spec || !p1 || !p2) return null;
+    let v;
+    try{ v = spec.extract(p1,p2); }catch(_){ return null; }
+    v = Number(v);
+    if(!Number.isFinite(v) || !Number.isInteger(v)) return null;
+    return {id, label:spec.label, value:v};
+  }
+  function rangeFromAnchors(a, b){
+    if(!a || !b) return null;
+    const lo = Math.min(a.value, b.value);
+    const hi = Math.max(a.value, b.value);
+    if(!Number.isFinite(lo) || !Number.isFinite(hi)) return null;
+    return {lo, hi, size:hi - lo + 1};
+  }
+  function valuesInRange(lo, hi){
+    const out = [];
+    for(let n=lo; n<=hi; n++) out.push(n);
+    return out;
+  }
+  function retainedValues(p1,p2){ return [p1?.a,p1?.b,p2?.a,p2?.b].map(Number).filter(Number.isInteger); }
+  function intervalReadable(a, b, lo, hi){
+    return `${a.label} (${a.value}) through ${b.label} (${b.value}) = ${lo}–${hi}`;
+  }
+  function tooWeakRange(range){
+    if(!range) return true;
+    if(range.lo < 0 || range.hi > 99) return true;
+    if(range.size < 4 || range.size > 16) return true;
+    return false;
+  }
+  function chooseAnswer(cands, mode){
+    if(!arr(cands).length) return null;
+    if(mode === "largest") return cands[cands.length - 1];
+    if(mode === "smallest") return cands[0];
+    if(mode === "unique") return cands.length === 1 ? cands[0] : null;
+    return null;
+  }
+  function buildRangePrompt(mode, pred, a, b, range, answer, cands){
+    const predLabel = mode === "unique" ? pred.label : pred.label;
+    const dir = mode === "largest" ? "largest" : (mode === "smallest" ? "smallest" : "only");
+    const source = `${a.label} through ${b.label}`;
+    // Deliberately public wording: the cue names the anchors and the inclusive
+    // range operation without reprinting the hidden values. It also warns that
+    // the witness is searched inside the interval, not merely selected from the
+    // four retained source numbers.
+    return `Range witness: search every whole number in the inclusive range from ${source}. What is the ${dir} ${predLabel}? It may be inside the range, not one of the four retained numbers.`;
+  }
+  function buildNearMiss(cands, answer, pred, range){
+    const all = valuesInRange(range.lo, range.hi);
+    let best = null, bd = Infinity;
+    for(const n of all){
+      if(cands.includes(n)) continue;
+      const d = Math.abs(n - answer);
+      if(d < bd){ best = n; bd = d; }
+    }
+    if(best == null) return null;
+    return {value:best, reason:`Near miss: ${best} is inside the range but is not a ${pred.label}.`};
+  }
+  function buildRangeInstance(p1, p2, profile, opts={}){
+    const pairs = arr(profile.anchorPairs).length ? profile.anchorPairs : RANGE_ANCHOR_PAIRS;
+    const predIds = arr(profile.predIds).length ? profile.predIds : ["composite"];
+    const tries = Number(opts.budget) || 80;
+    for(let t=0;t<tries;t++){
+      const pairIds = opts.anchorPair || sample(pairs);
+      const predId = opts.predId || sample(predIds);
+      const pred = RANGE_PREDICATES[predId];
+      if(!pairIds || !pred) continue;
+      const a = rangeResolveAnchor(pairIds[0], p1, p2);
+      const b = rangeResolveAnchor(pairIds[1], p1, p2);
+      const range = rangeFromAnchors(a,b);
+      if(tooWeakRange(range)) continue;
+      const all = valuesInRange(range.lo, range.hi);
+      const cands = all.filter(pred.test);
+      if(!cands.length) continue;
+      if(cands.length === all.length) continue; // predicate must discriminate
+      const answer = chooseAnswer(cands, profile.mode);
+      if(answer == null) continue;
+      // Avoid degenerate "non-prime = 1"-style lessons: composite is >1 by definition;
+      // for other predicates, reject 0/1 unless the predicate name itself is square.
+      if((answer === 0 || answer === 1) && predId !== "square") continue;
+      if(profile.mode !== "unique" && cands.length < 2) continue;
+      const sourceValues = retainedValues(p1,p2);
+      const answerWasRetained = sourceValues.includes(answer);
+      const prompt = buildRangePrompt(profile.mode, pred, a, b, range, answer, cands);
+      const rangeWitness = {
+        profileId:profile.id,
+        mode:profile.mode,
+        predicateId:predId,
+        predicateLabel:pred.label,
+        predicatePlural:pred.plural,
+        anchorIds:[a.id,b.id],
+        anchors:[a,b],
+        lo:range.lo,
+        hi:range.hi,
+        size:range.size,
+        candidates:cands,
+        answerWasRetained
+      };
+      return {
+        answer,
+        question:prompt,
+        nearMiss:buildNearMiss(cands, answer, pred, range),
+        rangeWitness,
+        payload:{rangeWitness},
+        witnessTelemetry:{
+          family:"witness",
+          opId:profile.id,
+          qualifier:"explicit_inclusive_range",
+          predicates:[predId],
+          anchorIds:[a.id,b.id],
+          range:{lo:range.lo, hi:range.hi, size:range.size},
+          answerWasRetained,
+          promptContract:"explicit_range_not_retained_only"
+        }
+      };
+    }
+    return null;
+  }
+
+  function scrubL1Ops(ids){
+    const removed = [];
+    const idSet = new Set(arr(ids));
+    function scrub(name, xs){
+      if(!Array.isArray(xs)) return;
+      for(let i=xs.length-1; i>=0; i--){
+        const id = str(xs[i]?.id || "");
+        if(idSet.has(id)){
+          removed.push({bank:name, id});
+          xs.splice(i,1);
+        }
+      }
+    }
+    try{ scrub("L1_OPS", L1_OPS); }catch(_){ }
+    try{ scrub("L1_WITNESS_OPS", L1_WITNESS_OPS); }catch(_){ }
+    if(removed.length) log("scrubbed_retired_range_ops", {removed});
+    return removed;
+  }
+  function registerAtomicSafe(id, kind, label){
+    try{
+      if(typeof registerAtomic === "function" && typeof ATOMIC_REGISTRY !== "undefined" && !ATOMIC_REGISTRY[id]){
+        registerAtomic({id, kind, label, evaluate:()=>true, phrase:()=>label});
+      }
+    }catch(_){ }
+    try{ if(typeof safeRegisterAtomic === "function") safeRegisterAtomic(id, {kind, desc:label}); }catch(_){ }
+  }
+  function opExists(id){ try{ return arr(L1_OPS).some(op => op && op.id === id); }catch(_){ return false; } }
+  function installRangeOps(){
+    try{
+      if(typeof L1_OPS === "undefined" || !Array.isArray(L1_OPS)) return;
+      scrubL1Ops(RETIRED_RANGE_OP_IDS);
+      registerAtomicSafe("explicit_range_construction", "witness", "Construct an inclusive integer range from remembered anchors");
+      registerAtomicSafe("range_witness_search", "witness", "Search all integers in a clear range for a property witness");
+      registerAtomicSafe("composite_number_predicate", "witness", "Composite number predicate");
+      const profiles = [
+        {id:"witness_range_largest_composite", mode:"largest", predIds:["composite"], minLevel:6, minM:6, anchorPairs:[["min_all","max_all"],["p1_sum","p2_sum"],["min_all","p1_sum"],["min_all","p2_sum"],["gap_max","p1_sum"],["gap_max","p2_sum"]], label:"Range witness: largest composite"},
+        {id:"witness_range_smallest_composite", mode:"smallest", predIds:["composite"], minLevel:6, minM:6, anchorPairs:[["min_all","max_all"],["p1_sum","p2_sum"],["min_all","p1_sum"],["min_all","p2_sum"]], label:"Range witness: smallest composite"},
+        {id:"witness_range_unique_prime", mode:"unique", predIds:["prime"], minLevel:6, minM:7, anchorPairs:[["min_all","max_all"],["p1_min","p2_max"],["p2_min","p1_max"],["p1_sum","p2_sum"]], label:"Range witness: unique prime"},
+        {id:"witness_range_largest_multiple", mode:"largest", predIds:["multiple3","multiple4","multiple5"], minLevel:6, minM:6, anchorPairs:[["min_all","max_all"],["p1_sum","p2_sum"],["min_all","p1_sum"],["min_all","p2_sum"],["gap_max","p1_sum"],["gap_max","p2_sum"]], label:"Range witness: largest multiple"}
+      ];
+      for(const profile of profiles){
+        if(opExists(profile.id)) continue;
+        const op = {
+          id:profile.id,
+          symmetric:true,
+          family:"witness",
+          minLevel:profile.minLevel,
+          minM:profile.minM,
+          responseFormat:"numpad_dynamic",
+          shortLabel:profile.label,
+          atomicsUsed:uniq(["witness_qualifier","explicit_range_construction","range_witness_search"].concat(profile.predIds.includes("composite") ? ["composite_number_predicate"] : [])),
+          frameTags:uniq(["class_inclusion","explicit_range","ordered_search","source_clarity","integration_load"].concat(profile.mode === "unique" ? ["uniqueness"] : [])),
+          canUse:(p1,p2,m)=>!!buildRangeInstance(p1,p2,profile,{budget:20}),
+          fn:(p1,p2,m)=>buildRangeInstance(p1,p2,profile,{budget:80})
+        };
+        L1_OPS.push(op);
+        try{ if(Array.isArray(L1_WITNESS_OPS)) L1_WITNESS_OPS.push(op); }catch(_){ }
+        try{ if(typeof migrateLegacyCatalogueEntryToSpec === "function") migrateLegacyCatalogueEntryToSpec("L1", op); }catch(_){ }
+        log("range_witness_op_added", {id:op.id});
+      }
+      // Replace the v6.8.20 retained non-prime slot with a less ambiguous composite slot.
+      if(!opExists("witness_retained_largest_composite_slot")){
+        const retainedOp = {
+          id:"witness_retained_largest_composite_slot",
+          symmetric:true,
+          family:"witness",
+          minLevel:5,
+          minM:3,
+          responseFormat:"choice",
+          shortLabel:"Retained source: largest composite slot",
+          choiceLabels:["Pair 1 LEFT", "Pair 1 RIGHT", "Pair 2 LEFT", "Pair 2 RIGHT"],
+          atomicsUsed:["witness_qualifier", "retained_value_selection", "composite_number_predicate"],
+          frameTags:["class_inclusion", "source_safe", "retained_value_selection", "ordered_search"],
+          canUse:(p1,p2)=>!!largestCompositeSlot(p1,p2),
+          fn:(p1,p2)=>{
+            const picked = largestCompositeSlot(p1,p2);
+            if(!picked) return null;
+            return {
+              correctIndex:picked.index,
+              choiceLabels:picked.slots.map(s => s.label),
+              question:"Among the four retained values, which slot held the largest composite number?",
+              distractorTypes:picked.slots.map((s,i)=> i===picked.index ? "correct" : (isCompositeLocal(s.value) ? "smaller_composite_lure" : "non_composite_lure")),
+              payload:{retainedCompositeSlot:picked},
+              witnessTelemetry:{family:"witness", opId:"witness_retained_largest_composite_slot", qualifier:"retained_largest", predicates:["composite"], anchorIds:["retained_four"], sourceSafe:true, answerSlot:picked.slot.label}
+            };
+          }
+        };
+        L1_OPS.push(retainedOp);
+        try{ if(Array.isArray(L1_WITNESS_OPS)) L1_WITNESS_OPS.push(retainedOp); }catch(_){ }
+        try{ if(typeof migrateLegacyCatalogueEntryToSpec === "function") migrateLegacyCatalogueEntryToSpec("L1", retainedOp); }catch(_){ }
+      }
+    }catch(e){ try{ if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"v6821_install_range_ops"}); }catch(_){ } }
+  }
+  function retainedSlots(p1,p2){
+    return [
+      {label:"Pair 1 LEFT", value:Number(p1?.a), pair:1, side:"left"},
+      {label:"Pair 1 RIGHT", value:Number(p1?.b), pair:1, side:"right"},
+      {label:"Pair 2 LEFT", value:Number(p2?.a), pair:2, side:"left"},
+      {label:"Pair 2 RIGHT", value:Number(p2?.b), pair:2, side:"right"}
+    ].filter(s => Number.isInteger(s.value));
+  }
+  function largestCompositeSlot(p1,p2){
+    const slots = retainedSlots(p1,p2);
+    if(slots.length !== 4) return null;
+    const hits = slots.filter(s => isCompositeLocal(s.value));
+    if(!hits.length) return null;
+    const max = Math.max(...hits.map(s => s.value));
+    const winners = hits.filter(s => s.value === max);
+    return winners.length === 1 ? {slot:winners[0], index:slots.indexOf(winners[0]), slots, max} : null;
+  }
+  function installLabels(){
+    try{
+      if(typeof L1_OP_SHORT_LABELS !== "undefined"){
+        L1_OP_SHORT_LABELS.witness_range_largest_composite = "Range witness: largest composite";
+        L1_OP_SHORT_LABELS.witness_range_smallest_composite = "Range witness: smallest composite";
+        L1_OP_SHORT_LABELS.witness_range_unique_prime = "Range witness: unique prime";
+        L1_OP_SHORT_LABELS.witness_range_largest_multiple = "Range witness: largest multiple";
+        L1_OP_SHORT_LABELS.witness_retained_largest_composite_slot = "Witness: largest composite slot";
+      }
+    }catch(_){ }
+  }
+  function rangeReviewDetails(info){
+    const rw = info?.rangeWitness || info?.payload?.rangeWitness || null;
+    const wt = info?.witnessTelemetry || {};
+    if(!rw && !(wt && wt.range)) return null;
+    const anchors = arr(rw?.anchors).length ? rw.anchors : arr(wt.anchors);
+    const lo = Number(rw?.lo ?? wt?.range?.lo);
+    const hi = Number(rw?.hi ?? wt?.range?.hi);
+    const candidates = arr(rw?.candidates).map(Number).filter(Number.isFinite);
+    const predPlural = str(rw?.predicatePlural || rw?.predicateLabel || arr(wt?.predicates)[0] || "matching values");
+    const lines = [];
+    if(anchors.length >= 2){ lines.push(`Range anchors: ${anchors[0].label} = ${anchors[0].value}; ${anchors[1].label} = ${anchors[1].value}.`); }
+    if(Number.isFinite(lo) && Number.isFinite(hi)) lines.push(`Inclusive search range: ${lo} through ${hi}.`);
+    if(candidates.length) lines.push(`${predPlural.charAt(0).toUpperCase()+predPlural.slice(1)} in that range: ${candidates.join(", ")}.`);
+    if(rw && rw.answerWasRetained === false) lines.push("The selected witness was inside the range, not one of the four retained source values.");
+    lines.push(`Rule-selected answer: ${info.answer}.`);
+    return lines.join(" ");
+  }
+  function installReviewBuilders(){
+    try{
+      if(typeof L1_REVIEW_DETAIL_BUILDERS !== "undefined"){
+        for(const id of RANGE_OP_IDS){
+          if(id === "witness_retained_largest_composite_slot") continue;
+          L1_REVIEW_DETAIL_BUILDERS[id] = ({info}) => rangeReviewDetails(info);
+        }
+        L1_REVIEW_DETAIL_BUILDERS.witness_retained_largest_composite_slot = ({info}) => {
+          const p = info?.payload?.retainedCompositeSlot;
+          if(!p) return null;
+          const all = arr(p.slots).map(s => `${s.label}=${s.value}`).join("; ");
+          return `Retained slots: ${all}. Composite values are >1 and not prime; largest composite slot: ${p.slot.label}=${p.slot.value}.`;
+        };
+      }
+    }catch(_){ }
+  }
+  function patchPostAnswerInfoRetention(){
+    // Some older dynamic L1 paths copy only answer/question/telemetry into
+    // State.trialInfo. Keep the full public range explanation available for REVIEW.
+    try{
+      const oldSetup = (typeof setupL1 === "function") ? setupL1 : null;
+      if(!oldSetup || oldSetup.__v6821RangeWitnessSetupWrapped) return;
+      const wrapped = function setupL1V6821RangeWitness(){
+        const res = oldSetup.apply(this, arguments);
+        try{
+          const info = State?.trialInfo;
+          const opId = str(info?.op?.id || info?.catId || info?.opId || "");
+          if(RANGE_OP_IDS.includes(opId) && info && !info.rangeWitness && info.witnessTelemetry?.range){
+            info.rangeWitness = {lo:info.witnessTelemetry.range.lo, hi:info.witnessTelemetry.range.hi, candidates:[], predicateLabel:arr(info.witnessTelemetry.predicates)[0] || "matching value"};
+          }
+        }catch(_){ }
+        return res;
+      };
+      wrapped.__v6821RangeWitnessSetupWrapped = true;
+      setupL1 = wrapped;
+      try{ window.setupL1 = wrapped; globalThis.setupL1 = wrapped; }catch(_){ }
+    }catch(_){ }
+  }
+  function invalidatePrepared(){
+    try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+    try{ if(typeof REGISTRY_LAYER_ENTRIES_CACHE !== "undefined" && REGISTRY_LAYER_ENTRIES_CACHE){ REGISTRY_LAYER_ENTRIES_CACHE.sig = ""; REGISTRY_LAYER_ENTRIES_CACHE.rows = {}; } }catch(_){ }
+    try{ if(typeof invalidatePreparedTrial === "function") invalidatePreparedTrial("v6821_range_witness_clarity"); else if(State){ State.nextTrialPrepared = null; State.nextTrialPrepareInFlight = false; } }catch(_){ }
+  }
+  function install(){
+    installRangeOps();
+    installLabels();
+    installReviewBuilders();
+    patchPostAnswerInfoRetention();
+    invalidatePrepared();
+  }
+  function auditV6821RangeWitnessClarity(){
+    const block = [], warnings = [];
+    install();
+    try{
+      const ids = arr(typeof L1_OPS !== "undefined" ? L1_OPS : []).map(op => op && op.id).filter(Boolean);
+      for(const id of ["witness_negative_largest", "witness_lower_boundary", "witness_upper_boundary", "witness_retained_largest_nonprime_slot"]){
+        if(ids.includes(id)) block.push(`retired ambiguous witness still sampled: ${id}`);
+      }
+      for(const id of RANGE_OP_IDS){ if(!ids.includes(id)) block.push(`missing refined range/source witness op: ${id}`); }
+    }catch(e){ block.push("could not inspect L1_OPS: " + str(e?.message || e)); }
+    try{
+      const inst = buildRangeInstance({a:2,b:5},{a:3,b:8},{id:"witness_range_largest_composite", mode:"largest", predIds:["composite"], anchorPairs:[["min_all","max_all"]]}, {budget:1, anchorPair:["min_all","max_all"], predId:"composite"});
+      if(!inst) block.push("deterministic largest-composite range witness failed to build");
+      else{
+        if(inst.answer !== 8) block.push(`largest-composite expected 8, got ${inst.answer}`);
+        if(!/search every whole number/i.test(inst.question) || !/not one of the four retained numbers/i.test(inst.question)) block.push("range prompt does not spell out exhaustive interval search");
+        if(/\([0-9]+\)/.test(inst.question) || /\b[0-9]+–[0-9]+\b/.test(inst.question)) block.push("range prompt leaks hidden numeric endpoints instead of anchor labels");
+        if(/non-prime/i.test(inst.question)) block.push("range prompt still uses ambiguous non-prime wording");
+      }
+    }catch(e){ block.push("largest-composite smoke threw: " + str(e?.message || e)); }
+    try{
+      const inst = buildRangeInstance({a:2,b:6},{a:5,b:6},{id:"witness_range_unique_prime", mode:"unique", predIds:["prime"], anchorPairs:[["p1_sum","p2_sum"]]}, {budget:1, anchorPair:["p1_sum","p2_sum"], predId:"prime"});
+      if(!inst || inst.answer !== 11) block.push("unique-prime range witness failed deterministic smoke test");
+    }catch(e){ block.push("unique-prime smoke threw: " + str(e?.message || e)); }
+    try{
+      const retained = largestCompositeSlot({a:2,b:4},{a:5,b:9});
+      if(!retained || retained.index !== 3) block.push("retained largest composite slot smoke failed");
+      if(largestCompositeSlot({a:2,b:3},{a:5,b:7})) block.push("all-prime retained slots should withhold composite slot");
+    }catch(e){ block.push("retained composite smoke threw: " + str(e?.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_ID), patch:PATCH_ID, warnings, block});
+  }
+  function boot(){ try{ install(); }catch(e){ try{ if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"v6821_boot"}); }catch(_){ } } }
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot, 0); setTimeout(boot, 350); setTimeout(boot, 1200);
+    } else boot();
+  }catch(_){ }
+  try{
+    window.auditV6821RangeWitnessClarity = auditV6821RangeWitnessClarity;
+    globalThis.auditV6821RangeWitnessClarity = auditV6821RangeWitnessClarity;
+    window.EUCA_V6821_RANGE_WITNESS_CLARITY = {patch:PATCH_ID, audit:auditV6821RangeWitnessClarity};
+    globalThis.EUCA_V6821_RANGE_WITNESS_CLARITY = window.EUCA_V6821_RANGE_WITNESS_CLARITY;
+  }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6821RangeWitnessClarityWrapped){
+      const wrappedRun = function runFeatureAuditV6821(feature, opts={}){
+        const key = lowerKey(feature);
+        if(["v6821", "v6_8_21", "range_witness_clarity", "witness_range_refinement", "range_questions", "range_witness"].includes(key)) return auditV6821RangeWitnessClarity(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrappedRun.__v6821RangeWitnessClarityWrapped = true;
       try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; }catch(_){ }
       try{ runFeatureAudit = wrappedRun; }catch(_){ }
     }
