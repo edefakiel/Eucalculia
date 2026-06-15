@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.23-visual-epistemic-reconfiguration</title>
+<title>Eucalculia v6.8.27-venn-gate-coverage-clarity</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.23-visual-epistemic-reconfiguration";
+const APP_VERSION = "v6.8.27-venn-gate-coverage-clarity";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -83218,7 +83218,7 @@ try{
     try{
       if(typeof CONFIG === "object" && CONFIG){
         if(CONFIG.generativeInlineEnabled === undefined) CONFIG.generativeInlineEnabled = true;
-        if(CONFIG.generativeInlineProbability === undefined) CONFIG.generativeInlineProbability = 0.10;
+        if(CONFIG.generativeInlineProbability === undefined) CONFIG.generativeInlineProbability = 0.12;
         if(CONFIG.generativeInlineMinDLevel === undefined) CONFIG.generativeInlineMinDLevel = 3;
         if(CONFIG.generativeInlineCooldownTrials === undefined) CONFIG.generativeInlineCooldownTrials = 5;
         if(CONFIG.generativeInlineMaxPerBlock === undefined) CONFIG.generativeInlineMaxPerBlock = 3;
@@ -83226,7 +83226,7 @@ try{
         if(CONFIG.generativeDualLauncher === undefined) CONFIG.generativeDualLauncher = false;
         if(CONFIG.generativeInlineDualMinDLevel === undefined) CONFIG.generativeInlineDualMinDLevel = 5;
         if(CONFIG.generativeInlineDualShare === undefined) CONFIG.generativeInlineDualShare = 0.35;
-        if(CONFIG.generativeInlineDailyDose === undefined) CONFIG.generativeInlineDailyDose = 6;
+        if(CONFIG.generativeInlineDailyDose === undefined) CONFIG.generativeInlineDailyDose = 8;
       }
     }catch(_){}
     try{ if(typeof VALID_PENDING_PANELS !== "undefined" && VALID_PENDING_PANELS && typeof VALID_PENDING_PANELS.add === "function") VALID_PENDING_PANELS.add("genpair"); }catch(_){}
@@ -84214,9 +84214,9 @@ try{
       if(typeof CONFIG === "object" && CONFIG){
         if(CONFIG.generativeL1InlineEnabled === undefined) CONFIG.generativeL1InlineEnabled = true;
         if(CONFIG.generativeL1InlineMinDLevel === undefined) CONFIG.generativeL1InlineMinDLevel = 5;
-        if(CONFIG.generativeL1InlineProbability === undefined) CONFIG.generativeL1InlineProbability = 0.18;
-        if(CONFIG.generativeL1InlineCooldownTrials === undefined) CONFIG.generativeL1InlineCooldownTrials = 10;
-        if(CONFIG.generativeL1InlineMaxPerBlock === undefined) CONFIG.generativeL1InlineMaxPerBlock = 1;
+        if(CONFIG.generativeL1InlineProbability === undefined) CONFIG.generativeL1InlineProbability = 0.22;
+        if(CONFIG.generativeL1InlineCooldownTrials === undefined) CONFIG.generativeL1InlineCooldownTrials = 8;
+        if(CONFIG.generativeL1InlineMaxPerBlock === undefined) CONFIG.generativeL1InlineMaxPerBlock = 2;
         if(CONFIG.nutrientSchedulerEnabled === undefined) CONFIG.nutrientSchedulerEnabled = true;
         if(CONFIG.nutrientWindowSize === undefined) CONFIG.nutrientWindowSize = 40;
         if(CONFIG.nutrientForceMissingAfter === undefined) CONFIG.nutrientForceMissingAfter = 18;
@@ -84334,34 +84334,107 @@ try{
   const gap = p => Math.abs(Number(p?.a) - Number(p?.b));
   const sum = p => Number(p?.a) + Number(p?.b);
   function allValues(p1,p2){ return [p1.a,p1.b,p2.a,p2.b].map(Number); }
+  function pairValues(p){ return [Number(p?.a), Number(p?.b)]; }
+  function isWhole(n){ return Number.isInteger(Number(n)); }
+  function isOdd(n){ n = Number(n); return isWhole(n) && Math.abs(n % 2) === 1; }
+  function isEven(n){ n = Number(n); return isWhole(n) && n % 2 === 0; }
+  function isPrimeSmall(n){
+    n = Number(n);
+    if(!Number.isInteger(n) || n < 2) return false;
+    for(let d = 2; d * d <= n; d++) if(n % d === 0) return false;
+    return true;
+  }
+  function isCompositeSmall(n){ n = Number(n); return Number.isInteger(n) && n > 1 && !isPrimeSmall(n); }
+  function countBy(arr, pred){ let k = 0; for(const x of arr) if(pred(x)) k++; return k; }
+  function exactlyOne(arr, pred){ return countBy(arr, pred) === 1; }
+  function both(arr, pred){ return arr.length > 0 && arr.every(pred); }
+  function neither(arr, pred){ return arr.every(x => !pred(x)); }
+  function oneDividesOtherPair(p){
+    const a = Number(p?.a), b = Number(p?.b);
+    if(!Number.isInteger(a) || !Number.isInteger(b) || a <= 0 || b <= 0) return false;
+    return (a % b === 0) || (b % a === 0);
+  }
+  function shiftedPair(p, d){ return {a:Number(p?.a) + d, b:Number(p?.b) + d}; }
+  function doubledPair(p){ return {a:Number(p?.a) * 2, b:Number(p?.b) * 2}; }
+  function samePair(p, q){ return Number(p?.a) === Number(q?.a) && Number(p?.b) === Number(q?.b); }
+  function valuesWithinCap(p, cap){ return [p.a,p.b].every(v => Number.isInteger(Number(v)) && v >= 1 && v <= cap); }
+  function rangeInts(a, b){
+    a = Math.floor(Number(a)); b = Math.floor(Number(b));
+    const lo = Math.min(a,b), hi = Math.max(a,b), out = [];
+    for(let x = lo; x <= hi; x++) out.push(x);
+    return out;
+  }
+  function constructionQualityScore(p1, p2){
+    const vals = allValues(p1,p2);
+    const distinct = new Set(vals).size;
+    const nonOne = vals.filter(v => v > 1).length;
+    const hasOdd = vals.some(isOdd) ? 1 : 0;
+    const hasEven = vals.some(isEven) ? 1 : 0;
+    const g = (gap(p1) > 0 ? 1 : 0) + (gap(p2) > 0 ? 1 : 0);
+    const variedSums = sum(p1) !== sum(p2) ? 1 : 0;
+    return distinct * 2 + nonOne + hasOdd + hasEven + g + variedSums;
+  }
+  const _l1ConstructiveExampleCache = new Map();
   function findL1Example(task, cap){
     cap = Math.max(2, Math.floor(Number(cap) || 8));
+    const cacheKey = `${task?.id || "unknown"}|${cap}|${JSON.stringify(task?.params || {})}`;
+    const cached = _l1ConstructiveExampleCache.get(cacheKey);
+    if(cached !== undefined) return cached;
+    let best = null, bestScore = -Infinity;
     for(let a=1;a<=cap;a++) for(let b=1;b<=cap;b++) for(let c=1;c<=cap;c++) for(let d=1;d<=cap;d++){
       const p1={a,b}, p2={a:c,b:d};
-      try{ if(task.verify(p1,p2)) return {p1,p2}; }catch(_){ }
+      try{
+        if(task.verify(p1,p2)){
+          const score = constructionQualityScore(p1,p2);
+          if(score > bestScore){ best = {p1,p2}; bestScore = score; }
+          if(score >= 13) return best;
+        }
+      }catch(_){ }
     }
-    return null;
+    if(_l1ConstructiveExampleCache.size > 160) _l1ConstructiveExampleCache.clear();
+    _l1ConstructiveExampleCache.set(cacheKey, best);
+    return best;
   }
 
   function verifyL1ConstructiveTask(info, p1, p2){
     const taskId = info?.l1Constructive?.taskId;
     const params = info?.l1Constructive?.params || {};
+    const vals = allValues(p1,p2);
     if(taskId === "l1_gap_total"){
       const target = Math.max(1, Math.floor(Number(params.targetGapTotal) || 6));
       return gap(p1) > 0 && gap(p2) > 0 && gap(p1) + gap(p2) === target;
     }
     if(taskId === "l1_only_claim_b") return !(sum(p1) > sum(p2)) && (gap(p1) < gap(p2));
     if(taskId === "l1_cross_extremes"){
-      const vals = allValues(p1,p2), mn = Math.min(...vals), mx = Math.max(...vals);
+      const mn = Math.min(...vals), mx = Math.max(...vals);
       return (p1.a === mn || p1.b === mn) && !(p2.a === mn || p2.b === mn) && (p2.a === mx || p2.b === mx) && !(p1.a === mx || p1.b === mx);
     }
     if(taskId === "l1_same_gap_different_total") return gap(p1) > 0 && gap(p1) === gap(p2) && sum(p1) !== sum(p2);
+    if(taskId === "l1_same_total_different_gap") return sum(p1) === sum(p2) && gap(p1) !== gap(p2);
+    if(taskId === "l1_exactly_two_primes") return countBy(vals, isPrimeSmall) === 2;
+    if(taskId === "l1_each_pair_exactly_one_odd") return exactlyOne(pairValues(p1), isOdd) && exactlyOne(pairValues(p2), isOdd);
+    if(taskId === "l1_pair1_both_even_pair2_neither_even") return both(pairValues(p1), isEven) && neither(pairValues(p2), isEven);
+    if(taskId === "l1_same_total_opposite_parity_patterns") return sum(p1) === sum(p2) && both(pairValues(p1), isOdd) && both(pairValues(p2), isEven);
+    if(taskId === "l1_prime_then_composite_exactly_one") return exactlyOne(pairValues(p1), isPrimeSmall) && exactlyOne(pairValues(p2), isCompositeSmall);
+    if(taskId === "l1_divisibility_switch_plus1") return samePair(p2, shiftedPair(p1, 1)) && !oneDividesOtherPair(p1) && oneDividesOtherPair(p2);
+    if(taskId === "l1_divisibility_preserve_double_no") return samePair(p2, doubledPair(p1)) && !oneDividesOtherPair(p1) && !oneDividesOtherPair(p2);
+    if(taskId === "l1_epistemic_left_witness_odd") return p1.a === p2.a && p1.b !== p2.b && isOdd(p1.a) && (isOdd(p1.a) || isOdd(p1.b)) && (isOdd(p2.a) || isOdd(p2.b));
+    if(taskId === "l1_epistemic_left_ambiguous_both_even") return p1.a === p2.a && p1.b !== p2.b && isEven(p1.a) && (both(pairValues(p1), isEven) !== both(pairValues(p2), isEven));
+    if(taskId === "l1_same_left_opposite_greater") return p1.a === p2.a && p1.b !== p2.b && ((p1.a > p1.b) !== (p2.a > p2.b));
+    if(taskId === "l1_range_totals_single_composite"){
+      const r = rangeInts(sum(p1), sum(p2));
+      return sum(p1) !== sum(p2) && r.length >= 3 && r.length <= 6 && countBy(r, isCompositeSmall) === 1;
+    }
+    if(taskId === "l1_range_totals_two_primes_with_composite"){
+      const r = rangeInts(sum(p1), sum(p2));
+      return sum(p1) !== sum(p2) && r.length >= 4 && r.length <= 7 && countBy(r, isPrimeSmall) === 2 && countBy(r, isCompositeSmall) >= 1;
+    }
     return false;
   }
 
   function buildL1ConstructivePayload(opts={}){
     const cap = Math.max(6, Math.min(12, Math.floor(Number(opts.cap || l1Cap()) || 8)));
-    const targetGapTotal = Math.max(3, Math.min(Math.max(4, cap), 3 + Math.floor(Math.random()*Math.min(6, cap))));
+    const targetGapTotal = Math.max(3, Math.min(Math.max(4, cap + 2), 3 + Math.floor(Math.random()*Math.min(7, cap + 1))));
     const tasks = [
       {
         id:"l1_gap_total",
@@ -84383,13 +84456,8 @@ try{
         title:"Put the minimum in Pair 1 and the maximum in Pair 2",
         question:"Build two pairs so the smallest of all four values is in Pair 1 and the largest of all four values is in Pair 2.",
         verify:(p1,p2)=>{
-          const vals = allValues(p1,p2);
-          const mn = Math.min(...vals), mx = Math.max(...vals);
-          const p1HasMin = p1.a === mn || p1.b === mn;
-          const p2HasMin = p2.a === mn || p2.b === mn;
-          const p1HasMax = p1.a === mx || p1.b === mx;
-          const p2HasMax = p2.a === mx || p2.b === mx;
-          return p1HasMin && !p2HasMin && p2HasMax && !p1HasMax;
+          const vals = allValues(p1,p2), mn = Math.min(...vals), mx = Math.max(...vals);
+          return (p1.a === mn || p1.b === mn) && !(p2.a === mn || p2.b === mn) && (p2.a === mx || p2.b === mx) && !(p1.a === mx || p1.b === mx);
         },
         atomics:["generative_l1", "role_larger", "role_smaller", "retained_pair_binding"]
       },
@@ -84399,6 +84467,97 @@ try{
         question:"Build two pairs with the same gap but different totals.",
         verify:(p1,p2)=> gap(p1) > 0 && gap(p1) === gap(p2) && sum(p1) !== sum(p2),
         atomics:["generative_l1", "metric_gap_distance", "metric_sum_total", "comparison_equal"]
+      },
+      {
+        id:"l1_same_total_different_gap",
+        title:"Same total, different gaps",
+        question:"Build two pairs with the same total but different gaps.",
+        verify:(p1,p2)=> sum(p1) === sum(p2) && gap(p1) !== gap(p2),
+        atomics:["generative_l1", "metric_sum_total", "metric_gap_distance", "counterexample_construction"]
+      },
+      {
+        id:"l1_exactly_two_primes",
+        title:"Exactly two primes across four values",
+        question:"Build two pairs so exactly two of the four values are prime.",
+        verify:(p1,p2)=> countBy(allValues(p1,p2), isPrimeSmall) === 2,
+        atomics:["generative_l1", "quantifier_scope", "prime", "four_value_filter"]
+      },
+      {
+        id:"l1_each_pair_exactly_one_odd",
+        title:"Each pair has exactly one odd value",
+        question:"Build two pairs so Pair 1 has exactly one odd value and Pair 2 also has exactly one odd value.",
+        verify:(p1,p2)=> exactlyOne(pairValues(p1), isOdd) && exactlyOne(pairValues(p2), isOdd),
+        atomics:["generative_l1", "quantifier_scope", "parity", "exactly_one"]
+      },
+      {
+        id:"l1_pair1_both_even_pair2_neither_even",
+        title:"Pair 1 both even; Pair 2 neither even",
+        question:"Build two pairs so Pair 1 has BOTH values even and Pair 2 has NEITHER value even.",
+        verify:(p1,p2)=> both(pairValues(p1), isEven) && neither(pairValues(p2), isEven),
+        atomics:["generative_l1", "quantifier_scope", "both", "neither", "parity"]
+      },
+      {
+        id:"l1_same_total_opposite_parity_patterns",
+        title:"Same total with opposite parity pattern",
+        question:"Build two pairs with the same total: Pair 1 must be odd + odd, and Pair 2 must be even + even.",
+        verify:(p1,p2)=> sum(p1) === sum(p2) && both(pairValues(p1), isOdd) && both(pairValues(p2), isEven),
+        atomics:["generative_l1", "parity", "metric_sum_total", "structural_contrast"]
+      },
+      {
+        id:"l1_prime_then_composite_exactly_one",
+        title:"Prime exact-one, composite exact-one",
+        question:"Build two pairs so Pair 1 has exactly one prime value and Pair 2 has exactly one composite value.",
+        verify:(p1,p2)=> exactlyOne(pairValues(p1), isPrimeSmall) && exactlyOne(pairValues(p2), isCompositeSmall),
+        atomics:["generative_l1", "exactly_one", "prime", "composite", "semantic_transfer"]
+      },
+      {
+        id:"l1_divisibility_switch_plus1",
+        title:"Adding 1 switches divisibility to YES",
+        question:"Build Pair 1 and Pair 2 so Pair 2 is Pair 1 with 1 added to both values, and 'one value divides the other exactly' changes from NO to YES.",
+        verify:(p1,p2)=> samePair(p2, shiftedPair(p1, 1)) && valuesWithinCap(p2, cap) && !oneDividesOtherPair(p1) && oneDividesOtherPair(p2),
+        atomics:["generative_l1", "transformation_effect", "divisibility", "truth_switch"]
+      },
+      {
+        id:"l1_divisibility_preserve_double_no",
+        title:"Doubling preserves a NO divisibility answer",
+        question:"Build Pair 1 and Pair 2 so Pair 2 doubles both Pair 1 values, and 'one value divides the other exactly' stays NO.",
+        verify:(p1,p2)=> samePair(p2, doubledPair(p1)) && valuesWithinCap(p2, cap) && !oneDividesOtherPair(p1) && !oneDividesOtherPair(p2),
+        atomics:["generative_l1", "transformation_effect", "divisibility", "truth_preservation"]
+      },
+      {
+        id:"l1_epistemic_left_witness_odd",
+        title:"LEFT alone is a YES witness",
+        question:"Build two pairs with the same LEFT value but different RIGHT values, so 'at least one value is odd' is YES no matter which RIGHT was hidden.",
+        verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && isOdd(p1.a) && (isOdd(p1.a) || isOdd(p1.b)) && (isOdd(p2.a) || isOdd(p2.b)),
+        atomics:["generative_l1", "epistemic_sufficiency", "witness", "parity"]
+      },
+      {
+        id:"l1_epistemic_left_ambiguous_both_even",
+        title:"LEFT alone is not enough",
+        question:"Build two pairs with the same LEFT value but different RIGHT values, so 'both values are even' is YES for one pair and NO for the other.",
+        verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && isEven(p1.a) && (both(pairValues(p1), isEven) !== both(pairValues(p2), isEven)),
+        atomics:["generative_l1", "epistemic_ambiguity", "possible_worlds", "parity"]
+      },
+      {
+        id:"l1_same_left_opposite_greater",
+        title:"Same LEFT, opposite comparison answer",
+        question:"Build two pairs with the same LEFT value but different RIGHT values, so 'LEFT is greater than RIGHT' is YES for one pair and NO for the other.",
+        verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && ((p1.a > p1.b) !== (p2.a > p2.b)),
+        atomics:["generative_l1", "epistemic_ambiguity", "comparison", "possible_worlds"]
+      },
+      {
+        id:"l1_range_totals_single_composite",
+        title:"Totals define a range with one composite",
+        question:"Build two pairs whose totals define an inclusive range containing exactly one composite number. The inclusive range must contain 3 to 6 integers.",
+        verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 3 && r.length <= 6 && countBy(r, isCompositeSmall) === 1; },
+        atomics:["generative_l1", "range_witness", "composite", "interval_scan"]
+      },
+      {
+        id:"l1_range_totals_two_primes_with_composite",
+        title:"Totals define a range with two primes and a composite",
+        question:"Build two pairs whose totals define an inclusive range containing exactly two primes and at least one composite number. The inclusive range must contain 4 to 7 integers.",
+        verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 4 && r.length <= 7 && countBy(r, isPrimeSmall) === 2 && countBy(r, isCompositeSmall) >= 1; },
+        atomics:["generative_l1", "range_witness", "prime", "composite", "interval_scan"]
       }
     ];
     let pool = tasks.map(t => ({...t, example:findL1Example(t, cap)})).filter(t => t.example);
@@ -84408,8 +84567,44 @@ try{
       const fresh = pool.filter(t => !recent.includes(t.id));
       if(fresh.length) pool = fresh;
     }catch(_){ }
+    try{
+      const byTask = State?.productionMonitor?.l1Generative?.byTask || {};
+      const weights = pool.map(t => 1 / (1 + Math.max(0, Number(byTask[t.id]?.n) || 0)));
+      const total = weights.reduce((a,b)=>a+b,0);
+      let r = Math.random() * total;
+      for(let i=0; i<pool.length; i++){ r -= weights[i]; if(r <= 0) return {task:pool[i], cap, prompt:pool[i].question}; }
+    }catch(_){ }
     const task = pool[Math.floor(Math.random()*pool.length)];
     return {task, cap, prompt:task.question};
+  }
+
+  function l1ConstructiveTaskReviewText(info){
+    const id = info?.l1Constructive?.taskId || "";
+    const pairs = Array.isArray(info?.pairs) ? info.pairs : [];
+    const p1 = pairs[0]?.pair || null, p2 = pairs[1]?.pair || null;
+    if(!p1 || !p2) return "No complete construction was recorded.";
+    const vals = allValues(p1,p2);
+    const base = `Pair 1 LEFT ${p1.a}, RIGHT ${p1.b}; Pair 2 LEFT ${p2.a}, RIGHT ${p2.b}.`;
+    if(id === "l1_gap_total") return `${base} Gaps: ${gap(p1)} and ${gap(p2)}; total gap ${gap(p1)+gap(p2)}.`;
+    if(id === "l1_only_claim_b") return `${base} Claim A total comparison: ${sum(p1)} > ${sum(p2)} is ${sum(p1)>sum(p2)?"YES":"NO"}. Claim B gap comparison: ${gap(p1)} < ${gap(p2)} is ${gap(p1)<gap(p2)?"YES":"NO"}.`;
+    if(id === "l1_cross_extremes") return `${base} All four values: ${vals.join(", ")}; minimum ${Math.min(...vals)}, maximum ${Math.max(...vals)}.`;
+    if(id === "l1_same_gap_different_total") return `${base} Gaps: ${gap(p1)} and ${gap(p2)}. Totals: ${sum(p1)} and ${sum(p2)}.`;
+    if(id === "l1_same_total_different_gap") return `${base} Totals: ${sum(p1)} and ${sum(p2)}. Gaps: ${gap(p1)} and ${gap(p2)}.`;
+    if(id === "l1_exactly_two_primes") return `${base} Prime values among the four: ${countBy(vals, isPrimeSmall)}.`;
+    if(id === "l1_each_pair_exactly_one_odd") return `${base} Odd counts: Pair 1 = ${countBy(pairValues(p1), isOdd)}, Pair 2 = ${countBy(pairValues(p2), isOdd)}.`;
+    if(id === "l1_pair1_both_even_pair2_neither_even") return `${base} Pair 1 even count ${countBy(pairValues(p1), isEven)}; Pair 2 even count ${countBy(pairValues(p2), isEven)}.`;
+    if(id === "l1_same_total_opposite_parity_patterns") return `${base} Totals: ${sum(p1)} and ${sum(p2)}; parity patterns: Pair 1 ${pairValues(p1).map(v=>isOdd(v)?"odd":"even").join(" + ")}, Pair 2 ${pairValues(p2).map(v=>isOdd(v)?"odd":"even").join(" + ")}.`;
+    if(id === "l1_prime_then_composite_exactly_one") return `${base} Pair 1 prime count ${countBy(pairValues(p1), isPrimeSmall)}; Pair 2 composite count ${countBy(pairValues(p2), isCompositeSmall)}.`;
+    if(id === "l1_divisibility_switch_plus1") return `${base} Pair 2 should be Pair 1 + 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
+    if(id === "l1_divisibility_preserve_double_no") return `${base} Pair 2 should double Pair 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
+    if(id === "l1_epistemic_left_witness_odd") return `${base} LEFT is the same and odd, so it is already a YES witness for 'at least one odd'.`;
+    if(id === "l1_epistemic_left_ambiguous_both_even") return `${base} Same LEFT, but the hidden RIGHT changes whether BOTH values are even.`;
+    if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT, but changing RIGHT flips whether LEFT > RIGHT.`;
+    if(id === "l1_range_totals_single_composite" || id === "l1_range_totals_two_primes_with_composite"){
+      const r = rangeInts(sum(p1), sum(p2));
+      return `${base} Totals ${sum(p1)} and ${sum(p2)} define range ${r[0]}–${r[r.length-1]}; primes ${countBy(r, isPrimeSmall)}, composites ${countBy(r, isCompositeSmall)}.`;
+    }
+    return base;
   }
 
   function shouldStartL1Constructive(attempt, forcedLevel){
@@ -84419,6 +84614,11 @@ try{
       if(attempt !== 0 || forcedLevel !== null) return false;
       if(!State || !State.running || State.paused) return false;
       if(State.mode !== "D" || State.modeChoice !== "auto") return false;
+      try{
+        const plans = (typeof ensureMetaMemoryPlans === "function") ? ensureMetaMemoryPlans() : null;
+        if(plans && Object.values(plans).some(p => p && (p.active || p.due || p.pending))) return false;
+      }catch(_){ }
+      try{ if(typeof shouldExtendBlockForMetaMemory === "function" && shouldExtendBlockForMetaMemory()) return false; }catch(_){ }
       const level = Math.max(0, Number(State.levelByMode?.D || 0));
       if(level < Math.max(0, Number(CONFIG.generativeL1InlineMinDLevel || 5))) return false;
       const blockTrial = Math.max(0, Number(State.blockTrials || 0));
@@ -84545,7 +84745,10 @@ try{
         const mon = State.productionMonitor || (State.productionMonitor = {});
         const lg = mon.l1Generative || (mon.l1Generative = {shown:0, correct:0, recentTasks:[]});
         lg.last = {taskId, correct, pairs:info.pairs.slice(), ts:Date.now()};
-        if(correct) lg.correct = (lg.correct || 0) + 1;
+        lg.byTask = lg.byTask || {};
+        const tr = lg.byTask[taskId] || (lg.byTask[taskId] = {n:0,c:0});
+        tr.n = (tr.n || 0) + 1;
+        if(correct){ lg.correct = (lg.correct || 0) + 1; tr.c = (tr.c || 0) + 1; }
       }catch(_){ }
       // v6.8.3: before delegating to the core answer pipeline, leave the
       // genl1pair pending panel. This makes the call robust even if the
@@ -84574,14 +84777,15 @@ try{
       drawMetaScreen();
       const pairs = Array.isArray(info.pairs) ? info.pairs : [];
       const pairText = pairs.map(p => `Pair ${p.phase}: LEFT ${p.pair?.a}, RIGHT ${p.pair?.b}`).join(". ") || "No pairs recorded.";
+      const diagnostic = (typeof l1ConstructiveTaskReviewText === "function") ? l1ConstructiveTaskReviewText(info) : `Your construction: ${pairText}.`;
       let example = "";
       const ex = info.l1Constructive?.example;
       if(ex && ex.p1 && ex.p2) example = ` Example: Pair 1 LEFT ${ex.p1.a}, RIGHT ${ex.p1.b}; Pair 2 LEFT ${ex.p2.a}, RIGHT ${ex.p2.b}.`;
       drawReviewCard({
-        label:"L1 REVIEW · CONSTRUCT TWO PAIRS",
+        label:"L1 REVIEW · GENERATIVE CONSTRUCTION",
         question:info.question || "Build a two-pair configuration.",
-        details:`Your construction: ${pairText}.${example}`,
-        answer:info.constructiveVerdict === "matched_target" ? "Correct: the two pairs satisfy the target." : "Correct: build two pairs that satisfy the stated target.",
+        details:`${diagnostic}${example}`,
+        answer:info.constructiveVerdict === "matched_target" ? "Correct: your construction satisfies the target." : "Correct: build two pairs that satisfy the stated target.",
         color:"#ff9f43"
       });
       drawInstructionalReviewTip(info);
@@ -90592,6 +90796,1713 @@ try{
   }catch(e){ warn("audit hook failed", e); }
   try{ if(typeof State === "object" && State) State.nextTrialPrepared = null; }catch(_){ }
   try{ if(typeof window !== "undefined") window.EUCA_V6823_VISUAL_EPISTEMIC_RECONFIGURATION = {patch:PATCH_ID, visualCatsPatchedV6823b}; }catch(_){ }
+})();
+</script>
+
+<script>
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.24-generative-construction-expansion";
+  const REQUIRED_TASKS = [
+    "l1_same_total_different_gap",
+    "l1_exactly_two_primes",
+    "l1_each_pair_exactly_one_odd",
+    "l1_pair1_both_even_pair2_neither_even",
+    "l1_divisibility_switch_plus1",
+    "l1_divisibility_preserve_double_no",
+    "l1_epistemic_left_witness_odd",
+    "l1_epistemic_left_ambiguous_both_even",
+    "l1_same_left_opposite_greater",
+    "l1_range_totals_single_composite"
+  ];
+  function auditResultLocal(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {ok:status === "PASS", status, details};
+  }
+  function appVersion(){ try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){} try{ return APP_VERSION; }catch(_){} return PATCH_ID; }
+  function buildPayload(opts){
+    try{
+      const h = window.EUCA_V681_GENERATIVE_L1_NUTRIENTS || window.EUCA_V683_L1_AUTOSUBMIT_UI;
+      if(h && typeof h.buildL1Payload === "function") return h.buildL1Payload(opts || {});
+    }catch(_){ }
+    return null;
+  }
+  function auditV6824GenerativeConstructionExpansion(opts={}){
+    const block = [], warnings = [];
+    const seen = new Set();
+    const samples = [];
+    try{
+      const tries = Math.max(80, Number(opts.tries || 420));
+      for(let i=0; i<tries; i++){
+        const p = buildPayload({cap:10});
+        const id = p?.task?.id;
+        if(id){
+          seen.add(id);
+          if(samples.length < 24) samples.push({id, question:p.task.question, example:p.task.example});
+          if(!p.task.example || !p.task.example.p1 || !p.task.example.p2) block.push(`${id}: missing constructive example`);
+        }
+      }
+      if(!seen.size) block.push("no L1 generative construction payloads built");
+      const missing = REQUIRED_TASKS.filter(id => !seen.has(id));
+      if(missing.length) block.push(`new constructive tasks not reachable in sample: ${missing.join(",")}`);
+      if(seen.size < 12) warnings.push(`constructive task variety low in sample: ${seen.size}`);
+      try{
+        if(typeof CONFIG === "object" && CONFIG){
+          if(Number(CONFIG.generativeL1InlineMaxPerBlock || 0) < 2) warnings.push("generativeL1InlineMaxPerBlock below 2; expansion may feel rare");
+          if(Number(CONFIG.generativeInlineDailyDose || 0) < 8) warnings.push("generativeInlineDailyDose below 8");
+        }
+      }catch(_){ }
+    }catch(e){ block.push("v6.8.24 audit exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:appVersion(), patch:PATCH_ID, seen:Array.from(seen).sort(), samples, warnings, block});
+  }
+  try{ window.auditV6824GenerativeConstructionExpansion = auditV6824GenerativeConstructionExpansion; }catch(_){ }
+  try{
+    const prev = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prev && !prev.__v6824GenerativeExpansionWrapped){
+      const wrapped = function runFeatureAuditV6824GenerativeExpansion(feature, opts){
+        const key = String(feature || "").toLowerCase().replace(/[-\s]+/g,"_");
+        if(["v6824", "v6_8_24", "generative_construction_expansion", "more_generative_tasks"].includes(key)) return auditV6824GenerativeConstructionExpansion(opts || {});
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v6824GenerativeExpansionWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+      try{ runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+<script>
+// ============================================================================
+// v6.8.26: Safe version-space induction expansion
+// -----------------------------------------------------------------------------
+// Adds a compact constructive-induction layer without adding menus or visible
+// meta labels. It separates single witness, counterexample, dual contrast,
+// minimal flip, progressive alignment, closed-family hidden-rule induction,
+// discriminator construction, threshold bracketing and compositional induction;
+// tracks a Klauer-style comparison grid silently; and keeps the older
+// single-pair constructive path less dual-heavy.
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.26-safe-induction-expansion";
+  const AUDIT_NAMES = new Set(["v6826", "v6_8_25", "inductive_generative_architecture", "generative_induction", "klauer_grid", "safe_induction", "version_space_induction"]);
+
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {status, details}; }
+  function appVersion(){ try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){ } try{ if(typeof APP_VERSION !== "undefined") return APP_VERSION; }catch(_){ } return PATCH_ID; }
+  function normKey(s){ return String(s || "").toLowerCase().replace(/[\s-]+/g, "_"); }
+  function nowMs(){ try{ return Date.now(); }catch(_){ return 0; } }
+
+  const Induct = {
+    activeSide:"a",
+    chosen:{a:null,b:null},
+    cap:8,
+    blockCount:0,
+    lastBlockTrial:-99,
+    prevProcessInput:null,
+    prevStartHook:null
+  };
+
+  function installConfig(){
+    try{
+      if(typeof CONFIG === "object" && CONFIG){
+        CONFIG.inductiveConstructiveEnabled = CONFIG.inductiveConstructiveEnabled !== false;
+        if(CONFIG.inductiveConstructiveMinDLevel === undefined) CONFIG.inductiveConstructiveMinDLevel = 4;
+        if(CONFIG.inductiveConstructiveProbability === undefined) CONFIG.inductiveConstructiveProbability = 0.16;
+        if(CONFIG.inductiveConstructiveCooldownTrials === undefined) CONFIG.inductiveConstructiveCooldownTrials = 7;
+        if(CONFIG.inductiveConstructiveMaxPerBlock === undefined) CONFIG.inductiveConstructiveMaxPerBlock = 2;
+        if(CONFIG.inductiveConstructiveRecentWindow === undefined) CONFIG.inductiveConstructiveRecentWindow = 12;
+        // The ordinary L0 constructive path remains useful, but dual contrast
+        // must not become the default answer to every witness-generation task.
+        if(CONFIG.generativeInlineDualShare === undefined || Number(CONFIG.generativeInlineDualShare) > 0.25) CONFIG.generativeInlineDualShare = 0.22;
+      }
+    }catch(_){ }
+    try{ if(typeof VALID_PENDING_PANELS !== "undefined" && VALID_PENDING_PANELS && typeof VALID_PENDING_PANELS.add === "function"){ VALID_PENDING_PANELS.add("geninduct"); VALID_PENDING_PANELS.add("geninductfinal"); } }catch(_){ }
+  }
+
+  function pair(a,b){ return {a:Number(a), b:Number(b)}; }
+  function gap(p){ return Math.abs(Number(p?.a) - Number(p?.b)); }
+  function sum(p){ return Number(p?.a) + Number(p?.b); }
+  function eqPair(p,q){ return Number(p?.a) === Number(q?.a) && Number(p?.b) === Number(q?.b); }
+  function pairKey(p){ return `${Number(p?.a)},${Number(p?.b)}`; }
+  function isWhole(n){ return Number.isInteger(Number(n)); }
+  function isOdd(n){ n = Number(n); return isWhole(n) && Math.abs(n % 2) === 1; }
+  function isEven(n){ n = Number(n); return isWhole(n) && n % 2 === 0; }
+  function isPrime(n){ n = Number(n); if(!Number.isInteger(n) || n < 2) return false; for(let d=2; d*d<=n; d++) if(n%d===0) return false; return true; }
+  function isComposite(n){ n = Number(n); return Number.isInteger(n) && n > 1 && !isPrime(n); }
+  function count(arr, pred){ let k=0; for(const x of arr) if(pred(x)) k++; return k; }
+  function oneDividesOther(p){ const a=Number(p?.a), b=Number(p?.b); return Number.isInteger(a) && Number.isInteger(b) && a>0 && b>0 && (a%b===0 || b%a===0); }
+  function allPairs(cap){ const out=[]; for(let a=1; a<=cap; a++) for(let b=1; b<=cap; b++) out.push(pair(a,b)); return out; }
+  function pick(arr){ return Array.isArray(arr) && arr.length ? arr[Math.floor(Math.random()*arr.length)] : null; }
+  function yn(v){ return v ? "YES" : "NO"; }
+  function capNow(){ try{ return Math.max(6, Math.min(12, Math.floor(Number(State?.maxValue || (typeof currentMax === "function" ? currentMax() : 8)) || 8))); }catch(_){ return 8; } }
+
+  const RELATIONS = [
+    {id:"left_gt_right", label:"LEFT is greater than RIGHT", short:"LEFT > RIGHT", object:"relation", pred:p=>Number(p.a)>Number(p.b)},
+    {id:"same_value", label:"LEFT equals RIGHT", short:"LEFT = RIGHT", object:"relation", pred:p=>Number(p.a)===Number(p.b)},
+    {id:"one_divides_other", label:"one value divides the other exactly", short:"one divides the other", object:"relation", pred:oneDividesOther},
+    {id:"gap_even", label:"the gap is even", short:"even gap", object:"attribute", pred:p=>gap(p)>0 && isEven(gap(p))},
+    {id:"gap_exactly_two", label:"the gap is exactly 2", short:"gap = 2", object:"attribute", pred:p=>gap(p)===2},
+    {id:"same_parity", label:"LEFT and RIGHT have the same parity", short:"same parity", object:"attribute", pred:p=>isEven(p.a)===isEven(p.b)},
+    {id:"exactly_one_prime", label:"exactly one value is prime", short:"exactly one prime", object:"attribute", pred:p=>count([p.a,p.b], isPrime)===1},
+    {id:"both_even", label:"both values are even", short:"both even", object:"attribute", pred:p=>isEven(p.a) && isEven(p.b)},
+    {id:"at_least_one_odd", label:"at least one value is odd", short:"some odd", object:"attribute", pred:p=>isOdd(p.a) || isOdd(p.b)},
+    {id:"sum_gt_10", label:"the total is greater than 10", short:"sum > 10", object:"relation", pred:p=>sum(p)>10}
+  ];
+  function relationById(id){ return RELATIONS.find(r => r.id === id) || RELATIONS[0]; }
+
+  const FEATURES = [
+    {id:"same_left", label:"the same LEFT value", same:(p,q)=>Number(p.a)===Number(q.a)},
+    {id:"same_right", label:"the same RIGHT value", same:(p,q)=>Number(p.b)===Number(q.b)},
+    {id:"same_total", label:"the same total", same:(p,q)=>sum(p)===sum(q)},
+    {id:"same_gap", label:"the same gap", same:(p,q)=>gap(p)===gap(q)},
+    {id:"same_left_parity", label:"the same LEFT parity", same:(p,q)=>isEven(p.a)===isEven(q.a)}
+  ];
+  function featureById(id){ return FEATURES.find(f => f.id === id) || FEATURES[0]; }
+
+  const HIDDEN_RULES = [
+    {id:"right_double_left", label:"RIGHT is double LEFT", object:"relation", pred:p=>Number(p.b) === 2*Number(p.a)},
+    {id:"gap_two_hidden", label:"gap is exactly 2", object:"attribute", pred:p=>gap(p)===2},
+    {id:"same_parity_hidden", label:"same parity", object:"attribute", pred:p=>isEven(p.a)===isEven(p.b)},
+    {id:"sum_ten_hidden", label:"total is 10", object:"relation", pred:p=>sum(p)===10},
+    {id:"exactly_one_prime_hidden", label:"exactly one value is prime", object:"attribute", pred:p=>count([p.a,p.b], isPrime)===1},
+    {id:"left_less_right_hidden", label:"LEFT is less than RIGHT", object:"relation", pred:p=>Number(p.a)<Number(p.b)},
+    {id:"left_even_hidden", label:"LEFT is even", object:"attribute", pred:p=>isEven(p.a)},
+    {id:"right_even_hidden", label:"RIGHT is even", object:"attribute", pred:p=>isEven(p.b)},
+    {id:"both_even_hidden", label:"both values are even", object:"attribute", pred:p=>isEven(p.a) && isEven(p.b)},
+    {id:"sum_even_hidden", label:"total is even", object:"attribute", pred:p=>isEven(sum(p))},
+    {id:"one_divides_other_hidden", label:"one value divides the other exactly", object:"relation", pred:oneDividesOther}
+  ];
+  const INDUCTION_RULE_FAMILY_TEXT = "Closed rule family: order, equality, total, gap, parity, primality and divisibility rules.";
+  function hiddenRuleById(id){ return HIDDEN_RULES.find(r => r.id === id) || HIDDEN_RULES[0]; }
+  function ruleTruth(rule, p){ try{ return !!rule.pred(p); }catch(_){ return false; } }
+  function pairInList(p, arr){ return Array.isArray(arr) && arr.some(q => eqPair(p,q)); }
+  function examplePairs(yesExamples, noExamples){ return [].concat(yesExamples || [], noExamples || []); }
+  function examplesText(yesExamples, noExamples){
+    const y = (yesExamples || []).map(p=>`L${p.a} R${p.b}`).join("; ") || "none";
+    const n = (noExamples || []).map(p=>`L${p.a} R${p.b}`).join("; ") || "none";
+    return `YES examples: ${y}. NO examples: ${n}.`;
+  }
+  function versionSpaceForExamples(yesExamples, noExamples, candidates){
+    const cands = Array.isArray(candidates) && candidates.length ? candidates : HIDDEN_RULES;
+    return cands.filter(rule => (yesExamples || []).every(p => ruleTruth(rule,p)) && (noExamples || []).every(p => !ruleTruth(rule,p)));
+  }
+  function chooseTeachingExamples(rule, cap, maxExamples){
+    const pairs = allPairs(cap), yesExamples = [], noExamples = [], used = new Set();
+    const maxN = Math.max(3, Number(maxExamples || 6));
+    for(let round=0; round<maxN; round++){
+      const vs = versionSpaceForExamples(yesExamples, noExamples, HIDDEN_RULES);
+      if(vs.length === 1 && vs[0].id === rule.id && yesExamples.length && noExamples.length){
+        return {yesExamples, noExamples, versionSpaceIds:vs.map(r=>r.id)};
+      }
+      let best = null, bestScore = -Infinity;
+      for(const p of pairs){
+        const key = pairKey(p);
+        if(used.has(key)) continue;
+        const targetTruth = ruleTruth(rule,p);
+        const elim = vs.filter(r => r.id !== rule.id && ruleTruth(r,p) !== targetTruth).length;
+        const needYes = targetTruth && !yesExamples.length;
+        const needNo = !targetTruth && !noExamples.length;
+        if(elim <= 0 && !needYes && !needNo) continue;
+        let score = elim * 10 + (needYes || needNo ? 6 : 0);
+        score -= (sum(p) * 0.025 + gap(p) * 0.015); // prefer compact, readable examples when equally diagnostic.
+        if(score > bestScore){ best = p; bestScore = score; }
+      }
+      if(!best) break;
+      used.add(pairKey(best));
+      if(ruleTruth(rule,best)) yesExamples.push(best); else noExamples.push(best);
+    }
+    const vs = versionSpaceForExamples(yesExamples, noExamples, HIDDEN_RULES);
+    if(vs.length === 1 && vs[0].id === rule.id && yesExamples.length && noExamples.length){
+      return {yesExamples, noExamples, versionSpaceIds:vs.map(r=>r.id)};
+    }
+    return null;
+  }
+
+  function taskSeenWeight(mode, id){
+    try{
+      const by = State?.productionMonitor?.inductiveConstructive?.byTask || {};
+      const n = Math.max(0, Number(by[id]?.n) || 0);
+      const byMode = State?.productionMonitor?.inductiveConstructive?.byMode || {};
+      const mn = Math.max(0, Number(byMode[mode]?.n) || 0);
+      return 1 / ((1+n) * Math.sqrt(1+mn));
+    }catch(_){ return 1; }
+  }
+  function weightedPick(items){
+    if(!items.length) return null;
+    let total = 0;
+    const ws = items.map(t => { const w = Math.max(0.001, Number(t.weight) || 1); total += w; return w; });
+    let r = Math.random() * total;
+    for(let i=0;i<items.length;i++){ r -= ws[i]; if(r <= 0) return items[i]; }
+    return items[items.length-1];
+  }
+  function sampleCandidates(cap, pred){ return allPairs(cap).filter(p => { try{ return !!pred(p); }catch(_){ return false; } }); }
+  function surfaceDistance(p,q){
+    let d = 0;
+    if(!eqPair(p,q)) d++;
+    if(sum(p) !== sum(q)) d++;
+    if(gap(p) !== gap(q)) d++;
+    if((isEven(p.a)===isEven(p.b)) !== (isEven(q.a)===isEven(q.b))) d++;
+    if(count([p.a,p.b], isPrime) !== count([q.a,q.b], isPrime)) d++;
+    if((p.a > p.b) !== (q.a > q.b)) d++;
+    return d;
+  }
+  function oneStepChange(base, p){
+    const da = Math.abs(Number(base.a)-Number(p.a)), db = Math.abs(Number(base.b)-Number(p.b));
+    return (da === 1 && db === 0) || (da === 0 && db === 1);
+  }
+  function withinCap(p, cap){ return Number.isInteger(p.a) && Number.isInteger(p.b) && p.a >= 1 && p.a <= cap && p.b >= 1 && p.b <= cap; }
+
+  function klauerCell(process, object){ return `${process}:${object}`; }
+  function packTask(spec){
+    spec.klauer = spec.klauer || {process:"same_and_different", object:"relation"};
+    spec.klauer.cell = klauerCell(spec.klauer.process, spec.klauer.object);
+    spec.phaseCount = Math.max(1, Number(spec.phaseCount || spec.pairCount || 1));
+    spec.pairCount = spec.phaseCount;
+    spec.weight = taskSeenWeight(spec.mode || "unknown", spec.id);
+    return spec;
+  }
+
+  function makeSingleWitnessTasks(cap){
+    const out = [];
+    for(const rel of RELATIONS){
+      for(const target of [true,false]){
+        const witnesses = sampleCandidates(cap, p => rel.pred(p) === target);
+        if(!witnesses.length) continue;
+        out.push(packTask({
+          id:`single_${rel.id}_${target?"yes":"no"}`,
+          mode:"single_witness",
+          title:`Single ${yn(target)} witness`,
+          question:`Build ONE pair that makes this claim answer ${yn(target)}: ${rel.label}.`,
+          sub:`One clean witness. Values: 1 to ${cap}.`,
+          params:{relationId:rel.id, target},
+          phaseCount:1,
+          klauer:{process:"same", object:rel.object},
+          reviewHint:`A witness is valid when the constructed pair makes the claim ${yn(target)}.`,
+          example:{p1:witnesses[0]}
+        }));
+      }
+    }
+    return out;
+  }
+
+  function makeCounterexampleTasks(cap){
+    const pairs = allPairs(cap), out=[];
+    for(const rel of RELATIONS){
+      for(const feat of FEATURES){
+        let found = null;
+        outer: for(const base of pairs){
+          const baseTruth = !!rel.pred(base);
+          for(const cand of pairs){
+            if(eqPair(base,cand)) continue;
+            if(!feat.same(base,cand)) continue;
+            if(!!rel.pred(cand) !== baseTruth){ found = {base, cand, baseTruth}; break outer; }
+          }
+        }
+        if(!found) continue;
+        out.push(packTask({
+          id:`counter_${rel.id}_${feat.id}_${found.baseTruth?"yes_to_no":"no_to_yes"}`,
+          mode:"counterexample",
+          title:"Counterexample with a fixed cue",
+          question:`Anchor pair: LEFT ${found.base.a}, RIGHT ${found.base.b}. Build ONE new pair that keeps ${feat.label} but changes the answer to: ${rel.label}.`,
+          sub:`The anchor made ${yn(found.baseTruth)}. Your new pair must make ${yn(!found.baseTruth)} while preserving ${feat.label}.`,
+          params:{relationId:rel.id, featureId:feat.id, base:found.base, baseTruth:found.baseTruth},
+          phaseCount:1,
+          klauer:{process:"same_and_different", object:rel.object},
+          reviewHint:`Keep ${feat.label}; flip the relation from ${yn(found.baseTruth)} to ${yn(!found.baseTruth)}.`,
+          example:{p1:found.cand}
+        }));
+      }
+    }
+    return out;
+  }
+
+  function makeMinimalFlipTasks(cap){
+    const pairs = allPairs(cap), out=[];
+    for(const rel of RELATIONS){
+      let found = null;
+      outer: for(const base of pairs){
+        const baseTruth = !!rel.pred(base);
+        const cands = [pair(base.a+1,base.b), pair(base.a-1,base.b), pair(base.a,base.b+1), pair(base.a,base.b-1)].filter(p => withinCap(p, cap));
+        for(const cand of cands){
+          if(!!rel.pred(cand) !== baseTruth){ found = {base, cand, baseTruth}; break outer; }
+        }
+      }
+      if(!found) continue;
+      out.push(packTask({
+        id:`minimal_flip_${rel.id}_${found.baseTruth?"yes_to_no":"no_to_yes"}`,
+        mode:"minimal_flip",
+        title:"Minimal flip",
+        question:`Start pair: LEFT ${found.base.a}, RIGHT ${found.base.b}. Change exactly ONE side by 1 so the answer flips for: ${rel.label}.`,
+        sub:`Start answer: ${yn(found.baseTruth)}. Build the new pair that makes ${yn(!found.baseTruth)}.`,
+        params:{relationId:rel.id, base:found.base, baseTruth:found.baseTruth},
+        phaseCount:1,
+        klauer:{process:"different", object:rel.object},
+        reviewHint:`Only one side may move by one step; the claim must flip.`,
+        example:{p1:found.cand}
+      }));
+    }
+    return out;
+  }
+
+  function makeDualContrastTasks(cap){
+    const pairs = allPairs(cap), out=[];
+    for(const rel of RELATIONS){
+      for(const feat of [null, ...FEATURES]){
+        let found = null;
+        outer: for(const p1 of pairs){
+          if(!rel.pred(p1)) continue;
+          for(const p2 of pairs){
+            if(eqPair(p1,p2)) continue;
+            if(feat && !feat.same(p1,p2)) continue;
+            if(rel.pred(p2)) continue;
+            found = {p1,p2}; break outer;
+          }
+        }
+        if(!found) continue;
+        const fixed = feat ? ` Keep ${feat.label} across both pairs.` : "";
+        out.push(packTask({
+          id:`dual_${rel.id}_${feat?feat.id:"free"}`,
+          mode:"dual_contrast",
+          title:"YES / NO contrast",
+          question:`Build TWO pairs for the same claim. Pair 1 must make YES; Pair 2 must make NO.${fixed} Claim: ${rel.label}.`,
+          sub:`Construct the boundary: one positive case and one negative case.`,
+          params:{relationId:rel.id, featureId:feat?.id || null, target1:true, target2:false},
+          phaseCount:2,
+          klauer:{process:feat ? "same_and_different" : "different", object:rel.object},
+          reviewHint:`Pair 1 should be a YES witness; Pair 2 should be a NO counterexample.`,
+          example:found
+        }));
+      }
+    }
+    return out;
+  }
+
+  function makeProgressiveAlignmentTasks(cap){
+    const pairs = allPairs(cap), out=[];
+    for(const rel of RELATIONS){
+      // Same relation, changing surface cues: progressive alignment.
+      let sameFound = null;
+      outerSame: for(const p1 of pairs){
+        const truth = !!rel.pred(p1);
+        for(const p2 of pairs){
+          if(eqPair(p1,p2)) continue;
+          if(!!rel.pred(p2) !== truth) continue;
+          if(surfaceDistance(p1,p2) < 3) continue;
+          sameFound = {p1,p2,truth}; break outerSame;
+        }
+      }
+      if(sameFound){
+        out.push(packTask({
+          id:`align_same_relation_${rel.id}_${sameFound.truth?"yes":"no"}`,
+          mode:"progressive_alignment",
+          title:"Same relation, different surface",
+          question:`Build TWO different-looking pairs that both make ${yn(sameFound.truth)} for this claim: ${rel.label}.`,
+          sub:`Vary surface cues such as total, gap, order or parity; preserve the relation answer.`,
+          params:{relationId:rel.id, target:sameFound.truth, alignment:"same_relation_different_surface"},
+          phaseCount:2,
+          klauer:{process:"same", object:rel.object},
+          reviewHint:`The surface should vary, but the relation answer should stay ${yn(sameFound.truth)}.`,
+          example:sameFound
+        }));
+      }
+      // Surface lure: same visible cue, different relation answer.
+      for(const feat of FEATURES){
+        let lureFound = null;
+        outerLure: for(const p1 of pairs){
+          const truth = !!rel.pred(p1);
+          for(const p2 of pairs){
+            if(eqPair(p1,p2)) continue;
+            if(!feat.same(p1,p2)) continue;
+            if(!!rel.pred(p2) === truth) continue;
+            lureFound = {p1,p2,truth}; break outerLure;
+          }
+        }
+        if(!lureFound) continue;
+        out.push(packTask({
+          id:`align_surface_lure_${rel.id}_${feat.id}`,
+          mode:"progressive_alignment",
+          title:"Same surface cue, different relation",
+          question:`Build TWO pairs that keep ${feat.label} but give opposite answers for: ${rel.label}.`,
+          sub:`This is a surface-lure contrast: do not let the preserved cue hide the changed relation.`,
+          params:{relationId:rel.id, featureId:feat.id, alignment:"same_surface_different_relation"},
+          phaseCount:2,
+          klauer:{process:"different", object:rel.object},
+          reviewHint:`The preserved cue is not enough; the relation answer must differ.`,
+          example:lureFound
+        }));
+      }
+    }
+    return out;
+  }
+
+  function makeSystemConstructionTasks(cap){
+    const pairs = allPairs(cap), specs = [
+      {
+        id:"system_same_total_different_gap", object:"relation",
+        question:"Build TWO pairs with the same total but different gaps.",
+        sub:"Same on total; different on internal distance.",
+        verify:(p1,p2)=>sum(p1)===sum(p2) && gap(p1)!==gap(p2),
+        detail:(p1,p2)=>`Totals ${sum(p1)} and ${sum(p2)}; gaps ${gap(p1)} and ${gap(p2)}.`
+      },
+      {
+        id:"system_same_gap_opposite_order", object:"relation",
+        question:"Build TWO pairs with the same gap but opposite order: one LEFT > RIGHT and the other LEFT < RIGHT.",
+        sub:"Same on distance; different on direction.",
+        verify:(p1,p2)=>gap(p1)>0 && gap(p1)===gap(p2) && ((p1.a>p1.b)!==(p2.a>p2.b)),
+        detail:(p1,p2)=>`Gaps ${gap(p1)} and ${gap(p2)}; order answers ${yn(p1.a>p1.b)} and ${yn(p2.a>p2.b)} for LEFT > RIGHT.`
+      },
+      {
+        id:"system_same_odd_count_different_prime_count", object:"attribute",
+        question:"Build TWO pairs with the same number of odd values but a different number of prime values.",
+        sub:"Same on parity count; different on prime count.",
+        verify:(p1,p2)=>count([p1.a,p1.b],isOdd)===count([p2.a,p2.b],isOdd) && count([p1.a,p1.b],isPrime)!==count([p2.a,p2.b],isPrime),
+        detail:(p1,p2)=>`Odd counts ${count([p1.a,p1.b],isOdd)} and ${count([p2.a,p2.b],isOdd)}; prime counts ${count([p1.a,p1.b],isPrime)} and ${count([p2.a,p2.b],isPrime)}.`
+      },
+      {
+        id:"system_same_order_different_divisibility", object:"relation",
+        question:"Build TWO pairs with the same order relation but different divisibility answers.",
+        sub:"Same on LEFT-vs-RIGHT direction; different on whether one divides the other.",
+        verify:(p1,p2)=>(p1.a>p1.b)===(p2.a>p2.b) && p1.a!==p1.b && p2.a!==p2.b && oneDividesOther(p1)!==oneDividesOther(p2),
+        detail:(p1,p2)=>`Order LEFT>RIGHT: ${yn(p1.a>p1.b)} and ${yn(p2.a>p2.b)}. Divisibility: ${yn(oneDividesOther(p1))} and ${yn(oneDividesOther(p2))}.`
+      }
+    ];
+    const out=[];
+    for(const sp of specs){
+      let found = null;
+      outer: for(const p1 of pairs){ for(const p2 of pairs){
+        if(eqPair(p1,p2)) continue;
+        if(sp.verify(p1,p2)){ found = {p1,p2}; break outer; }
+      }}
+      if(!found) continue;
+      out.push(packTask({
+        id:sp.id,
+        mode:"system_construction",
+        title:"Same and different at once",
+        question:sp.question,
+        sub:sp.sub,
+        params:{systemId:sp.id},
+        phaseCount:2,
+        klauer:{process:"same_and_different", object:sp.object},
+        reviewHint:"This trains Klauer's construction-of-systems cell: hold one comparison constant while another changes.",
+        example:found
+      }));
+    }
+    return out;
+  }
+
+  function makeHiddenRuleTasks(cap){
+    const pairs = allPairs(cap), out=[];
+    for(const rule of HIDDEN_RULES){
+      const teach = chooseTeachingExamples(rule, cap, 7);
+      if(!teach) continue;
+      const examples = examplePairs(teach.yesExamples, teach.noExamples);
+      for(const target of [true,false]){
+        const pool = pairs.filter(p => ruleTruth(rule,p) === target && !pairInList(p, examples));
+        if(!pool.length) continue;
+        const exText = examplesText(teach.yesExamples, teach.noExamples);
+        out.push(packTask({
+          id:`hidden_rule_${rule.id}_${target?"yes":"no"}`,
+          mode:"hidden_rule_induction",
+          title:"Induce the rule from examples",
+          question:`Induce the hidden rule within this game's closed rule family. ${exText} Build ONE new ${yn(target)} example.`,
+          sub:`${INDUCTION_RULE_FAMILY_TEXT} The shown examples make one rule unique inside that family.`,
+          params:{ruleId:rule.id, target, yesExamples:teach.yesExamples, noExamples:teach.noExamples, versionSpaceIds:teach.versionSpaceIds, inductionContract:"closed_version_space"},
+          phaseCount:1,
+          klauer:{process:"same_and_different", object:rule.object},
+          reviewHint:`Inside the active rule family, the examples leave one rule: ${rule.label}.`,
+          example:{p1:pool[0]}
+        }));
+      }
+    }
+    return out;
+  }
+
+  function makeDiscriminatorTasks(cap){
+    const pairs = allPairs(cap), out=[];
+    for(let i=0;i<HIDDEN_RULES.length;i++){
+      for(let j=i+1;j<HIDDEN_RULES.length;j++){
+        const r1 = HIDDEN_RULES[i], r2 = HIDDEN_RULES[j];
+        const pool = pairs.filter(p => ruleTruth(r1,p) !== ruleTruth(r2,p));
+        if(!pool.length) continue;
+        out.push(packTask({
+          id:`discriminate_${r1.id}_vs_${r2.id}`,
+          mode:"discriminator_construction",
+          title:"Build a discriminator",
+          question:`Build ONE pair that tells these two hypotheses apart. A: ${r1.label}. B: ${r2.label}.`,
+          sub:"Your pair must make one hypothesis YES and the other NO. This trains active induction: choose the test case that separates rules.",
+          params:{ruleAId:r1.id, ruleBId:r2.id},
+          phaseCount:1,
+          klauer:{process:"different", object:(r1.object === r2.object ? r1.object : "relation")},
+          reviewHint:"A good discriminator is a case where the two candidate rules make different predictions.",
+          example:{p1:pool[0]}
+        }));
+      }
+    }
+    return out;
+  }
+
+  function findPairByMetric(cap, metric, value, banned){
+    return allPairs(cap).find(p => !pairInList(p, banned || []) && metric(p) === value) || null;
+  }
+  function makeThresholdInductionTasks(cap){
+    const out=[];
+    const specs = [
+      {id:"sum_threshold", label:"total", metricId:"sum", metric:sum, k:Math.max(5, Math.min(10, cap + 2)), object:"relation"},
+      {id:"gap_threshold", label:"gap", metricId:"gap", metric:gap, k:Math.max(1, Math.min(3, cap - 2)), object:"attribute"}
+    ];
+    for(const sp of specs){
+      if(sp.k < 1) continue;
+      const noEx = findPairByMetric(cap, sp.metric, sp.k, []);
+      const yesEx = findPairByMetric(cap, sp.metric, sp.k + 1, [noEx].filter(Boolean));
+      const p1 = findPairByMetric(cap, sp.metric, sp.k, [noEx, yesEx].filter(Boolean));
+      const p2 = findPairByMetric(cap, sp.metric, sp.k + 1, [noEx, yesEx, p1].filter(Boolean));
+      if(!noEx || !yesEx || !p1 || !p2) continue;
+      out.push(packTask({
+        id:`threshold_${sp.id}_${sp.k}`,
+        mode:"threshold_bracket_induction",
+        title:"Induce the boundary",
+        question:`Examples suggest a threshold rule on ${sp.label}. NO example: L${noEx.a} R${noEx.b}. YES example: L${yesEx.a} R${yesEx.b}. Build TWO new boundary cases: Pair 1 still NO; Pair 2 just crosses to YES.`,
+        sub:"Infer the boundary from the examples; do not copy them. Pair 1 and Pair 2 should be one step apart on the relevant measure.",
+        params:{metricId:sp.metricId, threshold:sp.k, noExample:noEx, yesExample:yesEx},
+        phaseCount:2,
+        klauer:{process:"same_and_different", object:sp.object},
+        reviewHint:`The threshold was ${sp.label} > ${sp.k}. Pair 1 should have ${sp.label} ${sp.k}; Pair 2 should have ${sp.label} ${sp.k+1}.`,
+        example:{p1,p2}
+      }));
+    }
+    return out;
+  }
+
+  const COMPOSITION_CUES = [
+    {id:"left_even", label:"LEFT is even", pred:p=>isEven(p.a)},
+    {id:"right_prime", label:"RIGHT is prime", pred:p=>isPrime(p.b)},
+    {id:"left_gt_right", label:"LEFT is greater than RIGHT", pred:p=>Number(p.a)>Number(p.b)},
+    {id:"gap_even", label:"the gap is even", pred:p=>gap(p)>0 && isEven(gap(p))}
+  ];
+  const COMPOSITION_OPS = [
+    {id:"and", label:"A AND B", pred:(a,b)=>a && b},
+    {id:"or", label:"A OR B", pred:(a,b)=>a || b},
+    {id:"xor", label:"EXACTLY ONE of A/B", pred:(a,b)=>!!a !== !!b},
+    {id:"nand", label:"NOT BOTH A/B", pred:(a,b)=>!(a && b)}
+  ];
+  function cueById(id){ return COMPOSITION_CUES.find(c=>c.id===id) || COMPOSITION_CUES[0]; }
+  function compOpById(id){ return COMPOSITION_OPS.find(o=>o.id===id) || COMPOSITION_OPS[0]; }
+  function compTruth(op, cueA, cueB, p){ return !!op.pred(!!cueA.pred(p), !!cueB.pred(p)); }
+  function compVersionSpace(yesExamples, noExamples, cueA, cueB){
+    return COMPOSITION_OPS.filter(op => (yesExamples || []).every(p => compTruth(op,cueA,cueB,p)) && (noExamples || []).every(p => !compTruth(op,cueA,cueB,p)));
+  }
+  function chooseCompositionTeaching(op, cueA, cueB, cap){
+    const pairs = allPairs(cap), yesExamples=[], noExamples=[], used=new Set();
+    for(let round=0; round<5; round++){
+      const vs = compVersionSpace(yesExamples, noExamples, cueA, cueB);
+      if(vs.length === 1 && vs[0].id === op.id && yesExamples.length && noExamples.length) return {yesExamples,noExamples,versionSpaceIds:vs.map(o=>o.id)};
+      let best=null, bestScore=-Infinity;
+      for(const p of pairs){
+        const key=pairKey(p); if(used.has(key)) continue;
+        const targetTruth = compTruth(op,cueA,cueB,p);
+        const elim = vs.filter(o => o.id !== op.id && compTruth(o,cueA,cueB,p) !== targetTruth).length;
+        const need = (targetTruth && !yesExamples.length) || (!targetTruth && !noExamples.length);
+        if(elim<=0 && !need) continue;
+        let score = elim*10 + (need ? 6 : 0) - sum(p)*0.02;
+        if(score > bestScore){ best=p; bestScore=score; }
+      }
+      if(!best) break;
+      used.add(pairKey(best));
+      if(compTruth(op,cueA,cueB,best)) yesExamples.push(best); else noExamples.push(best);
+    }
+    const vs = compVersionSpace(yesExamples, noExamples, cueA, cueB);
+    if(vs.length === 1 && vs[0].id === op.id && yesExamples.length && noExamples.length) return {yesExamples,noExamples,versionSpaceIds:vs.map(o=>o.id)};
+    return null;
+  }
+  function makeCompositionInductionTasks(cap){
+    const pairs = allPairs(cap), out=[];
+    const cuePairs = [["left_even","right_prime"],["left_gt_right","gap_even"],["left_even","left_gt_right"]];
+    for(const [aId,bId] of cuePairs){
+      const cueA = cueById(aId), cueB = cueById(bId);
+      for(const op of COMPOSITION_OPS){
+        const teach = chooseCompositionTeaching(op, cueA, cueB, cap);
+        if(!teach) continue;
+        const examples = examplePairs(teach.yesExamples, teach.noExamples);
+        for(const target of [true,false]){
+          const pool = pairs.filter(p => compTruth(op,cueA,cueB,p) === target && !pairInList(p, examples));
+          if(!pool.length) continue;
+          out.push(packTask({
+            id:`composition_${cueA.id}_${cueB.id}_${op.id}_${target?"yes":"no"}`,
+            mode:"composition_induction",
+            title:"Induce the connective",
+            question:`The hidden rule combines Cue A (${cueA.label}) and Cue B (${cueB.label}). ${examplesText(teach.yesExamples, teach.noExamples)} Build ONE new ${yn(target)} example.`,
+            sub:"Closed operator family: AND, OR, EXACTLY ONE, NOT BOTH. Infer the connective from examples, then construct a case.",
+            params:{cueAId:cueA.id, cueBId:cueB.id, opId:op.id, target, yesExamples:teach.yesExamples, noExamples:teach.noExamples, versionSpaceIds:teach.versionSpaceIds},
+            phaseCount:1,
+            klauer:{process:"same_and_different", object:"relation"},
+            reviewHint:`The connective was ${op.label}.`,
+            example:{p1:pool[0]}
+          }));
+        }
+      }
+    }
+    return out;
+  }
+
+  function buildInductivePayload(opts={}){
+    const cap = Math.max(6, Math.min(12, Math.floor(Number(opts.cap || capNow()) || 8)));
+    const modeBuckets = [
+      {mode:"single_witness", share:0.18, items:makeSingleWitnessTasks(cap)},
+      {mode:"counterexample", share:0.15, items:makeCounterexampleTasks(cap)},
+      {mode:"dual_contrast", share:0.12, items:makeDualContrastTasks(cap)},
+      {mode:"minimal_flip", share:0.14, items:makeMinimalFlipTasks(cap)},
+      {mode:"progressive_alignment", share:0.12, items:makeProgressiveAlignmentTasks(cap)},
+      {mode:"system_construction", share:0.08, items:makeSystemConstructionTasks(cap)},
+      {mode:"hidden_rule_induction", share:0.08, items:makeHiddenRuleTasks(cap)},
+      {mode:"discriminator_construction", share:0.06, items:makeDiscriminatorTasks(cap)},
+      {mode:"threshold_bracket_induction", share:0.04, items:makeThresholdInductionTasks(cap)},
+      {mode:"composition_induction", share:0.03, items:makeCompositionInductionTasks(cap)}
+    ].filter(b => b.items && b.items.length);
+    if(!modeBuckets.length) return null;
+    try{
+      const recent = State?.productionMonitor?.inductiveConstructive?.recentTasks || [];
+      for(const b of modeBuckets){
+        const fresh = b.items.filter(t => !recent.includes(t.id));
+        if(fresh.length) b.items = fresh;
+      }
+    }catch(_){ }
+    const bucket = weightedPick(modeBuckets.map(b => ({...b, weight:b.share * (b.items.length ? 1 : 0)})));
+    if(!bucket) return null;
+    const task = weightedPick(bucket.items);
+    return task ? {task, cap} : null;
+  }
+
+  function verifySystemById(id, p1, p2){
+    if(id === "system_same_total_different_gap") return sum(p1)===sum(p2) && gap(p1)!==gap(p2);
+    if(id === "system_same_gap_opposite_order") return gap(p1)>0 && gap(p1)===gap(p2) && ((p1.a>p1.b)!==(p2.a>p2.b));
+    if(id === "system_same_odd_count_different_prime_count") return count([p1.a,p1.b],isOdd)===count([p2.a,p2.b],isOdd) && count([p1.a,p1.b],isPrime)!==count([p2.a,p2.b],isPrime);
+    if(id === "system_same_order_different_divisibility") return (p1.a>p1.b)===(p2.a>p2.b) && p1.a!==p1.b && p2.a!==p2.b && oneDividesOther(p1)!==oneDividesOther(p2);
+    return false;
+  }
+  function verifyInductiveTask(info, pairs){
+    const ic = info?.inductiveConstructive || {};
+    const p1 = pairs?.[0]?.pair || null;
+    const p2 = pairs?.[1]?.pair || null;
+    if(!p1) return false;
+    const params = ic.params || {};
+    const rel = relationById(params.relationId);
+    const feat = featureById(params.featureId);
+    if(ic.mode === "single_witness") return !!rel.pred(p1) === !!params.target;
+    if(ic.mode === "counterexample"){
+      const base = params.base || {};
+      return !eqPair(base,p1) && feat.same(base,p1) && !!rel.pred(p1) !== !!params.baseTruth;
+    }
+    if(ic.mode === "minimal_flip"){
+      const base = params.base || {};
+      return oneStepChange(base,p1) && !!rel.pred(p1) !== !!params.baseTruth;
+    }
+    if(ic.mode === "dual_contrast"){
+      if(!p2) return false;
+      const okTruth = !!rel.pred(p1) === !!params.target1 && !!rel.pred(p2) === !!params.target2;
+      return okTruth && (!params.featureId || feat.same(p1,p2));
+    }
+    if(ic.mode === "progressive_alignment"){
+      if(!p2) return false;
+      if(params.alignment === "same_relation_different_surface") return !!rel.pred(p1) === !!params.target && !!rel.pred(p2) === !!params.target && surfaceDistance(p1,p2) >= 3;
+      if(params.alignment === "same_surface_different_relation") return params.featureId && feat.same(p1,p2) && !!rel.pred(p1) !== !!rel.pred(p2);
+      return false;
+    }
+    if(ic.mode === "system_construction") return !!p2 && verifySystemById(params.systemId, p1, p2);
+    if(ic.mode === "hidden_rule_induction"){
+      const rule = hiddenRuleById(params.ruleId);
+      const examples = examplePairs(params.yesExamples, params.noExamples);
+      const vs = versionSpaceForExamples(params.yesExamples || [], params.noExamples || [], HIDDEN_RULES);
+      return vs.length === 1 && vs[0].id === rule.id && ruleTruth(rule,p1) === !!params.target && !pairInList(p1, examples);
+    }
+    if(ic.mode === "discriminator_construction"){
+      const rA = hiddenRuleById(params.ruleAId), rB = hiddenRuleById(params.ruleBId);
+      return ruleTruth(rA,p1) !== ruleTruth(rB,p1);
+    }
+    if(ic.mode === "threshold_bracket_induction"){
+      if(!p2) return false;
+      const metric = params.metricId === "gap" ? gap : sum;
+      const examples = [params.noExample, params.yesExample].filter(Boolean);
+      return !pairInList(p1, examples) && !pairInList(p2, examples) && metric(p1) === Number(params.threshold) && metric(p2) === Number(params.threshold) + 1;
+    }
+    if(ic.mode === "composition_induction"){
+      const cueA = cueById(params.cueAId), cueB = cueById(params.cueBId), op = compOpById(params.opId);
+      const examples = examplePairs(params.yesExamples, params.noExamples);
+      const vs = compVersionSpace(params.yesExamples || [], params.noExamples || [], cueA, cueB);
+      return vs.length === 1 && vs[0].id === op.id && compTruth(op,cueA,cueB,p1) === !!params.target && !pairInList(p1, examples);
+    }
+    return false;
+  }
+
+  function inductiveReviewText(info){
+    const ic = info?.inductiveConstructive || {};
+    const pairs = Array.isArray(info?.pairs) ? info.pairs : [];
+    const p1 = pairs[0]?.pair || null, p2 = pairs[1]?.pair || null;
+    const pText = pairs.map(p => `Pair ${p.phase}: LEFT ${p.pair?.a}, RIGHT ${p.pair?.b}`).join(". ") || "No construction recorded.";
+    const params = ic.params || {};
+    const rel = relationById(params.relationId);
+    const feat = featureById(params.featureId);
+    let analysis = "";
+    if(p1 && ic.mode === "single_witness") analysis = `Your pair made ${yn(rel.pred(p1))}; target was ${yn(params.target)}.`;
+    if(p1 && ic.mode === "counterexample") analysis = `Anchor made ${yn(params.baseTruth)}. Your pair kept ${feat.label}: ${yn(feat.same(params.base,p1))}; relation became ${yn(rel.pred(p1))}.`;
+    if(p1 && ic.mode === "minimal_flip") analysis = `One-step change: ${yn(oneStepChange(params.base,p1))}. Start was ${yn(params.baseTruth)}; your pair made ${yn(rel.pred(p1))}.`;
+    if(p1 && p2 && ic.mode === "dual_contrast") analysis = `Pair 1 made ${yn(rel.pred(p1))}; Pair 2 made ${yn(rel.pred(p2))}.${params.featureId ? ` Shared cue (${feat.label}): ${yn(feat.same(p1,p2))}.` : ""}`;
+    if(p1 && p2 && ic.mode === "progressive_alignment") analysis = params.alignment === "same_relation_different_surface" ? `Both should make ${yn(params.target)}; yours made ${yn(rel.pred(p1))} and ${yn(rel.pred(p2))}. Surface distance ${surfaceDistance(p1,p2)}.` : `Shared cue (${feat.label}): ${yn(feat.same(p1,p2))}. Relation answers: ${yn(rel.pred(p1))} and ${yn(rel.pred(p2))}.`;
+    if(p1 && p2 && ic.mode === "system_construction") analysis = `System check: same/different constraint ${verifySystemById(params.systemId,p1,p2) ? "satisfied" : "not satisfied"}.`;
+    if(p1 && ic.mode === "hidden_rule_induction"){
+      const rule = hiddenRuleById(params.ruleId);
+      const vs = versionSpaceForExamples(params.yesExamples || [], params.noExamples || [], HIDDEN_RULES).map(r=>r.label).join("; ");
+      analysis = `Closed-family rule: ${rule.label}. Version space after examples: ${vs || "none"}. Your pair made ${yn(ruleTruth(rule,p1))}; target was ${yn(params.target)}.`;
+    }
+    if(p1 && ic.mode === "discriminator_construction"){
+      const rA = hiddenRuleById(params.ruleAId), rB = hiddenRuleById(params.ruleBId);
+      analysis = `Hypothesis A (${rA.label}) predicted ${yn(ruleTruth(rA,p1))}; hypothesis B (${rB.label}) predicted ${yn(ruleTruth(rB,p1))}.`;
+    }
+    if(p1 && p2 && ic.mode === "threshold_bracket_induction"){
+      const metric = params.metricId === "gap" ? gap : sum;
+      analysis = `Pair 1 ${params.metricId} ${metric(p1)}; Pair 2 ${params.metricId} ${metric(p2)}. Boundary target was ${params.metricId} ${params.threshold} then ${Number(params.threshold)+1}.`;
+    }
+    if(p1 && ic.mode === "composition_induction"){
+      const cueA = cueById(params.cueAId), cueB = cueById(params.cueBId), op = compOpById(params.opId);
+      analysis = `Cue A: ${yn(cueA.pred(p1))}. Cue B: ${yn(cueB.pred(p1))}. Connective: ${op.label}. Your pair made ${yn(compTruth(op,cueA,cueB,p1))}; target was ${yn(params.target)}.`;
+    }
+    const ex = ic.example;
+    const example = ex && ex.p1 ? ` Example: Pair 1 LEFT ${ex.p1.a}, RIGHT ${ex.p1.b}${ex.p2 ? `; Pair 2 LEFT ${ex.p2.a}, RIGHT ${ex.p2.b}` : ""}.` : "";
+    return `${pText}. ${analysis} ${ic.reviewHint || ""}${example}`.replace(/\s+/g, " ").trim();
+  }
+
+  function klauerCoverageRecord(task, correct){
+    try{
+      const mon = State.productionMonitor || (State.productionMonitor = {});
+      const ic = mon.inductiveConstructive || (mon.inductiveConstructive = {shown:0, correct:0, byMode:{}, byCell:{}, byTask:{}, recentTasks:[]});
+      const mode = task.mode || "unknown";
+      const cell = task.klauer?.cell || klauerCell("unknown", "unknown");
+      ic.byMode[mode] = ic.byMode[mode] || {n:0,c:0};
+      ic.byCell[cell] = ic.byCell[cell] || {n:0,c:0};
+      ic.byTask[task.id] = ic.byTask[task.id] || {n:0,c:0};
+      for(const bucket of [ic.byMode[mode], ic.byCell[cell], ic.byTask[task.id]]){ bucket.n = (bucket.n || 0) + 1; if(correct) bucket.c = (bucket.c || 0) + 1; }
+      if(correct) ic.correct = (ic.correct || 0) + 1;
+      ic.recentTasks = Array.isArray(ic.recentTasks) ? ic.recentTasks : [];
+      ic.recentTasks.push(task.id);
+      const win = Math.max(6, Number(CONFIG?.inductiveConstructiveRecentWindow || 12));
+      ic.recentTasks = ic.recentTasks.slice(-win);
+      ic.last = {taskId:task.id, mode, cell, correct:!!correct, ts:nowMs()};
+    }catch(_){ }
+  }
+
+  function injectStyle(){
+    if(typeof document === "undefined" || document.getElementById("genInductStyles")) return;
+    const style = document.createElement("style");
+    style.id = "genInductStyles";
+    style.textContent = `
+#panelGenInduct{padding:8px 10px 10px;}
+#panelGenInduct .genInductShell{width:100%;display:grid;grid-template-columns:minmax(0,0.70fr) minmax(0,1fr);gap:9px;align-items:stretch;}
+#panelGenInduct .genInductSlots{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-width:0;}
+#panelGenInduct .genInductSlot{border:1px solid rgba(255,255,255,0.16);background:#15151d;color:#f7f7fb;border-radius:8px;min-height:50px;padding:7px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+#panelGenInduct .genInductSlot.active{border-color:var(--gold,#ffc107);box-shadow:0 0 0 1px rgba(255,193,7,0.35) inset;background:#1e1a10;}
+#panelGenInduct .genInductSlotLabel{font-size:0.56rem;line-height:1;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted,#9a9aa6);font-weight:850;text-align:center;}
+#panelGenInduct .genInductSlotValue{font-size:1.18rem;line-height:1.15;margin-top:4px;font-weight:900;min-height:1.25rem;}
+#panelGenInduct .genInductGrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;min-width:0;}
+#panelGenInduct .genInductBtn{border:1px solid rgba(255,255,255,0.14);background:#1a1a22;color:#fff;border-radius:8px;min-height:40px;font-size:0.95rem;font-weight:850;}
+#app.geninduct-mode #trayPanels{min-height:104px;}
+@media (max-width:520px){#panelGenInduct .genInductShell{grid-template-columns:1fr;gap:7px;}#panelGenInduct .genInductBtn{min-height:36px;font-size:0.88rem;}#panelGenInduct .genInductSlot{min-height:44px;}}
+`;
+    document.head.appendChild(style);
+  }
+  function ensurePanel(){
+    injectStyle();
+    let panel = document.getElementById("panelGenInduct");
+    if(panel) return panel;
+    panel = document.createElement("div");
+    panel.id = "panelGenInduct";
+    panel.className = "panel";
+    panel.innerHTML = `<div class="genInductShell" role="group" aria-label="Build an inductive pair configuration">
+  <div class="genInductSlots">
+    <button type="button" class="genInductSlot active" data-side="a" aria-label="Set LEFT value"><span class="genInductSlotLabel" id="genInductSlotALabel">LEFT</span><span class="genInductSlotValue" id="genInductSlotA">-</span></button>
+    <button type="button" class="genInductSlot" data-side="b" aria-label="Set RIGHT value"><span class="genInductSlotLabel" id="genInductSlotBLabel">RIGHT</span><span class="genInductSlotValue" id="genInductSlotB">-</span></button>
+  </div>
+  <div class="genInductGrid" aria-label="Choose a value"></div>
+</div>`;
+    const host = document.getElementById("trayPanels") || document.getElementById("app") || document.body;
+    host.appendChild(panel);
+    panel.querySelectorAll(".genInductSlot").forEach(btn => btn.addEventListener("pointerdown", e => { e.preventDefault(); setSide(btn.dataset.side || "a"); }));
+    return panel;
+  }
+  function renderPanel(){
+    const panel = ensurePanel();
+    const info = State?.trialInfo || {};
+    const phase = Math.max(1, Math.floor(Number(info.phaseIndex || 1)));
+    const count = Math.max(1, Math.floor(Number(info.phaseCount || 1)));
+    const aLab = panel.querySelector("#genInductSlotALabel"), bLab = panel.querySelector("#genInductSlotBLabel");
+    const prefix = count > 1 ? `Pair ${phase} ` : "";
+    if(aLab) aLab.textContent = `${prefix}LEFT`;
+    if(bLab) bLab.textContent = `${prefix}RIGHT`;
+    const a = panel.querySelector("#genInductSlotA"), b = panel.querySelector("#genInductSlotB");
+    if(a) a.textContent = Induct.chosen.a == null ? "-" : String(Induct.chosen.a);
+    if(b) b.textContent = Induct.chosen.b == null ? "-" : String(Induct.chosen.b);
+    panel.querySelectorAll(".genInductSlot").forEach(btn => btn.classList.toggle("active", btn.dataset.side === Induct.activeSide));
+    const grid = panel.querySelector(".genInductGrid");
+    if(!grid) return;
+    const sig = `${Induct.cap}`;
+    if(grid.dataset.sig !== sig){
+      grid.dataset.sig = sig; grid.innerHTML = "";
+      for(let i=1; i<=Induct.cap; i++){
+        const btn = document.createElement("button");
+        btn.type = "button"; btn.className = "genInductBtn"; btn.textContent = String(i); btn.setAttribute("aria-label", `Use ${i}`);
+        btn.addEventListener("pointerdown", e => { e.preventDefault(); chooseValue(i); });
+        grid.appendChild(btn);
+      }
+    }
+  }
+  function resetPanel(cap){ Induct.chosen = {a:null,b:null}; Induct.activeSide = "a"; Induct.cap = Math.max(2, Math.min(12, Math.floor(Number(cap || capNow()) || 8))); renderPanel(); }
+  function setSide(side){ Induct.activeSide = side === "b" ? "b" : "a"; renderPanel(); }
+  function chooseValue(v){
+    v = Math.floor(Number(v));
+    if(!Number.isInteger(v) || v < 1 || v > Induct.cap) return;
+    Induct.chosen[Induct.activeSide] = v;
+    if(Induct.activeSide === "a") Induct.activeSide = "b";
+    renderPanel();
+    if(Induct.chosen.a != null && Induct.chosen.b != null) submitPair();
+  }
+  function submitPair(){
+    if(Induct.chosen.a == null){ setSide("a"); return false; }
+    if(Induct.chosen.b == null){ setSide("b"); return false; }
+    return processInductiveInput({a:Induct.chosen.a, b:Induct.chosen.b});
+  }
+
+  function hasMetaWorkPending(){
+    try{ const plans = typeof ensureMetaMemoryPlans === "function" ? ensureMetaMemoryPlans() : null; if(plans && Object.values(plans).some(p => p && (p.active || p.due || p.pending))) return true; }catch(_){ }
+    try{ if(typeof shouldExtendBlockForMetaMemory === "function" && shouldExtendBlockForMetaMemory()) return true; }catch(_){ }
+    return false;
+  }
+  function shouldStart(attempt, forcedLevel){
+    try{
+      installConfig();
+      if(CONFIG?.inductiveConstructiveEnabled === false) return false;
+      if(attempt !== 0 || forcedLevel !== null) return false;
+      if(!State || !State.running || State.paused) return false;
+      if(State.mode !== "D" || State.modeChoice !== "auto") return false;
+      if(hasMetaWorkPending()) return false;
+      const level = Math.max(0, Number(State.levelByMode?.D || 0));
+      if(level < Math.max(0, Number(CONFIG.inductiveConstructiveMinDLevel || 4))) return false;
+      const blockTrial = Math.max(0, Number(State.blockTrials || 0));
+      if(blockTrial < 3) return false;
+      if(blockTrial === 0 || blockTrial < (Induct.lastBlockTrial || -99)){ Induct.blockCount = 0; Induct.lastBlockTrial = -99; }
+      const maxPerBlock = Math.max(0, Number(CONFIG.inductiveConstructiveMaxPerBlock || 2));
+      if(maxPerBlock && Induct.blockCount >= maxPerBlock) return false;
+      const cooldown = Math.max(0, Number(CONFIG.inductiveConstructiveCooldownTrials || 7));
+      if(blockTrial - (Induct.lastBlockTrial || -99) < cooldown) return false;
+      const p = Math.max(0, Math.min(1, Number(CONFIG.inductiveConstructiveProbability || 0.16)));
+      return Math.random() < p;
+    }catch(_){ return false; }
+  }
+
+  function startInductiveTrial(attempt, forcedLevel){
+    if(!shouldStart(attempt, forcedLevel)) return false;
+    const payload = buildInductivePayload();
+    if(!payload || !payload.task) return false;
+    const task = payload.task;
+    try{
+      if(typeof invalidatePreparedTrial === "function") invalidatePreparedTrial("inductive_constructive_commit");
+      else { State.nextTrialPrepared = null; State.nextTrialPrepareInFlight = false; }
+      State.maxValue = payload.cap;
+      State.currentTrialLevel = 1;
+      State.currentTrialValue = null;
+      State.currentTrialRep = null;
+      State.targetValue = "correct";
+      State.pendingPanel = "geninduct";
+      State.autoPhase = "L1";
+      State.trialInfo = {
+        kind:"generative_inductive_inline",
+        level:1,
+        statsMode:"D",
+        autoPhase:"L1",
+        family:"generative_inductive_constructive",
+        catFamily:"generative_inductive_constructive",
+        catId:`construct_inductive_${task.id}`,
+        sourceCatId:task.id,
+        sourceFamily:"generative_inductive_constructive",
+        responseFormat:"generative_inductive_pairs",
+        answerKind:"generative_inductive_pairs",
+        question:task.question,
+        delayedPrompt:task.question,
+        sourceQuestion:task.question,
+        phaseIndex:1,
+        phaseCount:task.phaseCount,
+        pairs:[],
+        targetOutcome:1,
+        isTrue:true,
+        cap:payload.cap,
+        frameTags:["constructive_generation","inductive_reasoning", task.klauer?.process || "same_and_different", task.klauer?.object || "relation"],
+        mechanismTags:["constructive_induction", task.mode || "inductive_task"],
+        countsForMetaHistory:false,
+        countsForAdaptation:false,
+        countsForMastery:false,
+        memoryEligible:false,
+        inductiveConstructive:{...task, example:task.example || null}
+      };
+      resetPanel(payload.cap);
+      const lvl = task.phaseCount > 1 ? 1 : 0;
+      showMetaQuestion(lvl, task.question, `${task.phaseCount > 1 ? "Pair 1 of " + task.phaseCount + ". " : "One pair. "}${task.sub || "Choose LEFT, then RIGHT."}`);
+      setPrompt(task.mode === "hidden_rule_induction" ? "INDUCE" : "CONSTRUCT");
+      setGameAriaLabel(`Inductive constructive trial. ${task.question}`);
+      Induct.blockCount = (Induct.blockCount || 0) + 1;
+      Induct.lastBlockTrial = Math.max(0, Number(State.blockTrials || 0));
+      const mon = State.productionMonitor || (State.productionMonitor = {});
+      const ic = mon.inductiveConstructive || (mon.inductiveConstructive = {shown:0, correct:0, byMode:{}, byCell:{}, byTask:{}, recentTasks:[]});
+      ic.shown = (ic.shown || 0) + 1;
+      beginInputPhase();
+      return true;
+    }catch(e){ try{ recordRuntimeError(e, {source:"inductive_constructive_start"}); }catch(_){ } return false; }
+  }
+
+  function processInductiveInput(pairObj){
+    try{
+      if(pairObj === "correct" || pairObj === "wrong") return Induct.prevProcessInput ? Induct.prevProcessInput.apply(this, arguments) : false;
+      if(State?.status !== "INPUT" || State?.pendingPanel !== "geninduct" || State?.trialInfo?.kind !== "generative_inductive_inline") return false;
+      const cap = Math.max(2, Number(State.trialInfo.cap || Induct.cap || capNow()) || 8);
+      if(pairObj != null && typeof pairObj !== "object"){
+        const n = Math.floor(Number(pairObj));
+        if(Number.isInteger(n) && n >= 1 && n <= cap){ chooseValue(n); return true; }
+        if(pairObj === "submit" || pairObj === "ok" || pairObj === "enter") return submitPair();
+        return false;
+      }
+      const a = Math.floor(Number(pairObj?.a));
+      const b = Math.floor(Number(pairObj?.b));
+      if(!Number.isInteger(a) || !Number.isInteger(b) || a < 1 || b < 1 || a > cap || b > cap) return false;
+      const info = State.trialInfo;
+      const phase = Math.max(1, Math.floor(Number(info.phaseIndex || 1)));
+      const phaseCount = Math.max(1, Math.floor(Number(info.phaseCount || 1)));
+      info.pairs = Array.isArray(info.pairs) ? info.pairs : [];
+      info.pairs.push({phase, pair:{a,b}});
+      if(phase < phaseCount){
+        const next = phase + 1;
+        info.phaseIndex = next;
+        resetPanel(cap);
+        showMetaQuestion(1, info.question, `Pair ${phase} saved: LEFT ${a} · RIGHT ${b}. Now build Pair ${next} of ${phaseCount}. ${info.inductiveConstructive?.sub || "Choose LEFT, then RIGHT."}`);
+        setPrompt(info.inductiveConstructive?.mode === "hidden_rule_induction" ? "INDUCE" : "CONSTRUCT");
+        setGameAriaLabel(`Inductive constructive trial. Pair ${next}. ${info.question}`);
+        try{ if(typeof pulse === "function") pulse("fast"); }catch(_){ }
+        try{ State.trialStartTime = (typeof perfNow === "function" ? perfNow() : Date.now()); if(State.timing) State.timing.inputOpenedAt = State.trialStartTime; if(typeof resetCognitiveTiming === "function") resetCognitiveTiming(); }catch(_){ }
+        return true;
+      }
+      const correct = verifyInductiveTask(info, info.pairs);
+      info.inductiveVerdict = correct ? "matched_target" : "missed_inductive_target";
+      info.userPairLabel = info.pairs.map(p => `Pair ${p.phase}: LEFT ${p.pair.a}, RIGHT ${p.pair.b}`).join("; ");
+      info.correctAnswer = "Any construction satisfying the stated inductive target.";
+      klauerCoverageRecord(info.inductiveConstructive || {}, correct);
+      State.targetValue = "correct";
+      State.pendingPanel = "geninductfinal";
+      const core = Induct.prevProcessInput || processInput;
+      return core.call(this, correct ? "correct" : "wrong");
+    }catch(e){ try{ recordRuntimeError(e, {source:"process_inductive_constructive"}); }catch(_){ } return false; }
+  }
+
+  function drawInductiveReview(){
+    const info = State.trialInfo || {};
+    if(info.kind !== "generative_inductive_inline") return false;
+    try{
+      ctx.fillStyle = "#050508";
+      ctx.fillRect(0,0,W,H);
+      drawMetaScreen();
+      const ic = info.inductiveConstructive || {};
+      drawReviewCard({
+        label:`L${ic.phaseCount > 1 ? "1" : "0"} REVIEW · ${ic.mode === "hidden_rule_induction" ? "INDUCTION" : "CONSTRUCTION"}`,
+        question:info.question || "Build an inductive construction.",
+        details:inductiveReviewText(info),
+        answer:info.inductiveVerdict === "matched_target" ? "Correct: your construction satisfies the inductive target." : "Correct: build a construction satisfying the stated target.",
+        color:"#ffc107"
+      });
+      drawInstructionalReviewTip(info);
+      drawReviewContinueHint();
+      updateParticles();
+      renderParticles();
+      return true;
+    }catch(_){ return false; }
+  }
+
+  function installWrappers(){
+    installConfig();
+    try{
+      if(typeof showPanel === "function" && !showPanel.__v6826InductiveWrapped){
+        const prev = showPanel;
+        const wrapped = function showPanelV6826(w){
+          if(w === "geninduct"){
+            if(typeof hideAllPanels === "function") hideAllPanels();
+            const panel = ensurePanel();
+            renderPanel();
+            panel.classList.add("active");
+            document.getElementById("app")?.classList.add("geninduct-mode");
+            State.pendingPanel = "geninduct";
+            return;
+          }
+          return prev.apply(this, arguments);
+        };
+        wrapped.__v6826InductiveWrapped = true;
+        showPanel = wrapped; try{ window.showPanel = wrapped; globalThis.showPanel = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+    try{
+      if(typeof hideAllPanels === "function" && !hideAllPanels.__v6826InductiveWrapped){
+        const prev = hideAllPanels;
+        const wrapped = function hideAllPanelsV6826(){
+          const out = prev.apply(this, arguments);
+          try{ document.getElementById("panelGenInduct")?.classList.remove("active"); document.getElementById("app")?.classList.remove("geninduct-mode"); }catch(_){ }
+          return out;
+        };
+        wrapped.__v6826InductiveWrapped = true;
+        hideAllPanels = wrapped; try{ window.hideAllPanels = wrapped; globalThis.hideAllPanels = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+    try{
+      if(typeof validateCurrentInputOperability === "function" && !validateCurrentInputOperability.__v6826InductiveWrapped){
+        const prev = validateCurrentInputOperability;
+        const wrapped = function validateCurrentInputOperabilityV6826(){
+          const res = prev.apply(this, arguments) || {ok:true, errors:[]};
+          if(State?.status === "INPUT" && State?.pendingPanel === "geninduct"){
+            const errs = Array.isArray(res.errors) ? res.errors.filter(e => !/invalid pendingPanel geninduct/.test(String(e))) : [];
+            const panel = document.getElementById("panelGenInduct");
+            const buttons = panel ? panel.querySelectorAll(".genInductBtn").length : 0;
+            if(!panel || !panel.classList.contains("active")) errs.push("geninduct panel not active");
+            if(buttons < 3) errs.push("geninduct buttons missing");
+            return {ok:errs.length === 0, errors:errs};
+          }
+          return res;
+        };
+        wrapped.__v6826InductiveWrapped = true;
+        validateCurrentInputOperability = wrapped; try{ window.validateCurrentInputOperability = wrapped; globalThis.validateCurrentInputOperability = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+    try{
+      if(typeof processInput === "function" && !processInput.__v6826InductiveWrapped){
+        const prev = processInput;
+        Induct.prevProcessInput = prev;
+        const wrapped = function processInputV6826(val){
+          if(val === "correct" || val === "wrong") return prev.apply(this, arguments);
+          if(State?.status === "INPUT" && State?.pendingPanel === "geninduct" && State?.trialInfo?.kind === "generative_inductive_inline") return processInductiveInput(val);
+          return prev.apply(this, arguments);
+        };
+        wrapped.__v6826InductiveWrapped = true;
+        processInput = wrapped; try{ window.processInput = wrapped; globalThis.processInput = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+    try{
+      if(typeof draw === "function" && !draw.__v6826InductiveWrapped){
+        const prev = draw;
+        const wrapped = function drawV6826(){
+          if((State.status === "REVIEW" || State.status === "REVIEW_CLOSING") && State.trialInfo?.kind === "generative_inductive_inline"){
+            if(drawInductiveReview()) return;
+          }
+          return prev.apply(this, arguments);
+        };
+        wrapped.__v6826InductiveWrapped = true;
+        draw = wrapped; try{ window.draw = wrapped; globalThis.draw = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+    try{
+      if(typeof maybeStartInlineGenerativeTrialAfterReset === "function" && !maybeStartInlineGenerativeTrialAfterReset.__v6826InductiveWrapped){
+        const prev = maybeStartInlineGenerativeTrialAfterReset;
+        Induct.prevStartHook = prev;
+        const wrapped = function maybeStartInlineGenerativeTrialAfterResetV6826(attempt, forcedLevel){
+          if(startInductiveTrial(attempt, forcedLevel)) return true;
+          return prev.apply(this, arguments);
+        };
+        wrapped.__v6826InductiveWrapped = true;
+        maybeStartInlineGenerativeTrialAfterReset = wrapped; try{ window.maybeStartInlineGenerativeTrialAfterReset = wrapped; globalThis.maybeStartInlineGenerativeTrialAfterReset = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+  }
+
+  function installKeyboard(){
+    if(typeof document === "undefined" || document.__v6826InductiveKeys) return;
+    document.__v6826InductiveKeys = true;
+    document.addEventListener("keydown", e => {
+      try{
+        if(State?.status !== "INPUT" || State?.pendingPanel !== "geninduct") return;
+        if(e.key === "ArrowLeft"){ e.preventDefault(); e.stopPropagation(); setSide("a"); return; }
+        if(e.key === "ArrowRight" || e.key === "Tab"){ e.preventDefault(); e.stopPropagation(); setSide("b"); return; }
+        if(e.key === "Backspace" || e.key === "Delete"){ e.preventDefault(); e.stopPropagation(); Induct.chosen[Induct.activeSide] = null; renderPanel(); return; }
+        if(e.key === "Enter"){ e.preventDefault(); e.stopPropagation(); submitPair(); return; }
+        if(/^[1-9]$/.test(e.key)){ e.preventDefault(); e.stopPropagation(); chooseValue(Number(e.key)); return; }
+        if(e.key === "0" && Induct.cap >= 10){ e.preventDefault(); e.stopPropagation(); chooseValue(10); }
+      }catch(_){ }
+    }, true);
+  }
+
+  function coverageSnapshot(){
+    try{
+      const ic = State?.productionMonitor?.inductiveConstructive || {};
+      return JSON.parse(JSON.stringify({shown:ic.shown||0, correct:ic.correct||0, byMode:ic.byMode||{}, byCell:ic.byCell||{}, byTask:ic.byTask||{}, recentTasks:ic.recentTasks||[]}));
+    }catch(_){ return {}; }
+  }
+
+  function auditV6826(opts={}){
+    const block=[], warnings=[], details={appVersion:appVersion(), patch:PATCH_ID};
+    try{
+      installConfig();
+      const cap = Math.max(6, Number(opts.cap || 8));
+      const built = [];
+      for(let i=0;i<160;i++){ const p = buildInductivePayload({cap}); if(p && p.task) built.push(p.task); }
+      details.built = built.length;
+      if(built.length < 40) block.push("could not build enough inductive tasks");
+      const modes = new Set(built.map(t=>t.mode));
+      details.modes = Array.from(modes).sort();
+      for(const m of ["single_witness","counterexample","dual_contrast","minimal_flip","progressive_alignment","system_construction","hidden_rule_induction","discriminator_construction","threshold_bracket_induction","composition_induction"]){ if(!modes.has(m)) block.push(`missing mode ${m}`); }
+      const cells = new Set(built.map(t=>t.klauer?.cell).filter(Boolean));
+      details.cells = Array.from(cells).sort();
+      for(const c of ["same:attribute","same:relation","different:attribute","different:relation","same_and_different:attribute","same_and_different:relation"]){ if(!cells.has(c)) warnings.push(`no sampled task in Klauer cell ${c}`); }
+      let bad = 0;
+      for(const t of built.slice(0,80)){
+        const ex = t.example;
+        if(!ex || !ex.p1){ bad++; continue; }
+        const info = {inductiveConstructive:t};
+        const pairs = [{phase:1,pair:ex.p1}];
+        if(ex.p2) pairs.push({phase:2,pair:ex.p2});
+        if(!verifyInductiveTask(info, pairs)) bad++;
+      }
+      details.badExamples = bad;
+      if(bad) block.push(`${bad} sampled examples failed their verifier`);
+      let underdeterminedHidden = 0, underdeterminedComposition = 0;
+      for(const t of built){
+        const p = t.params || {};
+        if(t.mode === "hidden_rule_induction"){
+          const vs = versionSpaceForExamples(p.yesExamples || [], p.noExamples || [], HIDDEN_RULES);
+          if(vs.length !== 1 || vs[0].id !== p.ruleId) underdeterminedHidden++;
+        }
+        if(t.mode === "composition_induction"){
+          const vs = compVersionSpace(p.yesExamples || [], p.noExamples || [], cueById(p.cueAId), cueById(p.cueBId));
+          if(vs.length !== 1 || vs[0].id !== p.opId) underdeterminedComposition++;
+        }
+      }
+      details.underdeterminedHidden = underdeterminedHidden;
+      details.underdeterminedComposition = underdeterminedComposition;
+      if(underdeterminedHidden) block.push(`${underdeterminedHidden} hidden-rule tasks were not unique inside the finite rule family`);
+      if(underdeterminedComposition) block.push(`${underdeterminedComposition} composition tasks were not unique inside the finite operator family`);
+      details.dualShare = Number(CONFIG?.generativeInlineDualShare);
+      if(Number(CONFIG?.generativeInlineDualShare) > 0.25) block.push("ordinary inline dual share remains too high");
+      try{ details.panelRegistered = typeof VALID_PENDING_PANELS !== "undefined" && VALID_PENDING_PANELS.has("geninduct"); }catch(_){ details.panelRegistered = false; }
+      if(!details.panelRegistered) block.push("geninduct panel not registered");
+      if(typeof maybeStartInlineGenerativeTrialAfterReset !== "function" || !maybeStartInlineGenerativeTrialAfterReset.__v6826InductiveWrapped) warnings.push("start hook not wrapped yet");
+      details.coverageSnapshot = coverageSnapshot();
+    }catch(e){ block.push("v6.8.25 audit exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
+  }
+
+  function boot(){
+    try{
+      installConfig();
+      injectStyle();
+      ensurePanel();
+      installWrappers();
+      installKeyboard();
+      window.auditV6826InductiveGenerativeArchitecture = auditV6826;
+      window.inductiveConstructiveCoverageSnapshot = coverageSnapshot;
+      window.EUCA_V6826_INDUCTIVE_GENERATIVE = {
+        patch:PATCH_ID,
+        audit:auditV6826,
+        buildPayload:buildInductivePayload,
+        verify:verifyInductiveTask,
+        start:startInductiveTrial,
+        coverage:coverageSnapshot
+      };
+      try{ globalThis.auditV6826InductiveGenerativeArchitecture = auditV6826; globalThis.inductiveConstructiveCoverageSnapshot = coverageSnapshot; }catch(_){ }
+    }catch(e){ try{ if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia] v6.8.25 boot failed", e); }catch(_){ } }
+  }
+
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot,0);
+      setTimeout(boot,300);
+    }
+  }catch(_){ }
+
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6826InductiveWrapped){
+      const wrapped = function runFeatureAuditV6826(feature, opts={}){
+        if(AUDIT_NAMES.has(normKey(feature))) return auditV6826(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v6826InductiveWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+      try{ runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+<script>
+(function(){
+  const PATCH_ID = "v6.8.27-venn-gate-coverage-clarity";
+  const AUDIT_NAMES = new Set(["v6827","v6.8.27","venn_gate_coverage_clarity","venn_gate_full_coverage","l0_venn_gate","venngate","venn_gate"]);
+  const TOPOLOGIES = ["disjoint","overlap","subset_AB","subset_BA","equal"];
+  const MARK2 = ["A_only","B_only","AB","outside"];
+  const MARK3 = ["A_only","B_only","C_only","AB_only","AC","BC","ABC","outside"];
+  const oldCatalog = (typeof vennGateConditionCatalog === "function") ? vennGateConditionCatalog : null;
+  const oldById = (typeof vennGateConditionById === "function") ? vennGateConditionById : null;
+  const oldSampleConfig = (typeof vennSampleConfig === "function") ? vennSampleConfig : null;
+  const oldConsistent = (typeof vennConfigConsistent === "function") ? vennConfigConsistent : null;
+  const oldRealize = (typeof vennRealizeGeometry === "function") ? vennRealizeGeometry : null;
+  const oldGuard = (typeof vennGateOpacityGuard === "function") ? vennGateOpacityGuard : null;
+  const oldLoad = (typeof vennGateLoad === "function") ? vennGateLoad : null;
+  const oldPairing = (typeof vennGateConditionPairing === "function") ? vennGateConditionPairing : null;
+  const oldAudit = (typeof auditVennGate === "function") ? auditVennGate : null;
+
+  function pickLocal(arr){
+    if(!Array.isArray(arr) || !arr.length) return null;
+    try{ if(typeof choice === "function") return choice(arr); }catch(_){ }
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+  function inc(obj, key){ obj[key] = (obj[key] || 0) + 1; return obj[key]; }
+  function mask2(region){ return {A:region === "A_only" || region === "AB", B:region === "B_only" || region === "AB"}; }
+  function mask3(region){
+    return {
+      A: region === "A_only" || region === "AB_only" || region === "AC" || region === "ABC",
+      B: region === "B_only" || region === "AB_only" || region === "BC" || region === "ABC",
+      C: region === "C_only" || region === "AC" || region === "BC" || region === "ABC"
+    };
+  }
+  function countMask(m){ return (m.A?1:0) + (m.B?1:0) + (m.C?1:0); }
+  function topoConfig(rel){ return {nSets:2, kind:"two_topology", rel:{AB:rel}, pair:{AB:rel}, cIn:{}, mark:null}; }
+  function twoPointConfig(mark){ return {nSets:2, kind:"two_point", rel:{AB:"overlap"}, pair:{AB:"overlap"}, cIn:{}, mark}; }
+  function threePointConfig(mark){ return {nSets:3, kind:"three_point", rel:{AB:"overlap"}, pair:{AB:"overlap",AC:"overlap",BC:"overlap"}, cIn:{}, mark}; }
+  function conditionListV6827(){
+    return [
+      {id:"ab_disjoint", group:"two_topology", rc:2, nSets:2, regions:2, minLevel:6, desc:"sets A and B are completely separate", short:"A/B separate", holds:c => c?.rel?.AB === "disjoint"},
+      {id:"ab_partial_overlap", group:"two_topology", rc:2, nSets:2, regions:3, minLevel:6, desc:"A and B partly overlap, with each set also having its own part", short:"partial overlap", holds:c => c?.rel?.AB === "overlap"},
+      {id:"a_subset_b", group:"two_topology", rc:2, nSets:2, regions:2, minLevel:6, desc:"all of A is inside B", short:"A inside B", holds:c => c?.rel?.AB === "subset_AB"},
+      {id:"b_subset_a", group:"two_topology", rc:2, nSets:2, regions:2, minLevel:6, desc:"all of B is inside A", short:"B inside A", holds:c => c?.rel?.AB === "subset_BA"},
+      {id:"ab_same_set", group:"two_topology", rc:2, nSets:2, regions:1, minLevel:7, desc:"A and B cover exactly the same set", short:"A equals B", holds:c => c?.rel?.AB === "equal"},
+      {id:"ab_intersect", group:"two_topology", rc:2, nSets:2, regions:3, minLevel:6, desc:"A and B share at least one part", short:"A intersects B", holds:c => c?.rel?.AB !== "disjoint"},
+      {id:"a_has_part_outside_b", group:"two_topology", rc:3, nSets:2, regions:3, minLevel:7, desc:"some part of A lies outside B", short:"some A not B", holds:c => ["disjoint","overlap","subset_BA"].includes(c?.rel?.AB)},
+      {id:"b_has_part_outside_a", group:"two_topology", rc:3, nSets:2, regions:3, minLevel:7, desc:"some part of B lies outside A", short:"some B not A", holds:c => ["disjoint","overlap","subset_AB"].includes(c?.rel?.AB)},
+
+      {id:"x_in_a", group:"two_point", rc:2, nSets:2, regions:4, minLevel:6, desc:"the marked item is in A", short:"× in A", holds:c => mask2(c?.mark).A},
+      {id:"x_in_b", group:"two_point", rc:2, nSets:2, regions:4, minLevel:6, desc:"the marked item is in B", short:"× in B", holds:c => mask2(c?.mark).B},
+      {id:"x_in_both", group:"two_point", rc:3, nSets:2, regions:4, minLevel:7, desc:"the marked item is in both A and B", short:"× in both", holds:c => {const m=mask2(c?.mark); return m.A && m.B;}},
+      {id:"x_in_exactly_one", group:"two_point", rc:3, nSets:2, regions:4, minLevel:7, desc:"the marked item is in exactly one of A and B", short:"× in one only", holds:c => {const m=mask2(c?.mark); return m.A !== m.B;}},
+      {id:"x_in_neither", group:"two_point", rc:3, nSets:2, regions:4, minLevel:7, desc:"the marked item is in neither A nor B", short:"× in neither", holds:c => {const m=mask2(c?.mark); return !m.A && !m.B;}},
+      {id:"x_in_a_not_b", group:"two_point", rc:3, nSets:2, regions:4, minLevel:7, desc:"the marked item is in A but not in B", short:"× in A not B", holds:c => {const m=mask2(c?.mark); return m.A && !m.B;}},
+      {id:"x_in_b_not_a", group:"two_point", rc:3, nSets:2, regions:4, minLevel:7, desc:"the marked item is in B but not in A", short:"× in B not A", holds:c => {const m=mask2(c?.mark); return m.B && !m.A;}},
+      {id:"x_in_a_or_b", group:"two_point", rc:3, nSets:2, regions:4, minLevel:7, desc:"the marked item is in A or B or both", short:"× in union", holds:c => {const m=mask2(c?.mark); return m.A || m.B;}},
+
+      {id:"x3_in_a", group:"three_point", rc:2, nSets:3, regions:8, minLevel:7, desc:"the marked item is in A", short:"× in A", holds:c => mask3(c?.mark).A},
+      {id:"x3_in_b", group:"three_point", rc:2, nSets:3, regions:8, minLevel:7, desc:"the marked item is in B", short:"× in B", holds:c => mask3(c?.mark).B},
+      {id:"x3_in_c", group:"three_point", rc:2, nSets:3, regions:8, minLevel:7, desc:"the marked item is in C", short:"× in C", holds:c => mask3(c?.mark).C},
+      {id:"x3_in_all_three", group:"three_point", rc:3, nSets:3, regions:8, minLevel:7, desc:"the marked item is in all three sets", short:"× in A∩B∩C", holds:c => {const m=mask3(c?.mark); return m.A && m.B && m.C;}},
+      {id:"x3_in_exactly_two", group:"three_point", rc:3, nSets:3, regions:8, minLevel:7, desc:"the marked item is in exactly two of the three sets", short:"× in exactly two", holds:c => countMask(mask3(c?.mark)) === 2},
+      {id:"x3_in_exactly_one", group:"three_point", rc:3, nSets:3, regions:8, minLevel:7, desc:"the marked item is in exactly one of the three sets", short:"× in exactly one", holds:c => countMask(mask3(c?.mark)) === 1},
+      {id:"x3_in_none", group:"three_point", rc:3, nSets:3, regions:8, minLevel:7, desc:"the marked item is outside all three sets", short:"× outside all", holds:c => countMask(mask3(c?.mark)) === 0},
+      {id:"x3_in_a_not_b", group:"three_point", rc:3, nSets:3, regions:8, minLevel:7, desc:"the marked item is in A but not in B", short:"× in A not B", holds:c => {const m=mask3(c?.mark); return m.A && !m.B;}},
+      {id:"x3_in_a_or_b", group:"three_point", rc:3, nSets:3, regions:8, minLevel:7, desc:"the marked item is in A or B or both", short:"× in A∪B", holds:c => {const m=mask3(c?.mark); return m.A || m.B;}},
+      {id:"x3_in_ab_not_c", group:"three_point", rc:3, nSets:3, regions:8, minLevel:7, desc:"the marked item is in A and B but not in C", short:"× in A∩B not C", holds:c => {const m=mask3(c?.mark); return m.A && m.B && !m.C;}}
+    ];
+  }
+  function conditionByIdV6827(id){ return conditionListV6827().find(c => c.id === id) || null; }
+  function sampleConfigV6827(cond, wantHolds, difficulty){
+    if(!cond) return null;
+    const want = !!wantHolds;
+    let universe, maker;
+    if(cond.group === "two_topology"){ universe = TOPOLOGIES; maker = topoConfig; }
+    else if(cond.group === "two_point"){ universe = MARK2; maker = twoPointConfig; }
+    else if(cond.group === "three_point"){ universe = MARK3; maker = threePointConfig; }
+    else return oldSampleConfig ? oldSampleConfig(cond, wantHolds, difficulty) : null;
+    const candidates = universe.map(maker).filter(cfg => !!cond.holds(cfg) === want);
+    return pickLocal(candidates);
+  }
+  function markPointV6827(kind, region){
+    if(kind === "two"){
+      const map = {A_only:{x:168,y:96}, B_only:{x:252,y:96}, AB:{x:210,y:96}, outside:{x:210,y:164}};
+      return map[region] || map.AB;
+    }
+    const map = {
+      ABC:{x:210,y:108}, C_only:{x:210,y:172}, A_only:{x:148,y:86}, B_only:{x:272,y:86},
+      AB_only:{x:210,y:66}, AC:{x:182,y:132}, BC:{x:238,y:132}, outside:{x:210,y:204}
+    };
+    return map[region] || map.ABC;
+  }
+  function circleV6827(id,cx,cy,r,extra={}){ return {id,cx,cy,r, active:extra.active !== false, dash:!!extra.dash, equal:!!extra.equal}; }
+  function realizeV6827(config, difficulty=6){
+    if(!config) return null;
+    const level = Math.max(0, Math.floor(Number(difficulty) || 0));
+    if(config.kind === "two_topology"){
+      const rel = config.rel?.AB || "overlap";
+      const geom = {kind:config.kind, nSets:2, level, rel, circles:[], mark:null, activeRegionCount:3, symmetric:false, equalAB:rel === "equal"};
+      if(rel === "disjoint"){ geom.circles = [circleV6827("A",156,98,50), circleV6827("B",264,98,50)]; geom.activeRegionCount = 2; }
+      else if(rel === "subset_AB"){ geom.circles = [circleV6827("B",216,100,64), circleV6827("A",196,100,28)]; geom.activeRegionCount = 2; }
+      else if(rel === "subset_BA"){ geom.circles = [circleV6827("A",204,100,64), circleV6827("B",224,100,28)]; geom.activeRegionCount = 2; }
+      else if(rel === "equal"){ geom.circles = [circleV6827("A",210,100,58,{equal:true}), circleV6827("B",210,100,58,{equal:true,dash:true})]; geom.activeRegionCount = 1; }
+      else { geom.circles = [circleV6827("A",176,98,58), circleV6827("B",244,98,58)]; geom.activeRegionCount = 3; }
+      return geom;
+    }
+    if(config.kind === "two_point"){
+      const p = markPointV6827("two", config.mark);
+      return {kind:config.kind, nSets:2, level, circles:[circleV6827("A",176,98,58), circleV6827("B",244,98,58)], mark:{...p, region:config.mark}, activeRegionCount:4, symmetric:false};
+    }
+    if(config.kind === "three_point"){
+      const p = markPointV6827("three", config.mark);
+      return {kind:config.kind, nSets:3, level, circles:[circleV6827("A",176,96,58), circleV6827("B",244,96,58), circleV6827("C",210,134,58)], mark:{...p, region:config.mark}, activeRegionCount:8, symmetric:true};
+    }
+    return oldRealize ? oldRealize(config, difficulty) : null;
+  }
+  function configConsistentV6827(config){
+    if(!config) return false;
+    if(config.kind === "two_topology") return config.nSets === 2 && TOPOLOGIES.includes(config.rel?.AB);
+    if(config.kind === "two_point") return config.nSets === 2 && MARK2.includes(config.mark);
+    if(config.kind === "three_point") return config.nSets === 3 && MARK3.includes(config.mark);
+    return oldConsistent ? oldConsistent(config) : false;
+  }
+  function distanceV6827(a,b){ const dx=(a?.cx??a?.x??0)-(b?.cx??b?.x??0), dy=(a?.cy??a?.y??0)-(b?.cy??b?.y??0); return Math.sqrt(dx*dx+dy*dy); }
+  function pointBoundaryMarginV6827(point, circle){ return Math.abs(distanceV6827(point, circle) - circle.r); }
+  function pointInsideCircleV6827(point, circle, margin=4){ return !!point && !!circle && distanceV6827(point, circle) <= circle.r - margin; }
+  function observedMarkRegionV6827(point, circles){
+    const by = Object.fromEntries((circles || []).map(c => [c.id, c]));
+    const A = pointInsideCircleV6827(point, by.A, 4);
+    const B = pointInsideCircleV6827(point, by.B, 4);
+    const C = by.C ? pointInsideCircleV6827(point, by.C, 4) : false;
+    if(by.C){
+      if(A && B && C) return "ABC";
+      if(A && B && !C) return "AB_only";
+      if(A && !B && C) return "AC";
+      if(!A && B && C) return "BC";
+      if(A && !B && !C) return "A_only";
+      if(!A && B && !C) return "B_only";
+      if(!A && !B && C) return "C_only";
+      return "outside";
+    }
+    if(A && B) return "AB";
+    if(A) return "A_only";
+    if(B) return "B_only";
+    return "outside";
+  }
+  function activeRegionLimitV6827(level){
+    const lv = Math.floor(Number(level) || 0);
+    if(lv >= (CONFIG.l0VennGateSymmetricMinLevel || 7)) return 8;
+    if(lv >= (CONFIG.l0VennGateThreeSetMinLevel || 7)) return 4;
+    return 4;
+  }
+  function opacityGuardV6827(geom, config, cond){
+    if(config && /^(two_topology|two_point|three_point)$/.test(String(config.kind || ""))){
+      const fall = {ok:false, fallbackToRc2:false, fallbackReason:null, fallbacks:0};
+      if(!geom || !config || !cond){ fall.fallbackReason = "missing_payload"; return fall; }
+      if(!configConsistentV6827(config)){ fall.fallbackReason = "inconsistent_config"; return fall; }
+      if(!!cond.holds(config) !== !!config.holds && typeof config.holds === "boolean"){ fall.fallbackReason = "truth_drift"; return fall; }
+      if((geom.activeRegionCount || 0) > activeRegionLimitV6827(geom.level)){ fall.fallbackReason = "visual_region_ceiling"; return fall; }
+      for(const c of geom.circles || []) if(!Number.isFinite(c.cx) || !Number.isFinite(c.cy) || !Number.isFinite(c.r) || c.r < 15){ fall.fallbackReason = "bad_circle"; return fall; }
+      if(geom.mark){
+        for(const c of geom.circles || []) if(pointBoundaryMarginV6827(geom.mark, c) < 7){ fall.fallbackReason = "mark_on_boundary"; return fall; }
+        if(config.kind === "two_point" || config.kind === "three_point"){
+          const observed = observedMarkRegionV6827(geom.mark, geom.circles || []);
+          if(observed !== config.mark){ fall.fallbackReason = `mark_region_mismatch_${config.mark}_vs_${observed}`; return fall; }
+        }
+      }
+      return {ok:true, fallbackToRc2:false, fallbackReason:null, fallbacks:0};
+    }
+    return oldGuard ? oldGuard(geom, config, cond) : {ok:true, fallbackToRc2:false, fallbackReason:null, fallbacks:0};
+  }
+  function loadV6827(config, cond, geom){
+    if(cond && /^(two_topology|two_point|three_point)$/.test(String(cond.group || ""))){
+      const rc = Number(cond.rc) || 2;
+      const nSets = Number(cond.nSets) || Number(config?.nSets) || 2;
+      const activeRegions = Number(geom?.activeRegionCount) || Number(cond.regions) || 2;
+      const groupBonus = cond.group === "two_topology" ? 0.15 : (cond.group === "two_point" ? 0.45 : 1.0);
+      const relational = Math.round((rc * 2.0 + groupBonus) * 100) / 100;
+      const visual = Math.round((nSets * 0.72 + activeRegions * 0.46 + (geom?.mark ? 0.55 : 0) + (config?.rel?.AB === "equal" ? 0.25 : 0)) * 100) / 100;
+      const total = Math.round((relational + visual) * 100) / 100;
+      return {relational, visual, total, bucket: total < 6.2 ? "low" : (total < 8.6 ? "mid" : "high")};
+    }
+    return oldLoad ? oldLoad(config, cond, geom) : {relational:0, visual:0, total:0, bucket:"low"};
+  }
+  function buildGateV6827(conditionId, wantHolds, difficulty=6){
+    const cond = conditionByIdV6827(conditionId) || (oldById ? oldById(conditionId) : null);
+    if(!cond) return null;
+    let rejects = 0;
+    for(let attempt=0; attempt<120; attempt++){
+      try{ if(typeof trialBuildBudgetExceeded === "function" && trialBuildBudgetExceeded("vennBuildGateV6827")) break; }catch(_){ }
+      const config = sampleConfigV6827(cond, !!wantHolds, difficulty);
+      if(!config) continue;
+      config.holds = !!wantHolds;
+      if(!!cond.holds(config) !== !!wantHolds) continue;
+      if(!configConsistentV6827(config)) continue;
+      const geom = realizeV6827(config, difficulty);
+      if(!geom) continue;
+      const guard = opacityGuardV6827(geom, config, cond);
+      if(!guard.ok){ rejects++; continue; }
+      const load = loadV6827(config, cond, geom);
+      return {config, geom, conditionId:cond.id, holds:!!wantHolds, load:load.total, relLoad:load.relational, visLoad:load.visual, loadBucket:load.bucket, opacityFallbacks:rejects, rc2Fallbacks:0, markRegion:geom.mark ? geom.mark.region : null};
+    }
+    return null;
+  }
+  function pairingV6827(conditions, predicates){
+    const preds = Array.isArray(predicates) ? predicates : (typeof l0GraphConditionalCatalog === "function" ? l0GraphConditionalCatalog() : []);
+    const predBy = Object.fromEntries(preds.map(p => [p.id, p]));
+    const order = ["graph_cond_sum_gt_10","graph_cond_left_greater","graph_cond_parity_match","graph_cond_gap_eq_1","graph_cond_diff_gt_3","graph_cond_sum_even","graph_cond_both_even","graph_cond_product_lt_20","graph_cond_sum_eq_10","graph_cond_both_gt_5","graph_cond_one_prime","graph_cond_left_div_right"];
+    const livePreds = order.map(id => predBy[id]).filter(Boolean);
+    const conds = (Array.isArray(conditions) ? conditions : conditionListV6827()).filter(c => c && c.id);
+    return conds.map((cond,i) => ({cond, op:livePreds[i % livePreds.length]})).filter(x => x.cond && x.op);
+  }
+  function outcomeTextV6827(cond, holds){
+    if(!cond) return holds ? "the set condition holds" : "the set condition does not hold";
+    return holds ? cond.desc : `not: ${cond.desc}`;
+  }
+  function explainV6827(cond, op, holds, a, b){
+    const activeDesc = holds ? op?.sameDesc : op?.differentDesc;
+    const pred = holds ? op?.same : op?.different;
+    const verdict = (typeof pred === "function") ? (pred(a,b) ? "YES" : "NO") : "unknown";
+    return `Venn gate: ${outcomeTextV6827(cond, holds)} → choose the ${holds ? "YES" : "NO"} branch. Active numeric rule: ${activeDesc || "unknown rule"}. Values: LEFT=${a}, RIGHT=${b}. Active rule → ${verdict}.`;
+  }
+  function esc(s){ return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  function renderV6827(geom, config, cond){
+    if(!config || !/^(two_topology|two_point|three_point)$/.test(String(config.kind || ""))){
+      return (typeof oldRender === "function") ? oldRender(geom, config, cond) : "";
+    }
+    const W = 420, H = 224;
+    const ids = (geom?.circles || []).map(c => c.id).join("");
+    const label = cond?.desc ? `Venn diagram: ${cond.desc}` : "Venn diagram rule selector";
+    const strokeFor = id => id === "A" ? "#8f82ff" : (id === "B" ? "#ffcf8a" : "#00d68f");
+    const fillFor = id => id === "A" ? "url(#venn27DiagA)" : (id === "B" ? "url(#venn27DotsB)" : "url(#venn27GridC)");
+    let svg = `<svg class="graph-svg venn-gate-svg venn-gate-svg-v6827" viewBox="0 0 ${W} ${H}" width="420" height="224" xmlns="http://www.w3.org/2000/svg" style="display:block;width:min(100%,560px);height:auto;" aria-label="${esc(label)}">`;
+    svg += `<defs><pattern id="venn27DiagA" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" fill="rgba(108,92,231,0.10)"/><path d="M 0 0 L 0 8" stroke="#8f82ff" stroke-opacity="0.52" stroke-width="2"/></pattern><pattern id="venn27DotsB" patternUnits="userSpaceOnUse" width="9" height="9"><rect width="9" height="9" fill="rgba(255,159,67,0.08)"/><circle cx="3" cy="3" r="1.4" fill="#ffcf8a" fill-opacity="0.65"/></pattern><pattern id="venn27GridC" patternUnits="userSpaceOnUse" width="10" height="10"><rect width="10" height="10" fill="rgba(0,214,143,0.07)"/><path d="M 0 5 L 10 5 M 5 0 L 5 10" stroke="#00d68f" stroke-opacity="0.35" stroke-width="1"/></pattern></defs>`;
+    svg += `<text x="${W/2}" y="16" font-size="11" fill="#999" text-anchor="middle" font-weight="800">VENN RULE SELECTOR</text>`;
+    svg += `<rect x="36" y="26" width="348" height="170" rx="16" fill="rgba(255,255,255,0.018)" stroke="rgba(255,255,255,0.08)"/>`;
+    for(const c of geom?.circles || []){
+      const op = c.active === false ? 0.18 : (c.id === "C" ? 0.35 : 0.34);
+      const dash = c.dash ? ` stroke-dasharray="7 4"` : "";
+      svg += `<circle cx="${c.cx.toFixed(1)}" cy="${c.cy.toFixed(1)}" r="${c.r.toFixed(1)}" fill="${fillFor(c.id)}" fill-opacity="${op}" stroke="${strokeFor(c.id)}" stroke-opacity="0.94" stroke-width="${c.dash ? 3.6 : 2.6}"${dash}/>`;
+    }
+    for(const c of geom?.circles || []){
+      let lx = c.cx, ly = c.cy - c.r - 6;
+      if(config?.rel?.AB === "equal" && c.id === "A"){ lx = c.cx - 24; ly = c.cy - c.r - 8; }
+      if(config?.rel?.AB === "equal" && c.id === "B"){ lx = c.cx + 24; ly = c.cy - c.r - 8; }
+      svg += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="12" fill="${strokeFor(c.id)}" text-anchor="middle" font-weight="950">${c.id}</text>`;
+    }
+    if(geom?.mark){
+      svg += `<circle cx="${geom.mark.x.toFixed(1)}" cy="${geom.mark.y.toFixed(1)}" r="11" fill="#050508" fill-opacity="0.82" stroke="#ffc107" stroke-width="2.2"/>`;
+      svg += `<text x="${geom.mark.x.toFixed(1)}" y="${(geom.mark.y+4).toFixed(1)}" font-size="21" fill="#ffc107" text-anchor="middle" font-weight="950">×</text>`;
+    }
+    const rel = config?.rel?.AB === "equal" ? " · A and B share the same boundary" : "";
+    const legend = ids.includes("C") ? "▦ A · ▨ B · ░ C" : "▦ A · ▨ B";
+    svg += `<text x="${W/2}" y="212" font-size="12" fill="#c9c3ff" text-anchor="middle" font-weight="750">${legend}${geom?.mark ? " · × marked item" : ""}${rel}</text>`;
+    svg += `</svg>`;
+    return svg;
+  }
+  const oldRender = (typeof vennGateRenderSVG === "function") ? vennGateRenderSVG : null;
+
+  function makeCatsV6827(){
+    const pairs = pairingV6827(conditionListV6827(), typeof l0GraphConditionalCatalog === "function" ? l0GraphConditionalCatalog() : []);
+    return pairs.map(({cond, op}) => ({
+      id:`venn_gate_region_${cond.id}__${op.id}`,
+      tier:4,
+      stage:5,
+      family:"l0_venn_gate",
+      checkVisual:true,
+      questionVisualGate:true,
+      frameTags:["relation_processing","set_relation","venn_region_topology","conditional_relation","role_binding","relational_integration","local_relation_gate","local_set_relation_gate"].concat(cond.group === "three_point" ? ["three_set_region"] : []).concat(cond.group === "two_topology" ? ["set_topology"] : ["element_membership"]),
+      atomicsUsed:["venn_categorical_gate","venn_full_region_catalog","venn_gate_builder","venn_gate_opacity_guard","venn_gate_load_metric","venn_gate_family"].concat(cond.group === "three_point" ? ["three_set_membership","venn_eight_region_map"] : []).concat(cond.group === "two_topology" ? ["set_topology_relation"] : ["marked_element_region"]),
+      vennConditionId:cond.id,
+      graphConditionalId:op.id,
+      relationalComplexity:cond.rc,
+      vennSetCount:cond.nSets,
+      __v6827VennGate:true,
+      canUse:(m)=>{
+        try{
+          const lvl = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : 0;
+          const minLevel = Math.max(cond.minLevel || 6, cond.rc >= 3 ? (CONFIG.l0VennGateRc3MinLevel || 7) : (CONFIG.l0VennGateMinLevel || 6));
+          if(lvl < minLevel) return false;
+          if(cond.rc >= 3 && typeof vennGateRecentRelationalLoad === "function" && vennGateRecentRelationalLoad() > (CONFIG.l0VennGateRc3LoadCeiling || 8.25)) return false;
+          if(cond.nSets >= 3 && typeof vennGateRecentVisualLoad === "function" && vennGateRecentVisualLoad() > (CONFIG.l0VennGateVisualCeiling || 9.0)) return false;
+          return (!CONFIG.l0VennGateRequireGate || (typeof requireHarnessPass !== "function") || requireHarnessPass("l0_venn_gate"));
+        }catch(_){ return false; }
+      },
+      variants:[
+        {q:`Use the Venn diagram as the rule selector.\nDoes it show: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.\nIs the active rule true of LEFT and RIGHT?`},
+        {q:`Read the set relation first: ${cond.desc}.\nYES branch: ${op.sameDesc}. NO branch: ${op.differentDesc}.\nApply the selected branch to LEFT and RIGHT.`}
+      ],
+      gen(m,t){
+        const maxAB = Math.max(2, Math.min(Number(m || 8) + 1, 12));
+        const level = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : (cond.minLevel || 7);
+        function pack(a,b,ext){ const arr=[a,b]; Object.assign(arr, ext); return arr; }
+        for(let attempt=0; attempt<70; attempt++){
+          const a = (typeof randInt === "function") ? randInt(1,maxAB) : (1 + Math.floor(Math.random()*maxAB));
+          const b = (typeof randInt === "function") ? randInt(1,maxAB) : (1 + Math.floor(Math.random()*maxAB));
+          const trueBranch = !!op.same(a,b);
+          const falseBranch = !!op.different(a,b);
+          if(trueBranch === falseBranch) continue;
+          let wantHolds;
+          if(trueBranch === !!t) wantHolds = true;
+          else if(falseBranch === !!t) wantHolds = false;
+          else continue;
+          const built = buildGateV6827(cond.id, wantHolds, level);
+          if(!built) continue;
+          return pack(a,b,{
+            _vennConditionId:built.conditionId || cond.id,
+            _vennConditionDesc:cond.desc,
+            _vennRC:cond.rc,
+            _vennSetCount:cond.nSets,
+            _vennHolds:built.holds,
+            _vennConfig:built.config,
+            _vennGeom:built.geom,
+            _vennRelLoad:built.relLoad,
+            _vennVisLoad:built.visLoad,
+            _vennLoad:built.load,
+            _vennLoadBucket:built.loadBucket,
+            _vennOpacityFallbacks:built.opacityFallbacks || 0,
+            _vennRc2Fallbacks:0,
+            _vennMarkRegion:built.markRegion || null,
+            _graphConditionalId:op.id,
+            _graphActiveBranch: built.holds ? "same" : "different"
+          });
+        }
+        return null;
+      },
+      verify(a,b,info){
+        const gate = info && info.vennGate;
+        if(!gate || typeof gate.holds !== "boolean") return (typeof INAPPLICABLE !== "undefined" ? INAPPLICABLE : null);
+        const pred = gate.holds ? op.same : op.different;
+        return !!pred(a,b);
+      }
+    }));
+  }
+  function installCatalogV6827(){
+    try{
+      CONFIG.l0VennGateCatalogSize = conditionListV6827().length;
+      CONFIG.l0VennGateFullCoverageCatalog = true;
+      CONFIG.l0VennGateSymmetricMinLevel = Math.min(Number(CONFIG.l0VennGateSymmetricMinLevel || 7), 7);
+      CONFIG.l0VennGateThreeSetMinLevel = Math.min(Number(CONFIG.l0VennGateThreeSetMinLevel || 7), 7);
+      CONFIG.l0VennGateRc3MinLevel = Math.min(Number(CONFIG.l0VennGateRc3MinLevel || 7), 7);
+    }catch(_){ }
+    try{
+      if(Array.isArray(POSNER_CATS)){
+        for(const c of POSNER_CATS){
+          if(c && c.vennConditionId && /^venn_gate_/.test(String(c.id || "")) && !c.__v6827VennGate){
+            c.__v6827Superseded = true;
+            c.canUse = function(){ return false; };
+          }
+        }
+        const existing = new Set(POSNER_CATS.map(c => c && c.id));
+        const fresh = makeCatsV6827();
+        for(const c of fresh){
+          if(!existing.has(c.id)){
+            POSNER_CATS.push(c);
+            existing.add(c.id);
+            try{ if(typeof migrateLegacyCatalogueEntryToSpec === "function") migrateLegacyCatalogueEntryToSpec("L0", c); }catch(_){ }
+          }
+        }
+      }
+      try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+      try{ if(typeof REGISTRY_LAYER_ENTRIES_CACHE !== "undefined" && REGISTRY_LAYER_ENTRIES_CACHE){ REGISTRY_LAYER_ENTRIES_CACHE.sig = ""; REGISTRY_LAYER_ENTRIES_CACHE.rows = {}; } }catch(_){ }
+      try{ if(typeof rebuildRegistryRuntimeIndex === "function") rebuildRegistryRuntimeIndex(); }catch(_){ }
+      try{ if(typeof State !== "undefined" && State) State.nextTrialPrepared = null; }catch(_){ }
+    }catch(e){ try{ if(console && console.warn) console.warn("[Eucalculia] v6.8.27 Venn catalog install failed", e); }catch(_){ } }
+  }
+  function auditVennGateV6827(opts={}){
+    const block = [], warnings = [], rows = [];
+    const conditions = conditionListV6827();
+    const condIds = new Set(conditions.map(c => c.id));
+    const cats = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS.filter(c => c && c.__v6827VennGate) : [];
+    if(conditions.length !== 26) block.push(`full Venn condition catalog has ${conditions.length}; expected 26`);
+    if(cats.length !== conditions.length) block.push(`active v6.8.27 Venn cat count ${cats.length}; expected ${conditions.length}`);
+    const oldEnabled = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS.filter(c => c && c.__v6827Superseded && c.canUse && c.canUse()).map(c => c.id) : [];
+    if(oldEnabled.length) block.push(`superseded legacy Venn cats still enabled: ${oldEnabled.slice(0,5).join(", ")}`);
+    const topoSeen = new Set(), mark2Seen = new Set(), mark3Seen = new Set();
+    const oldGate = CONFIG.l0VennGateRequireGate;
+    CONFIG.l0VennGateRequireGate = false;
+    const oldLevels = State.levelByMode ? Object.assign({}, State.levelByMode) : null;
+    if(!State.levelByMode) State.levelByMode = {};
+    State.levelByMode.D = Math.max(State.levelByMode.D || 0, 9);
+    try{
+      for(const cond of conditions){
+        for(const want of [true,false]){
+          const built = buildGateV6827(cond.id, want, 9);
+          if(!built){ block.push(`${cond.id}: failed to build ${want ? "holding" : "failing"} diagram`); continue; }
+          if(!!cond.holds(built.config) !== want) block.push(`${cond.id}: truth mismatch in built config`);
+          const guard = opacityGuardV6827(built.geom, built.config, cond);
+          if(!guard.ok) block.push(`${cond.id}: opacity guard rejected own build (${guard.fallbackReason || "unknown"})`);
+          if(built.config.kind === "two_topology") topoSeen.add(built.config.rel.AB);
+          if(built.config.kind === "two_point") mark2Seen.add(built.config.mark);
+          if(built.config.kind === "three_point") mark3Seen.add(built.config.mark);
+          if(rows.length < 120) rows.push({cond:cond.id, group:cond.group, want, configKind:built.config.kind, rel:built.config.rel?.AB || null, mark:built.config.mark || null, load:built.load});
+        }
+      }
+      // Coverage is deterministic by construction: the audit checks every condition in
+      // both polarities, while the universe lists below state the full region/topology set.
+      const byGroup = {};
+      for(const c of conditions) inc(byGroup, c.group);
+      const m = Math.max(8, Math.floor(Number(opts.m) || 10));
+      const trialsPerPolarity = Math.max(2, Math.floor(Number(opts.trialsPerPolarity) || 4));
+      let builtCats = 0;
+      for(const cat of cats){
+        const cond = conditionByIdV6827(cat.vennConditionId);
+        const op = (typeof l0GraphConditionalById === "function") ? l0GraphConditionalById(cat.graphConditionalId) : null;
+        if(!cond || !op){ block.push(`${cat.id}: missing condition or predicate`); continue; }
+        const counts = {true:0,false:0};
+        for(const want of [true,false]){
+          for(let i=0;i<trialsPerPolarity;i++){
+            const gen = cat.gen(m, want);
+            if(!gen){ block.push(`${cat.id}: generator failed for target ${want}`); continue; }
+            const pred = gen._graphActiveBranch === "same" ? op.same : op.different;
+            const got = !!pred(gen[0], gen[1]);
+            if(got !== want) block.push(`${cat.id}: target drift; got=${got}, want=${want}`);
+            counts[want ? "true" : "false"]++;
+          }
+        }
+        if(counts.true && counts.false) builtCats++;
+      }
+      if(builtCats < cats.length) block.push(`only ${builtCats}/${cats.length} active Venn cats built both polarities`);
+      return (typeof auditResult === "function" ? auditResult : (s,d)=>({status:s,details:d}))(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, conditions:conditions.map(c=>({id:c.id, group:c.group, rc:c.rc, sets:c.nSets, regions:c.regions, minLevel:c.minLevel})), byGroup, cats:cats.length, rows, warnings, block});
+    }catch(e){
+      block.push("v6.8.27 Venn audit exception: " + (e && e.message || e));
+      return (typeof auditResult === "function" ? auditResult : (s,d)=>({status:s,details:d}))("BLOCK", {patch:PATCH_ID, rows, warnings, block});
+    }finally{
+      CONFIG.l0VennGateRequireGate = oldGate;
+      if(oldLevels) State.levelByMode = oldLevels;
+    }
+  }
+  function boot(){
+    try{
+      vennGateConditionCatalog = conditionListV6827;
+      vennGateConditionById = conditionByIdV6827;
+      vennSampleConfig = sampleConfigV6827;
+      vennConfigConsistent = configConsistentV6827;
+      vennRealizeGeometry = realizeV6827;
+      vennActiveRegionLimitForLevel = activeRegionLimitV6827;
+      vennGateOpacityGuard = opacityGuardV6827;
+      vennGateLoad = loadV6827;
+      vennBuildGate = buildGateV6827;
+      vennGateConditionPairing = pairingV6827;
+      vennConditionOutcomeText = outcomeTextV6827;
+      vennGateExplain = explainV6827;
+      vennGateRenderSVG = renderV6827;
+      l0VennGateCats = makeCatsV6827;
+      auditVennGate = auditVennGateV6827;
+      installCatalogV6827();
+      try{ window.auditV6827VennGateCoverageClarity = auditVennGateV6827; globalThis.auditV6827VennGateCoverageClarity = auditVennGateV6827; }catch(_){ }
+      try{ window.EUCA_V6827_VENN_GATE = {patch:PATCH_ID, audit:auditVennGateV6827, conditions:conditionListV6827, cats:makeCatsV6827}; }catch(_){ }
+    }catch(e){ try{ if(console && console.warn) console.warn("[Eucalculia] v6.8.27 boot failed", e); }catch(_){ } }
+  }
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot,0);
+      setTimeout(boot,300);
+    } else boot();
+  }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6827VennWrapped){
+      const wrapped = function runFeatureAuditV6827(feature, opts={}){
+        const key = String(feature || "").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+        if(AUDIT_NAMES.has(key)) return auditVennGateV6827(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v6827VennWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+      try{ runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
 })();
 </script>
 </body>
