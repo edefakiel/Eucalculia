@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.27-venn-gate-coverage-clarity</title>
+<title>Eucalculia v6.8.33-graph-gate-relevance</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.27-venn-gate-coverage-clarity";
+const APP_VERSION = "v6.8.33-graph-gate-relevance";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -11635,7 +11635,7 @@ function renderStructuredQuestionHTML(qText, info=null){
       : l0EpistemicInfoLinesFromScenario(ep, currentMax());
     html.push(`<div class="qstep section"><strong>Information available to ${esc(agent)}:</strong><br>${renderLines(infoLines)}</div>`);
     html.push(`<div class="qstep compact"><strong>Claim to evaluate:</strong><br>• ${esc(targetText)}</div>`);
-    html.push(`<div class="qstep prompt-end"><strong>Question:</strong> You saw the actual LEFT and RIGHT. ${esc(agent)} only has the information above. Choose what ${esc(agent)} can determine; if ${esc(agent)} cannot determine it, choose the actual truth of the claim.</div>`);
+    html.push(`<div class="qstep prompt-end"><strong>Question:</strong> Choose what ${esc(agent)} can determine from the information above. If ${esc(agent)} cannot determine the claim, choose the actual YES/NO truth of the claim.</div>`);
     return `<div class="meta-question-card epistemic-card">${html.join("")}</div>`;
   }
   if(info?.epistemicSufficiency) return renderEpistemicQuestionCard(info.epistemicSufficiency);
@@ -17248,12 +17248,12 @@ function l0AnalogySharedUnaryRuleCatalog(){
     paperNegLeft:"is the hole count not the next even number after LEFT?",
     paperNegRight:"is the hole count not the next even number after RIGHT?"
   });
-  add("pair_previous_even", "Go to the previous even number.", "parity_step", n => n - (n % 2 === 0 ? 2 : 1), {
+  add("pair_previous_even", "Go to the next lower even number.", "parity_step", n => n - (n % 2 === 0 ? 2 : 1), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"is the hole count the previous even number before LEFT?",
-    paperPromptRight:"is the hole count the previous even number before RIGHT?",
-    paperNegLeft:"is the hole count not the previous even number before LEFT?",
-    paperNegRight:"is the hole count not the previous even number before RIGHT?"
+    paperPromptLeft:"is the hole count the largest even number less than LEFT?",
+    paperPromptRight:"is the hole count the largest even number less than RIGHT?",
+    paperNegLeft:"is the hole count not the largest even number less than LEFT?",
+    paperNegRight:"is the hole count not the largest even number less than RIGHT?"
   });
   add("pair_next_odd", "Go to the next odd number.", "parity_step", n => n + (n % 2 === 0 ? 1 : 2), {
     distractorType:"parity_direction_flip",
@@ -17262,12 +17262,12 @@ function l0AnalogySharedUnaryRuleCatalog(){
     paperNegLeft:"is the hole count not the next odd number after LEFT?",
     paperNegRight:"is the hole count not the next odd number after RIGHT?"
   });
-  add("pair_previous_odd", "Go to the previous odd number.", "parity_step", n => n - (n % 2 === 0 ? 1 : 2), {
+  add("pair_previous_odd", "Go to the next lower odd number.", "parity_step", n => n - (n % 2 === 0 ? 1 : 2), {
     distractorType:"parity_direction_flip",
-    paperPromptLeft:"is the hole count the previous odd number before LEFT?",
-    paperPromptRight:"is the hole count the previous odd number before RIGHT?",
-    paperNegLeft:"is the hole count not the previous odd number before LEFT?",
-    paperNegRight:"is the hole count not the previous odd number before RIGHT?"
+    paperPromptLeft:"is the hole count the largest odd number less than LEFT?",
+    paperPromptRight:"is the hole count the largest odd number less than RIGHT?",
+    paperNegLeft:"is the hole count not the largest odd number less than LEFT?",
+    paperNegRight:"is the hole count not the largest odd number less than RIGHT?"
   });
   for(const k of [3,4,5]){
     add(`pair_next_multiple_${k}`, `Go to the next higher multiple of ${k}.`, "multiple_step", n => {
@@ -17289,12 +17289,12 @@ function l0AnalogySharedUnaryRuleCatalog(){
         return n + (r === 0 ? k : k - r) <= 12;
       }
     });
-    add(`pair_previous_multiple_${k}`, `Go to the previous multiple of ${k}.`, "multiple_step", n => n - (n % k || k), {
+    add(`pair_previous_multiple_${k}`, `Go to the next lower multiple of ${k}.`, "multiple_step", n => n - (n % k || k), {
       distractorType:"multiple_direction_flip",
-      paperPromptLeft:`is the hole count the previous multiple of ${k} before LEFT?`,
-      paperPromptRight:`is the hole count the previous multiple of ${k} before RIGHT?`,
-      paperNegLeft:`is the hole count not the previous multiple of ${k} before LEFT?`,
-      paperNegRight:`is the hole count not the previous multiple of ${k} before RIGHT?`
+      paperPromptLeft:`is the hole count the largest multiple of ${k} less than LEFT?`,
+      paperPromptRight:`is the hole count the largest multiple of ${k} less than RIGHT?`,
+      paperNegLeft:`is the hole count not the largest multiple of ${k} less than LEFT?`,
+      paperNegRight:`is the hole count not the largest multiple of ${k} less than RIGHT?`
     });
   }
   add("pair_next_prime", "Go to the next prime number.", "prime_step", n => l0AnalogyNextPrime(n), {
@@ -17304,12 +17304,12 @@ function l0AnalogySharedUnaryRuleCatalog(){
     paperNegLeft:"is the hole count not the next prime number after LEFT?",
     paperNegRight:"is the hole count not the next prime number after RIGHT?"
   });
-  add("pair_previous_prime", "Go to the previous prime number.", "prime_step", n => l0AnalogyPrevPrime(n), {
+  add("pair_previous_prime", "Go to the next lower prime number.", "prime_step", n => l0AnalogyPrevPrime(n), {
     distractorType:"prime_direction_flip",
-    paperPromptLeft:"is the hole count the previous prime number before LEFT?",
-    paperPromptRight:"is the hole count the previous prime number before RIGHT?",
-    paperNegLeft:"is the hole count not the previous prime number before LEFT?",
-    paperNegRight:"is the hole count not the previous prime number before RIGHT?"
+    paperPromptLeft:"is the hole count the largest prime number less than LEFT?",
+    paperPromptRight:"is the hole count the largest prime number less than RIGHT?",
+    paperNegLeft:"is the hole count not the largest prime number less than LEFT?",
+    paperNegRight:"is the hole count not the largest prime number less than RIGHT?"
   });
   add("pair_next_square", "Go to the next square number.", "square_step", n => l0AnalogyNextSquare(n), {
     distractorType:"square_direction_flip",
@@ -17318,12 +17318,12 @@ function l0AnalogySharedUnaryRuleCatalog(){
     paperNegLeft:"is the hole count not the next square number after LEFT?",
     paperNegRight:"is the hole count not the next square number after RIGHT?"
   });
-  add("pair_previous_square", "Go to the previous square number.", "square_step", n => l0AnalogyPrevSquare(n), {
+  add("pair_previous_square", "Go to the next lower square number.", "square_step", n => l0AnalogyPrevSquare(n), {
     distractorType:"square_direction_flip",
-    paperPromptLeft:"is the hole count the previous square number before LEFT?",
-    paperPromptRight:"is the hole count the previous square number before RIGHT?",
-    paperNegLeft:"is the hole count not the previous square number before LEFT?",
-    paperNegRight:"is the hole count not the previous square number before RIGHT?"
+    paperPromptLeft:"is the hole count the largest square number less than LEFT?",
+    paperPromptRight:"is the hole count the largest square number less than RIGHT?",
+    paperNegLeft:"is the hole count not the largest square number less than LEFT?",
+    paperNegRight:"is the hole count not the largest square number less than RIGHT?"
   });
   return (l0AnalogySharedUnaryRuleCatalog._cache = rules);
 }
@@ -18369,7 +18369,9 @@ function paperFoldingRenderSequence(operations, opts={}){
   const vignetteCount = steps.length;
   const totalW = vignetteCount * W + (vignetteCount - 1) * (GAP + 14);
   const totalH = H + 30;
+  const patternId = "paperFoldLayerHatch";
   let svg = `<svg viewBox="0 0 ${totalW} ${totalH}" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%;height:auto;" aria-label="paper folding sequence">`;
+  svg += `<defs><pattern id="${patternId}" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#d8d3ff" stroke-opacity="0.16" stroke-width="1"/></pattern></defs>`;
   for(let i=0; i<vignetteCount; i++){
     const step = steps[i];
     const state = step.state;
@@ -18380,13 +18382,17 @@ function paperFoldingRenderSequence(operations, opts={}){
       const poly = paperPolygonNormalize(region.polygon);
       if(!paperPolygonNonDegenerate(poly)) continue;
       const pts = poly.map(p => `${(p.x * W).toFixed(2)},${((1 - p.y) * H).toFixed(2)}`).join(" ");
-      const fillOpacity = Math.min(0.85, 0.35 + (region.layers - 1) * 0.18);
-      svg += `<polygon points="${pts}" fill="#a89dee" fill-opacity="${fillOpacity}" stroke="#26215C" stroke-width="0.7" />`;
+      const layers = Math.max(1, Number(region.layers) || 1);
+      // v6.8.30: folded parts should still read as the same sheet. Layer count
+      // is now shown by a subtle hatch/outline, not by a strong colour jump.
+      const fillOpacity = 0.72;
+      const strokeOpacity = Math.min(0.92, 0.58 + (layers - 1) * 0.10);
+      const strokeWidth = layers > 1 ? 1.00 : 0.75;
+      svg += `<polygon points="${pts}" fill="#9f96e8" fill-opacity="${fillOpacity.toFixed(2)}" stroke="#332B7A" stroke-opacity="${strokeOpacity.toFixed(2)}" stroke-width="${strokeWidth.toFixed(2)}" />`;
+      if(layers > 1){
+        svg += `<polygon points="${pts}" fill="url(#${patternId})" stroke="none" />`;
+      }
     }
-    // Draw visible punch locations in the current folded coordinate system.
-    // Consecutive punches are grouped into one vignette, matching ordinary
-    // paper-folding notation: several holes made without an intervening fold
-    // are one punching turn, not several separate paper states.
     const drawn = new Set();
     for(const p of step.punches || []){
       const onPaper = state.regions.some(region => paperPointInPolygon(region.polygon, p));
@@ -18403,7 +18409,8 @@ function paperFoldingRenderSequence(operations, opts={}){
         svg += `<circle cx="${cx}" cy="${cy}" r="2.4" fill="none" stroke="#534AB7" stroke-width="1.4" />`;
       }
     }
-    svg += `<text x="${W/2}" y="${H + 14}" font-size="9" fill="#888" text-anchor="middle">${step.label}</text>`;
+    const label = step.label === "fold" ? "after fold" : step.label;
+    svg += `<text x="${W/2}" y="${H + 14}" font-size="9" fill="#888" text-anchor="middle">${label}</text>`;
     svg += `</g>`;
     if(i < vignetteCount - 1){
       const arrowX = xOffset + W + 2;
@@ -23105,15 +23112,15 @@ function buildInverseOperationCatalogFromSharedAnalogies(){
 
     // Ordered property steps.
     ["pair_next_even", "next_even", "go to the next even number after LEFT", "property_step", 1],
-    ["pair_previous_even", "previous_even", "go to the previous even number before LEFT", "property_step", 1],
+    ["pair_previous_even", "previous_even", "go to the largest even number less than LEFT", "property_step", 1],
     ["pair_next_odd", "next_odd", "go to the next odd number after LEFT", "property_step", 1],
-    ["pair_previous_odd", "previous_odd", "go to the previous odd number before LEFT", "property_step", 1],
+    ["pair_previous_odd", "previous_odd", "go to the largest odd number less than LEFT", "property_step", 1],
     ["pair_next_prime", "next_prime", "go to the next prime number after LEFT", "property_step", 1],
-    ["pair_previous_prime", "previous_prime", "go to the previous prime number before LEFT", "property_step", 1],
+    ["pair_previous_prime", "previous_prime", "go to the largest prime number less than LEFT", "property_step", 1],
     ["pair_next_multiple_3", "next_multiple_3", "go to the next higher multiple of 3 after LEFT", "multiple_step", 1],
-    ["pair_previous_multiple_3", "previous_multiple_3", "go to the previous multiple of 3 before LEFT", "multiple_step", 1],
+    ["pair_previous_multiple_3", "previous_multiple_3", "go to the largest multiple of 3 less than LEFT", "multiple_step", 1],
     ["pair_next_square", "next_square", "go to the next square number after LEFT", "square_step", 1],
-    ["pair_previous_square", "previous_square", "go to the previous square number before LEFT", "square_step", 1]
+    ["pair_previous_square", "previous_square", "go to the largest square number less than LEFT", "square_step", 1]
   ];
   const out = wanted.map(([coreRuleId,id,label,category,depth]) => {
     const rule = byId[coreRuleId];
@@ -24068,7 +24075,7 @@ function l0EpistemicQuestion(scenario, m=null){
 ${infoLines.map(x=>`• ${x}`).join("\n")}
 Claim to evaluate:
 • ${t}
-You saw the actual LEFT and RIGHT. ${agent} only has the information above. Choose what ${agent} can determine; if ${agent} cannot determine it, choose the actual truth of the claim.`;
+Choose what ${agent} can determine from the information above. If ${agent} cannot determine the claim, choose the actual YES/NO truth of the claim.`;
 }
 function l0EpistemicGenericTargetsForWorlds(worlds, max){
   const out = [];
@@ -24521,7 +24528,7 @@ function showL0EpistemicSufficiencyOnboardingIfNeeded(onContinue){
     kind:"l0_epistemic_sufficiency_onboarding",
     title:"Epistemic check",
     sub:"Decide what someone else can know",
-    detail:"After the two values, the question states the partial information available to an agent. Choose whether the agent can know the answer is YES, can know the answer is NO, or cannot know it. In cannot-know cases, use the actual values you saw to decide whether the hidden answer is YES or NO.",
+    detail:"After the two values, the question states the partial information available to an agent. Choose whether the agent can know the answer is YES, can know the answer is NO, or cannot know it. In cannot-know cases, choose the actual YES/NO truth of the claim.",
     prompt:"KNOWLEDGE",
     aria:"Epistemic sufficiency onboarding.",
     forceAutoPhase:"L0",
@@ -79163,9 +79170,7 @@ try{
       text = text.replace(/\bonly RIGHT\b/g, "only RIGHT");
       return `<div class="qstep compact"><strong>${esc(agent)}:</strong> ${esc(text || "has the listed information")}</div>`;
     }).join("");
-    const actual = ep.actualWorld && Number.isFinite(Number(ep.actualWorld.left)) && Number.isFinite(Number(ep.actualWorld.right))
-      ? `<div class="qstep compact"><strong>You saw:</strong> the actual LEFT and RIGHT values.</div>`
-      : "";
+    const actual = ""; // v6.8.30: user already saw the values; no redundant reminder.
     return `<div class="meta-question-card epistemic-card">`
       + `<div class="qstep section"><strong>Target claim:</strong><br>• ${esc(target)}</div>`
       + actual
@@ -83746,7 +83751,7 @@ try{
         details:info.dualWitness
           ? `${dualDetails || `This dual round ended on target ${targetLabel}. Your last pair: ${pair}. It made ${actualLabel}.`}${example}`
           : `This round asked for a ${targetLabel} pair. Your pair: ${pair}. It made ${actualLabel}.${example}`,
-        answer: actual === target ? `Correct: your pair makes ${targetLabel}.` : `Correct: make the claim answer ${targetLabel}.`,
+        answer: actual === target ? `Correct: your pair makes ${targetLabel}.` : `Target: make the claim answer ${targetLabel}.`,
         color:"#ff9f43"
       });
       drawInstructionalReviewTip(info);
@@ -84527,21 +84532,21 @@ try{
       {
         id:"l1_epistemic_left_witness_odd",
         title:"LEFT alone is a YES witness",
-        question:"Build two pairs with the same LEFT value but different RIGHT values, so 'at least one value is odd' is YES no matter which RIGHT was hidden.",
+        question:"Build two possible pairs with the same odd LEFT value and different RIGHT values. In both pairs, 'at least one value is odd' must be YES; this shows LEFT alone is enough.",
         verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && isOdd(p1.a) && (isOdd(p1.a) || isOdd(p1.b)) && (isOdd(p2.a) || isOdd(p2.b)),
         atomics:["generative_l1", "epistemic_sufficiency", "witness", "parity"]
       },
       {
         id:"l1_epistemic_left_ambiguous_both_even",
         title:"LEFT alone is not enough",
-        question:"Build two pairs with the same LEFT value but different RIGHT values, so 'both values are even' is YES for one pair and NO for the other.",
+        question:"Build two possible pairs with the same LEFT value and different RIGHT values. 'Both values are even' must be YES in one pair and NO in the other; this shows LEFT alone is not enough.",
         verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && isEven(p1.a) && (both(pairValues(p1), isEven) !== both(pairValues(p2), isEven)),
         atomics:["generative_l1", "epistemic_ambiguity", "possible_worlds", "parity"]
       },
       {
         id:"l1_same_left_opposite_greater",
         title:"Same LEFT, opposite comparison answer",
-        question:"Build two pairs with the same LEFT value but different RIGHT values, so 'LEFT is greater than RIGHT' is YES for one pair and NO for the other.",
+        question:"Build two possible pairs with the same LEFT value and different RIGHT values. 'LEFT is greater than RIGHT' must be YES in one pair and NO in the other; this shows LEFT alone is not enough.",
         verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && ((p1.a > p1.b) !== (p2.a > p2.b)),
         atomics:["generative_l1", "epistemic_ambiguity", "comparison", "possible_worlds"]
       },
@@ -84597,9 +84602,9 @@ try{
     if(id === "l1_prime_then_composite_exactly_one") return `${base} Pair 1 prime count ${countBy(pairValues(p1), isPrimeSmall)}; Pair 2 composite count ${countBy(pairValues(p2), isCompositeSmall)}.`;
     if(id === "l1_divisibility_switch_plus1") return `${base} Pair 2 should be Pair 1 + 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
     if(id === "l1_divisibility_preserve_double_no") return `${base} Pair 2 should double Pair 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
-    if(id === "l1_epistemic_left_witness_odd") return `${base} LEFT is the same and odd, so it is already a YES witness for 'at least one odd'.`;
-    if(id === "l1_epistemic_left_ambiguous_both_even") return `${base} Same LEFT, but the hidden RIGHT changes whether BOTH values are even.`;
-    if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT, but changing RIGHT flips whether LEFT > RIGHT.`;
+    if(id === "l1_epistemic_left_witness_odd") return `${base} Same odd LEFT; both possible RIGHT cases still make 'at least one odd' YES, so LEFT alone is enough.`;
+    if(id === "l1_epistemic_left_ambiguous_both_even") return `${base} Same LEFT; changing RIGHT changes whether BOTH values are even, so LEFT alone is not enough.`;
+    if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT; changing RIGHT flips whether LEFT > RIGHT, so LEFT alone is not enough.`;
     if(id === "l1_range_totals_single_composite" || id === "l1_range_totals_two_primes_with_composite"){
       const r = rangeInts(sum(p1), sum(p2));
       return `${base} Totals ${sum(p1)} and ${sum(p2)} define range ${r[0]}–${r[r.length-1]}; primes ${countBy(r, isPrimeSmall)}, composites ${countBy(r, isCompositeSmall)}.`;
@@ -84785,7 +84790,7 @@ try{
         label:"L1 REVIEW · GENERATIVE CONSTRUCTION",
         question:info.question || "Build a two-pair configuration.",
         details:`${diagnostic}${example}`,
-        answer:info.constructiveVerdict === "matched_target" ? "Correct: your construction satisfies the target." : "Correct: build two pairs that satisfy the stated target.",
+        answer:info.constructiveVerdict === "matched_target" ? "Correct: your construction satisfies the target." : "Target: build two pairs that satisfy the stated target.",
         color:"#ff9f43"
       });
       drawInstructionalReviewTip(info);
@@ -90117,7 +90122,9 @@ try{
       const rows=ep23OptionRows(res.key), idx=rows.findIndex(r=>r.key===res.key);
       if(idx<0) continue;
       const opts=rows.map((r,i)=>l0ChoiceOption(r.label, i===idx, i===idx?"correct":"epistemic_determiner_near_miss", {subsetKey:r.key, agents:r.agents.slice()}));
-      const question = `Epistemic calculation. Target: ${res.target.text}.\nYou saw the actual LEFT and RIGHT. Each person only has the information listed. Who can determine whether the target is YES or NO?\n${res.agents.map(a=>a.line).join(" ")}`;
+      const question = `Epistemic calculation. Target: ${res.target.text}.
+Each person only has the information listed. Who can determine whether the target is YES or NO?
+${res.agents.map(a=>a.line).join(" ")}`;
       const payload={
         epistemicAbstract:{
           solver:"v6823_calculation_determinability", scenarioId:res.templateId, target:res.target.id, targetText:res.target.text,
@@ -90912,6 +90919,13 @@ try{
         if(CONFIG.inductiveConstructiveCooldownTrials === undefined) CONFIG.inductiveConstructiveCooldownTrials = 7;
         if(CONFIG.inductiveConstructiveMaxPerBlock === undefined) CONFIG.inductiveConstructiveMaxPerBlock = 2;
         if(CONFIG.inductiveConstructiveRecentWindow === undefined) CONFIG.inductiveConstructiveRecentWindow = 12;
+        // v6.8.32: coverage governance remains exposure-first, but cells
+        // that have already been practiced and are fragile receive a small
+        // extra boost. Set the flag false to return to pure n-balancing.
+        if(CONFIG.inductiveConstructiveKlauerFragilityGovernance === undefined) CONFIG.inductiveConstructiveKlauerFragilityGovernance = true;
+        if(CONFIG.inductiveConstructiveKlauerFragilityMinN === undefined) CONFIG.inductiveConstructiveKlauerFragilityMinN = 4;
+        if(CONFIG.inductiveConstructiveKlauerFragilityTargetAcc === undefined) CONFIG.inductiveConstructiveKlauerFragilityTargetAcc = 0.75;
+        if(CONFIG.inductiveConstructiveKlauerFragilityMaxBoost === undefined) CONFIG.inductiveConstructiveKlauerFragilityMaxBoost = 1.60;
         // The ordinary L0 constructive path remains useful, but dual contrast
         // must not become the default answer to every witness-generation task.
         if(CONFIG.generativeInlineDualShare === undefined || Number(CONFIG.generativeInlineDualShare) > 0.25) CONFIG.generativeInlineDualShare = 0.22;
@@ -90937,12 +90951,35 @@ try{
   function yn(v){ return v ? "YES" : "NO"; }
   function capNow(){ try{ return Math.max(6, Math.min(12, Math.floor(Number(State?.maxValue || (typeof currentMax === "function" ? currentMax() : 8)) || 8))); }catch(_){ return 8; } }
 
+  // v6.8.31: Klauer-grid object semantics for pair tasks.
+  // "attribute" means the rule is grounded in slot-local properties or counts
+  // of per-value properties (even, odd, prime, prime-count, parity-pattern).
+  // "relation" means the rule depends on an emergent between-value structure
+  // or derived pair metric (order, equality, gap, total, divisibility, ratio).
+  // Same-parity remains an attribute-level comparison because the learned
+  // predicate is parity status of each slot; gap-even/gap-exactly-two are
+  // relation-level because they are properties of the between-value gap.
+  const KLAUER_OBJECT_SEMANTICS = {
+    attribute:"slot-local value properties or counts/patterns of those properties",
+    relation:"between-value structure or derived pair metric"
+  };
+  const EXPECTED_KLAUER_CELLS = [
+    "same:attribute", "same:relation",
+    "different:attribute", "different:relation",
+    "same_and_different:attribute", "same_and_different:relation"
+  ];
+
+  // Every relation descriptor below must choose the Klauer object row with
+  // this project-specific criterion: attribute = categorical facts extracted
+  // from each value; relation = magnitude/metric structure emerging between
+  // LEFT and RIGHT. This deliberately keeps same_parity under attribute while
+  // keeping same_value, gap, total and divisibility under relation.
   const RELATIONS = [
     {id:"left_gt_right", label:"LEFT is greater than RIGHT", short:"LEFT > RIGHT", object:"relation", pred:p=>Number(p.a)>Number(p.b)},
     {id:"same_value", label:"LEFT equals RIGHT", short:"LEFT = RIGHT", object:"relation", pred:p=>Number(p.a)===Number(p.b)},
     {id:"one_divides_other", label:"one value divides the other exactly", short:"one divides the other", object:"relation", pred:oneDividesOther},
-    {id:"gap_even", label:"the gap is even", short:"even gap", object:"attribute", pred:p=>gap(p)>0 && isEven(gap(p))},
-    {id:"gap_exactly_two", label:"the gap is exactly 2", short:"gap = 2", object:"attribute", pred:p=>gap(p)===2},
+    {id:"gap_even", label:"the gap is even", short:"even gap", object:"relation", pred:p=>gap(p)>0 && isEven(gap(p))},
+    {id:"gap_exactly_two", label:"the gap is exactly 2", short:"gap = 2", object:"relation", pred:p=>gap(p)===2},
     {id:"same_parity", label:"LEFT and RIGHT have the same parity", short:"same parity", object:"attribute", pred:p=>isEven(p.a)===isEven(p.b)},
     {id:"exactly_one_prime", label:"exactly one value is prime", short:"exactly one prime", object:"attribute", pred:p=>count([p.a,p.b], isPrime)===1},
     {id:"both_even", label:"both values are even", short:"both even", object:"attribute", pred:p=>isEven(p.a) && isEven(p.b)},
@@ -90961,20 +90998,96 @@ try{
   function featureById(id){ return FEATURES.find(f => f.id === id) || FEATURES[0]; }
 
   const HIDDEN_RULES = [
-    {id:"right_double_left", label:"RIGHT is double LEFT", object:"relation", pred:p=>Number(p.b) === 2*Number(p.a)},
-    {id:"gap_two_hidden", label:"gap is exactly 2", object:"attribute", pred:p=>gap(p)===2},
-    {id:"same_parity_hidden", label:"same parity", object:"attribute", pred:p=>isEven(p.a)===isEven(p.b)},
-    {id:"sum_ten_hidden", label:"total is 10", object:"relation", pred:p=>sum(p)===10},
-    {id:"exactly_one_prime_hidden", label:"exactly one value is prime", object:"attribute", pred:p=>count([p.a,p.b], isPrime)===1},
-    {id:"left_less_right_hidden", label:"LEFT is less than RIGHT", object:"relation", pred:p=>Number(p.a)<Number(p.b)},
-    {id:"left_even_hidden", label:"LEFT is even", object:"attribute", pred:p=>isEven(p.a)},
-    {id:"right_even_hidden", label:"RIGHT is even", object:"attribute", pred:p=>isEven(p.b)},
-    {id:"both_even_hidden", label:"both values are even", object:"attribute", pred:p=>isEven(p.a) && isEven(p.b)},
-    {id:"sum_even_hidden", label:"total is even", object:"attribute", pred:p=>isEven(sum(p))},
-    {id:"one_divides_other_hidden", label:"one value divides the other exactly", object:"relation", pred:oneDividesOther}
+    {id:"right_double_left", label:"RIGHT is double LEFT", short:"R = 2×L", object:"relation", pred:p=>Number(p.b) === 2*Number(p.a)},
+    {id:"gap_two_hidden", label:"gap is exactly 2", short:"gap = 2", object:"relation", pred:p=>gap(p)===2},
+    {id:"same_parity_hidden", label:"both values have the same parity", short:"same parity", object:"attribute", pred:p=>isEven(p.a)===isEven(p.b)},
+    {id:"sum_ten_hidden", label:"total is 10", short:"sum = 10", object:"relation", pred:p=>sum(p)===10},
+    {id:"exactly_one_prime_hidden", label:"exactly one value is prime", short:"exactly one prime", object:"attribute", pred:p=>count([p.a,p.b], isPrime)===1},
+    {id:"both_prime_hidden", label:"both values are prime", short:"both prime", object:"attribute", pred:p=>isPrime(p.a) && isPrime(p.b)},
+    {id:"left_less_right_hidden", label:"LEFT is less than RIGHT", short:"L < R", object:"relation", pred:p=>Number(p.a)<Number(p.b)},
+    {id:"left_greater_right_hidden", label:"LEFT is greater than RIGHT", short:"L > R", object:"relation", pred:p=>Number(p.a)>Number(p.b)},
+    {id:"same_value_hidden", label:"LEFT equals RIGHT", short:"L = R", object:"relation", pred:p=>Number(p.a)===Number(p.b)},
+    {id:"left_even_hidden", label:"LEFT is even", short:"LEFT even", object:"attribute", pred:p=>isEven(p.a)},
+    {id:"right_even_hidden", label:"RIGHT is even", short:"RIGHT even", object:"attribute", pred:p=>isEven(p.b)},
+    {id:"both_even_hidden", label:"both values are even", short:"both even", object:"attribute", pred:p=>isEven(p.a) && isEven(p.b)},
+    {id:"at_least_one_odd_hidden", label:"at least one value is odd", short:"some odd", object:"attribute", pred:p=>isOdd(p.a) || isOdd(p.b)},
+    {id:"one_divides_other_hidden", label:"one value divides the other exactly", short:"one divides", object:"relation", pred:oneDividesOther}
   ];
-  const INDUCTION_RULE_FAMILY_TEXT = "Closed rule family: order, equality, total, gap, parity, primality and divisibility rules.";
+
+  // Hidden-rule induction must not be an "guess my private rule" task. Each
+  // trial now exposes a small candidate set and the examples only need to be
+  // unique inside that visible set. The groups deliberately include close
+  // confounds, e.g. both-even vs both-prime vs same-parity.
+  const HIDDEN_RULE_CANDIDATE_GROUPS = {
+    right_double_left:["right_double_left","gap_two_hidden","one_divides_other_hidden"],
+    gap_two_hidden:["gap_two_hidden","right_double_left","one_divides_other_hidden"],
+    one_divides_other_hidden:["one_divides_other_hidden","right_double_left","gap_two_hidden"],
+    both_even_hidden:["both_even_hidden","both_prime_hidden","same_parity_hidden"],
+    both_prime_hidden:["both_prime_hidden","both_even_hidden","exactly_one_prime_hidden"],
+    exactly_one_prime_hidden:["exactly_one_prime_hidden","both_prime_hidden","both_even_hidden"],
+    same_parity_hidden:["same_parity_hidden","both_even_hidden","both_prime_hidden"],
+    left_even_hidden:["left_even_hidden","right_even_hidden","both_even_hidden"],
+    right_even_hidden:["right_even_hidden","left_even_hidden","both_even_hidden"],
+    left_less_right_hidden:["left_less_right_hidden","left_greater_right_hidden","same_value_hidden"],
+    left_greater_right_hidden:["left_greater_right_hidden","left_less_right_hidden","same_value_hidden"],
+    same_value_hidden:["same_value_hidden","left_less_right_hidden","left_greater_right_hidden"],
+    sum_ten_hidden:["sum_ten_hidden","left_less_right_hidden","one_divides_other_hidden"],
+    at_least_one_odd_hidden:["at_least_one_odd_hidden","both_even_hidden","same_parity_hidden"]
+  };
+  const INDUCTION_RULE_FAMILY_TEXT = "Candidate rules are shown in this trial; use only those listed hypotheses.";
   function hiddenRuleById(id){ return HIDDEN_RULES.find(r => r.id === id) || HIDDEN_RULES[0]; }
+  function hiddenRulesByIds(ids){
+    const out = [];
+    const seen = new Set();
+    for(const id of (Array.isArray(ids) ? ids : [])){
+      const r = HIDDEN_RULES.find(x => x.id === id);
+      if(r && !seen.has(r.id)){ seen.add(r.id); out.push(r); }
+    }
+    return out;
+  }
+  function hiddenCandidateRulesFromRule(rule){
+    const ids = HIDDEN_RULE_CANDIDATE_GROUPS[rule?.id] || [rule?.id].filter(Boolean);
+    let out = hiddenRulesByIds(ids);
+    if(rule && !out.some(r => r.id === rule.id)) out.unshift(rule);
+    return out.length >= 2 ? out : HIDDEN_RULES.filter(r => r.id === rule?.id || r.object === rule?.object).slice(0,4);
+  }
+  function hiddenCandidateRules(paramsOrIds){
+    if(Array.isArray(paramsOrIds)) return hiddenRulesByIds(paramsOrIds);
+    const ids = paramsOrIds?.candidateRuleIds || paramsOrIds?.ruleCandidateIds || null;
+    if(ids) return hiddenRulesByIds(ids);
+    const r = paramsOrIds?.ruleId ? hiddenRuleById(paramsOrIds.ruleId) : null;
+    return r ? hiddenCandidateRulesFromRule(r) : HIDDEN_RULES;
+  }
+  function hiddenCandidateLabels(candidates){
+    return (Array.isArray(candidates) ? candidates : hiddenCandidateRules(candidates)).map((r,i)=>`${String.fromCharCode(65+i)}: ${r.label}`).join(" · ");
+  }
+  function hiddenRuleDistinctiveness(rule, p, targetTruth, candidates){
+    let d = 0;
+    for(const r of (Array.isArray(candidates) ? candidates : [])){
+      if(!r || r.id === rule?.id) continue;
+      if(ruleTruth(r,p) !== !!targetTruth) d++;
+    }
+    return d;
+  }
+  function hiddenRuleExampleQuality(rule, p, targetTruth, candidates){
+    let q = hiddenRuleDistinctiveness(rule, p, targetTruth, candidates) * 4;
+    const a = Number(p?.a), b = Number(p?.b);
+    // Avoid degenerate YES examples such as 2,2 for "both even": they are
+    // compact but visually/cognitively confounded with prime/equality/divisibility.
+    if(targetTruth && rule?.id === "both_even_hidden"){
+      if(a !== b) q += 2;
+      if(!isPrime(a) && !isPrime(b)) q += 3;
+      if(a === 2 || b === 2) q -= 2;
+    }
+    if(targetTruth && rule?.id === "both_prime_hidden"){
+      if(a !== b) q += 2;
+      if(a === 2 || b === 2) q += 1;
+    }
+    if(rule?.id === "same_value_hidden" && targetTruth && a === b) q += 1;
+    if(rule?.id && /left_less|left_greater|right_double|gap_two|sum_ten/.test(rule.id) && a !== b) q += 1;
+    if(targetTruth && a === b && !/same_value/.test(rule?.id || "")) q -= 1.5;
+    return q;
+  }
   function ruleTruth(rule, p){ try{ return !!rule.pred(p); }catch(_){ return false; } }
   function pairInList(p, arr){ return Array.isArray(arr) && arr.some(q => eqPair(p,q)); }
   function examplePairs(yesExamples, noExamples){ return [].concat(yesExamples || [], noExamples || []); }
@@ -90987,34 +91100,42 @@ try{
     const cands = Array.isArray(candidates) && candidates.length ? candidates : HIDDEN_RULES;
     return cands.filter(rule => (yesExamples || []).every(p => ruleTruth(rule,p)) && (noExamples || []).every(p => !ruleTruth(rule,p)));
   }
-  function chooseTeachingExamples(rule, cap, maxExamples){
+  function chooseTeachingExamples(rule, cap, maxExamples, candidateRules){
     const pairs = allPairs(cap), yesExamples = [], noExamples = [], used = new Set();
+    const candidates = Array.isArray(candidateRules) && candidateRules.length ? candidateRules : hiddenCandidateRulesFromRule(rule);
     const maxN = Math.max(3, Number(maxExamples || 6));
     for(let round=0; round<maxN; round++){
-      const vs = versionSpaceForExamples(yesExamples, noExamples, HIDDEN_RULES);
+      const vs = versionSpaceForExamples(yesExamples, noExamples, candidates);
       if(vs.length === 1 && vs[0].id === rule.id && yesExamples.length && noExamples.length){
-        return {yesExamples, noExamples, versionSpaceIds:vs.map(r=>r.id)};
+        return {yesExamples, noExamples, versionSpaceIds:vs.map(r=>r.id), candidateRuleIds:candidates.map(r=>r.id)};
       }
       let best = null, bestScore = -Infinity;
       for(const p of pairs){
         const key = pairKey(p);
         if(used.has(key)) continue;
         const targetTruth = ruleTruth(rule,p);
+        // Once one side is represented, force the next missing side before adding
+        // extra diagnostic examples. Otherwise the greedy scorer may add a second
+        // YES when the learner still needs at least one NO example.
+        if(yesExamples.length && !noExamples.length && targetTruth) continue;
+        if(noExamples.length && !yesExamples.length && !targetTruth) continue;
         const elim = vs.filter(r => r.id !== rule.id && ruleTruth(r,p) !== targetTruth).length;
         const needYes = targetTruth && !yesExamples.length;
         const needNo = !targetTruth && !noExamples.length;
-        if(elim <= 0 && !needYes && !needNo) continue;
-        let score = elim * 10 + (needYes || needNo ? 6 : 0);
-        score -= (sum(p) * 0.025 + gap(p) * 0.015); // prefer compact, readable examples when equally diagnostic.
+        const distinctive = hiddenRuleDistinctiveness(rule, p, targetTruth, candidates);
+        if(elim <= 0 && !needYes && !needNo && distinctive <= 0) continue;
+        let score = elim * 12 + distinctive * 4 + (needYes || needNo ? 8 : 0);
+        score += hiddenRuleExampleQuality(rule, p, targetTruth, candidates);
+        score -= (sum(p) * 0.018 + gap(p) * 0.010); // prefer readable examples after diagnostic value.
         if(score > bestScore){ best = p; bestScore = score; }
       }
       if(!best) break;
       used.add(pairKey(best));
       if(ruleTruth(rule,best)) yesExamples.push(best); else noExamples.push(best);
     }
-    const vs = versionSpaceForExamples(yesExamples, noExamples, HIDDEN_RULES);
+    const vs = versionSpaceForExamples(yesExamples, noExamples, candidates);
     if(vs.length === 1 && vs[0].id === rule.id && yesExamples.length && noExamples.length){
-      return {yesExamples, noExamples, versionSpaceIds:vs.map(r=>r.id)};
+      return {yesExamples, noExamples, versionSpaceIds:vs.map(r=>r.id), candidateRuleIds:candidates.map(r=>r.id)};
     }
     return null;
   }
@@ -91036,17 +91157,108 @@ try{
     for(let i=0;i<items.length;i++){ r -= ws[i]; if(r <= 0) return items[i]; }
     return items[items.length-1];
   }
-  function sampleCandidates(cap, pred){ return allPairs(cap).filter(p => { try{ return !!pred(p); }catch(_){ return false; } }); }
-  function surfaceDistance(p,q){
-    let d = 0;
-    if(!eqPair(p,q)) d++;
-    if(sum(p) !== sum(q)) d++;
-    if(gap(p) !== gap(q)) d++;
-    if((isEven(p.a)===isEven(p.b)) !== (isEven(q.a)===isEven(q.b))) d++;
-    if(count([p.a,p.b], isPrime) !== count([q.a,q.b], isPrime)) d++;
-    if((p.a > p.b) !== (q.a > q.b)) d++;
-    return d;
+  function klauerCellCounts(){
+    try{ return State?.productionMonitor?.inductiveConstructive?.byCell || {}; }catch(_){ return {}; }
   }
+  function klauerCellFragilityWeight(cell, by){
+    try{
+      if(CONFIG?.inductiveConstructiveKlauerFragilityGovernance === false) return 1;
+      const bucket = by?.[cell] || {};
+      const n = Math.max(0, Number(bucket.n) || 0);
+      const c = Math.max(0, Number(bucket.c) || 0);
+      const minN = Math.max(1, Number(CONFIG?.inductiveConstructiveKlauerFragilityMinN || 4));
+      if(n < minN) return 1;
+      const acc = n ? Math.max(0, Math.min(1, c / n)) : 1;
+      const target = Math.max(0.05, Math.min(0.98, Number(CONFIG?.inductiveConstructiveKlauerFragilityTargetAcc || 0.75)));
+      if(acc >= target) return 1;
+      const maxBoost = Math.max(1, Math.min(3, Number(CONFIG?.inductiveConstructiveKlauerFragilityMaxBoost || 1.60)));
+      const gapRatio = Math.max(0, target - acc) / target;
+      return 1 + Math.min(maxBoost - 1, gapRatio * (maxBoost - 1));
+    }catch(_){ return 1; }
+  }
+  function klauerCellDeficitWeight(klauer){
+    try{
+      if(!klauer || klauer.coverage === false) return 1;
+      const cell = klauer.cell || klauerCell(klauer.process, klauer.object);
+      if(!EXPECTED_KLAUER_CELLS.includes(cell)) return 1;
+      const by = klauerCellCounts();
+      const counts = EXPECTED_KLAUER_CELLS.map(c => Math.max(0, Number(by?.[c]?.n) || 0));
+      const maxN = Math.max(0, ...counts);
+      const n = Math.max(0, Number(by?.[cell]?.n) || 0);
+      let exposureWeight = 1;
+      if(maxN > 1){
+        const deficit = Math.max(0, maxN - n);
+        exposureWeight = 1 + Math.min(3, deficit / Math.max(2, Math.sqrt(1 + maxN)));
+      }
+      const fragilityWeight = klauerCellFragilityWeight(cell, by);
+      return Math.max(0.05, Math.min(8, exposureWeight * fragilityWeight));
+    }catch(_){ return 1; }
+  }
+  function bucketBalanceWeight(items){
+    try{
+      const arr = (Array.isArray(items) ? items : []).filter(Boolean);
+      if(!arr.length) return 0;
+      const avg = arr.reduce((s,t)=>s + Math.max(0.001, Number(t.weight) || 1), 0) / arr.length;
+      return Math.max(0.05, Math.min(4, avg));
+    }catch(_){ return 1; }
+  }
+  function sampleCandidates(cap, pred){ return allPairs(cap).filter(p => { try{ return !!pred(p); }catch(_){ return false; } }); }
+  const VISIBLE_SURFACE_CUES = [
+    {id:"exact_values", label:"exact values", structural:false, changed:(p,q)=>!eqPair(p,q), value:p=>`L${p.a} R${p.b}`},
+    {id:"total", label:"total", structural:false, changed:(p,q)=>sum(p)!==sum(q), value:p=>sum(p)},
+    {id:"gap", label:"gap", structural:true, changed:(p,q)=>gap(p)!==gap(q), value:p=>gap(p)},
+    {id:"order", label:"LEFT-vs-RIGHT order", structural:true, changed:(p,q)=>((p.a>p.b)-(p.a<p.b)) !== ((q.a>q.b)-(q.a<q.b)), value:p=>p.a>p.b?"LEFT>RIGHT":(p.a<p.b?"LEFT<RIGHT":"equal")},
+    {id:"equality", label:"equal-vs-unequal status", structural:true, changed:(p,q)=>(p.a===p.b)!==(q.a===q.b), value:p=>p.a===p.b?"equal":"unequal"},
+    {id:"parity_pattern", label:"parity pattern", structural:true, changed:(p,q)=>`${isEven(p.a)?"E":"O"}${isEven(p.b)?"E":"O"}` !== `${isEven(q.a)?"E":"O"}${isEven(q.b)?"E":"O"}`, value:p=>`${isEven(p.a)?"even":"odd"}/${isEven(p.b)?"even":"odd"}`},
+    {id:"prime_count", label:"number of prime values", structural:true, changed:(p,q)=>count([p.a,p.b], isPrime)!==count([q.a,q.b], isPrime), value:p=>count([p.a,p.b], isPrime)},
+    {id:"divisibility", label:"divisibility answer", structural:true, changed:(p,q)=>oneDividesOther(p)!==oneDividesOther(q), value:p=>yn(oneDividesOther(p))}
+  ];
+  function changedSurfaceCueIds(p,q){
+    return VISIBLE_SURFACE_CUES.filter(c => { try{ return !!c.changed(p,q); }catch(_){ return false; } }).map(c=>c.id);
+  }
+  function changedSurfaceCues(p,q){
+    const ids = new Set(changedSurfaceCueIds(p,q));
+    return VISIBLE_SURFACE_CUES.filter(c => ids.has(c.id));
+  }
+  function structuralSurfaceCueChanges(p,q){ return changedSurfaceCues(p,q).filter(c => c.structural); }
+  function surfaceDistance(p,q){ return changedSurfaceCueIds(p,q).length; }
+  function surfaceCueText(p,q){
+    const rows = changedSurfaceCues(p,q);
+    return rows.length ? rows.map(c=>c.label).join(", ") : "no visible cue changed";
+  }
+  function surfaceCueValueText(p, ids){
+    const wanted = new Set(Array.isArray(ids) ? ids : []);
+    return VISIBLE_SURFACE_CUES.filter(c => !wanted.size || wanted.has(c.id)).map(c => { try{ return `${c.label}: ${c.value(p)}`; }catch(_){ return `${c.label}: ?`; } }).join("; ");
+  }
+  function surfaceDiversityPass(p,q,params={}){
+    const min = Math.max(1, Number(params.minSurfaceCues || 2));
+    if(surfaceDistance(p,q) < min) return false;
+    if(params.requireStructuralCue && structuralSurfaceCueChanges(p,q).length < 1) return false;
+    return true;
+  }
+  function surfaceDiversityRequirementText(params={}){
+    const min = Math.max(1, Number(params.minSurfaceCues || 2));
+    return `change at least ${min} visible cue${min===1?"":"s"}${params.requireStructuralCue ? ", including at least one structural cue" : ""}`;
+  }
+  function pairPedagogyScore(p, opts={}){
+    if(!p) return -Infinity;
+    const cap = Math.max(6, Number(opts.cap || 8));
+    let sc = 0;
+    if(Number(p.a) >= 2) sc += 1.5; else sc -= 2;
+    if(Number(p.b) >= 2) sc += 1.5; else sc -= 2;
+    if(Number(p.a) !== Number(p.b)) sc += opts.preferEquality ? -0.4 : 0.8;
+    if(opts.preferEquality && Number(p.a) === Number(p.b)) sc += 1.5;
+    sc -= Math.abs(sum(p) - Math.min(10, cap + 2)) * 0.04;
+    sc -= gap(p) * 0.015;
+    return sc;
+  }
+  function bestPair(cands, opts={}){
+    const arr = (Array.isArray(cands) ? cands : []).slice();
+    if(!arr.length) return null;
+    arr.sort((x,y)=>pairPedagogyScore(y,opts)-pairPedagogyScore(x,opts));
+    return arr[0];
+  }
+
   function oneStepChange(base, p){
     const da = Math.abs(Number(base.a)-Number(p.a)), db = Math.abs(Number(base.b)-Number(p.b));
     return (da === 1 && db === 0) || (da === 0 && db === 1);
@@ -91056,10 +91268,11 @@ try{
   function klauerCell(process, object){ return `${process}:${object}`; }
   function packTask(spec){
     spec.klauer = spec.klauer || {process:"same_and_different", object:"relation"};
-    spec.klauer.cell = klauerCell(spec.klauer.process, spec.klauer.object);
+    spec.klauer.coverage = spec.klauer.coverage === false ? false : true;
+    spec.klauer.cell = spec.klauer.coverage === false ? "foundational:witness" : klauerCell(spec.klauer.process, spec.klauer.object);
     spec.phaseCount = Math.max(1, Number(spec.phaseCount || spec.pairCount || 1));
     spec.pairCount = spec.phaseCount;
-    spec.weight = taskSeenWeight(spec.mode || "unknown", spec.id);
+    spec.weight = taskSeenWeight(spec.mode || "unknown", spec.id) * klauerCellDeficitWeight(spec.klauer);
     return spec;
   }
 
@@ -91077,9 +91290,9 @@ try{
           sub:`One clean witness. Values: 1 to ${cap}.`,
           params:{relationId:rel.id, target},
           phaseCount:1,
-          klauer:{process:"same", object:rel.object},
+          klauer:{process:"foundational_witness", object:rel.object, coverage:false},
           reviewHint:`A witness is valid when the constructed pair makes the claim ${yn(target)}.`,
-          example:{p1:witnesses[0]}
+          example:{p1:bestPair(witnesses, {cap, preferEquality:rel.id === "same_value"})}
         }));
       }
     }
@@ -91181,32 +91394,69 @@ try{
   function makeProgressiveAlignmentTasks(cap){
     const pairs = allPairs(cap), out=[];
     for(const rel of RELATIONS){
-      // Same relation, changing surface cues: progressive alignment.
-      let sameFound = null;
-      outerSame: for(const p1 of pairs){
-        const truth = !!rel.pred(p1);
-        for(const p2 of pairs){
-          if(eqPair(p1,p2)) continue;
-          if(!!rel.pred(p2) !== truth) continue;
-          if(surfaceDistance(p1,p2) < 3) continue;
-          sameFound = {p1,p2,truth}; break outerSame;
+      // Same relation answer, changed visible cues. The old wording
+      // "different-looking" was too fuzzy: the verifier used a hidden threshold.
+      // Now the public prompt states the same visible-cue contract used by review.
+      for(const target of [true,false]){
+        const params = {relationId:rel.id, target, alignment:"same_relation_different_surface", minSurfaceCues:2, requireStructuralCue:false};
+        let sameFound = null, bestScore = -Infinity;
+        for(const p1 of pairs){
+          if(!!rel.pred(p1) !== target) continue;
+          for(const p2 of pairs){
+            if(eqPair(p1,p2)) continue;
+            if(!!rel.pred(p2) !== target) continue;
+            if(!surfaceDiversityPass(p1,p2,params)) continue;
+            let sc = surfaceDistance(p1,p2) * 3 + pairPedagogyScore(p1,{cap}) + pairPedagogyScore(p2,{cap});
+            if(structuralSurfaceCueChanges(p1,p2).length) sc += 1.5;
+            if(sc > bestScore){ bestScore = sc; sameFound = {p1,p2,truth:target}; }
+          }
+        }
+        if(sameFound){
+          out.push(packTask({
+            id:`align_same_answer_cue_shift_${rel.id}_${target?"yes":"no"}`,
+            mode:"progressive_alignment",
+            title:"Same answer, changed visible cues",
+            question:`Build TWO pairs that both make ${yn(target)} for this claim: ${rel.label}. The two pairs must change at least two visible cues.`,
+            sub:"Visible cues: exact values, total, gap, order, equality status, parity pattern, prime-count, and divisibility.",
+            params,
+            phaseCount:2,
+            klauer:{process:"same", object:rel.object},
+            reviewHint:`Both pairs should make ${yn(target)} and ${surfaceDiversityRequirementText(params)}.`,
+            example:sameFound
+          }));
         }
       }
-      if(sameFound){
-        out.push(packTask({
-          id:`align_same_relation_${rel.id}_${sameFound.truth?"yes":"no"}`,
-          mode:"progressive_alignment",
-          title:"Same relation, different surface",
-          question:`Build TWO different-looking pairs that both make ${yn(sameFound.truth)} for this claim: ${rel.label}.`,
-          sub:`Vary surface cues such as total, gap, order or parity; preserve the relation answer.`,
-          params:{relationId:rel.id, target:sameFound.truth, alignment:"same_relation_different_surface"},
-          phaseCount:2,
-          klauer:{process:"same", object:rel.object},
-          reviewHint:`The surface should vary, but the relation answer should stay ${yn(sameFound.truth)}.`,
-          example:sameFound
-        }));
+      // Harder variant: keep the answer but change a structural cue, not merely
+      // exact values / total. This is still explicit to the learner.
+      for(const target of [true,false]){
+        const params = {relationId:rel.id, target, alignment:"same_relation_structural_shift", minSurfaceCues:2, requireStructuralCue:true};
+        let structuralFound = null, bestScore = -Infinity;
+        for(const p1 of pairs){
+          if(!!rel.pred(p1) !== target) continue;
+          for(const p2 of pairs){
+            if(eqPair(p1,p2)) continue;
+            if(!!rel.pred(p2) !== target) continue;
+            if(!surfaceDiversityPass(p1,p2,params)) continue;
+            let sc = structuralSurfaceCueChanges(p1,p2).length * 6 + surfaceDistance(p1,p2) * 2 + pairPedagogyScore(p1,{cap}) + pairPedagogyScore(p2,{cap});
+            if(sc > bestScore){ bestScore = sc; structuralFound = {p1,p2,truth:target}; }
+          }
+        }
+        if(structuralFound){
+          out.push(packTask({
+            id:`align_same_answer_structural_shift_${rel.id}_${target?"yes":"no"}`,
+            mode:"progressive_alignment",
+            title:"Same answer, structural shift",
+            question:`Build TWO pairs that both make ${yn(target)} for this claim: ${rel.label}. Change at least two visible cues, including one structural cue.`,
+            sub:"Structural cues include gap, order, equality status, parity pattern, prime-count, or divisibility. The answer must stay the same.",
+            params,
+            phaseCount:2,
+            klauer:{process:"same", object:rel.object},
+            reviewHint:`Both pairs should make ${yn(target)} and ${surfaceDiversityRequirementText(params)}.`,
+            example:structuralFound
+          }));
+        }
       }
-      // Surface lure: same visible cue, different relation answer.
+      // Surface lure: preserve one named cue, but change the relation answer.
       for(const feat of FEATURES){
         let lureFound = null;
         outerLure: for(const p1 of pairs){
@@ -91222,12 +91472,12 @@ try{
         out.push(packTask({
           id:`align_surface_lure_${rel.id}_${feat.id}`,
           mode:"progressive_alignment",
-          title:"Same surface cue, different relation",
-          question:`Build TWO pairs that keep ${feat.label} but give opposite answers for: ${rel.label}.`,
-          sub:`This is a surface-lure contrast: do not let the preserved cue hide the changed relation.`,
+          title:"Same cue, opposite answer",
+          question:`Build TWO pairs that keep ${feat.label} but give opposite answers for this claim: ${rel.label}.`,
+          sub:"Keep the named cue exactly the same across the two pairs; the claim answer must flip.",
           params:{relationId:rel.id, featureId:feat.id, alignment:"same_surface_different_relation"},
           phaseCount:2,
-          klauer:{process:"different", object:rel.object},
+          klauer:{process:"same_and_different", object:rel.object},
           reviewHint:`The preserved cue is not enough; the relation answer must differ.`,
           example:lureFound
         }));
@@ -91294,9 +91544,12 @@ try{
   function makeHiddenRuleTasks(cap){
     const pairs = allPairs(cap), out=[];
     for(const rule of HIDDEN_RULES){
-      const teach = chooseTeachingExamples(rule, cap, 7);
+      const candidates = hiddenCandidateRulesFromRule(rule);
+      if(!candidates || candidates.length < 2) continue;
+      const teach = chooseTeachingExamples(rule, cap, 7, candidates);
       if(!teach) continue;
       const examples = examplePairs(teach.yesExamples, teach.noExamples);
+      const candidateText = hiddenCandidateLabels(candidates);
       for(const target of [true,false]){
         const pool = pairs.filter(p => ruleTruth(rule,p) === target && !pairInList(p, examples));
         if(!pool.length) continue;
@@ -91305,13 +91558,13 @@ try{
           id:`hidden_rule_${rule.id}_${target?"yes":"no"}`,
           mode:"hidden_rule_induction",
           title:"Induce the rule from examples",
-          question:`Induce the hidden rule within this game's closed rule family. ${exText} Build ONE new ${yn(target)} example.`,
-          sub:`${INDUCTION_RULE_FAMILY_TEXT} The shown examples make one rule unique inside that family.`,
-          params:{ruleId:rule.id, target, yesExamples:teach.yesExamples, noExamples:teach.noExamples, versionSpaceIds:teach.versionSpaceIds, inductionContract:"closed_version_space"},
+          question:`Induce the rule, then build ONE new ${yn(target)} example.`,
+          sub:`Candidates: ${candidateText}. ${exText} Use only the listed candidates; do not copy an example.`,
+          params:{ruleId:rule.id, target, yesExamples:teach.yesExamples, noExamples:teach.noExamples, versionSpaceIds:teach.versionSpaceIds, candidateRuleIds:teach.candidateRuleIds || candidates.map(r=>r.id), inductionContract:"visible_candidate_version_space"},
           phaseCount:1,
-          klauer:{process:"same_and_different", object:rule.object},
-          reviewHint:`Inside the active rule family, the examples leave one rule: ${rule.label}.`,
-          example:{p1:pool[0]}
+          klauer:{process:"same", object:rule.object},
+          reviewHint:`The visible candidate set leaves one rule: ${rule.label}.`,
+          example:{p1:pool.sort((x,y)=>hiddenRuleExampleQuality(rule,y,target,candidates)-hiddenRuleExampleQuality(rule,x,target,candidates))[0]}
         }));
       }
     }
@@ -91349,7 +91602,7 @@ try{
     const out=[];
     const specs = [
       {id:"sum_threshold", label:"total", metricId:"sum", metric:sum, k:Math.max(5, Math.min(10, cap + 2)), object:"relation"},
-      {id:"gap_threshold", label:"gap", metricId:"gap", metric:gap, k:Math.max(1, Math.min(3, cap - 2)), object:"attribute"}
+      {id:"gap_threshold", label:"gap", metricId:"gap", metric:gap, k:Math.max(1, Math.min(3, cap - 2)), object:"relation"}
     ];
     for(const sp of specs){
       if(sp.k < 1) continue;
@@ -91467,7 +91720,7 @@ try{
         if(fresh.length) b.items = fresh;
       }
     }catch(_){ }
-    const bucket = weightedPick(modeBuckets.map(b => ({...b, weight:b.share * (b.items.length ? 1 : 0)})));
+    const bucket = weightedPick(modeBuckets.map(b => ({...b, weight:b.share * (b.items.length ? bucketBalanceWeight(b.items) : 0)})));
     if(!bucket) return null;
     const task = weightedPick(bucket.items);
     return task ? {task, cap} : null;
@@ -91504,7 +91757,9 @@ try{
     }
     if(ic.mode === "progressive_alignment"){
       if(!p2) return false;
-      if(params.alignment === "same_relation_different_surface") return !!rel.pred(p1) === !!params.target && !!rel.pred(p2) === !!params.target && surfaceDistance(p1,p2) >= 3;
+      if(params.alignment === "same_relation_different_surface" || params.alignment === "same_relation_structural_shift"){
+        return !!rel.pred(p1) === !!params.target && !!rel.pred(p2) === !!params.target && surfaceDiversityPass(p1,p2,params);
+      }
       if(params.alignment === "same_surface_different_relation") return params.featureId && feat.same(p1,p2) && !!rel.pred(p1) !== !!rel.pred(p2);
       return false;
     }
@@ -91512,8 +91767,9 @@ try{
     if(ic.mode === "hidden_rule_induction"){
       const rule = hiddenRuleById(params.ruleId);
       const examples = examplePairs(params.yesExamples, params.noExamples);
-      const vs = versionSpaceForExamples(params.yesExamples || [], params.noExamples || [], HIDDEN_RULES);
-      return vs.length === 1 && vs[0].id === rule.id && ruleTruth(rule,p1) === !!params.target && !pairInList(p1, examples);
+      const candidates = hiddenCandidateRules(params);
+      const vs = versionSpaceForExamples(params.yesExamples || [], params.noExamples || [], candidates);
+      return candidates.length >= 2 && vs.length === 1 && vs[0].id === rule.id && ruleTruth(rule,p1) === !!params.target && !pairInList(p1, examples);
     }
     if(ic.mode === "discriminator_construction"){
       const rA = hiddenRuleById(params.ruleAId), rB = hiddenRuleById(params.ruleBId);
@@ -91534,6 +91790,24 @@ try{
     return false;
   }
 
+  function inductiveTargetSummary(ic){
+    const p = ic?.params || {};
+    if(ic?.mode === "single_witness") return `Target: one pair making ${yn(p.target)}.`;
+    if(ic?.mode === "counterexample") return `Target: keep the named cue and flip the answer from ${yn(p.baseTruth)} to ${yn(!p.baseTruth)}.`;
+    if(ic?.mode === "minimal_flip") return `Target: change exactly one side by 1 and flip the answer to ${yn(!p.baseTruth)}.`;
+    if(ic?.mode === "dual_contrast") return `Target: Pair 1 YES; Pair 2 NO${p.featureId ? "; preserve the named cue" : ""}.`;
+    if(ic?.mode === "progressive_alignment"){
+      if(p.alignment === "same_relation_different_surface" || p.alignment === "same_relation_structural_shift") return `Target: both pairs ${yn(p.target)} and ${surfaceDiversityRequirementText(p)}.`;
+      if(p.alignment === "same_surface_different_relation") return "Target: preserve the named cue, but make the two answers opposite.";
+    }
+    if(ic?.mode === "system_construction") return "Target: satisfy the stated same/different system.";
+    if(ic?.mode === "hidden_rule_induction") return `Target: infer the visible candidate rule and build a new ${yn(p.target)} example.`;
+    if(ic?.mode === "discriminator_construction") return "Target: build a case where hypothesis A and hypothesis B disagree.";
+    if(ic?.mode === "threshold_bracket_induction") return `Target: build boundary cases at ${p.metricId} ${p.threshold} and ${Number(p.threshold)+1}.`;
+    if(ic?.mode === "composition_induction") return `Target: infer the connective and build a new ${yn(p.target)} example.`;
+    return "Target: build a construction satisfying the stated constraints.";
+  }
+
   function inductiveReviewText(info){
     const ic = info?.inductiveConstructive || {};
     const pairs = Array.isArray(info?.pairs) ? info.pairs : [];
@@ -91547,12 +91821,19 @@ try{
     if(p1 && ic.mode === "counterexample") analysis = `Anchor made ${yn(params.baseTruth)}. Your pair kept ${feat.label}: ${yn(feat.same(params.base,p1))}; relation became ${yn(rel.pred(p1))}.`;
     if(p1 && ic.mode === "minimal_flip") analysis = `One-step change: ${yn(oneStepChange(params.base,p1))}. Start was ${yn(params.baseTruth)}; your pair made ${yn(rel.pred(p1))}.`;
     if(p1 && p2 && ic.mode === "dual_contrast") analysis = `Pair 1 made ${yn(rel.pred(p1))}; Pair 2 made ${yn(rel.pred(p2))}.${params.featureId ? ` Shared cue (${feat.label}): ${yn(feat.same(p1,p2))}.` : ""}`;
-    if(p1 && p2 && ic.mode === "progressive_alignment") analysis = params.alignment === "same_relation_different_surface" ? `Both should make ${yn(params.target)}; yours made ${yn(rel.pred(p1))} and ${yn(rel.pred(p2))}. Surface distance ${surfaceDistance(p1,p2)}.` : `Shared cue (${feat.label}): ${yn(feat.same(p1,p2))}. Relation answers: ${yn(rel.pred(p1))} and ${yn(rel.pred(p2))}.`;
+    if(p1 && p2 && ic.mode === "progressive_alignment"){
+      if(params.alignment === "same_relation_different_surface" || params.alignment === "same_relation_structural_shift"){
+        analysis = `Both should make ${yn(params.target)}; yours made ${yn(rel.pred(p1))} and ${yn(rel.pred(p2))}. Changed cues: ${surfaceCueText(p1,p2)} (${surfaceDistance(p1,p2)}). Requirement: ${surfaceDiversityRequirementText(params)}.`;
+      } else {
+        analysis = `Shared cue (${feat.label}): ${yn(feat.same(p1,p2))}. Relation answers: ${yn(rel.pred(p1))} and ${yn(rel.pred(p2))}.`;
+      }
+    }
     if(p1 && p2 && ic.mode === "system_construction") analysis = `System check: same/different constraint ${verifySystemById(params.systemId,p1,p2) ? "satisfied" : "not satisfied"}.`;
     if(p1 && ic.mode === "hidden_rule_induction"){
       const rule = hiddenRuleById(params.ruleId);
-      const vs = versionSpaceForExamples(params.yesExamples || [], params.noExamples || [], HIDDEN_RULES).map(r=>r.label).join("; ");
-      analysis = `Closed-family rule: ${rule.label}. Version space after examples: ${vs || "none"}. Your pair made ${yn(ruleTruth(rule,p1))}; target was ${yn(params.target)}.`;
+      const candidates = hiddenCandidateRules(params);
+      const vs = versionSpaceForExamples(params.yesExamples || [], params.noExamples || [], candidates).map(r=>r.label).join("; ");
+      analysis = `Candidate rules: ${hiddenCandidateLabels(candidates)}. Rule left by the examples: ${vs || "none"}. Your pair made ${yn(ruleTruth(rule,p1))}; target was ${yn(params.target)}.`;
     }
     if(p1 && ic.mode === "discriminator_construction"){
       const rA = hiddenRuleById(params.ruleAId), rB = hiddenRuleById(params.ruleBId);
@@ -91568,7 +91849,7 @@ try{
     }
     const ex = ic.example;
     const example = ex && ex.p1 ? ` Example: Pair 1 LEFT ${ex.p1.a}, RIGHT ${ex.p1.b}${ex.p2 ? `; Pair 2 LEFT ${ex.p2.a}, RIGHT ${ex.p2.b}` : ""}.` : "";
-    return `${pText}. ${analysis} ${ic.reviewHint || ""}${example}`.replace(/\s+/g, " ").trim();
+    return `${pText}. ${inductiveTargetSummary(ic)} ${analysis} ${ic.reviewHint || ""}${example}`.replace(/\s+/g, " ").trim();
   }
 
   function klauerCoverageRecord(task, correct){
@@ -91576,17 +91857,19 @@ try{
       const mon = State.productionMonitor || (State.productionMonitor = {});
       const ic = mon.inductiveConstructive || (mon.inductiveConstructive = {shown:0, correct:0, byMode:{}, byCell:{}, byTask:{}, recentTasks:[]});
       const mode = task.mode || "unknown";
-      const cell = task.klauer?.cell || klauerCell("unknown", "unknown");
+      const cell = task.klauer?.coverage === false ? null : (task.klauer?.cell || klauerCell("unknown", "unknown"));
       ic.byMode[mode] = ic.byMode[mode] || {n:0,c:0};
-      ic.byCell[cell] = ic.byCell[cell] || {n:0,c:0};
+      if(cell) ic.byCell[cell] = ic.byCell[cell] || {n:0,c:0};
       ic.byTask[task.id] = ic.byTask[task.id] || {n:0,c:0};
-      for(const bucket of [ic.byMode[mode], ic.byCell[cell], ic.byTask[task.id]]){ bucket.n = (bucket.n || 0) + 1; if(correct) bucket.c = (bucket.c || 0) + 1; }
+      const buckets = [ic.byMode[mode], ic.byTask[task.id]];
+      if(cell) buckets.splice(1,0,ic.byCell[cell]);
+      for(const bucket of buckets){ bucket.n = (bucket.n || 0) + 1; if(correct) bucket.c = (bucket.c || 0) + 1; }
       if(correct) ic.correct = (ic.correct || 0) + 1;
       ic.recentTasks = Array.isArray(ic.recentTasks) ? ic.recentTasks : [];
       ic.recentTasks.push(task.id);
       const win = Math.max(6, Number(CONFIG?.inductiveConstructiveRecentWindow || 12));
       ic.recentTasks = ic.recentTasks.slice(-win);
-      ic.last = {taskId:task.id, mode, cell, correct:!!correct, ts:nowMs()};
+      ic.last = {taskId:task.id, mode, cell:cell || "excluded:foundational_witness", correct:!!correct, ts:nowMs()};
     }catch(_){ }
   }
 
@@ -91789,7 +92072,7 @@ try{
       const correct = verifyInductiveTask(info, info.pairs);
       info.inductiveVerdict = correct ? "matched_target" : "missed_inductive_target";
       info.userPairLabel = info.pairs.map(p => `Pair ${p.phase}: LEFT ${p.pair.a}, RIGHT ${p.pair.b}`).join("; ");
-      info.correctAnswer = "Any construction satisfying the stated inductive target.";
+      info.correctAnswer = inductiveTargetSummary(info.inductiveConstructive || {});
       klauerCoverageRecord(info.inductiveConstructive || {}, correct);
       State.targetValue = "correct";
       State.pendingPanel = "geninductfinal";
@@ -91810,7 +92093,7 @@ try{
         label:`L${ic.phaseCount > 1 ? "1" : "0"} REVIEW · ${ic.mode === "hidden_rule_induction" ? "INDUCTION" : "CONSTRUCTION"}`,
         question:info.question || "Build an inductive construction.",
         details:inductiveReviewText(info),
-        answer:info.inductiveVerdict === "matched_target" ? "Correct: your construction satisfies the inductive target." : "Correct: build a construction satisfying the stated target.",
+        answer:info.inductiveVerdict === "matched_target" ? "Correct: your construction satisfies the target." : "Target: build a construction satisfying the stated constraints.",
         color:"#ffc107"
       });
       drawInstructionalReviewTip(info);
@@ -91932,7 +92215,21 @@ try{
   function coverageSnapshot(){
     try{
       const ic = State?.productionMonitor?.inductiveConstructive || {};
-      return JSON.parse(JSON.stringify({shown:ic.shown||0, correct:ic.correct||0, byMode:ic.byMode||{}, byCell:ic.byCell||{}, byTask:ic.byTask||{}, recentTasks:ic.recentTasks||[]}));
+      return JSON.parse(JSON.stringify({
+        shown:ic.shown||0,
+        correct:ic.correct||0,
+        byMode:ic.byMode||{},
+        byCell:ic.byCell||{},
+        byTask:ic.byTask||{},
+        recentTasks:ic.recentTasks||[],
+        klauerGovernance:{
+          exposure:true,
+          fragility:CONFIG?.inductiveConstructiveKlauerFragilityGovernance !== false,
+          fragilityMinN:Number(CONFIG?.inductiveConstructiveKlauerFragilityMinN || 4),
+          fragilityTargetAcc:Number(CONFIG?.inductiveConstructiveKlauerFragilityTargetAcc || 0.75),
+          fragilityMaxBoost:Number(CONFIG?.inductiveConstructiveKlauerFragilityMaxBoost || 1.60)
+        }
+      }));
     }catch(_){ return {}; }
   }
 
@@ -91948,7 +92245,7 @@ try{
       const modes = new Set(built.map(t=>t.mode));
       details.modes = Array.from(modes).sort();
       for(const m of ["single_witness","counterexample","dual_contrast","minimal_flip","progressive_alignment","system_construction","hidden_rule_induction","discriminator_construction","threshold_bracket_induction","composition_induction"]){ if(!modes.has(m)) block.push(`missing mode ${m}`); }
-      const cells = new Set(built.map(t=>t.klauer?.cell).filter(Boolean));
+      const cells = new Set(built.filter(t=>t.klauer?.coverage !== false).map(t=>t.klauer?.cell).filter(Boolean));
       details.cells = Array.from(cells).sort();
       for(const c of ["same:attribute","same:relation","different:attribute","different:relation","same_and_different:attribute","same_and_different:relation"]){ if(!cells.has(c)) warnings.push(`no sampled task in Klauer cell ${c}`); }
       let bad = 0;
@@ -91966,8 +92263,13 @@ try{
       for(const t of built){
         const p = t.params || {};
         if(t.mode === "hidden_rule_induction"){
-          const vs = versionSpaceForExamples(p.yesExamples || [], p.noExamples || [], HIDDEN_RULES);
-          if(vs.length !== 1 || vs[0].id !== p.ruleId) underdeterminedHidden++;
+          const candidates = hiddenCandidateRules(p);
+          const vs = versionSpaceForExamples(p.yesExamples || [], p.noExamples || [], candidates);
+          if(candidates.length < 2 || vs.length !== 1 || vs[0].id !== p.ruleId) underdeterminedHidden++;
+          if(p.ruleId === "both_even_hidden"){
+            const y = p.yesExamples || [];
+            if(y.some(ex => Number(ex.a) === 2 && Number(ex.b) === 2)) underdeterminedHidden++;
+          }
         }
         if(t.mode === "composition_induction"){
           const vs = compVersionSpace(p.yesExamples || [], p.noExamples || [], cueById(p.cueAId), cueById(p.cueBId));
@@ -91984,7 +92286,7 @@ try{
       if(!details.panelRegistered) block.push("geninduct panel not registered");
       if(typeof maybeStartInlineGenerativeTrialAfterReset !== "function" || !maybeStartInlineGenerativeTrialAfterReset.__v6826InductiveWrapped) warnings.push("start hook not wrapped yet");
       details.coverageSnapshot = coverageSnapshot();
-    }catch(e){ block.push("v6.8.25 audit exception: " + (e && e.message || e)); }
+    }catch(e){ block.push("v6.8.28 audit exception: " + (e && e.message || e)); }
     return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
   }
 
@@ -92003,10 +92305,18 @@ try{
         buildPayload:buildInductivePayload,
         verify:verifyInductiveTask,
         start:startInductiveTrial,
-        coverage:coverageSnapshot
+        coverage:coverageSnapshot,
+        hiddenRules:HIDDEN_RULES,
+        hiddenCandidateRules:hiddenCandidateRules,
+        hiddenCandidateLabels:hiddenCandidateLabels,
+        versionSpace:versionSpaceForExamples,
+        klauerObjectSemantics:KLAUER_OBJECT_SEMANTICS,
+        expectedKlauerCells:EXPECTED_KLAUER_CELLS,
+        klauerCellFragilityWeight:klauerCellFragilityWeight,
+        klauerCellDeficitWeight:klauerCellDeficitWeight
       };
       try{ globalThis.auditV6826InductiveGenerativeArchitecture = auditV6826; globalThis.inductiveConstructiveCoverageSnapshot = coverageSnapshot; }catch(_){ }
-    }catch(e){ try{ if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia] v6.8.25 boot failed", e); }catch(_){ } }
+    }catch(e){ try{ if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia] v6.8.28 boot failed", e); }catch(_){ } }
   }
 
   try{
@@ -92028,6 +92338,89 @@ try{
       wrapped.__v6826InductiveWrapped = true;
       try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
       try{ runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+<script>
+// ============================================================================
+// v6.8.28: Visible-candidate induction integrity guard
+// -----------------------------------------------------------------------------
+// Hidden-rule induction now exposes the local hypothesis set and rejects the
+// degenerate both-even example pattern that looked like an arbitrary private
+// rule. This audit lives outside the v6.8.26 closure but uses its exported hooks.
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.28-visible-candidate-induction";
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {status, details}; }
+  function boot(){
+    try{
+      window.auditV6828VisibleCandidateInduction = function auditV6828VisibleCandidateInduction(){
+        const block=[], warnings=[], details={patch:PATCH_ID, appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : null)};
+        try{
+          const api = window.EUCA_V6826_INDUCTIVE_GENERATIVE || {};
+          if(!api.buildPayload || !api.versionSpace) block.push("inductive API not exported");
+          const seenModes = new Set();
+          let hidden=0, candidateListed=0, badBothEven=0, badVs=0, built=0;
+          for(let i=0;i<220;i++){
+            const p = api.buildPayload ? api.buildPayload({cap:6}) : null;
+            if(!p || !p.task) continue;
+            built++;
+            seenModes.add(p.task.mode);
+            const t = p.task;
+            if(t.mode === "hidden_rule_induction"){
+              hidden++;
+              const params = t.params || {};
+              const cands = api.hiddenCandidateRules ? api.hiddenCandidateRules(params) : [];
+              if(Array.isArray(params.candidateRuleIds) && params.candidateRuleIds.length >= 2 && /Candidates:/.test(String((t.question||"") + " " + (t.sub||"")))) candidateListed++;
+              const vs = api.versionSpace(params.yesExamples || [], params.noExamples || [], cands);
+              if(!vs || vs.length !== 1 || vs[0].id !== params.ruleId) badVs++;
+              if(params.ruleId === "both_even_hidden"){
+                const yes = params.yesExamples || [];
+                if(yes.some(ex => Number(ex.a) === 2 && Number(ex.b) === 2)) badBothEven++;
+              }
+            }
+          }
+          details.built = built;
+          details.hidden = hidden;
+          details.hiddenWithVisibleCandidates = candidateListed;
+          details.badVersionSpaces = badVs;
+          details.badBothEvenExamples = badBothEven;
+          details.modes = Array.from(seenModes).sort();
+          if(hidden < 5) warnings.push("few hidden-rule tasks sampled; rerun audit if needed");
+          if(hidden && candidateListed < hidden) block.push("some hidden-rule tasks do not expose candidate rules");
+          if(badVs) block.push(`${badVs} hidden-rule tasks are not unique inside their visible candidate set`);
+          if(badBothEven) block.push("both-even induction still uses L2 R2 as a positive teaching example");
+        }catch(e){ block.push("v6.8.28 audit exception: " + (e && e.message || e)); }
+        return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
+      };
+      try{ globalThis.auditV6828VisibleCandidateInduction = window.auditV6828VisibleCandidateInduction; }catch(_){ }
+      const prev = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+      if(prev && !prev.__v6828VisibleCandidateInductionWrapped){
+        const wrapped = function runFeatureAuditV6828(feature, opts){
+          const key = String(feature || "").toLowerCase().replace(/[\s-]+/g,"_");
+          if(["v6828","v6_8_28","visible_candidate_induction","induction_integrity"].includes(key)) return window.auditV6828VisibleCandidateInduction(opts || {});
+          return prev.apply(this, arguments);
+        };
+        wrapped.__v6828VisibleCandidateInductionWrapped = true;
+        try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+        try{ runFeatureAudit = wrapped; }catch(_){ }
+      }
+      try{
+        if(typeof State === "object" && State){
+          State.nextTrialPrepared = null;
+          State.nextTrialPrepareInFlight = false;
+        }
+      }catch(_){ }
+    }catch(_){ }
+  }
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot,0); setTimeout(boot,350);
     }
   }catch(_){ }
 })();
@@ -92505,5 +92898,789 @@ try{
   }catch(_){ }
 })();
 </script>
+
+<script>
+// ============================================================================
+// v6.8.29: Generative logic polish audit
+// -----------------------------------------------------------------------------
+// Checks the constructive-induction contract after the clarity pass: no vague
+// "different-looking" prompt, every example verifies against the same checker,
+// hidden rules expose candidates, and progressive-alignment tasks state the
+// public visible-cue requirement that review/verifier use.
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.29-generative-logic-polish";
+  const AUDIT_NAMES = new Set(["v6829","v6_8_29","generative_logic_polish","generative_audit","constructive_logic_polish"]);
+  function norm(s){ return String(s||"").toLowerCase().replace(/[\s-]+/g,"_"); }
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {ok:status==="PASS", status, details}; }
+  function appVersion(){ try{ return typeof currentAppVersion === "function" ? currentAppVersion() : (typeof APP_VERSION !== "undefined" ? APP_VERSION : PATCH_ID); }catch(_){ return PATCH_ID; } }
+  function auditV6829GenerativeLogicPolish(opts={}){
+    const block=[], warnings=[], details={appVersion:appVersion(), patch:PATCH_ID};
+    try{
+      const api = (typeof window !== "undefined" && window.EUCA_V6826_INDUCTIVE_GENERATIVE) || (typeof globalThis !== "undefined" && globalThis.EUCA_V6826_INDUCTIVE_GENERATIVE) || null;
+      if(!api || typeof api.buildPayload !== "function" || typeof api.verify !== "function"){
+        block.push("inductive generative API not exported");
+      } else {
+        const cap = Math.max(6, Number(opts.cap || 8));
+        const tasks=[];
+        for(let i=0;i<260;i++){ const p = api.buildPayload({cap}); if(p && p.task) tasks.push(p.task); }
+        details.sampled = tasks.length;
+        if(tasks.length < 60) block.push("could not sample enough generative tasks");
+        details.modes = Array.from(new Set(tasks.map(t=>t.mode))).sort();
+        const required = ["single_witness","counterexample","dual_contrast","minimal_flip","progressive_alignment","system_construction","hidden_rule_induction","discriminator_construction","threshold_bracket_induction","composition_induction"];
+        for(const m of required) if(!details.modes.includes(m)) warnings.push(`mode not sampled: ${m}`);
+        let badExamples=0, vague=0, hiddenWithoutCandidates=0, progressiveWithoutCueContract=0, structuralWithoutPhrase=0;
+        for(const t of tasks){
+          const text = `${t.question||""} ${t.sub||""} ${t.reviewHint||""}`;
+          if(/different-looking|surface distance/i.test(text)) vague++;
+          if(t.mode === "hidden_rule_induction" && !/Candidates:/i.test(t.sub||"")) hiddenWithoutCandidates++;
+          if(t.mode === "progressive_alignment" && /same_relation/.test(String(t.params?.alignment||""))){
+            if(!/visible cue/i.test(text) || !(Number(t.params?.minSurfaceCues) >= 2)) progressiveWithoutCueContract++;
+            if(t.params?.requireStructuralCue && !/structural cue/i.test(text)) structuralWithoutPhrase++;
+          }
+          const ex = t.example;
+          if(ex && ex.p1){
+            const pairs = [{phase:1,pair:ex.p1}]; if(ex.p2) pairs.push({phase:2,pair:ex.p2});
+            if(!api.verify({inductiveConstructive:t}, pairs)) badExamples++;
+          }
+        }
+        details.badExamples = badExamples;
+        details.vaguePrompts = vague;
+        details.hiddenWithoutCandidates = hiddenWithoutCandidates;
+        details.progressiveWithoutCueContract = progressiveWithoutCueContract;
+        details.structuralWithoutPhrase = structuralWithoutPhrase;
+        if(badExamples) block.push(`${badExamples} sampled examples failed their verifier`);
+        if(vague) block.push(`${vague} generative prompts/reviews still use vague surface wording`);
+        if(hiddenWithoutCandidates) block.push(`${hiddenWithoutCandidates} hidden-rule tasks do not list candidate rules`);
+        if(progressiveWithoutCueContract) block.push(`${progressiveWithoutCueContract} progressive-alignment tasks lack a public visible-cue contract`);
+        if(structuralWithoutPhrase) block.push(`${structuralWithoutPhrase} structural-shift tasks lack the structural cue wording`);
+      }
+    }catch(e){ block.push("v6.8.29 audit exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
+  }
+  try{ window.auditV6829GenerativeLogicPolish = auditV6829GenerativeLogicPolish; globalThis.auditV6829GenerativeLogicPolish = auditV6829GenerativeLogicPolish; }catch(_){ }
+  try{
+    const prev = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prev && !prev.__v6829GenerativeLogicPolishWrapped){
+      const wrapped = function runFeatureAuditV6829(feature, opts={}){
+        if(AUDIT_NAMES.has(norm(feature))) return auditV6829GenerativeLogicPolish(opts || {});
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v6829GenerativeLogicPolishWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ window.EUCA_V6829_GENERATIVE_LOGIC_POLISH = {patch:PATCH_ID, audit:auditV6829GenerativeLogicPolish}; }catch(_){ }
+})();
+</script>
+
+
+
+<script>
+// =============================================================================
+// v6.8.30 — epistemic + paper-folding clarity audit.
+// =============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.30-epistemic-paperfolding-clarity";
+  try{ if(typeof CONFIG === "object" && CONFIG) CONFIG.version = PATCH_ID; }catch(_){ }
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {status, ok:status === "PASS", details}; }
+  function ver(){ try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){ } try{ return APP_VERSION; }catch(_){ } return PATCH_ID; }
+  function auditV6830EpistemicPaperFoldingClarity(opts={}){
+    const block=[], warnings=[], samples=[];
+    try{
+      const fakeEp={epistemicSufficiency:{agent:"Vera", infoLines:["LEFT = 3", "RIGHT follows one of these rules: RIGHT = LEFT + 1 OR RIGHT = LEFT + 2"], targetText:"RIGHT is odd"}};
+      const html=typeof renderStructuredQuestionHTML === "function" ? String(renderStructuredQuestionHTML("", fakeEp)||"") : "";
+      samples.push({kind:"epistemic", html});
+      if(/You saw the actual LEFT and RIGHT/i.test(html)) block.push("epistemic renderer still repeats user-visible values");
+      const pf=typeof paperFoldingRenderSequence === "function" ? String(paperFoldingRenderSequence([{type:"fold", line:{p0:{x:0,y:0.5}, normal:{x:0,y:1}}},{type:"punch", position:{x:0.5,y:0.25}}])||"") : "";
+      samples.push({kind:"paper", excerpt:pf.slice(0,260)});
+      if(/fill-opacity=\"0\.35\"|fill-opacity=\"0\.53\"/.test(pf)) block.push("paper renderer still uses old strong opacity jump");
+      if(pf && !/after fold/.test(pf)) warnings.push("paper renderer sample did not include after-fold label");
+      const publicQuestions=[];
+      try{ if(Array.isArray(POSNER_CATS)) for(const c of POSNER_CATS){ if(c?.question) publicQuestions.push(String(c.question)); if(c?.choiceSpec?.q) publicQuestions.push(String(c.choiceSpec.q)); for(const v of (c?.variants||[])) publicQuestions.push(String(v?.q||v?.text||v||"")); } }catch(_){ }
+      const stale=publicQuestions.filter(q=>/You saw the actual LEFT and RIGHT|which RIGHT was hidden|previous multiple of \d+ before/i.test(q));
+      if(stale.length) block.push("stale public prompt wording remains: " + stale.slice(0,3).join(" | "));
+    }catch(e){ block.push("exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:ver(), patchId:PATCH_ID, warnings, block, samples});
+  }
+  try{ window.auditV6830EpistemicPaperFoldingClarity=auditV6830EpistemicPaperFoldingClarity; globalThis.auditV6830EpistemicPaperFoldingClarity=auditV6830EpistemicPaperFoldingClarity; }catch(_){ }
+  try{
+    if(typeof runFeatureAudit === "function" && !runFeatureAudit._v6830EpistemicPaperFoldingWrapped){
+      const prev=runFeatureAudit;
+      const wrapped=function(feature, opts={}){
+        const f=String(feature||"").toLowerCase();
+        if(["v6830","v6.8.30","epistemic_paperfolding_clarity","paper_folding_clarity","epistemic_folding_clarity"].includes(f)) return auditV6830EpistemicPaperFoldingClarity(opts);
+        return prev.apply(this, arguments);
+      };
+      wrapped._v6830EpistemicPaperFoldingWrapped=true;
+      runFeatureAudit=wrapped;
+      try{ window.runFeatureAudit=runFeatureAudit; globalThis.runFeatureAudit=runFeatureAudit; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+
+
+<script>
+// ============================================================================
+// v6.8.31: Inductive Klauer-grid governance audit
+// -----------------------------------------------------------------------------
+// Applies the post-audit cleanups: foundational witnesses no longer count as
+// Klauer coverage, surface-lure alignment is same+different, gap-derived rules
+// are relation-level, and the sampler uses byCell deficit as a light governor.
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.31-inductive-grid-governance";
+  function normKey(s){ return String(s||"").toLowerCase().replace(/[\s-]+/g,"_"); }
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {ok:status==="PASS", status, details}; }
+  function auditV6831InductiveGridGovernance(opts={}){
+    const block=[], warnings=[], details={patch:PATCH_ID, appVersion:(typeof currentAppVersion==="function"?currentAppVersion():null)};
+    try{
+      const api = window.EUCA_V6826_INDUCTIVE_GENERATIVE || {};
+      if(!api.buildPayload || !api.verify) block.push("inductive API not exported");
+      details.semantics = api.klauerObjectSemantics || null;
+      if(!details.semantics || !details.semantics.attribute || !details.semantics.relation) block.push("Klauer object semantics not exported");
+      const built=[];
+      for(let i=0;i<360;i++){ const p=api.buildPayload?api.buildPayload({cap:Number(opts.cap||8)}):null; if(p&&p.task) built.push(p.task); }
+      details.built=built.length;
+      if(built.length<80) block.push("too few inductive tasks sampled");
+      const cells = new Set();
+      const modes = new Set();
+      let badAlign=0, badSingle=0, badGapObject=0, badHidden=0, badExamples=0;
+      for(const t of built){
+        modes.add(t.mode);
+        if(t.klauer && t.klauer.coverage !== false && t.klauer.cell) cells.add(t.klauer.cell);
+        if(/^align_surface_lure_/.test(t.id||"") && t.klauer?.process !== "same_and_different") badAlign++;
+        if(t.mode === "single_witness" && t.klauer?.coverage !== false) badSingle++;
+        if(/gap_even|gap_exactly_two|gap_two_hidden|gap_threshold/.test(t.id||"") && t.klauer?.object === "attribute") badGapObject++;
+        if(t.mode === "hidden_rule_induction" && t.klauer?.process !== "same") badHidden++;
+        const ex=t.example;
+        if(ex&&ex.p1){ const pairs=[{phase:1,pair:ex.p1}]; if(ex.p2) pairs.push({phase:2,pair:ex.p2}); if(!api.verify({inductiveConstructive:t}, pairs)) badExamples++; }
+      }
+      details.modes=Array.from(modes).sort();
+      details.coverageCells=Array.from(cells).sort();
+      details.badAlign=badAlign; details.badSingle=badSingle; details.badGapObject=badGapObject; details.badHidden=badHidden; details.badExamples=badExamples;
+      if(badAlign) block.push(`${badAlign} align_surface_lure tasks not tagged same_and_different`);
+      if(badSingle) block.push(`${badSingle} single_witness tasks still counted in Klauer coverage`);
+      if(badGapObject) block.push(`${badGapObject} gap-derived tasks still tagged as attribute`);
+      if(badHidden) block.push(`${badHidden} hidden-rule induction tasks not tagged as same/generalization`);
+      if(badExamples) block.push(`${badExamples} examples failed their verifier`);
+      const expected = api.expectedKlauerCells || ["same:attribute","same:relation","different:attribute","different:relation","same_and_different:attribute","same_and_different:relation"];
+      const missing = expected.filter(c=>!cells.has(c));
+      details.missingCells=missing;
+      if(missing.length) warnings.push(`sample did not hit coverage cells: ${missing.join(", ")}`);
+    }catch(e){ block.push("v6.8.31 audit exception: " + (e&&e.message || e)); }
+    return auditResultLocal(block.length?"BLOCK":(warnings.length?"WARN":"PASS"), {...details,warnings,block});
+  }
+  function boot(){
+    try{ window.auditV6831InductiveGridGovernance = auditV6831InductiveGridGovernance; globalThis.auditV6831InductiveGridGovernance = auditV6831InductiveGridGovernance; }catch(_){ }
+    try{
+      const prev = (typeof window!=="undefined" && typeof window.runFeatureAudit==="function") ? window.runFeatureAudit : (typeof runFeatureAudit==="function" ? runFeatureAudit : null);
+      if(prev && !prev.__v6831InductiveGridWrapped){
+        const wrapped = function runFeatureAuditV6831(feature, opts){
+          const key = normKey(feature);
+          if(["v6831","v6_8_31","inductive_grid_governance","klauer_grid_governance"].includes(key)) return auditV6831InductiveGridGovernance(opts||{});
+          return prev.apply(this, arguments);
+        };
+        wrapped.__v6831InductiveGridWrapped = true;
+        try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+        try{ runFeatureAudit = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+  }
+  try{ if(typeof document!=="undefined" && document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot); else boot(); setTimeout(boot,0); setTimeout(boot,300); }catch(_){ }
+})();
+
+// ============================================================================
+// v6.8.32: Inductive Klauer-grid fragility governance
+// -----------------------------------------------------------------------------
+// Keeps v6.8.31 exposure balancing, documents the attribute/relation object
+// criterion next to the relation descriptors, and adds a light optional term for
+// cells that are already practiced but fragile (low c/n).
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.32-inductive-fragility-governance";
+  function normKey(s){ return String(s||"").toLowerCase().replace(/[\s-]+/g,"_"); }
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {ok:status==="PASS", status, details}; }
+  function auditV6832InductiveFragilityGovernance(opts={}){
+    const block=[], warnings=[], details={patch:PATCH_ID, appVersion:(typeof currentAppVersion==="function"?currentAppVersion():null)};
+    try{
+      const api = window.EUCA_V6826_INDUCTIVE_GENERATIVE || {};
+      if(!api.buildPayload || !api.verify) block.push("inductive API not exported");
+      details.semantics = api.klauerObjectSemantics || null;
+      if(!details.semantics || !/slot-local|categorical|properties/i.test(String(details.semantics.attribute||"")) || !/between-value|derived pair|metric/i.test(String(details.semantics.relation||""))) warnings.push("Klauer object semantics export is present but terse");
+      if(typeof api.klauerCellFragilityWeight !== "function") block.push("fragility weight function not exported");
+      if(typeof api.klauerCellDeficitWeight !== "function") block.push("combined Klauer weight function not exported");
+      try{
+        const oldPM = State.productionMonitor;
+        State.productionMonitor = JSON.parse(JSON.stringify(oldPM || {}));
+        const ic = State.productionMonitor.inductiveConstructive || (State.productionMonitor.inductiveConstructive = {byCell:{}});
+        ic.byCell = {
+          "same:attribute":{n:8,c:8},
+          "same:relation":{n:8,c:8},
+          "different:attribute":{n:8,c:8},
+          "different:relation":{n:8,c:2},
+          "same_and_different:attribute":{n:8,c:8},
+          "same_and_different:relation":{n:8,c:8}
+        };
+        const fragile = api.klauerCellDeficitWeight ? api.klauerCellDeficitWeight({process:"different", object:"relation", cell:"different:relation"}) : 1;
+        const stable = api.klauerCellDeficitWeight ? api.klauerCellDeficitWeight({process:"same", object:"attribute", cell:"same:attribute"}) : 1;
+        details.syntheticFragileWeight = fragile;
+        details.syntheticStableWeight = stable;
+        if(!(fragile > stable)) block.push("fragile practiced cell did not receive a larger weight than a stable cell");
+        State.productionMonitor = oldPM;
+      }catch(e){ block.push("synthetic fragility test failed: " + (e&&e.message || e)); }
+      const built=[];
+      for(let i=0;i<160;i++){ const p=api.buildPayload?api.buildPayload({cap:Number(opts.cap||8)}):null; if(p&&p.task) built.push(p.task); }
+      details.sampled=built.length;
+      const bad = built.filter(t=>t.klauer?.coverage !== false && !t.klauer?.cell).length;
+      details.missingCellTags=bad;
+      if(bad) block.push(`${bad} coverage tasks lack Klauer cell tags`);
+      try{ details.coverageSnapshot = typeof window.inductiveConstructiveCoverageSnapshot === "function" ? window.inductiveConstructiveCoverageSnapshot() : null; }catch(_){ details.coverageSnapshot = null; }
+    }catch(e){ block.push("v6.8.32 audit exception: " + (e&&e.message || e)); }
+    return auditResultLocal(block.length?"BLOCK":(warnings.length?"WARN":"PASS"), {...details,warnings,block});
+  }
+  function boot(){
+    try{ window.auditV6832InductiveFragilityGovernance = auditV6832InductiveFragilityGovernance; globalThis.auditV6832InductiveFragilityGovernance = auditV6832InductiveFragilityGovernance; }catch(_){ }
+    try{
+      const prev = (typeof window!=="undefined" && typeof window.runFeatureAudit==="function") ? window.runFeatureAudit : (typeof runFeatureAudit==="function" ? runFeatureAudit : null);
+      if(prev && !prev.__v6832InductiveFragilityWrapped){
+        const wrapped = function runFeatureAuditV6832(feature, opts){
+          const key = normKey(feature);
+          if(["v6832","v6_8_32","inductive_fragility_governance","klauer_fragility_governance"].includes(key)) return auditV6832InductiveFragilityGovernance(opts||{});
+          return prev.apply(this, arguments);
+        };
+        wrapped.__v6832InductiveFragilityWrapped = true;
+        try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+        try{ runFeatureAudit = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+  }
+  try{ if(typeof document!=="undefined" && document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot); else boot(); setTimeout(boot,0); setTimeout(boot,300); }catch(_){ }
+})();
+
+</script>
+
+
+<script id="v6833-graph-gate-relevance-patch">
+(function(){
+  // v6.8.33 — graph gate relevance / relation-processing patch
+  // ---------------------------------------------------------------------------
+  // Aim: keep the graph gates aligned with the relation-processing task family
+  // that motivated them. The key operation is not hidden rule discovery, but
+  // validation of a predefined relation while preserving role bindings.
+
+  const V6833 = {
+    version: "v6.8.33-graph-gate-relevance",
+    installedAt: Date.now()
+  };
+
+  function incPlain(obj, key, delta=1){
+    if(!obj || !key) return;
+    obj[key] = (Number(obj[key]) || 0) + delta;
+  }
+  function safeChoice(arr){ return Array.isArray(arr) && arr.length ? arr[Math.floor(Math.random()*arr.length)] : null; }
+
+  // ---------------------------------------------------------------------------
+  // 1) Cleaner wording for the existing global graph-structure branch gate.
+  // ---------------------------------------------------------------------------
+  function v6833GraphBranchVariants(op){
+    return [
+      { q:`Compare the two directed graphs first.\nIf their directed structure MATCHES, use: ${op.sameDesc}.\nIf one graph has a structural edit, use: ${op.differentDesc}.\nIs the active rule true for LEFT and RIGHT?` },
+      { q:`Graph branch first. Matching structure → ${op.sameDesc}. Structural edit → ${op.differentDesc}. Then answer the active numerical rule.` }
+    ];
+  }
+
+  try{
+    if(Array.isArray(POSNER_CATS) && typeof l0GraphConditionalCatalog === "function"){
+      const baseIds = new Set(l0GraphConditionalCatalog().map(o => o.id));
+      for(const c of POSNER_CATS){
+        if(c && baseIds.has(c.id) && c.family === "l0_graph_conditional" && c.graphConditionalId === c.id){
+          const op = l0GraphConditionalById(c.graphConditionalId);
+          if(op) c.variants = v6833GraphBranchVariants(op);
+          c.frameTags = Array.from(new Set([...(c.frameTags || []), "graph_structure_branch", "predefined_relation_validation"]));
+        }
+      }
+    }
+  }catch(_){ /* best-effort wording retrofit */ }
+
+  // ---------------------------------------------------------------------------
+  // 2) Study-inspired graph role-matching gate.
+  // ---------------------------------------------------------------------------
+  // In the Jastrzębski/Ociepka/Chuderski Matching task, the two graphs always
+  // share structure; the solver must identify corresponding nodes by structural
+  // role. Eucalculia now has an analogous visual gate: LEFT graph marks two
+  // roles; RIGHT graph marks a proposed correspondence. The mapping can be true
+  // or false; that Boolean selects the numerical branch.
+
+  function graphAllDirectedIsomorphismsV6833(gA, gB){
+    const A = graphClone(gA), B = graphClone(gB);
+    if(A.n !== B.n) return [];
+    const n = A.n;
+    const eA = graphNormalizeEdges(A.edges, n);
+    const eB = graphNormalizeEdges(B.edges, n);
+    if(eA.length !== eB.length) return [];
+    const keyB = graphAdjKey(n, eB);
+    const out = [];
+    for(const perm of graphPermutations(n)){
+      const mapped = eA.map(([a,b]) => [perm[a], perm[b]]);
+      if(graphAdjKey(n, mapped) === keyB) out.push(perm.slice());
+    }
+    return out;
+  }
+  function graphPairSigV6833(a,b){ return `${a}|${b}`; }
+  function graphDegreeSignatureV6833(g, node){
+    const d = graphDegrees(g)[node] || {in:0,out:0,total:0};
+    return `${d.in}/${d.out}/${d.total}`;
+  }
+  function graphRolePairDistanceOKV6833(g, a, b){
+    try{ return graphLayoutNodeDistance(g, a, b) >= 0.18; }catch(_){ return true; }
+  }
+  function graphBuildRoleMatchingPairV6833(wantCorrect, difficulty=7){
+    const level = Math.max(6, Math.floor(Number(difficulty) || 7));
+    for(let attempt=0; attempt<120; attempt++){
+      const pair = graphBuildConditionalPair("same", level);
+      if(!pair || !pair.graphLeft || !pair.graphRight) continue;
+      const G = pair.graphLeft, H = pair.graphRight;
+      const maps = graphAllDirectedIsomorphismsV6833(G, H);
+      if(!maps.length) continue;
+      const leftPairs = [];
+      for(let a=0; a<G.n; a++) for(let b=0; b<G.n; b++){
+        if(a === b) continue;
+        if(!graphRolePairDistanceOKV6833(G, a, b)) continue;
+        const valid = new Set(maps.map(m => graphPairSigV6833(m[a], m[b])));
+        leftPairs.push({a,b,valid,unique:valid.size===1});
+      }
+      // Prefer unambiguous role pairs, but permit any pair whose right-hand
+      // correspondence can be evaluated as a valid mapping.
+      leftPairs.sort((x,y)=>(y.unique?1:0)-(x.unique?1:0));
+      for(const lp of leftPairs.slice(0, 20)){
+        const validArr = Array.from(lp.valid).map(s => s.split("|").map(Number));
+        let rPair = null;
+        if(wantCorrect){
+          const candidates = validArr.filter(([u,v]) => u !== v && graphRolePairDistanceOKV6833(H,u,v));
+          rPair = safeChoice(candidates);
+        } else {
+          const valid = lp.valid;
+          const lure = [];
+          const sigA = graphDegreeSignatureV6833(G, lp.a);
+          const sigB = graphDegreeSignatureV6833(G, lp.b);
+          for(let u=0; u<H.n; u++) for(let v=0; v<H.n; v++){
+            if(u === v) continue;
+            if(valid.has(graphPairSigV6833(u,v))) continue;
+            if(!graphRolePairDistanceOKV6833(H,u,v)) continue;
+            const degreeMatch = (graphDegreeSignatureV6833(H,u) === sigA ? 1 : 0) + (graphDegreeSignatureV6833(H,v) === sigB ? 1 : 0);
+            lure.push({u,v,degreeMatch});
+          }
+          lure.sort((x,y)=>y.degreeMatch-x.degreeMatch);
+          const best = lure.slice(0, Math.min(8, lure.length));
+          const picked = safeChoice(best);
+          if(picked) rPair = [picked.u, picked.v];
+        }
+        if(!rPair) continue;
+        const rightSig = graphPairSigV6833(rPair[0], rPair[1]);
+        const correct = lp.valid.has(rightSig);
+        if(correct !== !!wantCorrect) continue;
+        G.marks = {square:lp.a, ring:lp.b};
+        H.marks = {square:rPair[0], ring:rPair[1]};
+        G.roleMatchGate = true; H.roleMatchGate = true;
+        return {
+          graphLeft:G, graphRight:H,
+          graphId:pair.graphId,
+          roleMatchCorrect:correct,
+          leftMarks:{square:lp.a, ring:lp.b},
+          rightMarks:{square:rPair[0], ring:rPair[1]},
+          validRightPairs:Array.from(lp.valid),
+          editType: correct ? "valid_role_correspondence" : "invalid_role_correspondence"
+        };
+      }
+    }
+    return null;
+  }
+
+  const OLD_graphConditionalRenderPairSVG_v6833 = (typeof graphConditionalRenderPairSVG === "function") ? graphConditionalRenderPairSVG : null;
+  graphConditionalRenderPairSVG = function graphConditionalRenderPairSVG_v6833(graphLeft, graphRight){
+    if(graphLeft?.marks || graphRight?.marks || graphLeft?.roleMatchGate || graphRight?.roleMatchGate){
+      const W = 420, H = 198;
+      const panelW = 160, panelH = 128;
+      const leftX = 34, rightX = 226, topY = 38;
+      let svg = `<svg class="graph-svg" viewBox="0 0 ${W} ${H}" width="420" height="198" xmlns="http://www.w3.org/2000/svg" style="display:block;width:min(100%,560px);height:auto;" aria-label="two directed graphs with marked node correspondences">`;
+      svg += graphConditionalSameArrowDef();
+      svg += `<text x="${leftX + panelW/2}" y="16" font-size="11" fill="#888" text-anchor="middle">LEFT ROLES</text>`;
+      svg += `<text x="${rightX + panelW/2}" y="16" font-size="11" fill="#888" text-anchor="middle">RIGHT CLAIM</text>`;
+      svg += `<rect x="${leftX}" y="${topY}" width="${panelW}" height="${panelH}" rx="14" fill="rgba(255,255,255,0.018)" stroke="rgba(255,255,255,0.07)"/>`;
+      svg += `<rect x="${rightX}" y="${topY}" width="${panelW}" height="${panelH}" rx="14" fill="rgba(255,255,255,0.018)" stroke="rgba(255,255,255,0.07)"/>`;
+      svg += graphRenderSingleSVG(graphLeft, leftX + 10, topY + 8, panelW - 20, panelH - 16, graphLeft?.marks || null);
+      svg += graphRenderSingleSVG(graphRight, rightX + 10, topY + 8, panelW - 20, panelH - 16, graphRight?.marks || null);
+      svg += `<line x1="210" y1="32" x2="210" y2="172" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+      svg += `<text x="${W/2}" y="188" font-size="12" fill="#c9c3ff" text-anchor="middle" font-weight="700">□ square role · ◎ ring role</text>`;
+      svg += `</svg>`;
+      return svg;
+    }
+    return OLD_graphConditionalRenderPairSVG_v6833 ? OLD_graphConditionalRenderPairSVG_v6833(graphLeft, graphRight) : "";
+  };
+
+  const OLD_l0GraphConditionalById_v6833 = (typeof l0GraphConditionalById === "function") ? l0GraphConditionalById : null;
+  l0GraphConditionalById = function l0GraphConditionalById_v6833(id){
+    const s = String(id || "");
+    if(s.startsWith("graph_cond_match__") && OLD_l0GraphConditionalById_v6833){
+      const baseId = s.replace(/^graph_cond_match__/, "");
+      const base = OLD_l0GraphConditionalById_v6833(baseId);
+      if(!base) return null;
+      return {...base, id:s, baseGraphConditionalId:base.id, roleMatching:true};
+    }
+    return OLD_l0GraphConditionalById_v6833 ? OLD_l0GraphConditionalById_v6833(id) : null;
+  };
+
+  const OLD_graphConditionalExplain_v6833 = (typeof graphConditionalExplain === "function") ? graphConditionalExplain : null;
+  graphConditionalExplain = function graphConditionalExplain_v6833(op, branch, a, b){
+    if(op && op.roleMatching){
+      const desc = branch === "same" ? op.sameDesc : op.differentDesc;
+      const pred = branch === "same" ? op.same : op.different;
+      const gate = branch === "same"
+        ? "the RIGHT marks are a valid structural correspondence for the LEFT marks"
+        : "the RIGHT marks are not the corresponding structural roles";
+      return `Graph matching gate: ${gate} → use rule: ${desc}. Values: LEFT=${a}, RIGHT=${b}. Active rule → ${pred(a,b) ? "YES" : "NO"}.`;
+    }
+    if(op){
+      const desc = branch === "same" ? op.sameDesc : op.differentDesc;
+      const pred = branch === "same" ? op.same : op.different;
+      const relationText = branch === "same" ? "matching directed structure" : "a structural edit";
+      return `Graph branch: the graphs show ${relationText} → use rule: ${desc}. Values: LEFT=${a}, RIGHT=${b}. Active rule → ${pred(a,b) ? "YES" : "NO"}.`;
+    }
+    return OLD_graphConditionalExplain_v6833 ? OLD_graphConditionalExplain_v6833(op, branch, a, b) : `Graph branch selected a rule for LEFT=${a}, RIGHT=${b}.`;
+  };
+
+  function l0GraphRoleMatchingCatsV6833(){
+    const baseIds = [
+      "graph_cond_product_lt_20",
+      "graph_cond_left_greater",
+      "graph_cond_parity_match",
+      "graph_cond_diff_gt_3",
+      "graph_cond_sum_eq_10",
+      "graph_cond_one_prime"
+    ];
+    const cats = [];
+    for(const baseId of baseIds){
+      const op = OLD_l0GraphConditionalById_v6833 ? OLD_l0GraphConditionalById_v6833(baseId) : null;
+      if(!op) continue;
+      const id = `graph_cond_match__${op.id}`;
+      cats.push({
+        id,
+        tier:4,
+        stage:5,
+        family:"l0_graph_role_matching",
+        checkVisual:true,
+        questionVisualGate:true,
+        graphConditionalId:id,
+        frameTags:["relation_processing","graph_matching","structural_correspondence","role_binding","predefined_relation_validation","visual_gate"],
+        atomicsUsed:["graph_role_matching_gate","directed_graph_correspondence","branch_rule_application"],
+        canUse:(m)=> {
+          const minLevel = CONFIG.l0GraphRoleMatchingMinLevel || 7;
+          const currentLevel = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? State.levelByMode.D : 0;
+          if(currentLevel < minLevel) return false;
+          return (!CONFIG.l0GraphRoleMatchingRequireGate || requireHarnessPass("l0_graph_role_matching"));
+        },
+        variants:[
+          { q:`Match the marked graph roles.\nIf the RIGHT square/ring marks correspond to the LEFT square/ring roles, use: ${op.sameDesc}.\nIf they do not correspond, use: ${op.differentDesc}.\nIs the active rule true for LEFT and RIGHT?` },
+          { q:`Use structural correspondence as the gate. Valid right-hand match → ${op.sameDesc}. Invalid match → ${op.differentDesc}. Then answer the active numerical rule.` }
+        ],
+        gen(m, t){
+          const maxAB = Math.max(2, Math.min(m + 1, 12));
+          const level = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : (CONFIG.l0GraphRoleMatchingMinLevel || 7);
+          function packagePair(a,b,ext){ const arr=[a,b]; Object.assign(arr, ext); return arr; }
+          for(let attempt=0; attempt<80; attempt++){
+            const a = randInt(1, maxAB);
+            const b = randInt(1, maxAB);
+            const matchResult = !!op.same(a,b);
+            const mismatchResult = !!op.different(a,b);
+            if(matchResult === mismatchResult) continue;
+            let wantMatch;
+            if(matchResult === t) wantMatch = true;
+            else if(mismatchResult === t) wantMatch = false;
+            else continue;
+            const built = graphBuildRoleMatchingPairV6833(wantMatch, level);
+            if(!built) continue;
+            return packagePair(a,b,{
+              _graphConditionalId:id,
+              _graphId:built.graphId,
+              _graphLeft:built.graphLeft,
+              _graphRight:built.graphRight,
+              _graphRelation: wantMatch ? "same" : "different",
+              _graphActiveBranch: wantMatch ? "same" : "different",
+              _graphEditType: built.editType,
+              _graphRoleMatchCorrect: built.roleMatchCorrect,
+              _graphRoleMatchLeftMarks: built.leftMarks,
+              _graphRoleMatchRightMarks: built.rightMarks
+            });
+          }
+          return null;
+        },
+        verify(a,b,info){
+          const gc = info && info.graphConditional;
+          if(!gc || !gc.activeBranch) return INAPPLICABLE;
+          const pred = gc.activeBranch === "same" ? op.same : op.different;
+          return !!pred(a,b);
+        }
+      });
+    }
+    return cats;
+  }
+
+  try{
+    if(Array.isArray(POSNER_CATS)){
+      const have = new Set(POSNER_CATS.map(c => c && c.id));
+      for(const cat of l0GraphRoleMatchingCatsV6833()){
+        if(!have.has(cat.id)){ POSNER_CATS.unshift(cat); have.add(cat.id); }
+      }
+    }
+  }catch(_){ /* best-effort registration */ }
+
+  // ---------------------------------------------------------------------------
+  // 3) Extend the local single-graph relation gate with a path relation.
+  // ---------------------------------------------------------------------------
+  // Existing local gates covered direct arrows and common neighbors. The study's
+  // graph-matching difficulty often comes from structural role dependencies;
+  // a two-step path adds bounded indirect relation processing without turning
+  // the graph into a full puzzle.
+
+  const OLD_graphRelationConditionCatalog_v6833 = (typeof graphRelationConditionCatalog === "function") ? graphRelationConditionCatalog : null;
+  graphRelationConditionCatalog = function graphRelationConditionCatalog_v6833(){
+    const base = OLD_graphRelationConditionCatalog_v6833 ? OLD_graphRelationConditionCatalog_v6833() : [];
+    if(base.some(c => c.id === "two_step_path")) return base;
+    return base.concat([
+      { id:"two_step_path", rc:3, desc:"there is a two-step arrow path from the square node to the ringed node", short:"two-step path", holds:(g,A,B)=> graphNodes(g).some(z => z!==A && z!==B && graphHasArc(g,A,z) && graphHasArc(g,z,B)) }
+    ]);
+  };
+  graphRelationConditionById = function graphRelationConditionById_v6833(id){
+    return graphRelationConditionCatalog().find(c => c.id === id) || null;
+  };
+
+  const OLD_graphRelationWitnessNodes_v6833 = (typeof graphRelationWitnessNodes === "function") ? graphRelationWitnessNodes : null;
+  graphRelationWitnessNodes = function graphRelationWitnessNodes_v6833(g, cond, A, B){
+    if(cond && cond.id === "two_step_path"){
+      return graphRelationThirdNodes(g,A,B).filter(z => graphHasArc(g,A,z) && graphHasArc(g,z,B));
+    }
+    return OLD_graphRelationWitnessNodes_v6833 ? OLD_graphRelationWitnessNodes_v6833(g, cond, A, B) : [];
+  };
+
+  const OLD_graphForceRelationOutcome_v6833 = (typeof graphForceRelationOutcome === "function") ? graphForceRelationOutcome : null;
+  graphForceRelationOutcome = function graphForceRelationOutcome_v6833(g, cond, A, B, wantHolds){
+    if(cond && cond.id === "two_step_path"){
+      if(!g || A === B) return null;
+      const n = Math.max(0, Math.floor(Number(g.n) || 0));
+      if(A < 0 || B < 0 || A >= n || B >= n) return null;
+      let edges = graphNormalizeEdges(g.edges, n);
+      const add = (u,v) => { edges = graphRelationAddArcToEdges(edges, n, u, v); };
+      const rem = (u,v) => { edges = graphRelationRemoveArcFromEdges(edges, n, u, v); };
+      const third = graphRelationThirdNodes(g,A,B);
+      if(wantHolds){
+        const z = safeChoice(third);
+        if(z === null || z === undefined) return null;
+        add(A,z); add(z,B);
+      } else {
+        for(const z of third){ rem(A,z); rem(z,B); }
+      }
+      let H = {...g, edges:graphNormalizeEdges(edges, n)};
+      if(!graphUnderlyingConnected(H)) H = graphRepairRelationGateConnectivity(H, cond, A, B, wantHolds);
+      if(!H) return null;
+      if(!!cond.holds(H,A,B) !== !!wantHolds) return null;
+      return H;
+    }
+    return OLD_graphForceRelationOutcome_v6833 ? OLD_graphForceRelationOutcome_v6833(g, cond, A, B, wantHolds) : null;
+  };
+
+  const OLD_graphRelationGatePairing_v6833 = (typeof graphRelationGatePairing === "function") ? graphRelationGatePairing : null;
+  graphRelationGatePairing = function graphRelationGatePairing_v6833(conditions, predicates){
+    const rows = OLD_graphRelationGatePairing_v6833 ? OLD_graphRelationGatePairing_v6833(conditions, predicates) : [];
+    const condBy = Object.fromEntries((conditions || []).map(c => [c.id, c]));
+    const predBy = Object.fromEntries((predicates || []).map(p => [p.id, p]));
+    const extra = [
+      ["two_step_path", "graph_cond_left_div_right"],
+      ["two_step_path", "graph_cond_gap_eq_1"]
+    ];
+    const seen = new Set(rows.map(x => `${x.cond?.id}__${x.op?.id}`));
+    for(const [cid,pid] of extra){
+      const cond = condBy[cid], op = predBy[pid];
+      const key = `${cid}__${pid}`;
+      if(cond && op && !seen.has(key)){ rows.push({cond, op}); seen.add(key); }
+    }
+    return rows;
+  };
+
+  const OLD_graphRelationConditionOutcomeText_v6833 = (typeof graphRelationConditionOutcomeText === "function") ? graphRelationConditionOutcomeText : null;
+  graphRelationConditionOutcomeText = function graphRelationConditionOutcomeText_v6833(cond, holds){
+    if(cond && cond.id === "two_step_path"){
+      return holds ? "there is a two-step path from the square node to the ringed node" : "there is no two-step path from the square node to the ringed node";
+    }
+    return OLD_graphRelationConditionOutcomeText_v6833 ? OLD_graphRelationConditionOutcomeText_v6833(cond, holds) : (holds ? "the graph condition holds" : "the graph condition does not hold");
+  };
+
+  try{
+    if(Array.isArray(POSNER_CATS) && typeof l0GraphRelationGateCats === "function"){
+      const have = new Set(POSNER_CATS.map(c => c && c.id));
+      const extras = l0GraphRelationGateCats().filter(c => c && c.graphRelationConditionId === "two_step_path");
+      for(const cat of extras){
+        if(!have.has(cat.id)){ POSNER_CATS.unshift(cat); have.add(cat.id); }
+      }
+      CONFIG.l0GraphRelationGateCatalogSize = Math.max(Number(CONFIG.l0GraphRelationGateCatalogSize)||12, 14);
+    }
+  }catch(_){ /* optional */ }
+
+  // ---------------------------------------------------------------------------
+  // 4) Updated audits.
+  // ---------------------------------------------------------------------------
+  const OLD_auditGraphRelationGates_v6833 = (typeof auditGraphRelationGates === "function") ? auditGraphRelationGates : null;
+  auditGraphRelationGates = function auditGraphRelationGates_v6833(opts={}){
+    const block = [], warn = [], rows = [];
+    const conditions = graphRelationConditionCatalog();
+    const pairs = graphRelationGatePairing(conditions, l0GraphConditionalCatalog());
+    const expected = CONFIG.l0GraphRelationGateCatalogSize || 14;
+    if(conditions.length < 6) block.push(`graph relation condition catalog has ${conditions.length}; expected at least 6`);
+    if(!conditions.some(c => c.id === "two_step_path")) block.push("two_step_path condition missing");
+    if(conditions.some(c => !Number.isFinite(c.rc) || c.rc < 2 || c.rc > 3)) block.push("graph relation conditions must be RC2 or RC3 only");
+    if(pairs.length < expected) block.push(`graph relation gate pair catalog has ${pairs.length}; expected at least ${expected}`);
+    const cats = (POSNER_CATS || []).filter(c => c && c.graphRelationConditionId);
+    const catById = Object.fromEntries(cats.map(c => [c.id, c]));
+    for(const {cond, op} of pairs){
+      const id = `graph_rel_${cond.id}__${op.id}`;
+      if(!catById[id]) block.push(`${id}: missing POSNER_CATS entry`);
+    }
+    const oldGate = CONFIG.l0GraphRelationGateRequireGate;
+    CONFIG.l0GraphRelationGateRequireGate = false;
+    const oldLevels = State.levelByMode ? Object.assign({}, State.levelByMode) : null;
+    if(!State.levelByMode) State.levelByMode = {};
+    State.levelByMode.D = Math.max(State.levelByMode.D || 0, CONFIG.l0GraphRelationGateRc3MinLevel || 7, 8);
+    try{
+      const m = Math.max(8, Math.floor(Number(opts.m) || 10));
+      const trialsPerPolarity = Math.max(3, Math.floor(Number(opts.trialsPerPolarity) || 5));
+      const branchUse = {holds:0, fails:0};
+      const rcUse = {2:0, 3:0};
+      for(const cat of cats){
+        const cond = graphRelationConditionById(cat.graphRelationConditionId);
+        const op = l0GraphConditionalById(cat.graphConditionalId);
+        if(!cond || !op){ block.push(`${cat.id}: missing condition or predicate object`); continue; }
+        const counts = {true:0, false:0};
+        for(const want of [true, false]){
+          for(let i=0;i<trialsPerPolarity;i++){
+            const gen = cat.gen(m, want);
+            if(!gen){ warn.push(`${cat.id}: gen failed for want=${want}`); continue; }
+            const g = gen._graphRelationGraph;
+            const A = gen._graphRelationMarkA, B = gen._graphRelationMarkB;
+            if(!g){ block.push(`${cat.id}: missing graph payload`); continue; }
+            if(!!cond.holds(g,A,B) !== !!gen._graphRelationHolds) block.push(`${cat.id}: condition truth mismatch`);
+            const pred = gen._graphActiveBranch === "same" ? op.same : op.different;
+            const got = !!pred(gen[0], gen[1]);
+            if(got !== want) block.push(`${cat.id}: polarity drift want=${want} got=${got}`);
+            counts[want ? "true" : "false"]++;
+            branchUse[gen._graphRelationHolds ? "holds" : "fails"]++;
+            rcUse[cond.rc] = (rcUse[cond.rc] || 0) + 1;
+            if(rows.length < 140) rows.push({id:cat.id, want, a:gen[0], b:gen[1], condition:cond.id, holds:!!gen._graphRelationHolds, predicate:op.id, rc:cond.rc});
+          }
+        }
+        if(counts.true === 0) block.push(`${cat.id}: failed to build any YES sample`);
+        if(counts.false === 0) block.push(`${cat.id}: failed to build any NO sample`);
+      }
+      if(branchUse.holds === 0 || branchUse.fails === 0) block.push("graph relation gate branch coverage failed");
+      if(rcUse[2] === 0 || rcUse[3] === 0) warn.push(`RC distribution sparse: ${JSON.stringify(rcUse)}`);
+      return auditResult(block.length ? "BLOCK" : (warn.length ? "WARN" : "PASS"), {conditions:conditions.map(c=>({id:c.id, rc:c.rc})), pairs:pairs.length, rows, branchUse, rcUse, warnings:warn, block});
+    } catch(e){
+      block.push(`graph relation gate audit exception: ${e?.message || e}`);
+      return auditResult("BLOCK", {rows, warnings:warn, block});
+    } finally {
+      CONFIG.l0GraphRelationGateRequireGate = oldGate;
+      if(oldLevels) State.levelByMode = oldLevels;
+    }
+  };
+
+  function auditGraphRoleMatchingGatesV6833(opts={}){
+    const block=[], warn=[], rows=[];
+    const cats = (POSNER_CATS || []).filter(c => c && /^graph_cond_match__/.test(c.id));
+    if(cats.length < 4) block.push(`role-matching graph cats low: ${cats.length}`);
+    const oldGate = CONFIG.l0GraphRoleMatchingRequireGate;
+    CONFIG.l0GraphRoleMatchingRequireGate = false;
+    const oldLevels = State.levelByMode ? Object.assign({}, State.levelByMode) : null;
+    if(!State.levelByMode) State.levelByMode = {};
+    State.levelByMode.D = Math.max(State.levelByMode.D || 0, CONFIG.l0GraphRoleMatchingMinLevel || 7, 8);
+    try{
+      const m = Math.max(8, Math.floor(Number(opts.m) || 10));
+      const n = Math.max(2, Math.floor(Number(opts.trialsPerPolarity) || 5));
+      const branchUse = {same:0, different:0};
+      for(const cat of cats){
+        const op = l0GraphConditionalById(cat.graphConditionalId);
+        if(!op || !op.roleMatching) block.push(`${cat.id}: roleMatching op not found`);
+        for(const want of [true,false]){
+          for(let i=0;i<n;i++){
+            const gen = cat.gen(m,want);
+            if(!gen){ warn.push(`${cat.id}: gen failed want=${want}`); continue; }
+            if(!gen._graphLeft?.marks || !gen._graphRight?.marks) block.push(`${cat.id}: missing marked graph payload`);
+            if(!graphIsDirectedIsomorphic(gen._graphLeft, gen._graphRight)) block.push(`${cat.id}: role matching graphs must be isomorphic`);
+            const maps = graphAllDirectedIsomorphismsV6833(gen._graphLeft, gen._graphRight);
+            const valid = new Set(maps.map(mm => graphPairSigV6833(mm[gen._graphLeft.marks.square], mm[gen._graphLeft.marks.ring])));
+            const rs = graphPairSigV6833(gen._graphRight.marks.square, gen._graphRight.marks.ring);
+            const validMatch = valid.has(rs);
+            if((gen._graphActiveBranch === "same") !== validMatch) block.push(`${cat.id}: active branch does not match role validity`);
+            const pred = gen._graphActiveBranch === "same" ? op.same : op.different;
+            const got = !!pred(gen[0], gen[1]);
+            if(got !== want) block.push(`${cat.id}: polarity drift want=${want} got=${got}`);
+            branchUse[gen._graphActiveBranch]++;
+            if(rows.length < 80) rows.push({id:cat.id,want,a:gen[0],b:gen[1],branch:gen._graphActiveBranch,validMatch,graphId:gen._graphId});
+          }
+        }
+      }
+      if(branchUse.same === 0 || branchUse.different === 0) block.push("role-matching branch coverage failed");
+      return auditResult(block.length ? "BLOCK" : (warn.length ? "WARN" : "PASS"), {checked:cats.length, rows, branchUse, warnings:warn, block});
+    }catch(e){
+      block.push(`role matching audit exception: ${e?.message || e}`);
+      return auditResult("BLOCK", {rows, warnings:warn, block});
+    }finally{
+      CONFIG.l0GraphRoleMatchingRequireGate = oldGate;
+      if(oldLevels) State.levelByMode = oldLevels;
+    }
+  }
+
+  function auditV6833GraphGateRelevance(opts={}){
+    const block=[], warn=[];
+    if(!Array.isArray(POSNER_CATS)) block.push("POSNER_CATS unavailable");
+    const graphCats = (POSNER_CATS || []).filter(c => c && (c.graphConditionalId || c.graphRelationConditionId || /^graph_cond_match__/.test(c.id)));
+    const oldBad = [];
+    for(const c of graphCats){
+      for(const v of (c.variants || [])){
+        const q = String(v.q || "");
+        if(/Same means .*different means/i.test(q)) oldBad.push({id:c.id, q:q.slice(0,120)});
+      }
+    }
+    if(oldBad.length) block.push(`old graph wording still active: ${oldBad.length}`);
+    const role = auditGraphRoleMatchingGatesV6833(opts);
+    const rel = auditGraphRelationGates(opts);
+    if(role.status === "BLOCK") block.push(...(role.details?.block || ["role matching graph audit blocked"]));
+    if(role.status === "WARN") warn.push(...(role.details?.warnings || []));
+    if(rel.status === "BLOCK") block.push(...(rel.details?.block || ["graph relation audit blocked"]));
+    if(rel.status === "WARN") warn.push(...(rel.details?.warnings || []));
+    return auditResult(block.length ? "BLOCK" : (warn.length ? "WARN" : "PASS"), {
+      appVersion: currentAppVersion ? currentAppVersion() : V6833.version,
+      graphCats: graphCats.length,
+      roleMatching: role.details,
+      relationGates: rel.details,
+      warnings: warn,
+      block
+    });
+  }
+
+  try{
+    window.auditGraphRoleMatchingGatesV6833 = auditGraphRoleMatchingGatesV6833;
+    window.auditV6833GraphGateRelevance = auditV6833GraphGateRelevance;
+    window.graphBuildRoleMatchingPairV6833 = graphBuildRoleMatchingPairV6833;
+    window.graphAllDirectedIsomorphismsV6833 = graphAllDirectedIsomorphismsV6833;
+    window.EUCALCULIA_V6833_GRAPH_GATE_RELEVANCE = V6833;
+  }catch(_){ }
+})();
+</script>
+
 </body>
 </html>
