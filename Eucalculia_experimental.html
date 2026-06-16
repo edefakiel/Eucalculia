@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.33-graph-gate-relevance</title>
+<title>Eucalculia v6.8.37-hotpath-audit-slimming</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.33-graph-gate-relevance";
+const APP_VERSION = "v6.8.37-hotpath-audit-slimming";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -18828,16 +18828,9 @@ function l0ShepardConditionalCats(){
       return (!CONFIG.l0ShepardConditionalRequireGate || requireHarnessPass("l0_shepard_conditional"));
     },
     variants:[
-      { q:`Decide the figure relation: ROTATION or MIRROR.
-If ROTATION: answer YES when ${op.rotatedDesc}.
-If MIRROR: answer YES when ${op.mirroredDesc}.` },
-      { q:`First classify the cube figures.
-ROTATION branch: ${op.rotatedDesc}.
-MIRROR branch: ${op.mirroredDesc}.
-Is the active branch true?` },
-      { q:`Use the cube figures as the rule selector.
-If they match by rotation, test: ${op.rotatedDesc}.
-If they are mirrors, test: ${op.mirroredDesc}.` }
+      { q:`Compare the cube figures first. If RIGHT is a rotation of LEFT, test: ${op.rotatedDesc}. If RIGHT is a mirror image of LEFT, test: ${op.mirroredDesc}. Is the active rule true?` },
+      { q:`First decide whether RIGHT preserves handedness by rotation or reverses handedness by mirror. Rotation rule: ${op.rotatedDesc}. Mirror rule: ${op.mirroredDesc}. Is the selected rule true?` },
+      { q:`Use the cube relation as the rule selector: ROTATION → ${op.rotatedDesc}; MIRROR → ${op.mirroredDesc}. Is that selected rule true of LEFT and RIGHT?` }
     ],
     gen(m, t){
       // Choose a (a, b) pair where the rotated and mirrored predicates disagree
@@ -19862,7 +19855,7 @@ function l0VennGateCats(){
     id:`venn_gate_${cond.id}__${op.id}`,
     tier:4,
     stage:5,
-    family:"l0_graph_conditional",
+    family:"l0_venn_gate",
     checkVisual: true,
     questionVisualGate: true,
     frameTags:["relation_processing","set_relation","class_inclusion","categorical_relation","conditional_relation","role_binding","relational_integration","local_relation_gate","local_set_relation_gate"],
@@ -19977,7 +19970,7 @@ If DIFFERENT: answer YES when ${op.differentDesc}.` },
 Same structure: ${op.sameDesc}.
 Different structure: ${op.differentDesc}.
 Is the active rule true?` },
-      { q:`Same graph structure or different? Same means ${op.sameDesc}; different means ${op.differentDesc}.` }
+      { q:`Compare the graphs first. If their directed structure MATCHES, test: ${op.sameDesc}. If one graph has a structural edit, test: ${op.differentDesc}. Is the active rule true?` }
     ],
     gen(m, t){
       const maxAB = Math.max(2, Math.min(m + 1, 12));
@@ -20025,7 +20018,7 @@ function l0GraphRelationGateCats(){
     id: `graph_rel_${cond.id}__${op.id}`,
     tier: 4,
     stage: 5,
-    family: "l0_graph_conditional",
+    family: "l0_graph_relation_gate",
     checkVisual: true,
     questionVisualGate: true,
     frameTags:["relation_processing","graph_structure","conditional_relation","role_binding","relational_integration","local_relation_gate"],
@@ -47310,12 +47303,29 @@ function makeL0VisualInvarianceChoiceCats(){
 }
 
 function extraRelationEquivalenceSpecs(){
-  const gapSpec = k => ({id:`rel_eq_gap_${k}_order`, label:`gap ${k} equivalence`, minM:Math.max(4,k+2), stage:4, frameTags:["relation_equivalence","metric_relation","comparison"], valid:(a,b)=>Math.abs(a-b)===k && a!==b, build(a,b){ const g=Math.abs(a-b); return [
-    {text:`the gap is ${k}`, correct:g===k, distractorType:"correct"},
-    {text:`LEFT and RIGHT differ by ${k}`, correct:g===k, distractorType:"correct"},
-    {text:`the gap is ${k+1}`, correct:g===k+1, distractorType:"near_numeric"},
-    {text:`the gap is ${Math.max(0,k-1)}`, correct:g===Math.max(0,k-1), distractorType:"near_numeric"}
-  ];}, review(a,b){ return `Gap = |${a}−${b}| = ${Math.abs(a-b)}.`; }});
+  const gapSpec = k => ({
+    id:`rel_eq_gap_${k}_order`,
+    label:`directed gap ${k} converse`,
+    minM:Math.max(4,k+2),
+    stage:4,
+    frameTags:["relation_equivalence","metric_relation","comparison","converse_relation","role_binding"],
+    valid:(a,b)=>Math.abs(a-b)===k && a!==b,
+    build(a,b){
+      const leftGreater = a > b;
+      return [
+        {text:`LEFT is ${k} greater than RIGHT`, correct:leftGreater, distractorType:leftGreater ? "correct" : "converse_direction_lure"},
+        {text:`RIGHT is ${k} less than LEFT`, correct:leftGreater, distractorType:leftGreater ? "correct" : "converse_direction_lure"},
+        {text:`LEFT is ${k} less than RIGHT`, correct:!leftGreater, distractorType:!leftGreater ? "correct" : "converse_direction_lure"},
+        {text:`RIGHT is ${k} greater than LEFT`, correct:!leftGreater, distractorType:!leftGreater ? "correct" : "converse_direction_lure"}
+      ];
+    },
+    review(a,b){
+      const g = Math.abs(a-b);
+      return a > b
+        ? `LEFT=${a}; RIGHT=${b}. LEFT is ${g} greater than RIGHT, equivalently RIGHT is ${g} less than LEFT.`
+        : `LEFT=${a}; RIGHT=${b}. LEFT is ${g} less than RIGHT, equivalently RIGHT is ${g} greater than LEFT.`;
+    }
+  });
   return [
     gapSpec(1), gapSpec(2), gapSpec(3), gapSpec(4),
     {id:"rel_eq_parity_pattern", label:"parity dual", minM:6, stage:4, frameTags:["relation_equivalence","class_inclusion","quantifier_relation","opposition"], valid:(a,b)=>true, build(a,b){ const same=(a%2)===(b%2), bothEven=a%2===0&&b%2===0, neitherOdd=bothEven, bothOdd=a%2&&b%2, neitherEven=bothOdd; return [
@@ -60893,7 +60903,7 @@ function l0ReviewExplanationLines(info){
     const sc = info?.shepardConditional;
     const both = (a%2===0) && (b%2===0);
     if(sc?.activeBranch === "rotated") add(`Right is rotation → check both values even. ${a} even? ${a%2===0}; ${b} even? ${b%2===0}. Both? ${both ? "YES" : "NO"}.`);
-    else if(sc?.activeBranch === "mirrored") add(`Right is mirror → check at least one value odd. ${a} even? ${a%2===0}; ${b} even? ${b%2===0}. At least one value 5 or less? ${!both ? "YES" : "NO"}.`);
+    else if(sc?.activeBranch === "mirrored") add(`Right is mirror → check at least one value odd. ${a} even? ${a%2===0}; ${b} even? ${b%2===0}. At least one value odd? ${!both ? "YES" : "NO"}.`);
     else add(`${a} is ${a%2===0?"even":"odd"}; ${b} is ${b%2===0?"even":"odd"}.`);
   }
   else if(id === "shepard_cond_sum_even"){
@@ -84532,21 +84542,21 @@ try{
       {
         id:"l1_epistemic_left_witness_odd",
         title:"LEFT alone is a YES witness",
-        question:"Build two possible pairs with the same odd LEFT value and different RIGHT values. In both pairs, 'at least one value is odd' must be YES; this shows LEFT alone is enough.",
+        question:"Build two possible pairs with the same odd LEFT value and different RIGHT values. In both pairs, 'at least one value is odd' must be YES.",
         verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && isOdd(p1.a) && (isOdd(p1.a) || isOdd(p1.b)) && (isOdd(p2.a) || isOdd(p2.b)),
         atomics:["generative_l1", "epistemic_sufficiency", "witness", "parity"]
       },
       {
         id:"l1_epistemic_left_ambiguous_both_even",
         title:"LEFT alone is not enough",
-        question:"Build two possible pairs with the same LEFT value and different RIGHT values. 'Both values are even' must be YES in one pair and NO in the other; this shows LEFT alone is not enough.",
+        question:"Build two possible pairs with the same LEFT value and different RIGHT values. 'Both values are even' must be YES in one pair and NO in the other.",
         verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && isEven(p1.a) && (both(pairValues(p1), isEven) !== both(pairValues(p2), isEven)),
         atomics:["generative_l1", "epistemic_ambiguity", "possible_worlds", "parity"]
       },
       {
         id:"l1_same_left_opposite_greater",
         title:"Same LEFT, opposite comparison answer",
-        question:"Build two possible pairs with the same LEFT value and different RIGHT values. 'LEFT is greater than RIGHT' must be YES in one pair and NO in the other; this shows LEFT alone is not enough.",
+        question:"Build two possible pairs with the same LEFT value and different RIGHT values. 'LEFT is greater than RIGHT' must be YES in one pair and NO in the other.",
         verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && ((p1.a > p1.b) !== (p2.a > p2.b)),
         atomics:["generative_l1", "epistemic_ambiguity", "comparison", "possible_worlds"]
       },
@@ -84602,9 +84612,9 @@ try{
     if(id === "l1_prime_then_composite_exactly_one") return `${base} Pair 1 prime count ${countBy(pairValues(p1), isPrimeSmall)}; Pair 2 composite count ${countBy(pairValues(p2), isCompositeSmall)}.`;
     if(id === "l1_divisibility_switch_plus1") return `${base} Pair 2 should be Pair 1 + 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
     if(id === "l1_divisibility_preserve_double_no") return `${base} Pair 2 should double Pair 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
-    if(id === "l1_epistemic_left_witness_odd") return `${base} Same odd LEFT; both possible RIGHT cases still make 'at least one odd' YES, so LEFT alone is enough.`;
-    if(id === "l1_epistemic_left_ambiguous_both_even") return `${base} Same LEFT; changing RIGHT changes whether BOTH values are even, so LEFT alone is not enough.`;
-    if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT; changing RIGHT flips whether LEFT > RIGHT, so LEFT alone is not enough.`;
+    if(id === "l1_epistemic_left_witness_odd") return `${base} Same odd LEFT; both possible RIGHT cases still make 'at least one odd' YES.`;
+    if(id === "l1_epistemic_left_ambiguous_both_even") return `${base} Same LEFT; changing RIGHT changes whether BOTH values are even.`;
+    if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT; changing RIGHT flips whether LEFT > RIGHT.`;
     if(id === "l1_range_totals_single_composite" || id === "l1_range_totals_two_primes_with_composite"){
       const r = rangeInts(sum(p1), sum(p2));
       return `${base} Totals ${sum(p1)} and ${sum(p2)} define range ${r[0]}–${r[r.length-1]}; primes ${countBy(r, isPrimeSmall)}, composites ${countBy(r, isCompositeSmall)}.`;
@@ -93682,5 +93692,853 @@ ${res.agents.map(a=>a.line).join(" ")}`;
 })();
 </script>
 
+
+<script>
+// =============================================================================
+// v6.8.34 VISUAL GATE POLISH / CROSS-GATE AUDIT
+// -----------------------------------------------------------------------------
+// Small conservative pass over the visuospatial gates. No new task families are
+// added here: Shepard, graph, Venn, paper folding and visual-transform choice
+// keep their mechanics. This patch separates gate families for telemetry,
+// removes a compact graph wording that hid the two-stage contract, and exposes
+// a cross-gate audit so the source-selector families can be checked together.
+// =============================================================================
+(function(){
+  const PATCH_VERSION = "v6.8.34-visual-gate-polish";
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function catList(){ try{ return arr(POSNER_CATS); }catch(_){ return []; } }
+  function qText(c){ return arr(c && c.variants).map(v=>String(v && v.q || "")).join("\n"); }
+  function visualGateKind(c){
+    if(!c) return null;
+    if(c.paperFoldingAnalogyId || c.family === "l0_paper_folding_analogy") return "paper_folding";
+    if(c.shepardConditionalId || c.family === "l0_shepard_conditional") return "shepard_conditional";
+    if(c.graphRelationConditionId || c.family === "l0_graph_relation_gate") return "graph_relation_gate";
+    if(c.vennConditionId || c.family === "l0_venn_gate") return "venn_gate";
+    if(c.graphConditionalId || c.family === "l0_graph_conditional") return "graph_global_gate";
+    if(c.family === "visual_transform_comparison") return "visual_transform_choice";
+    if(c.crossRepProjection || /cross_rep/.test(String(c.id||c.family||""))) return "cross_rep_projection";
+    return null;
+  }
+  function visualGateInventoryV6834(){
+    const byKind = Object.create(null), rows = [];
+    for(const c of catList()){
+      const kind = visualGateKind(c);
+      if(!kind) continue;
+      const row = {id:c.id, family:c.family || null, kind, questionVisualGate:!!c.questionVisualGate, checkVisual:!!c.checkVisual, variants:arr(c.variants).length};
+      rows.push(row); byKind[kind] = (byKind[kind] || 0) + 1;
+    }
+    return {byKind, total:rows.length, rows};
+  }
+  function auditV6834VisualGatePolish(opts={}){
+    const block = [], warnings = [];
+    const cats = catList();
+    const inv = visualGateInventoryV6834();
+    const requiredKinds = ["paper_folding","shepard_conditional","graph_global_gate","graph_relation_gate","venn_gate","visual_transform_choice"];
+    for(const k of requiredKinds){ if(!inv.byKind[k]) block.push(`missing visual gate kind: ${k}`); }
+
+    for(const c of cats){
+      const text = qText(c);
+      if(c && c.shepardConditionalId){
+        if(c.family !== "l0_shepard_conditional") block.push(`${c.id}: Shepard cat has unexpected family ${c.family}`);
+        if(!/rotation/i.test(text) || !/mirror/i.test(text)) block.push(`${c.id}: Shepard prompt must name rotation and mirror`);
+        if(/enantiomer|chirality|chiral|automorphism|isomorphism/i.test(text)) block.push(`${c.id}: Shepard prompt leaks technical vocabulary`);
+      }
+      if(c && c.graphConditionalId && !c.graphRelationConditionId && !c.vennConditionId){
+        if(c.family !== "l0_graph_conditional") block.push(`${c.id}: global graph cat has unexpected family ${c.family}`);
+        if(/Same means/i.test(text)) block.push(`${c.id}: compact 'Same means' wording survived`);
+      }
+      if(c && c.graphRelationConditionId){
+        if(c.family !== "l0_graph_relation_gate") block.push(`${c.id}: graph-relation gate should have family l0_graph_relation_gate`);
+        if(!/square|ring/i.test(text)) warnings.push(`${c.id}: graph-relation wording may not name the marked roles`);
+      }
+      if(c && c.vennConditionId){
+        if(c.family !== "l0_venn_gate") block.push(`${c.id}: Venn gate should have family l0_venn_gate`);
+        if(!/set diagram|diagram|set/i.test(text)) warnings.push(`${c.id}: Venn wording may not name the set diagram`);
+      }
+      if(c && c.paperFoldingAnalogyId){
+        if(c.family !== "l0_paper_folding_analogy") block.push(`${c.id}: paper-folding cat has unexpected family ${c.family}`);
+        if(/previous multiple before/i.test(text)) block.push(`${c.id}: old paper-folding wording survived`);
+      }
+    }
+
+    if(typeof l0ShepardConditionalCatalog === "function"){
+      const n = l0ShepardConditionalCatalog().length;
+      if(n < 12) block.push(`Shepard conditional catalog has ${n}; expected at least 12`);
+    }
+    if(typeof vennGateConditionCatalog === "function"){
+      const n = vennGateConditionCatalog().length;
+      if(n < 20) warnings.push(`Venn condition catalog has ${n}; expected v6.8.27+ broad coverage`);
+    }
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_VERSION), inventory:inv, warnings, block}) : {status:block.length?"BLOCK":(warnings.length?"WARN":"PASS"), inventory:inv, warnings, block};
+  }
+  try{ window.visualGateInventoryV6834 = visualGateInventoryV6834; globalThis.visualGateInventoryV6834 = visualGateInventoryV6834; }catch(_){ }
+  try{ window.auditV6834VisualGatePolish = auditV6834VisualGatePolish; globalThis.auditV6834VisualGatePolish = auditV6834VisualGatePolish; }catch(_){ }
+  try{
+    const prev = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(prev && !prev.__v6834VisualGateWrapped){
+      const wrapped = function runFeatureAuditV6834(feature, opts={}){
+        const f = String(feature || "").toLowerCase().trim();
+        if(["v6834","visual_gate_polish","visual_gates","other_visual_gates","shepard"].includes(f)){
+          const results = {visualGatePolish:auditV6834VisualGatePolish(opts)};
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.visualGatePolish.status, results};
+        }
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v6834VisualGateWrapped = true;
+      runFeatureAudit = wrapped;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+
+<script>
+(function v6835ChoiceEpistemicRelevance(){
+  "use strict";
+  const PATCH_VERSION = "v6.8.35-choice-epistemic-relevance";
+  const GAP_IDS = [1,2,3,4].map(k => `rel_eq_gap_${k}_order`);
+
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){} return {status, details}; }
+  function currentVersionLocal(){ try{ return (typeof currentAppVersion === "function") ? currentAppVersion() : (typeof APP_VERSION !== "undefined" ? APP_VERSION : PATCH_VERSION); }catch(_){ return PATCH_VERSION; } }
+  function stripEpistemicConclusionText(s){
+    return String(s || "")
+      .replace(/;?\s*this shows\s+LEFT\s+alone\s+is\s+enough\.?/gi, ".")
+      .replace(/;?\s*this shows\s+LEFT\s+alone\s+is\s+not\s+enough\.?/gi, ".")
+      .replace(/;?\s*this shows\s+RIGHT\s+alone\s+is\s+enough\.?/gi, ".")
+      .replace(/;?\s*this shows\s+RIGHT\s+alone\s+is\s+not\s+enough\.?/gi, ".")
+      .replace(/\.\s*\./g, ".")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function makeDirectedGapSpec(k){
+    return {
+      id:`rel_eq_gap_${k}_order`,
+      label:`directed gap ${k} converse`,
+      minM:Math.max(4,k+2),
+      stage:4,
+      frameTags:["relation_equivalence","metric_relation","comparison","converse_relation","role_binding"],
+      valid:(a,b)=>Math.abs(a-b)===k && a!==b,
+      build(a,b){
+        const leftGreater = Number(a) > Number(b);
+        return [
+          {text:`LEFT is ${k} greater than RIGHT`, correct:leftGreater, distractorType:leftGreater ? "correct" : "converse_direction_lure"},
+          {text:`RIGHT is ${k} less than LEFT`, correct:leftGreater, distractorType:leftGreater ? "correct" : "converse_direction_lure"},
+          {text:`LEFT is ${k} less than RIGHT`, correct:!leftGreater, distractorType:!leftGreater ? "correct" : "converse_direction_lure"},
+          {text:`RIGHT is ${k} greater than LEFT`, correct:!leftGreater, distractorType:!leftGreater ? "correct" : "converse_direction_lure"}
+        ];
+      },
+      review(a,b){
+        const g = Math.abs(Number(a)-Number(b));
+        return Number(a) > Number(b)
+          ? `LEFT=${a}; RIGHT=${b}. LEFT is ${g} greater than RIGHT, equivalently RIGHT is ${g} less than LEFT.`
+          : `LEFT=${a}; RIGHT=${b}. LEFT is ${g} less than RIGHT, equivalently RIGHT is ${g} greater than LEFT.`;
+      }
+    };
+  }
+  function applyRelationEquivalenceGapPolish(){
+    try{
+      if(!Array.isArray(POSNER_CATS)) return 0;
+      let changed = 0;
+      for(const c of POSNER_CATS){
+        const m = String(c && c.id || "").match(/^rel_eq_gap_(\d+)_order$/);
+        if(!m) continue;
+        const k = Number(m[1]);
+        if(!Number.isFinite(k)) continue;
+        const spec = makeDirectedGapSpec(k);
+        c.choiceSpec = spec;
+        c.l0RelationEquivalenceId = spec.id;
+        c.frameTags = (typeof uniq === "function") ? uniq([...(c.frameTags||[]), ...(spec.frameTags||[])]) : (c.frameTags || spec.frameTags);
+        changed++;
+      }
+      return changed;
+    }catch(_){ return 0; }
+  }
+  function stripPreparedEpistemicConclusion(){
+    try{
+      const inf = State && State.trialInfo;
+      if(inf && typeof inf.question === "string"){
+        const q = stripEpistemicConclusionText(inf.question);
+        if(q !== inf.question){ inf.question = q; inf.delayedPrompt = q; }
+      }
+      const prep = State && State.nextTrialPrepared && State.nextTrialPrepared.info;
+      if(prep && typeof prep.question === "string"){
+        const q = stripEpistemicConclusionText(prep.question);
+        if(q !== prep.question){ prep.question = q; prep.delayedPrompt = q; }
+      }
+    }catch(_){ }
+  }
+  applyRelationEquivalenceGapPolish();
+  // v6.8.36: no runtime cache/prepared-trial sanitizer here. The source prompts
+  // have already been rewritten; stale local prepared trials can be cleared by
+  // normal navigation/reload rather than paying a boot-time mutation guard.
+
+  function auditV6835ChoiceEpistemicRelevance(){
+    const block = [], warnings = [];
+    let gapSeen = 0;
+    try{
+      const cats = Array.isArray(POSNER_CATS) ? POSNER_CATS : [];
+      for(const id of GAP_IDS){
+        const c = cats.find(x => x && x.id === id);
+        if(!c){ warnings.push(`${id}: missing from POSNER_CATS`); continue; }
+        gapSeen++;
+        const spec = c.choiceSpec || null;
+        if(!spec || typeof spec.build !== "function") { block.push(`${id}: missing active choiceSpec`); continue; }
+        const k = Number((id.match(/gap_(\d+)_/)||[])[1]);
+        const a = Math.min(12, k+4), b = a-k;
+        const opts = spec.build(a,b) || [];
+        const texts = opts.map(o => String(o && o.text || ""));
+        const correct = opts.filter(o=>o && o.correct).length;
+        if(correct !== 2) block.push(`${id}: expected exactly two correct options; got ${correct}`);
+        if(texts.some(t => /absolute difference|the gap is\s+\d|differ by\s+\d/i.test(t))) block.push(`${id}: shallow absolute-gap/numeric-elimination wording survived`);
+        if(!texts.every(t => /LEFT|RIGHT/.test(t) && /greater|less/.test(t))) block.push(`${id}: options should all be directional converse gap statements`);
+      }
+    }catch(e){ block.push(`gap audit error: ${e && e.message || e}`); }
+    try{
+      const sampleTexts = [];
+      const api = (typeof EUCA_V681_GENERATIVE_L1_NUTRIENTS === "object" && EUCA_V681_GENERATIVE_L1_NUTRIENTS) ? EUCA_V681_GENERATIVE_L1_NUTRIENTS : null;
+      if(api && typeof api.buildL1Payload === "function"){
+        for(let i=0;i<80;i++){ const p = api.buildL1Payload({cap:10}); if(p && p.prompt) sampleTexts.push(String(p.prompt)); }
+      }
+      const bad = sampleTexts.filter(t => /this shows\s+(LEFT|RIGHT)\s+alone/i.test(t));
+      if(bad.length) block.push(`epistemic conclusion leaked in sampled L1 prompts: ${bad[0]}`);
+    }catch(e){ warnings.push(`L1 prompt sampling unavailable: ${e && e.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:currentVersionLocal(), gapSeen, warnings, block});
+  }
+  try{ window.auditV6835ChoiceEpistemicRelevance = auditV6835ChoiceEpistemicRelevance; globalThis.auditV6835ChoiceEpistemicRelevance = auditV6835ChoiceEpistemicRelevance; }catch(_){ }
+  try{
+    const prev = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(prev && !prev.__v6835ChoiceEpistemicWrapped){
+      const wrapped = function runFeatureAuditV6835(feature, opts={}){
+        const f = String(feature || "").toLowerCase().trim();
+        if(["v6835","choice_epistemic_relevance","relation_equivalence_polish","epistemic_prompt_polish"].includes(f)){
+          const results = {choiceEpistemicRelevance:auditV6835ChoiceEpistemicRelevance(opts)};
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.choiceEpistemicRelevance.status, results};
+        }
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v6835ChoiceEpistemicWrapped = true;
+      runFeatureAudit = wrapped;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ window.EUCA_V6835_CHOICE_EPISTEMIC_RELEVANCE = {patch:PATCH_VERSION, gapCatsRewritten:applyRelationEquivalenceGapPolish()}; }catch(_){ }
+})();
+</script>
+
+
+
+<script>
+
+(function v6836RelationContrastProcessing(){
+  "use strict";
+  const PATCH_VERSION = "v6.8.36-relation-contrast-processing";
+
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){} return {status, details}; }
+  function uniqLocal(arr){ try{ if(typeof uniq === "function") return uniq(arr); }catch(_){} return Array.from(new Set((arr||[]).filter(Boolean))); }
+  function currentLevelD(){ try{ return (State && State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : 0; }catch(_){ return 0; } }
+  function correctKey(indices){ try{ if(typeof l0RelationEquivalenceCorrectKey === "function") return l0RelationEquivalenceCorrectKey(indices); }catch(_){} return (indices||[]).slice().sort((a,b)=>a-b).join(","); }
+  function cloneSpec(rep, spec){ try{ return cloneStimReplaySpec(rep, spec); }catch(_){ return spec ? JSON.parse(JSON.stringify(spec)) : null; } }
+  function shuffled(arr){ const a=(arr||[]).slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function valParity(x){ return Number(x)%2===0 ? "even" : "odd"; }
+  function isPrimeLocal(n){ n=Number(n); if(n<2 || n%1) return false; for(let d=2; d*d<=n; d++) if(n%d===0) return false; return true; }
+  function dividesEither(a,b){ a=Number(a); b=Number(b); if(a<=0||b<=0||a===b) return false; const hi=Math.max(a,b), lo=Math.min(a,b); return lo>0 && hi%lo===0; }
+  function opt(text, group, type){ return {text:String(text), group, correct:false, distractorType:type || group}; }
+
+  function actualOrderGroups(a,b,k=null){
+    const gap = k || Math.abs(a-b);
+    if(a>b){
+      return {
+        same:[opt(`LEFT is ${gap} greater than RIGHT`,"same","same_relation"), opt(`RIGHT is ${gap} less than LEFT`,"same","same_relation")],
+        opposite:[opt(`LEFT is ${gap} less than RIGHT`,"opposite","opposite_relation"), opt(`RIGHT is ${gap} greater than LEFT`,"opposite","opposite_relation")],
+        actual:`LEFT is ${gap} greater than RIGHT`, oppositeText:`LEFT is ${gap} less than RIGHT`
+      };
+    }
+    return {
+      same:[opt(`LEFT is ${gap} less than RIGHT`,"same","same_relation"), opt(`RIGHT is ${gap} greater than LEFT`,"same","same_relation")],
+      opposite:[opt(`LEFT is ${gap} greater than RIGHT`,"opposite","opposite_relation"), opt(`RIGHT is ${gap} less than LEFT`,"opposite","opposite_relation")],
+      actual:`LEFT is ${gap} less than RIGHT`, oppositeText:`LEFT is ${gap} greater than RIGHT`
+    };
+  }
+
+  function contrastSpecsV6836(){
+    const directedGap = k => ({
+      id:`role_contrast_gap_${k}`,
+      label:`directed gap ${k}`,
+      minM:Math.max(5,k+3),
+      targetModes:["same","opposite"],
+      tags:["metric_relation","directed_gap","converse_relation","role_binding"],
+      valid:(a,b)=>a!==b && Math.abs(a-b)===k,
+      groups:(a,b)=>actualOrderGroups(a,b,k),
+      review:(a,b,target)=>{ const g=actualOrderGroups(a,b,k); return `Values: LEFT=${a}, RIGHT=${b}. Actual directed gap: ${g.actual}. Opposite directed relation: ${g.oppositeText}. Target: ${target === "opposite" ? "opposite relation" : "same relation"}.`; }
+    });
+    return [
+      {
+        id:"role_contrast_order",
+        label:"order converse/opposite",
+        minM:5,
+        targetModes:["same","opposite"],
+        tags:["comparison","order_relation","converse_relation","role_binding"],
+        valid:(a,b)=>a!==b,
+        groups(a,b){
+          if(a>b){ return {same:[opt("LEFT is greater than RIGHT","same"),opt("RIGHT is less than LEFT","same")], opposite:[opt("LEFT is less than RIGHT","opposite"),opt("RIGHT is greater than LEFT","opposite")], actual:"LEFT is greater than RIGHT", oppositeText:"LEFT is less than RIGHT"}; }
+          return {same:[opt("LEFT is less than RIGHT","same"),opt("RIGHT is greater than LEFT","same")], opposite:[opt("LEFT is greater than RIGHT","opposite"),opt("RIGHT is less than LEFT","opposite")], actual:"LEFT is less than RIGHT", oppositeText:"LEFT is greater than RIGHT"};
+        },
+        review:(a,b,target)=>{ const g = (a>b) ? {actual:"LEFT is greater than RIGHT", oppositeText:"LEFT is less than RIGHT"} : {actual:"LEFT is less than RIGHT", oppositeText:"LEFT is greater than RIGHT"}; return `Values: LEFT=${a}, RIGHT=${b}. Actual order: ${g.actual}. Opposite order: ${g.oppositeText}. Target: ${target === "opposite" ? "opposite relation" : "same relation"}.`; }
+      },
+      directedGap(1), directedGap(2), directedGap(3), directedGap(4),
+      {
+        id:"role_contrast_anchor5_distance",
+        label:"distance from 5 role contrast",
+        minM:8,
+        targetModes:["same","opposite"],
+        tags:["anchor_distance","metric_relation","role_binding","comparison"],
+        valid:(a,b)=>Math.abs(a-5)!==Math.abs(b-5),
+        groups(a,b){ const dl=Math.abs(a-5), dr=Math.abs(b-5); if(dl<dr){ return {same:[opt("LEFT is closer to 5 than RIGHT","same"),opt("RIGHT is farther from 5 than LEFT","same")], opposite:[opt("LEFT is farther from 5 than RIGHT","opposite"),opt("RIGHT is closer to 5 than LEFT","opposite")], actual:"LEFT is closer to 5", oppositeText:"LEFT is farther from 5"}; } return {same:[opt("LEFT is farther from 5 than RIGHT","same"),opt("RIGHT is closer to 5 than LEFT","same")], opposite:[opt("LEFT is closer to 5 than RIGHT","opposite"),opt("RIGHT is farther from 5 than LEFT","opposite")], actual:"LEFT is farther from 5", oppositeText:"LEFT is closer to 5"}; },
+        review:(a,b,target)=>`Distances to 5: LEFT=${Math.abs(a-5)}, RIGHT=${Math.abs(b-5)}. Target: ${target === "opposite" ? "opposite distance relation" : "same distance relation"}.`
+      },
+      {
+        id:"role_contrast_gap_parity",
+        label:"gap parity contrast",
+        minM:6,
+        targetModes:["same","opposite"],
+        tags:["metric_relation","gap_parity","class_inclusion","role_binding"],
+        valid:(a,b)=>a!==b,
+        groups(a,b){ const even=Math.abs(a-b)%2===0; if(even){ return {same:[opt("the absolute difference is even","same"),opt("LEFT and RIGHT have the same parity","same")], opposite:[opt("the absolute difference is odd","opposite"),opt("exactly one value is even","opposite")], actual:"the absolute difference is even", oppositeText:"the absolute difference is odd"}; } return {same:[opt("the absolute difference is odd","same"),opt("exactly one value is even","same")], opposite:[opt("the absolute difference is even","opposite"),opt("LEFT and RIGHT have the same parity","opposite")], actual:"the absolute difference is odd", oppositeText:"the absolute difference is even"}; },
+        review:(a,b,target)=>`Gap: |${a}−${b}|=${Math.abs(a-b)}; parity pattern: ${valParity(a)}/${valParity(b)}. Target: ${target === "opposite" ? "opposite gap-parity relation" : "same gap-parity relation"}.`
+      },
+      {
+        id:"role_contrast_primality_status",
+        label:"primality status contrast",
+        minM:8,
+        targetModes:["same","opposite"],
+        tags:["class_inclusion","primality","quantifier_relation","role_binding"],
+        valid:(a,b)=>true,
+        groups(a,b){ const pa=isPrimeLocal(a), pb=isPrimeLocal(b), same=pa===pb; if(same){ return {same:[opt("LEFT and RIGHT have the same primality status","same"),opt("exactly zero or two values are prime","same")], opposite:[opt("exactly one value is prime","opposite"),opt("LEFT and RIGHT differ in primality","opposite")], actual:"same primality status", oppositeText:"different primality status"}; } return {same:[opt("exactly one value is prime","same"),opt("LEFT and RIGHT differ in primality","same")], opposite:[opt("LEFT and RIGHT have the same primality status","opposite"),opt("exactly zero or two values are prime","opposite")], actual:"different primality status", oppositeText:"same primality status"}; },
+        review:(a,b,target)=>`Primality: LEFT=${isPrimeLocal(a)?"prime":"not prime"}, RIGHT=${isPrimeLocal(b)?"prime":"not prime"}. Target: ${target === "opposite" ? "opposite primality-status relation" : "same primality-status relation"}.`
+      },
+      {
+        id:"role_contrast_divisibility_status",
+        label:"divisibility status contrast",
+        minM:8,
+        targetModes:["same","opposite"],
+        tags:["divisibility_relation","factor_relation","role_binding"],
+        valid:(a,b)=>a>1 && b>1 && a!==b,
+        groups(a,b){ const yes=dividesEither(a,b); if(yes){ return {same:[opt("one value divides the other exactly","same"),opt("the larger value is a multiple of the smaller value","same")], opposite:[opt("neither value divides the other exactly","opposite"),opt("the larger value is not a multiple of the smaller value","opposite")], actual:"one value divides the other exactly", oppositeText:"neither value divides the other exactly"}; } return {same:[opt("neither value divides the other exactly","same"),opt("the larger value is not a multiple of the smaller value","same")], opposite:[opt("one value divides the other exactly","opposite"),opt("the larger value is a multiple of the smaller value","opposite")], actual:"neither value divides the other exactly", oppositeText:"one value divides the other exactly"}; },
+        review:(a,b,target)=>`Divisibility: larger=${Math.max(a,b)}, smaller=${Math.min(a,b)}. Target: ${target === "opposite" ? "opposite divisibility status" : "same divisibility status"}.`
+      },
+      {
+        id:"role_contrast_sum_threshold10",
+        label:"sum threshold 10 contrast",
+        minM:8,
+        targetModes:["same","opposite"],
+        tags:["metric_relation","sum_threshold","comparison"],
+        valid:(a,b)=>a+b!==10,
+        groups(a,b){ const gt=a+b>10; if(gt){ return {same:[opt("the total is greater than 10","same"),opt("LEFT plus RIGHT exceeds 10","same")], opposite:[opt("the total is 10 or less","opposite"),opt("LEFT plus RIGHT does not exceed 10","opposite")], actual:"total > 10", oppositeText:"total ≤ 10"}; } return {same:[opt("the total is 10 or less","same"),opt("LEFT plus RIGHT does not exceed 10","same")], opposite:[opt("the total is greater than 10","opposite"),opt("LEFT plus RIGHT exceeds 10","opposite")], actual:"total ≤ 10", oppositeText:"total > 10"}; },
+        review:(a,b,target)=>`Total: ${a}+${b}=${a+b}. Target: ${target === "opposite" ? "opposite threshold relation" : "same threshold relation"}.`
+      },
+      {
+        id:"role_contrast_same_side5",
+        label:"side of 5 contrast",
+        minM:8,
+        targetModes:["same","opposite"],
+        tags:["anchor_side","class_inclusion","metric_relation"],
+        valid:(a,b)=>a!==5 && b!==5 && ((a<5)!==(a>5)) && ((b<5)!==(b>5)),
+        groups(a,b){ const same=(a<5&&b<5)||(a>5&&b>5); if(same){ return {same:[opt("both values are on the same side of 5","same"),opt("the values are not on opposite sides of 5","same")], opposite:[opt("the values are on opposite sides of 5","opposite"),opt("one value is below 5 and the other is above 5","opposite")], actual:"same side of 5", oppositeText:"opposite sides of 5"}; } return {same:[opt("the values are on opposite sides of 5","same"),opt("one value is below 5 and the other is above 5","same")], opposite:[opt("both values are on the same side of 5","opposite"),opt("the values are not on opposite sides of 5","opposite")], actual:"opposite sides of 5", oppositeText:"same side of 5"}; },
+        review:(a,b,target)=>`Sides of 5: LEFT is ${a<5?"below":"above"}; RIGHT is ${b<5?"below":"above"}. Target: ${target === "opposite" ? "opposite side relation" : "same side relation"}.`
+      }
+    ];
+  }
+
+  function samplePairForSpec(spec, m){
+    const max = Math.max(2, Math.min(Number(m)||10, Number(spec.maxValue)||Number(m)||10));
+    for(let t=0;t<240;t++){
+      const a = 1 + Math.floor(Math.random()*max), b = 1 + Math.floor(Math.random()*max);
+      try{ if(spec.valid(a,b,max)) return [a,b]; }catch(_){ }
+    }
+    const all=[];
+    for(let a=1;a<=max;a++) for(let b=1;b<=max;b++){ try{ if(spec.valid(a,b,max)) all.push([a,b]); }catch(_){} }
+    return all.length ? all[Math.floor(Math.random()*all.length)] : null;
+  }
+
+  function buildRelationContrastTrialV6836(cat, m){
+    const spec = cat.relationContrastSpec;
+    const target = cat.relationContrastTarget || "same";
+    const pair = samplePairForSpec(spec, m);
+    if(!pair) return null;
+    const [a,b] = pair;
+    const groups = spec.groups(a,b) || null;
+    if(!groups || !Array.isArray(groups.same) || !Array.isArray(groups.opposite)) return null;
+    let options = shuffled(groups.same.concat(groups.opposite)).map(o => ({text:o.text, correct:o.group === target, distractorType:o.group === target ? "correct" : o.distractorType || o.group, relationGroup:o.group}));
+    const correctIndices = options.map((o,i)=>o.correct ? i : null).filter(Number.isInteger);
+    if(correctIndices.length !== 2) return null;
+    const visuals = (typeof pickValueComparisonVisuals === "function") ? pickValueComparisonVisuals(a,b,cat,false) : [{rep:"text",seed:null,spec:null},{rep:"text",seed:null,spec:null}];
+    const visA = visuals[0] || {}, visB = visuals[1] || {};
+    const question = target === "opposite"
+      ? "First identify the relation made true by LEFT and RIGHT. Select the two statements that express the OPPOSITE relation."
+      : "First identify the relation made true by LEFT and RIGHT. Select the two statements that express the SAME relation.";
+    const answer = correctKey(correctIndices);
+    return {
+      a,b,repA:visA.rep,repB:visB.rep,
+      stimSeedA:Number.isFinite(visA.seed)?visA.seed:null,
+      stimSeedB:Number.isFinite(visB.seed)?visB.seed:null,
+      stimSpecA:cloneSpec(visA.rep,visA.spec), stimSpecB:cloneSpec(visB.rep,visB.spec),
+      question, delayedPrompt:question, responseFormat:"choice", answer, requiredSelections:2,
+      correctIndices, correctIndex:null, semanticCorrectIndex:null,
+      answerLabel:correctIndices.map(i=>options[i]?.text||`Option ${i+1}`).join(" + "),
+      options, isTrue:null, targetOutcome:answer, catId:cat.id, family:cat.family || "relation_equivalence",
+      relationEquivalence:{id:spec.id, label:spec.label, target, correctIndices, review:spec.review(a,b,target)},
+      relationContrast:{id:spec.id, label:spec.label, target, groups:{actual:groups.actual, opposite:groups.oppositeText}},
+      frameTags:uniqLocal([...(cat.frameTags||[]), ...(spec.tags||[]), "relation_processing", "relation_equivalence", "relation_difference", "choice_readout", "predefined_relation_validation", "role_binding_comparison"]),
+      mechanismTags:["relation_role_binding_comparison","relation_equivalence_difference_choice","dual_choice_selection"],
+      countsForMetaHistory:true
+    };
+  }
+
+  function makeRelationContrastCatsV6836(){
+    const out=[];
+    for(const spec of contrastSpecsV6836()){
+      for(const target of (spec.targetModes || ["same","opposite"])){
+        const id = `rel_contrast_${target}_${spec.id}`;
+        out.push({
+          id,
+          tier:4,
+          stage: target === "opposite" ? 5 : 4,
+          minM:spec.minM || 7,
+          family: target === "opposite" ? "relation_difference" : "relation_equivalence",
+          responseFormat:"choice",
+          relationContrastSpec:spec,
+          relationContrastTarget:target,
+          frameTags:uniqLocal(["relation_processing","relation_equivalence","relation_difference","comparing_task_style","choice_readout"].concat(spec.tags||[])),
+          canUse:m=>{
+            if(currentLevelD() < (target === "opposite" ? 6 : 5)) return false;
+            if(spec.minM && Number(m) < spec.minM) return false;
+            try{ if(CONFIG && CONFIG.l0RelationEquivalenceRequireGate && typeof requireHarnessPass === "function" && !requireHarnessPass("l0_relation_equivalence")) return false; }catch(_){ }
+            return true;
+          },
+          variants:[{q: target === "opposite" ? "First identify the actual relation; select the two OPPOSITE statements." : "First identify the actual relation; select the two SAME statements."}],
+          buildChoiceTrial:buildRelationContrastTrialV6836,
+          gen(m){ const p=samplePairForSpec(spec,m); return p || [1,2]; },
+          verify(){ return (typeof INAPPLICABLE !== "undefined") ? INAPPLICABLE : null; }
+        });
+      }
+    }
+    return out;
+  }
+
+  function installRelationContrastCatsV6836(){
+    let added = 0;
+    try{
+      if(!Array.isArray(POSNER_CATS)) return 0;
+      const existing = new Set(POSNER_CATS.map(c=>String(c&&c.id||"")));
+      for(const c of makeRelationContrastCatsV6836()){
+        if(existing.has(c.id)) continue;
+        POSNER_CATS.push(c); existing.add(c.id); added++;
+      }
+    }catch(_){ }
+    return added;
+  }
+  const addedCats = installRelationContrastCatsV6836();
+
+  function auditV6836RelationContrastProcessing(opts={}){
+    const block=[], warnings=[], rows=[];
+    try{
+      const cats = (Array.isArray(POSNER_CATS) ? POSNER_CATS : []).filter(c => c && /^rel_contrast_/.test(String(c.id||"")));
+      if(cats.length < 12) block.push(`expected relation contrast cats; found ${cats.length}`);
+      const byTarget = {same:0, opposite:0};
+      for(const cat of cats){
+        const m = Math.max(Number(cat.minM)||8, 10);
+        for(let i=0;i<8;i++){
+          const tr = cat.buildChoiceTrial(cat, m);
+          if(!tr){ block.push(`${cat.id}: failed to build`); break; }
+          const nCorrect = (tr.options||[]).filter(o=>o.correct).length;
+          if(nCorrect !== 2) block.push(`${cat.id}: expected exactly 2 correct options; got ${nCorrect}`);
+          if(!Array.isArray(tr.correctIndices) || tr.correctIndices.length !== 2) block.push(`${cat.id}: bad correctIndices`);
+          if(/true equivalent statements/i.test(tr.question||"")) block.push(`${cat.id}: old true-equivalence prompt leaked`);
+          if(cat.relationContrastTarget === "opposite" && !/opposite/i.test(tr.question||"")) block.push(`${cat.id}: opposite target prompt not explicit`);
+          if(cat.relationContrastTarget === "same" && !/same/i.test(tr.question||"")) block.push(`${cat.id}: same target prompt not explicit`);
+          const texts = (tr.options||[]).map(o=>String(o.text||""));
+          if(cat.id.includes("gap_") && texts.some(t => /^the absolute difference is \d+$/i.test(t))) block.push(`${cat.id}: shallow numeric gap distractor survived`);
+          byTarget[cat.relationContrastTarget] = (byTarget[cat.relationContrastTarget]||0)+1;
+          if(rows.length < 50) rows.push({id:cat.id,target:cat.relationContrastTarget,a:tr.a,b:tr.b,question:tr.question,correct:tr.correctIndices.map(j=>texts[j])});
+        }
+      }
+      if(!byTarget.same || !byTarget.opposite) block.push("missing same/opposite target coverage");
+    }catch(e){ block.push(`audit exception: ${e && e.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_VERSION, addedCats, rows, warnings, block});
+  }
+
+  try{ window.auditV6836RelationContrastProcessing = auditV6836RelationContrastProcessing; globalThis.auditV6836RelationContrastProcessing = auditV6836RelationContrastProcessing; }catch(_){ }
+  try{
+    const prev = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
+    if(prev && !prev.__v6836RelationContrastWrapped){
+      const wrapped = function runFeatureAuditV6836(feature, opts={}){
+        const f = String(feature || "").toLowerCase().trim();
+        if(["v6836","relation_contrast_processing","relation_equivalence_difference","relation_differences"].includes(f)){
+          const results = {relationContrastProcessing:auditV6836RelationContrastProcessing(opts)};
+          return (typeof auditEnvelope === "function") ? auditEnvelope(f, results, 0) : {feature:f, status:results.relationContrastProcessing.status, results};
+        }
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v6836RelationContrastWrapped = true;
+      runFeatureAudit = wrapped;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ window.EUCA_V6836_RELATION_CONTRAST_PROCESSING = {patch:PATCH_VERSION, addedCats, contrastSpecs:contrastSpecsV6836().map(s=>s.id)}; }catch(_){ }
+})();
+
+</script>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// v6.8.37 — Hot-path audit slimming
+// Non-functional reductions: avoid always-on full forensic snapshots, queue compact
+// sampling snapshots, cache atomics, trim recent windows without allocations, and
+// sample telemetry that was previously updated every frame.
+// ─────────────────────────────────────────────────────────────────────────────
+(function installV6837HotPathAuditSlimming(){
+  const PATCH_ID = "v6837_hotpath_audit_slimming";
+  const warn = (...args) => { try{ console.warn(...args); }catch(_){} };
+  const capArray = (arr, cap) => { if(Array.isArray(arr) && arr.length > cap) arr.splice(0, arr.length - cap); return arr; };
+
+  try{
+    if(typeof CONFIG === "object" && CONFIG){
+      CONFIG.postAnswerForensicQueueAlwaysCapture = false;
+      CONFIG.forensicQueueMax = Math.min(Number(CONFIG.forensicQueueMax) || 500, 120);
+      CONFIG.gatingMissAuditEnabled = false;
+      CONFIG.publicBuildPerfMetricSampleRate = Math.max(Number(CONFIG.publicBuildPerfMetricSampleRate) || 10, 18);
+      CONFIG.publicBuildPerfFrameSampleRate = Math.max(Number(CONFIG.publicBuildPerfFrameSampleRate) || 12, 24);
+      CONFIG.dAutoSnapshotAuditRecentFrames = 0;
+    }
+  }catch(e){ warn(`${PATCH_ID}: config slimming failed`, e); }
+
+  try{
+    if(typeof performanceAudit === "function" && typeof ensurePerformanceAudit === "function" && !performanceAudit.__v6837Slimmed){
+      const oldPerformanceAudit = performanceAudit;
+      let cachedPM = null, cachedPA = null;
+      performanceAudit = function performanceAuditV6837(){
+        try{
+          const pm = State && State.productionMonitor ? State.productionMonitor : (State.productionMonitor = {});
+          if(cachedPA && cachedPM === pm) return cachedPA;
+          cachedPM = pm;
+          cachedPA = ensurePerformanceAudit(pm);
+          return cachedPA;
+        }catch(_){ return oldPerformanceAudit(); }
+      };
+      performanceAudit.__v6837Slimmed = true;
+      performanceAudit.__previous = oldPerformanceAudit;
+    }
+  }catch(e){ warn(`${PATCH_ID}: performanceAudit cache failed`, e); }
+
+  try{
+    if(typeof noteDAutoSnapshotFrameAccess === "function" && !noteDAutoSnapshotFrameAccess.__v6837Slimmed){
+      const oldNoteDAuto = noteDAutoSnapshotFrameAccess;
+      noteDAutoSnapshotFrameAccess = function noteDAutoSnapshotFrameAccessV6837(miss=false){
+        try{
+          const perf = (typeof ensureDAutoSnapshotPerf === "function") ? ensureDAutoSnapshotPerf() : null;
+          if(!perf) return;
+          perf.frameCalls = (Number(perf.frameCalls) || 0) + 1;
+          if(miss) perf.frameMisses = (Number(perf.frameMisses) || 0) + 1;
+        }catch(_){ try{ oldNoteDAuto(miss); }catch(__){} }
+      };
+      noteDAutoSnapshotFrameAccess.__v6837Slimmed = true;
+      noteDAutoSnapshotFrameAccess.__previous = oldNoteDAuto;
+    }
+  }catch(e){ warn(`${PATCH_ID}: dAuto tracing slim failed`, e); }
+
+  try{
+    if(typeof canonicalAtomicsForInfo === "function" && !canonicalAtomicsForInfo.__v6837Cached){
+      const oldCanonicalAtomicsForInfo = canonicalAtomicsForInfo;
+      const weak = typeof WeakMap === "function" ? new WeakMap() : null;
+      canonicalAtomicsForInfo = function canonicalAtomicsForInfoV6837(info){
+        if(info && typeof info === "object"){
+          if(Array.isArray(info.__canonicalAtomicsV6837)) return info.__canonicalAtomicsV6837;
+          if(weak && weak.has(info)) return weak.get(info);
+          const ids = oldCanonicalAtomicsForInfo(info) || [];
+          const arr = Array.isArray(ids) ? Array.from(new Set(ids.map(String).filter(Boolean))).sort() : [];
+          try{ Object.defineProperty(info, "__canonicalAtomicsV6837", {value:arr, configurable:true}); }catch(_){ }
+          if(weak) weak.set(info, arr);
+          return arr;
+        }
+        return oldCanonicalAtomicsForInfo(info);
+      };
+      canonicalAtomicsForInfo.__v6837Cached = true;
+      canonicalAtomicsForInfo.__previous = oldCanonicalAtomicsForInfo;
+    }
+  }catch(e){ warn(`${PATCH_ID}: canonical atomics cache failed`, e); }
+
+  function compactSamplingInfoV6837(info){
+    try{
+      const src = info || {};
+      const atomics = (typeof canonicalAtomicsForInfo === "function") ? canonicalAtomicsForInfo(src) : (Array.isArray(src.atomicsUsed) ? src.atomicsUsed : []);
+      return {
+        level: src.level ?? State.currentTrialLevel ?? 0,
+        kind: src.kind || null,
+        catId: src.catId || src.cat?.id || null,
+        family: src.family || src.catFamily || src.canonicalFamily || src.op?.family || null,
+        canonicalFamily: src.canonicalFamily || null,
+        opId: src.op?.id || src.opId || null,
+        op: src.op?.id ? {id:src.op.id, family:src.op.family || null} : undefined,
+        registrySpecId: src.registrySpecId || src.cat?.registrySpecId || src.op?.registrySpecId || null,
+        canonicalSpecId: src.canonicalSpecId || null,
+        atomicsUsed: Array.isArray(src.atomicsUsed) ? src.atomicsUsed.slice(0, 32) : undefined,
+        __canonicalAtomicsV6837: Array.isArray(atomics) ? atomics : [],
+        frameTags: Array.isArray(src.frameTags) ? src.frameTags.slice(0, 16) : undefined,
+        mechanismTags: Array.isArray(src.mechanismTags) ? src.mechanismTags.slice(0, 16) : undefined,
+        responseFormat: src.responseFormat || (Array.isArray(src.options) ? "choice" : null),
+        question: (typeof compactTelemetryText === "function") ? compactTelemetryText(src.question || src.delayedPrompt || src.relationQuestion || "", 180) : String(src.question || src.delayedPrompt || src.relationQuestion || "").slice(0, 180),
+        relOpId: src.relOpId || (typeof deriveRelOpId === "function" ? deriveRelOpId(src) : null),
+        representationTransform: src.representationTransform || undefined,
+        transformId: src.transformId || src.op?.transformId || undefined,
+        rep: src.rep || undefined,
+        repA: src.repA || undefined,
+        repB: src.repB || undefined,
+        requiredRep: src.requiredRep || undefined,
+        inverseOperation: src.inverseOperation ? {correctOpId:src.inverseOperation.correctOpId || null, v:src.inverseOperation.v ?? null, w:src.inverseOperation.w ?? null} : undefined,
+        epistemicSufficiency: src.epistemicSufficiency ? {outcomeKey:src.epistemicSufficiency.outcomeKey || null, scenarioKind:src.epistemicSufficiency.scenarioKind || null, targetProfile:src.epistemicSufficiency.targetProfile || null, possibleWorldCount:src.epistemicSufficiency.possibleWorldCount ?? null} : undefined,
+        recursiveTrace: src.recursiveTrace ? {opId:src.recursiveTrace.opId || null, seed:src.recursiveTrace.seed ?? null, depth:src.recursiveTrace.depth ?? null, finalValue:src.recursiveTrace.finalValue ?? null, traceBoxUsed:!!src.recursiveTrace.traceBoxUsed} : undefined
+      };
+    }catch(_){
+      return (typeof compactTrialInfoForRuntime === "function") ? compactTrialInfoForRuntime(info) : {kind:info?.kind||null, catId:info?.catId||null, level:info?.level ?? State.currentTrialLevel ?? 0};
+    }
+  }
+
+  try{
+    if(typeof queuePostTrialTelemetryDiagnostics === "function" && !queuePostTrialTelemetryDiagnostics.__v6837Compact){
+      const oldQueuePostTrialTelemetryDiagnostics = queuePostTrialTelemetryDiagnostics;
+      queuePostTrialTelemetryDiagnostics = function queuePostTrialTelemetryDiagnosticsV6837(info, correct, rt){
+        try{
+          const compactInfo = compactSamplingInfoV6837(info || {});
+          if(!CONFIG.postAnswerDeferredTelemetryEnabled){
+            recordEffectiveSamplingDiagnostic(compactInfo, correct, rt);
+            recordAtomicEvidenceDiagnostic(compactInfo, correct, rt);
+            return true;
+          }
+          const st = ensurePostAnswerQueueStats();
+          const max = Math.max(20, Number(CONFIG.telemetrySnapshotQueueMax)||320);
+          if(TELEMETRY_SNAPSHOT_QUEUE.length >= max){ TELEMETRY_SNAPSHOT_QUEUE.shift(); st.telemetry.dropped++; }
+          TELEMETRY_SNAPSHOT_QUEUE.push({kind:"samplingAtomic", info:compactInfo, correct:!!correct, rt:Number(rt)||0});
+          st.telemetry.queued++;
+          scheduleTelemetrySnapshotDrain();
+          return true;
+        }catch(e){ try{ return oldQueuePostTrialTelemetryDiagnostics(info, correct, rt); }catch(_){ return false; } }
+      };
+      queuePostTrialTelemetryDiagnostics.__v6837Compact = true;
+      queuePostTrialTelemetryDiagnostics.__previous = oldQueuePostTrialTelemetryDiagnostics;
+    }
+  }catch(e){ warn(`${PATCH_ID}: compact sampling queue failed`, e); }
+
+  try{
+    if(typeof queueTrialTelemetry === "function" && !queueTrialTelemetry.__v6837Shallow){
+      const oldQueueTrialTelemetry = queueTrialTelemetry;
+      const shallowTelemetry = (entry={}) => {
+        const out = {...entry};
+        for(const k of ["selectedDistractorTypes", "frameTags"]){ if(Array.isArray(out[k])) out[k] = out[k].slice(0, 12); }
+        return out;
+      };
+      queueTrialTelemetry = function queueTrialTelemetryV6837(entry){
+        try{
+          if(!CONFIG.postAnswerDeferredTelemetryEnabled){ pushTrialTelemetry(entry); return true; }
+          const st = ensurePostAnswerQueueStats();
+          const max = Math.max(20, Number(CONFIG.telemetrySnapshotQueueMax)||320);
+          if(TELEMETRY_SNAPSHOT_QUEUE.length >= max){ TELEMETRY_SNAPSHOT_QUEUE.shift(); st.telemetry.dropped++; }
+          TELEMETRY_SNAPSHOT_QUEUE.push({kind:"trialTelemetry", entry:shallowTelemetry(entry || {})});
+          st.telemetry.queued++;
+          scheduleTelemetrySnapshotDrain();
+          return true;
+        }catch(e){ try{ return oldQueueTrialTelemetry(entry); }catch(_){ return false; } }
+      };
+      queueTrialTelemetry.__v6837Shallow = true;
+      queueTrialTelemetry.__previous = oldQueueTrialTelemetry;
+    }
+  }catch(e){ warn(`${PATCH_ID}: shallow trial telemetry queue failed`, e); }
+
+  try{
+    if(typeof enqueueForensicDiagnosticsSnapshot === "function" && !enqueueForensicDiagnosticsSnapshot.__v6837SkipPublicFull){
+      const oldEnqueueForensicDiagnosticsSnapshot = enqueueForensicDiagnosticsSnapshot;
+      enqueueForensicDiagnosticsSnapshot = function enqueueForensicDiagnosticsSnapshotV6837(info, correct, rt, trialLevel, opts={}){
+        try{
+          const publicBuild = (typeof isPublicPerformanceBuild === "function") ? isPublicPerformanceBuild() : !!CONFIG.publicBuild;
+          const keep = opts && (opts.force || opts.exception || opts.balanceOnly || opts.relationalConfusionOnly);
+          if(publicBuild && opts?.full && !keep){
+            const st = ensurePostAnswerQueueStats();
+            st.forensic.skippedFullPublic = (st.forensic.skippedFullPublic || 0) + 1;
+            return false;
+          }
+          return oldEnqueueForensicDiagnosticsSnapshot(info, correct, rt, trialLevel, opts);
+        }catch(e){ try{ return oldEnqueueForensicDiagnosticsSnapshot(info, correct, rt, trialLevel, opts); }catch(_){ return false; } }
+      };
+      enqueueForensicDiagnosticsSnapshot.__v6837SkipPublicFull = true;
+      enqueueForensicDiagnosticsSnapshot.__previous = oldEnqueueForensicDiagnosticsSnapshot;
+    }
+  }catch(e){ warn(`${PATCH_ID}: forensic queue slimming failed`, e); }
+
+  try{
+    if(typeof updateAtomicBucket === "function" && !updateAtomicBucket.__v6837NoSlice){
+      updateAtomicBucket = function updateAtomicBucketV6837(bucket, correct, rt){
+        bucket.t = Math.max(0, Number(bucket.t)||0) + 1;
+        bucket.c = Math.max(0, Number(bucket.c)||0) + (correct ? 1 : 0);
+        if(!Array.isArray(bucket.rt)) bucket.rt = [];
+        if(Number.isFinite(Number(rt))) bucket.rt.push(Math.round(Number(rt)));
+        capArray(bucket.rt, 80);
+        return bucket;
+      };
+      updateAtomicBucket.__v6837NoSlice = true;
+    }
+
+    if(typeof recordAtomicEvidenceDiagnostic === "function" && !recordAtomicEvidenceDiagnostic.__v6837NoSlice){
+      recordAtomicEvidenceDiagnostic = function recordAtomicEvidenceDiagnosticV6837(info, correct, rt){
+        if(!CONFIG.atomicCoreRuntimeEnabled) return;
+        const atomics = canonicalAtomicsForInfo(info || {});
+        if(!atomics.length) return;
+        const mon = ensureAtomicEvidenceMonitor();
+        const phase = autoPhaseForTrialInfo(info);
+        const level = Number(info?.level ?? State.currentTrialLevel ?? 0);
+        const signature = atomics.join("+");
+        mon.recent.push({ts:Date.now(), phase, level, atomics, signature, load:atomics.length, correct:!!correct, rt:Number(rt)||0});
+        capArray(mon.recent, Math.max(40, Number(CONFIG.atomicEvidenceRecentWindow)||160));
+        for(const id of atomics){
+          if(!mon.byAtomic[id]) mon.byAtomic[id] = {t:0,c:0,rt:[]};
+          updateAtomicBucket(mon.byAtomic[id], correct, rt);
+        }
+        if(!mon.bySignature[signature]) mon.bySignature[signature] = {t:0,c:0,rt:[], atomics:atomics.slice()};
+        updateAtomicBucket(mon.bySignature[signature], correct, rt);
+        const maxPairs = Math.max(20, Number(CONFIG.atomicPairMaxTracked)||240);
+        let pairCount = null;
+        for(let i=0; i<atomics.length; i++){
+          for(let j=i+1; j<atomics.length; j++){
+            const key = `${atomics[i]}×${atomics[j]}`;
+            if(!mon.byPair[key]){
+              if(pairCount === null) pairCount = Object.keys(mon.byPair).length;
+              if(pairCount >= maxPairs) continue;
+              mon.byPair[key] = {t:0,c:0,rt:[], atomics:[atomics[i], atomics[j]]};
+              pairCount++;
+            }
+            updateAtomicBucket(mon.byPair[key], correct, rt);
+          }
+        }
+        const lk = String(level);
+        if(!mon.loadByLevel[lk]) mon.loadByLevel[lk] = {t:0, loadSum:0, maxLoad:0};
+        mon.loadByLevel[lk].t++; mon.loadByLevel[lk].loadSum += atomics.length; mon.loadByLevel[lk].maxLoad = Math.max(mon.loadByLevel[lk].maxLoad||0, atomics.length);
+      };
+      recordAtomicEvidenceDiagnostic.__v6837NoSlice = true;
+    }
+
+    if(typeof recordEffectiveSamplingDiagnostic === "function" && !recordEffectiveSamplingDiagnostic.__v6837NoSlice){
+      recordEffectiveSamplingDiagnostic = function recordEffectiveSamplingDiagnosticV6837(info, correct, rt){
+        if(!CONFIG.effectiveSamplingAuditEnabled) return;
+        const mon = ensureEffectiveSamplingMonitor();
+        const phase = autoPhaseForTrialInfo(info);
+        const key = effectiveSamplingKeyForInfo(info);
+        const family = info?.family || info?.canonicalFamily || info?.op?.family || info?.kind || null;
+        const cells = representationTransformCellsFromInfo(info || {});
+        const transformKey = cells.length ? representationTransformKey(cells[0].rep, cells[0].transformId) : null;
+        const atomics = canonicalAtomicsForInfo(info || {});
+        const atomicSignature = atomics.join("+");
+        const entry = {ts:Date.now(), phase, level:Number(info?.level ?? State.currentTrialLevel ?? 0), key, catId:info?.catId||null, family, transformKey, atomics, atomicSignature, atomicLoad:atomics.length, correct:!!correct, rt:Number(rt)||0};
+        mon.recent.push(entry);
+        capArray(mon.recent, Math.max(20, Number(CONFIG.effectiveSamplingRecentWindow)||32));
+        const blockKey = phase || "unknown";
+        if(!mon.block[blockKey]) mon.block[blockKey] = {t:0, keys:{}, families:{}, transforms:{}};
+        const b = mon.block[blockKey];
+        b.t++;
+        if(key) b.keys[key] = (b.keys[key]||0)+1;
+        if(family) b.families[family] = (b.families[family]||0)+1;
+        if(transformKey) b.transforms[transformKey] = (b.transforms[transformKey]||0)+1;
+        if(!b.atomics) b.atomics = {};
+        if(!b.atomicSignatures) b.atomicSignatures = {};
+        for(const id of atomics) b.atomics[id] = (b.atomics[id]||0)+1;
+        if(atomicSignature) b.atomicSignatures[atomicSignature] = (b.atomicSignatures[atomicSignature]||0)+1;
+      };
+      recordEffectiveSamplingDiagnostic.__v6837NoSlice = true;
+    }
+  }catch(e){ warn(`${PATCH_ID}: diagnostic allocation slimming failed`, e); }
+
+  try{
+    if(typeof noteParticleCount === "function" && !noteParticleCount.__v6837Sampled){
+      const oldNoteParticleCount = noteParticleCount;
+      let lastCount = 0, lastRecordFrame = -999;
+      noteParticleCount = function noteParticleCountV6837(count){
+        try{
+          if(!(typeof CONFIG !== "undefined" && CONFIG.publicBuild)) return oldNoteParticleCount(count);
+          const pa = performanceAudit();
+          if(!pa) return;
+          const c = Math.max(0, Number(count) || 0);
+          const seq = Number(pa._frameSeq || 0);
+          pa.maxParticleCount = Math.max(pa.maxParticleCount || 0, c);
+          if(c > 0 && lastCount === 0){ pa._particleDrainStartFrame = seq; pa._particleDrainStartCount = c; }
+          if(c === 0 && lastCount > 0){
+            const frames = Math.max(0, seq - (pa._particleDrainStartFrame || 0));
+            pushCapped(pa.framesToDrain, frames, 80);
+            if(frames > 120) pushCapped(pa.longDrainEvents, {ts:Date.now(), frames, startCount:pa._particleDrainStartCount || 0, status:State.status}, 40);
+            pa.spawnedThisTrial = 0;
+          }
+          const shouldRecord = c !== lastCount || (c > 0 && seq - lastRecordFrame >= 4);
+          lastCount = c;
+          pa._lastParticleCount = c;
+          if(!shouldRecord) return;
+          lastRecordFrame = seq;
+          pushCapped(pa.particleCount, c, 96);
+        }catch(_){ try{ oldNoteParticleCount(count); }catch(__){} }
+      };
+      noteParticleCount.__v6837Sampled = true;
+      noteParticleCount.__previous = oldNoteParticleCount;
+    }
+  }catch(e){ warn(`${PATCH_ID}: particle telemetry sampling failed`, e); }
+
+  function hotPathSlimmingSnapshotV6837(){
+    const pa = (typeof performanceAudit === "function") ? performanceAudit() : null;
+    const post = (typeof postAnswerQueueSnapshot === "function") ? postAnswerQueueSnapshot() : null;
+    return {
+      patchId:PATCH_ID,
+      appVersion:(typeof currentAppVersion === "function") ? currentAppVersion() : (typeof APP_VERSION !== "undefined" ? APP_VERSION : null),
+      config:{
+        forensicAlwaysCapture:!!CONFIG.postAnswerForensicQueueAlwaysCapture,
+        gatingMissAuditEnabled:!!CONFIG.gatingMissAuditEnabled,
+        perfMetricSampleRate:CONFIG.publicBuildPerfMetricSampleRate,
+        perfFrameSampleRate:CONFIG.publicBuildPerfFrameSampleRate,
+        dAutoSnapshotAuditRecentFrames:CONFIG.dAutoSnapshotAuditRecentFrames
+      },
+      wrappers:{
+        performanceAudit:!!performanceAudit.__v6837Slimmed,
+        dAutoTrace:!!noteDAutoSnapshotFrameAccess.__v6837Slimmed,
+        canonicalAtomics:!!canonicalAtomicsForInfo.__v6837Cached,
+        compactSamplingQueue:!!queuePostTrialTelemetryDiagnostics.__v6837Compact,
+        shallowTrialTelemetry:!!queueTrialTelemetry.__v6837Shallow,
+        forensicSkipFull:!!enqueueForensicDiagnosticsSnapshot.__v6837SkipPublicFull,
+        particleTelemetry:!!noteParticleCount.__v6837Sampled,
+        atomicNoSlice:!!recordAtomicEvidenceDiagnostic.__v6837NoSlice,
+        effectiveSamplingNoSlice:!!recordEffectiveSamplingDiagnostic.__v6837NoSlice
+      },
+      queues:post?.pending || null,
+      perf:{frameDeltas:Array.isArray(pa?.frameDeltas) ? pa.frameDeltas.length : null, particleCountSamples:Array.isArray(pa?.particleCount) ? pa.particleCount.length : null}
+    };
+  }
+  function auditV6837HotPathAuditSlimming(){
+    const snap = hotPathSlimmingSnapshotV6837();
+    const block = [];
+    const warnings = [];
+    if(snap.config.forensicAlwaysCapture) block.push("full forensic per-trial capture still enabled");
+    if(snap.config.gatingMissAuditEnabled) warnings.push("gating miss audit still enabled");
+    for(const [k,v] of Object.entries(snap.wrappers || {})) if(!v) warnings.push(`wrapper not active: ${k}`);
+    return (typeof auditResult === "function") ? auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {snapshot:snap, warnings, block}) : {status:block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), snapshot:snap, warnings, block};
+  }
+  try{
+    window.hotPathSlimmingSnapshotV6837 = hotPathSlimmingSnapshotV6837;
+    window.auditV6837HotPathAuditSlimming = auditV6837HotPathAuditSlimming;
+    if(typeof runFeatureAudit === "function" && !runFeatureAudit.__v6837HotPathSlimming){
+      const prevRunFeatureAudit = runFeatureAudit;
+      runFeatureAudit = function runFeatureAuditV6837(feature, opts={}){
+        const f = String(feature || "").toLowerCase();
+        if(f === "v6837" || f === "hotpath_audit_slimming" || f === "hotpath") return auditV6837HotPathAuditSlimming(opts);
+        return prevRunFeatureAudit.apply(this, arguments);
+      };
+      runFeatureAudit.__v6837HotPathSlimming = true;
+      try{ window.runFeatureAudit = runFeatureAudit; globalThis.runFeatureAudit = runFeatureAudit; }catch(_){ }
+    }
+  }catch(e){ warn(`${PATCH_ID}: audit export failed`, e); }
+})();
+
+</script>
 </body>
 </html>
