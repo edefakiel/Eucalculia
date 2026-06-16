@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.44-lean-epistemic-transform-polish</title>
+<title>Eucalculia v6.8.45-epistemic-late-progression</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.44-lean-epistemic-transform-polish";
+const APP_VERSION = "v6.8.45-epistemic-late-progression";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -84577,6 +84577,13 @@ try{
         atomics:["generative_l1", "range_witness", "prime", "composite", "interval_scan"]
       }
     ];
+    // v6.8.45: epistemic constructive tasks are late-game only. Filter the
+    // source task pool before examples are searched, so the generator creates
+    // the right candidates instead of generating and discarding unsuitable ones.
+    try{
+      const gate = (typeof globalThis !== "undefined" && typeof globalThis.l1ConstructiveTaskEligibleV6845 === "function") ? globalThis.l1ConstructiveTaskEligibleV6845 : null;
+      if(gate) tasks = tasks.filter(t => gate(t));
+    }catch(_){ }
     let pool = tasks.map(t => ({...t, example:findL1Example(t, cap)})).filter(t => t.example);
     if(!pool.length) return null;
     try{
@@ -96244,6 +96251,320 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         return prevRun.apply(this, arguments);
       };
       wrapped.__v6844LeanEpistemicTransformWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+
+<script>
+// ============================================================================
+// v6.8.45 — Epistemic late progression
+// Epistemic possible-world tasks are powerful but high-load. They now unlock
+// only after the player has met visual-gate prerequisites, live in the late
+// relational runway, and have low incidence. This is scheduler logic, not a
+// runtime scrub: create the right pool first rather than fixing bad samples.
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.45-epistemic-late-progression";
+  const AUDIT_KEYS = new Set(["v6845", "v6_8_45", "epistemic_late_progression", "late_epistemic"]);
+  function str(x){ return String(x == null ? "" : x); }
+  function low(x){ return str(x).toLowerCase(); }
+  function num(x,d=0){ const n=Number(x); return Number.isFinite(n)?n:d; }
+  function clamp(x,lo,hi){ return Math.max(lo, Math.min(hi, num(x,lo))); }
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function currentD(){ try{ return num(State?.levelByMode?.D,0); }catch(_){ return 0; } }
+  function trialIndex(){ try{ return num(State?.stats?.trials,0); }catch(_){ return 0; } }
+  function auditResultLocal(status, details){ return {status, ok:status === "PASS", ...(details||{})}; }
+
+  const VISUAL_GATE_FAMILIES = new Set([
+    "l0_graph_conditional", "l0_graph_relation_gate", "graph_conditional", "graph_relation_gate",
+    "l0_venn_gate", "l0_shepard_conditional", "l0_paper_folding_analogy", "visual_transform_comparison"
+  ]);
+  const VISUAL_GATE_ID_RE = /(?:graph|venn|shepard|paper|visual_transform|rotation|mirror)/i;
+  const EPI_FAM_RE = /epistemic|possible_world|agent_capacity|conditional_observation|closure_identification|missing_datum|public_private/i;
+
+  function configDefaults(){
+    try{
+      if(typeof CONFIG !== "object" || !CONFIG) return;
+      CONFIG.epistemicLateProgressionEnabled = CONFIG.epistemicLateProgressionEnabled !== false;
+      CONFIG.epistemicLateMinLevel = Number.isFinite(CONFIG.epistemicLateMinLevel) ? CONFIG.epistemicLateMinLevel : 10;
+      CONFIG.epistemicLateExpandedMinLevel = Number.isFinite(CONFIG.epistemicLateExpandedMinLevel) ? CONFIG.epistemicLateExpandedMinLevel : 11;
+      CONFIG.epistemicLateAbstractMinLevel = Number.isFinite(CONFIG.epistemicLateAbstractMinLevel) ? CONFIG.epistemicLateAbstractMinLevel : 12;
+      CONFIG.epistemicLateVisualGateMinTrials = Number.isFinite(CONFIG.epistemicLateVisualGateMinTrials) ? CONFIG.epistemicLateVisualGateMinTrials : 12;
+      CONFIG.epistemicLateVisualGateMinFamilies = Number.isFinite(CONFIG.epistemicLateVisualGateMinFamilies) ? CONFIG.epistemicLateVisualGateMinFamilies : 2;
+      CONFIG.epistemicLateVisualGateMinAcc = Number.isFinite(CONFIG.epistemicLateVisualGateMinAcc) ? CONFIG.epistemicLateVisualGateMinAcc : 0.66;
+      CONFIG.epistemicLateCooldownTrials = Number.isFinite(CONFIG.epistemicLateCooldownTrials) ? CONFIG.epistemicLateCooldownTrials : 22;
+      CONFIG.epistemicLateRecentWindow = Number.isFinite(CONFIG.epistemicLateRecentWindow) ? CONFIG.epistemicLateRecentWindow : 100;
+      CONFIG.epistemicLateMaxRecent = Number.isFinite(CONFIG.epistemicLateMaxRecent) ? CONFIG.epistemicLateMaxRecent : 4;
+      CONFIG.epistemicLateDirectProbability = Number.isFinite(CONFIG.epistemicLateDirectProbability) ? CONFIG.epistemicLateDirectProbability : 0.014;
+      CONFIG.epistemicLateDirectMaxProbability = Number.isFinite(CONFIG.epistemicLateDirectMaxProbability) ? CONFIG.epistemicLateDirectMaxProbability : 0.024;
+      CONFIG.epistemicLateL1ConstructiveShare = Number.isFinite(CONFIG.epistemicLateL1ConstructiveShare) ? CONFIG.epistemicLateL1ConstructiveShare : 0.08;
+
+      // Push every ordinary epistemic route into the late relational runway.
+      CONFIG.l0EpistemicSufficiencyMinLevel = Math.max(num(CONFIG.l0EpistemicSufficiencyMinLevel,5), CONFIG.epistemicLateMinLevel);
+      CONFIG.l0EpistemicExpandedMinLevel = Math.max(num(CONFIG.l0EpistemicExpandedMinLevel,6), CONFIG.epistemicLateExpandedMinLevel);
+      CONFIG.l0EpistemicAbstractMinLevel = Math.max(num(CONFIG.l0EpistemicAbstractMinLevel,4), CONFIG.epistemicLateAbstractMinLevel);
+      CONFIG.l0EpistemicSufficiencyProbability = Math.min(num(CONFIG.l0EpistemicSufficiencyProbability,0.055), CONFIG.epistemicLateDirectProbability);
+      CONFIG.l0EpistemicSufficiencyMaxProbability = Math.min(num(CONFIG.l0EpistemicSufficiencyMaxProbability,0.085), CONFIG.epistemicLateDirectMaxProbability);
+
+      // Keep the strongest epistemic formats late and sparse. Missing-datum / closure
+      // identification remains out of normal sampling after v6.8.44.
+      const mix = CONFIG.l0EpistemicExpandedFormatMix || {};
+      CONFIG.l0EpistemicExpandedFormatMix = {
+        canonical_outcome: Number.isFinite(mix.canonical_outcome) ? Math.min(mix.canonical_outcome, 0.42) : 0.42,
+        agent_capacity: Number.isFinite(mix.agent_capacity) ? Math.min(mix.agent_capacity, 0.34) : 0.34,
+        conditional_observation: Number.isFinite(mix.conditional_observation) ? Math.min(mix.conditional_observation, 0.24) : 0.24,
+        closure_identification: 0
+      };
+    }catch(_){ }
+  }
+  configDefaults();
+
+  function catById(id){ try{ return typeof dPosnerCatById === "function" ? dPosnerCatById(id) : arr(POSNER_CATS).find(c=>c?.id===id); }catch(_){ return null; } }
+  function famOf(cat){ try{ return typeof posnerFamily === "function" ? posnerFamily(cat) : (cat?.family || ""); }catch(_){ return cat?.family || ""; } }
+  function isVisualGateCat(cat){
+    const fam = famOf(cat) || cat?.family || "";
+    const id = cat?.id || cat?.catId || "";
+    if(VISUAL_GATE_FAMILIES.has(fam) || VISUAL_GATE_FAMILIES.has(cat?.family)) return true;
+    if(cat?.questionVisualGate || cat?.visualComparison || cat?.vennGate || cat?.graphRelationGate || cat?.shepardConditional || cat?.paperFolding) return true;
+    return VISUAL_GATE_ID_RE.test(id) && !isEpistemicCat(cat);
+  }
+  function isEpistemicCat(cat){
+    if(!cat) return false;
+    const bits = [cat.id, cat.catId, cat.family, famOf(cat), cat.responseSubformat, ...(arr(cat.frameTags)), ...(arr(cat.mechanismTags)), ...(arr(cat.atomicsUsed))].join(" ");
+    return EPI_FAM_RE.test(bits);
+  }
+  function isEpistemicInfo(info){
+    if(!info) return false;
+    const bits = [info.kind, info.catId, info.family, info.sourceFamily, info.responseSubformat, ...(arr(info.frameTags)), ...(arr(info.mechanismTags)), ...(arr(info.executiveTags))].join(" ");
+    return !!(info.epistemicSufficiency || info.epistemicAbstract || info.payload?.epistemicSufficiency || EPI_FAM_RE.test(bits));
+  }
+  function isEpistemicL1Task(task){
+    if(!task) return false;
+    const bits = [task.id, task.title, task.question, ...(arr(task.atomics))].join(" ");
+    return EPI_FAM_RE.test(bits);
+  }
+
+  function metaMemoryBusy(){
+    try{
+      const plans = (typeof ensureMetaMemoryPlans === "function") ? ensureMetaMemoryPlans() : State?.metaPlan;
+      if(plans && Object.values(plans).some(p => p && (p.active || p.due || p.pending))) return true;
+      if(Number(State?.forceOpenMetaMemoryPlanLevel || 0) > 0) return true;
+    }catch(_){ }
+    return false;
+  }
+  function visualGateReadiness(){
+    const out = {t:0, c:0, acc:null, families:0, byFamily:{}, ready:false};
+    try{
+      const stats = State?.posnerCatStats || {};
+      for(const [id, st] of Object.entries(stats)){
+        const cat = catById(id) || {id, family:id};
+        if(!isVisualGateCat(cat)) continue;
+        const t = Math.max(0, num(st?.t, 0));
+        if(t <= 0) continue;
+        const fam = famOf(cat) || cat.family || "visual_gate";
+        if(!out.byFamily[fam]) out.byFamily[fam] = {t:0,c:0};
+        out.byFamily[fam].t += t;
+        out.byFamily[fam].c += Math.max(0, num(st?.c, 0));
+      }
+      for(const row of Object.values(out.byFamily)){ out.t += row.t; out.c += row.c; }
+      out.families = Object.keys(out.byFamily).filter(k => out.byFamily[k].t > 0).length;
+      out.acc = out.t ? out.c/out.t : null;
+      out.ready = out.t >= num(CONFIG.epistemicLateVisualGateMinTrials,12)
+        && out.families >= num(CONFIG.epistemicLateVisualGateMinFamilies,2)
+        && (out.acc == null || out.acc >= clamp(CONFIG.epistemicLateVisualGateMinAcc,0,1));
+    }catch(_){ }
+    return out;
+  }
+  function diag(){
+    try{
+      const m = State.meta || (State.meta = {});
+      const d = m.diagnostics || (m.diagnostics = {});
+      return d.epistemicLateProgression || (d.epistemicLateProgression = {recent:[], blocked:{}});
+    }catch(_){ return {recent:[], blocked:{}}; }
+  }
+  function recentEpistemicCount(windowN){
+    const d = diag(); const now = trialIndex();
+    d.recent = arr(d.recent).filter(x => now - num(x.trial, -9999) <= windowN).slice(-40);
+    return d.recent.length;
+  }
+  function noteBlocked(reason){
+    try{ const d=diag(); d.blocked = d.blocked || {}; d.blocked[reason] = num(d.blocked[reason],0) + 1; d.lastBlocked = {trial:trialIndex(), reason}; }catch(_){ }
+  }
+  function recordEpistemicServed(source, info){
+    try{
+      const d = diag(); const now = trialIndex();
+      d.recent = arr(d.recent).filter(x => now - num(x.trial, -9999) <= Math.max(30, num(CONFIG.epistemicLateRecentWindow,100))).slice(-40);
+      d.recent.push({trial:now, source:source||"unknown", catId:info?.catId || info?.id || null, family:info?.family || info?.sourceFamily || null});
+      d.lastServed = d.recent[d.recent.length-1];
+    }catch(_){ }
+  }
+  function epistemicLateAllowed(kind="normal", opts={}){
+    if(CONFIG.epistemicLateProgressionEnabled === false) return true;
+    if(State?.mode && State.mode !== "D") { noteBlocked("not_D"); return false; }
+    const lv = currentD();
+    const min = kind === "abstract" ? num(CONFIG.epistemicLateAbstractMinLevel,12)
+      : kind === "expanded" ? num(CONFIG.epistemicLateExpandedMinLevel,11)
+      : num(CONFIG.epistemicLateMinLevel,10);
+    if(lv < min){ noteBlocked("level"); return false; }
+    if(metaMemoryBusy()){ noteBlocked("meta_busy"); return false; }
+    const vg = visualGateReadiness();
+    if(!vg.ready){ noteBlocked("visual_gate_prereq"); return false; }
+    if(!opts.ignoreBudget){
+      const now = trialIndex(); const d = diag();
+      const last = d.lastServed ? num(d.lastServed.trial, -9999) : -9999;
+      if(now - last < num(CONFIG.epistemicLateCooldownTrials,22)){ noteBlocked("cooldown"); return false; }
+      const maxRecent = Math.max(1, num(CONFIG.epistemicLateMaxRecent,4));
+      if(recentEpistemicCount(Math.max(20, num(CONFIG.epistemicLateRecentWindow,100))) >= maxRecent){ noteBlocked("recent_share"); return false; }
+    }
+    return true;
+  }
+
+  function patchEpistemicCats(){
+    try{
+      for(const c of arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+        if(!isEpistemicCat(c)) continue;
+        const kind = low(c.family).includes("abstract") || low(c.id).includes("abstract") ? "abstract" : "expanded";
+        const min = kind === "abstract" ? num(CONFIG.epistemicLateAbstractMinLevel,12) : num(CONFIG.epistemicLateExpandedMinLevel,11);
+        c.minLevel = Math.max(num(c.minLevel,0), min);
+        c.stage = Math.max(num(c.stage,0), 6);
+        c.epistemicLateGame = true;
+      }
+    }catch(_){ }
+  }
+  patchEpistemicCats();
+
+  function chooseFallbackNonEpistemic(cats, maxTier){
+    const rows = arr(cats).filter(c => c && !isEpistemicCat(c));
+    if(rows.length) return rows;
+    try{
+      const m = typeof currentMax === "function" ? currentMax() : 8;
+      const avail = typeof availablePosnerCatsForTier === "function" ? availablePosnerCatsForTier(m, maxTier) : arr(POSNER_CATS);
+      const non = arr(avail).filter(c => c && !isEpistemicCat(c));
+      return non.length ? non : rows;
+    }catch(_){ return rows; }
+  }
+
+  try{
+    if(typeof chooseFamilyBalancedPosnerCat === "function" && !chooseFamilyBalancedPosnerCat.__v6845EpistemicLateWrapped){
+      const prevChoose = chooseFamilyBalancedPosnerCat;
+      const wrapped = function chooseFamilyBalancedPosnerCatV6845(cats, maxTier){
+        let rows = arr(cats).filter(Boolean);
+        const hasEpi = rows.some(isEpistemicCat);
+        if(hasEpi && !epistemicLateAllowed("expanded")){
+          const non = chooseFallbackNonEpistemic(rows, maxTier);
+          if(non.length) rows = non;
+        }
+        const picked = prevChoose.call(this, rows.length ? rows : cats, maxTier);
+        if(isEpistemicCat(picked)) recordEpistemicServed("posner_cat", picked);
+        return picked;
+      };
+      wrapped.__v6845EpistemicLateWrapped = true;
+      chooseFamilyBalancedPosnerCat = wrapped;
+      try{ window.chooseFamilyBalancedPosnerCat = wrapped; globalThis.chooseFamilyBalancedPosnerCat = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+
+  try{
+    if(typeof shouldUseL0EpistemicSufficiencyProbe === "function" && !shouldUseL0EpistemicSufficiencyProbe.__v6845EpistemicLateWrapped){
+      const prevShould = shouldUseL0EpistemicSufficiencyProbe;
+      const wrapped = function shouldUseL0EpistemicSufficiencyProbeV6845(){
+        if(!epistemicLateAllowed("direct")){
+          try{ State.forceNextL0EpistemicSufficiencyProbe = false; }catch(_){ }
+          return false;
+        }
+        return !!prevShould.apply(this, arguments);
+      };
+      wrapped.__v6845EpistemicLateWrapped = true;
+      shouldUseL0EpistemicSufficiencyProbe = wrapped;
+      try{ window.shouldUseL0EpistemicSufficiencyProbe = wrapped; globalThis.shouldUseL0EpistemicSufficiencyProbe = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    if(typeof showL0EpistemicSufficiencyOnboardingIfNeeded === "function" && !showL0EpistemicSufficiencyOnboardingIfNeeded.__v6845EpistemicLateWrapped){
+      const prevShow = showL0EpistemicSufficiencyOnboardingIfNeeded;
+      const wrapped = function showL0EpistemicSufficiencyOnboardingIfNeededV6845(onContinue){
+        if(!epistemicLateAllowed("direct", {ignoreBudget:true})) return false;
+        return !!prevShow.apply(this, arguments);
+      };
+      wrapped.__v6845EpistemicLateWrapped = true;
+      showL0EpistemicSufficiencyOnboardingIfNeeded = wrapped;
+      try{ window.showL0EpistemicSufficiencyOnboardingIfNeeded = wrapped; globalThis.showL0EpistemicSufficiencyOnboardingIfNeeded = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    if(typeof buildL0EpistemicSufficiencyProbe === "function" && !buildL0EpistemicSufficiencyProbe.__v6845EpistemicLateRecordWrapped){
+      const prevBuild = buildL0EpistemicSufficiencyProbe;
+      const wrapped = function buildL0EpistemicSufficiencyProbeV6845(){
+        const t = prevBuild.apply(this, arguments);
+        if(t && isEpistemicInfo(t)) recordEpistemicServed("direct_probe", t);
+        return t;
+      };
+      wrapped.__v6845EpistemicLateRecordWrapped = true;
+      buildL0EpistemicSufficiencyProbe = wrapped;
+      try{ window.buildL0EpistemicSufficiencyProbe = wrapped; globalThis.buildL0EpistemicSufficiencyProbe = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+
+  function l1ConstructiveTaskEligibleV6845(task){
+    if(!isEpistemicL1Task(task)) return true;
+    if(!epistemicLateAllowed("expanded", {ignoreBudget:true})) return false;
+    const p = clamp(CONFIG.epistemicLateL1ConstructiveShare, 0, 1);
+    return Math.random() < p;
+  }
+  try{ window.l1ConstructiveTaskEligibleV6845 = l1ConstructiveTaskEligibleV6845; globalThis.l1ConstructiveTaskEligibleV6845 = l1ConstructiveTaskEligibleV6845; }catch(_){ }
+
+  function epistemicLateProgressionSnapshotV6845(){
+    return {
+      appVersion: (typeof currentAppVersion === "function" ? currentAppVersion() : PATCH_ID),
+      enabled: CONFIG.epistemicLateProgressionEnabled !== false,
+      currentD: currentD(),
+      minLevel: CONFIG.epistemicLateMinLevel,
+      expandedMinLevel: CONFIG.epistemicLateExpandedMinLevel,
+      abstractMinLevel: CONFIG.epistemicLateAbstractMinLevel,
+      visualGate: visualGateReadiness(),
+      metaMemoryBusy: metaMemoryBusy(),
+      allowedDirect: epistemicLateAllowed("direct", {ignoreBudget:true}),
+      allowedExpanded: epistemicLateAllowed("expanded", {ignoreBudget:true}),
+      budgetRecent: recentEpistemicCount(Math.max(20, num(CONFIG.epistemicLateRecentWindow,100))),
+      diagnostics: diag()
+    };
+  }
+  function auditV6845EpistemicLateProgression(){
+    const block=[], warnings=[];
+    try{
+      if(num(CONFIG.l0EpistemicSufficiencyMinLevel,0) < num(CONFIG.epistemicLateMinLevel,10)) block.push("canonical epistemic min level below late min");
+      if(num(CONFIG.l0EpistemicExpandedMinLevel,0) < num(CONFIG.epistemicLateExpandedMinLevel,11)) block.push("expanded epistemic min level below late min");
+      if(num(CONFIG.l0EpistemicAbstractMinLevel,0) < num(CONFIG.epistemicLateAbstractMinLevel,12)) block.push("abstract epistemic min level below late min");
+      if(num(CONFIG.l0EpistemicSufficiencyProbability,1) > 0.03) block.push("direct epistemic probability still high");
+      const mix = CONFIG.l0EpistemicExpandedFormatMix || {};
+      if(num(mix.closure_identification,0) !== 0) block.push("closure_identification still in normal mix");
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).filter(isEpistemicCat);
+      for(const c of cats){
+        if(num(c.stage,0) < 6) block.push(`${c.id || c.family}: stage below late stage`);
+        if(!c.epistemicLateGame) warnings.push(`${c.id || c.family}: not marked epistemicLateGame`);
+      }
+      const oldLevel = currentD();
+      const snap = epistemicLateProgressionSnapshotV6845();
+      if(oldLevel < num(CONFIG.epistemicLateMinLevel,10) && snap.allowedDirect) block.push("allowed direct epistemic before min level");
+    }catch(e){ block.push("audit exception: "+(e?.message||e)); }
+    return auditResultLocal(block.length?"BLOCK":(warnings.length?"WARN":"PASS"), {patch:PATCH_ID, snapshot:epistemicLateProgressionSnapshotV6845(), warnings, block});
+  }
+
+  try{ window.epistemicLateProgressionSnapshotV6845 = epistemicLateProgressionSnapshotV6845; globalThis.epistemicLateProgressionSnapshotV6845 = epistemicLateProgressionSnapshotV6845; }catch(_){ }
+  try{ window.auditV6845EpistemicLateProgression = auditV6845EpistemicLateProgression; globalThis.auditV6845EpistemicLateProgression = auditV6845EpistemicLateProgression; }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6845EpistemicLateWrapped){
+      const wrapped = function runFeatureAuditV6845(feature, opts={}){
+        const f = low(feature).replace(/[.\-\s]+/g,"_");
+        if(AUDIT_KEYS.has(f)) return auditV6845EpistemicLateProgression(opts||{});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v6845EpistemicLateWrapped = true;
       try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; runFeatureAudit = wrapped; }catch(_){ }
     }
   }catch(_){ }
