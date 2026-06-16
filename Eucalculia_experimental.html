@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.37-hotpath-audit-slimming</title>
+<title>Eucalculia v6.8.39-answer-first-review-learning</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -2837,7 +2837,7 @@ select.cs-native {
 <div class="guide-section">
 <h3>Visuospatial manipulation layer</h3>
 <p>Auto introduces visual manipulation after basic value recognition and before ordinary relational practice. These trials are a bridge: the user first learns to read the active representations, then learns to manipulate them mentally after the mask, and only then does L0 become the main stream. Once the relational stream is open, isolated single-stimulus tutorial trials disappear; transformations continue inside L0 and later L1, where they are combined with ordinary relational questions.</p>
-<p>Transformations are representation-specific. Single-die trials can use the opposite face or a die roll, clocks can rotate or move hours, frames and square grids can use complements, coins and cards can filter internal parts, clusters can select subgroups, abaci can separate upper and lower value, and cubes can be viewed from a different side. The review screen decomposes transformed L0 errors into shown value, transformed value and final relation.</p>
+<p>Transformations are representation-specific. Single-die trials can use the opposite face or a die roll, clocks can rotate or move hours, frames and square grids can use complements, coins and cards can filter internal parts, clusters can select subgroups, abaci can separate upper and lower value, and cubes can be viewed from a different side. The review screen decomposes transformed L0 errors into shown value, transformed value and final relation; prompts keep conventions implicit so the answer is attempted before correction.</p>
 </div>
 
 <div class="guide-section">
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.37-hotpath-audit-slimming";
+const APP_VERSION = "v6.8.39-answer-first-review-learning";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -10992,17 +10992,17 @@ function readabilityPolishText(text){
   // unit and target directly; internal labels are not sufficient instructions.
   s = s
     .replace(/^Apply this transformation:\s*upper abacus row\.\s*What value do you get\??$/i,
-      "Use only the upper row of the abacus. Each upper bead is worth 5. What value does the upper row show?")
+      "Use only the upper row of the abacus. What value does the upper row show?")
     .replace(/^Apply this transformation:\s*lower abacus row\.\s*What value do you get\??$/i,
-      "Use only the lower row of the abacus. Each lower bead is worth 1. What value does the lower row show?")
+      "Use only the lower row of the abacus. What value does the lower row show?")
     .replace(/^Apply this transformation:\s*add upper bead\.\s*What value do you get\??$/i,
-      "Add one upper abacus bead worth 5. What value would the abacus show?")
+      "Add one upper abacus bead. What value would the abacus show?")
     .replace(/^Apply this transformation:\s*remove upper bead\.\s*What value do you get\??$/i,
-      "Remove one upper abacus bead worth 5. What value would the abacus show?")
+      "Remove one upper abacus bead. What value would the abacus show?")
     .replace(/^Apply this transformation:\s*add lower bead\.\s*What value do you get\??$/i,
-      "Add one lower abacus bead worth 1. What value would the abacus show?")
+      "Add one lower abacus bead. What value would the abacus show?")
     .replace(/^Apply this transformation:\s*remove lower bead\.\s*What value do you get\??$/i,
-      "Remove one lower abacus bead worth 1. What value would the abacus show?")
+      "Remove one lower abacus bead. What value would the abacus show?")
     .replace(/^Use the missing fingers needed to make 5 on the shown hand\.\s*What value is missing\??$/i,
       "How many more fingers are needed to make 5 on this hand?")
     .replace(/^Use the missing fingers needed to make 10 across both hands\.\s*What value is missing\??$/i,
@@ -17557,8 +17557,8 @@ function l0CrossRepProjectionCatalog(){
     {id:"cross_rep_project_clock_back_3", cueRep:"clock", label:"hour after moving 3 hours counterclockwise", short:"clock · counter 3", coreRuleId:"pair_clock_back_3", ruleText:"moving 3 hours counterclockwise on a 12-clock", apply:v=>rotateClockHour(v,-3), canProject:v=>clockBackwardWraps(v,3)},
     {id:"cross_rep_project_finger_complement_5", cueRep:"finger", label:"more fingers needed to make 5", short:"fingers · fill to 5", coreRuleId:"pair_fill_to_5", ruleText:"counting the fingers still needed to make 5", apply:v=>5-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=4},
     {id:"cross_rep_project_finger_complement_10", cueRep:"finger", label:"more fingers needed to make 10", short:"fingers · fill to 10", coreRuleId:"pair_fill_to_10", ruleText:"counting the fingers still needed to make 10", apply:v=>10-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=9},
-    {id:"cross_rep_project_abacus_upper_row_value", cueRep:"abacus", label:"upper-row value on an abacus", short:"abacus · upper-row value", ruleText:"counting only the upper abacus row, with each upper bead worth 5", apply:v=>5*Math.floor(v/5), canProject:v=>Number.isInteger(v)&&v>=5&&v<=24&&(v%5)>0},
-    {id:"cross_rep_project_abacus_lower_row_value", cueRep:"abacus", label:"lower-row value on an abacus", short:"abacus · lower-row value", ruleText:"counting only the lower abacus row, with each lower bead worth 1", apply:v=>v%5, canProject:v=>Number.isInteger(v)&&v>=1&&v<=24&&(v%5)>0},
+    {id:"cross_rep_project_abacus_upper_row_value", cueRep:"abacus", label:"upper-row value on an abacus", short:"abacus · upper-row value", ruleText:"using only the upper abacus row", apply:v=>5*Math.floor(v/5), canProject:v=>Number.isInteger(v)&&v>=5&&v<=24&&(v%5)>0},
+    {id:"cross_rep_project_abacus_lower_row_value", cueRep:"abacus", label:"lower-row value on an abacus", short:"abacus · lower-row value", ruleText:"using only the lower abacus row", apply:v=>v%5, canProject:v=>Number.isInteger(v)&&v>=1&&v<=24&&(v%5)>0},
     {id:"cross_rep_project_die_opposite_face", cueRep:"dice", label:"hidden opposite face of a die", short:"die · opposite face", coreRuleId:"pair_fill_to_7", ruleText:"using the hidden face opposite the shown die face", apply:v=>7-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=6},
   ];
 }
@@ -30806,14 +30806,14 @@ const L0_TRANSFORM_DESCRIPTORS = {
     short: "largest-smallest subgroup gap",
   },
   abacus_upper_row_value: {
-    left:  "A's upper abacus row value, counting each upper bead as 5",
-    right: "B's upper abacus row value, counting each upper bead as 5",
-    short: "upper row value (5 per bead)",
+    left:  "A's upper abacus row value",
+    right: "B's upper abacus row value",
+    short: "upper row value",
   },
   abacus_lower_row_value: {
-    left:  "A's lower abacus row value, counting each lower bead as 1",
-    right: "B's lower abacus row value, counting each lower bead as 1",
-    short: "lower row value (1 per bead)",
+    left:  "A's lower abacus row value",
+    right: "B's lower abacus row value",
+    short: "lower row value",
   },
   abacus_add_upper_bead: {
     left:  "A's abacus after adding one upper bead",
@@ -30841,19 +30841,19 @@ const L0_TRANSFORM_DESCRIPTORS = {
     short: "upper bead moved to lower row (−4)",
   },
   coins_gold_total: {
-    left:  "the value of A's gold coins only, counting each gold coin as 5",
-    right: "the value of B's gold coins only, counting each gold coin as 5",
-    short: "gold coins only (5 each)",
+    left:  "the value of A's gold coins only",
+    right: "the value of B's gold coins only",
+    short: "gold coins only",
   },
   coins_silver_total: {
-    left:  "the value of A's silver coins only, counting each silver coin as 2",
-    right: "the value of B's silver coins only, counting each silver coin as 2",
-    short: "silver coins only (2 each)",
+    left:  "the value of A's silver coins only",
+    right: "the value of B's silver coins only",
+    short: "silver coins only",
   },
   coins_copper_total: {
-    left:  "the value of A's copper coins only, counting each copper coin as 1",
-    right: "the value of B's copper coins only, counting each copper coin as 1",
-    short: "copper coins only (1 each)",
+    left:  "the value of A's copper coins only",
+    right: "the value of B's copper coins only",
+    short: "copper coins only",
   },
   coins_distinct_denominations_count: {
     left:  "the number of different kinds of coins in LEFT",
@@ -41720,7 +41720,7 @@ L1_OPS.push(
     frameTags:["structured_representation","state_composition","abacus5","row_weighting","source_relation"],
     canUse:(p1,p2)=> abacusStructuredStateCanUse(p1,p2,1,"a",2,"b"),
     variants:[
-      { q:"What abacus value uses pair 1 left below and pair 2 right above, with upper beads worth 5?" },
+      { q:"What abacus value uses pair 1 left below and pair 2 right above?" },
       { q:"What abacus value uses pair 1 left on the lower row and pair 2 right on the upper row?" },
     ],
     fn:(p1,p2)=> abacusStructuredStateFn(p1,p2,1,"a",2,"b") },
@@ -41729,7 +41729,7 @@ L1_OPS.push(
     frameTags:["structured_representation","state_composition","abacus5","row_weighting","source_relation"],
     canUse:(p1,p2)=> abacusStructuredStateCanUse(p1,p2,1,"b",2,"a"),
     variants:[
-      { q:"What abacus value uses pair 1 right below and pair 2 left above, with upper beads worth 5?" },
+      { q:"What abacus value uses pair 1 right below and pair 2 left above?" },
       { q:"What abacus value uses pair 1 right on the lower row and pair 2 left on the upper row?" },
     ],
     fn:(p1,p2)=> abacusStructuredStateFn(p1,p2,1,"b",2,"a") },
@@ -41738,7 +41738,7 @@ L1_OPS.push(
     frameTags:["structured_representation","state_composition","abacus5","row_weighting","source_relation"],
     canUse:(p1,p2)=> abacusStructuredStateCanUse(p1,p2,2,"a",1,"b"),
     variants:[
-      { q:"What abacus value uses pair 2 left below and pair 1 right above, with upper beads worth 5?" },
+      { q:"What abacus value uses pair 2 left below and pair 1 right above?" },
       { q:"What abacus value uses pair 2 left on the lower row and pair 1 right on the upper row?" },
     ],
     fn:(p1,p2)=> abacusStructuredStateFn(p1,p2,2,"a",1,"b") },
@@ -41747,7 +41747,7 @@ L1_OPS.push(
     frameTags:["structured_representation","state_composition","abacus5","row_weighting","source_relation"],
     canUse:(p1,p2)=> abacusStructuredStateCanUse(p1,p2,2,"b",1,"a"),
     variants:[
-      { q:"What abacus value uses pair 2 right below and pair 1 left above, with upper beads worth 5?" },
+      { q:"What abacus value uses pair 2 right below and pair 1 left above?" },
       { q:"What abacus value uses pair 2 right on the lower row and pair 1 left on the upper row?" },
     ],
     fn:(p1,p2)=> abacusStructuredStateFn(p1,p2,2,"b",1,"a") },
@@ -43413,7 +43413,7 @@ registerAtomic({
 registerAtomic({
   id:"vr_abacus_upper", kind:"visual_readout", requiredRep:"abacus",
   evaluate:(stim) => _atomicGetAbacusUpperLowerCount(stim).upper * 5,
-  phrase: () => "the value contributed by upper-row beads (each worth 5)",
+  phrase: () => "the value contributed by upper-row beads",
   reviewLine: (stim) => {
     const c = _atomicGetAbacusUpperLowerCount(stim);
     return `Upper row: ${c.upper} bead(s) × 5 = ${c.upper*5}.`;
@@ -43423,7 +43423,7 @@ registerAtomic({
 registerAtomic({
   id:"vr_abacus_lower", kind:"visual_readout", requiredRep:"abacus",
   evaluate:(stim) => _atomicGetAbacusUpperLowerCount(stim).lower,
-  phrase: () => "the value contributed by lower-row beads (each worth 1)",
+  phrase: () => "the value contributed by lower-row beads",
   reviewLine: (stim) => {
     const c = _atomicGetAbacusUpperLowerCount(stim);
     return `Lower row: ${c.lower} bead(s) × 1 = ${c.lower}.`;
@@ -43794,16 +43794,16 @@ _registryVisualReadoutSpec({
   id: "reg_l0s_abacus_upper",
   atomicId: "vr_abacus_upper",
   prompts: [
-    {q:"Use only the upper row. Each upper bead is worth 5. What value does the upper row show?"},
-    {q:"Sum just the upper-row beads (×5 each). Type the value."},
+    {q:"Use only the upper row. What value does the upper row show?"},
+    {q:"Use just the upper-row beads. Type the value."},
   ]
 });
 _registryVisualReadoutSpec({
   id: "reg_l0s_abacus_lower",
   atomicId: "vr_abacus_lower",
   prompts: [
-    {q:"Use only the lower row. Each lower bead is worth 1. What value does the lower row show?"},
-    {q:"Sum just the lower-row beads (×1 each). Type the value."},
+    {q:"Use only the lower row. What value does the lower row show?"},
+    {q:"Use just the lower-row beads. Type the value."},
   ]
 });
 _registryVisualReadoutSpec({
@@ -43903,7 +43903,7 @@ _registryVisualReadoutSpec({
   atomicId: "vr_abacus_total",
   prompts: [
     {q:"What is the total value shown on the abacus?"},
-    {q:"Add upper-row beads (×5 each) and lower-row beads (×1 each). What's the total?"},
+    {q:"Add the upper-row beads and lower-row beads. What's the total?"},
   ]
 });
 _registryVisualReadoutSpec({
@@ -55687,19 +55687,19 @@ function explicitTransformInstruction(rep, transformId, cell=null){
     die_roll_away_left_face_top_gap_two:"Roll twice away from the left visible face. What is the gap between the two top values seen after each roll?",
     die_roll_away_right_face_top_gap_two:"Roll twice away from the right visible face. What is the gap between the two top values seen after each roll?",
     die_visible_sum:"Add the three visible faces of the die. What is the total?",
-    die_hidden_sum:"The whole die sums to 21. What is the total of the three hidden opposite faces?",
+    die_hidden_sum:"What is the total of the three hidden opposite faces?",
     die_largest_visible:"What is the largest visible face of the die?",
     die_smallest_visible:"What is the smallest visible face of the die?",
     die_opposite_largest_visible:"What is the hidden face behind the largest visible face?",
     die_opposite_smallest_visible:"What is the hidden face behind the smallest visible face?",
     die_sum_two_largest_visible:"Add the two largest visible faces of the die. What is the total?",
-    abacus_upper_row_value:"Use only the upper row of the abacus. Each upper bead is worth 5. What value does the upper row show?",
-    abacus_lower_row_value:"Use only the lower row of the abacus. Each lower bead is worth 1. What value does the lower row show?",
-    abacus_add_upper_bead:"Add one upper abacus bead worth 5. What value would the abacus show?",
-    abacus_remove_upper_bead:"Remove one upper abacus bead worth 5. What value would the abacus show?",
-    abacus_add_lower_bead:"Add one lower abacus bead worth 1. What value would the abacus show?",
-    abacus_remove_lower_bead:"Remove one lower abacus bead worth 1. What value would the abacus show?",
-    abacus_upper_to_lower:"After replacing one upper bead worth 5 with one lower bead worth 1, what value would the abacus show?",
+    abacus_upper_row_value:"Use only the upper row of the abacus. What value does the upper row show?",
+    abacus_lower_row_value:"Use only the lower row of the abacus. What value does the lower row show?",
+    abacus_add_upper_bead:"Add one upper abacus bead. What value would the abacus show?",
+    abacus_remove_upper_bead:"Remove one upper abacus bead. What value would the abacus show?",
+    abacus_add_lower_bead:"Add one lower abacus bead. What value would the abacus show?",
+    abacus_remove_lower_bead:"Remove one lower abacus bead. What value would the abacus show?",
+    abacus_upper_to_lower:"After replacing one upper bead with one lower bead, what value would the abacus show?",
     fingers_complement_5:"How many more fingers are needed to make 5 on this hand?",
     fingers_complement_10:"How many more fingers are needed to make 10 across both hands?",
     clock_opposite_hour:"On a 12-hour clock, move to the opposite hour. What hour is it?",
@@ -55712,9 +55712,9 @@ function explicitTransformInstruction(rep, transformId, cell=null){
     clock_rotate_90:"Mentally rotate the clock hand 90° clockwise. What hour does it point to?",
     clock_rotate_270:"Mentally rotate the clock hand 270° clockwise. What hour does it point to?",
     clock_advance_6:"On the clock, what is the opposite hour?",
-    coins_gold_total:"Use only the gold coins. Each gold coin is worth 5. What value do they make?",
-    coins_silver_total:"Use only the silver coins. Each silver coin is worth 2. What value do they make?",
-    coins_copper_total:"Use only the copper coins. Each copper coin is worth 1. What value do they make?",
+    coins_gold_total:"Use only the gold coins. What value do they make?",
+    coins_silver_total:"Use only the silver coins. What value do they make?",
+    coins_copper_total:"Use only the copper coins. What value do they make?",
     coins_distinct_denominations_count:"How many different coin denominations are shown?",
     coins_dominant_class_count:"Which denomination appears most often? Count how many coins are in that denomination.",
     coins_modal_class_value:"Which coin denomination appears most often? What is its coin value?",
@@ -55759,12 +55759,12 @@ function propaedeuticQuestion(rep, transformId, cell){
   const orientation = cell && cell.orientation;
   const isWall = orientation === "vertical";
   const map = {
-    die_opposite_face:"A die has opposite faces that add to 7. What is hidden behind the top face?",
+    die_opposite_face:"What is hidden behind the top face of the die?",
     die_top_face:"What value is on the top face of the die?",
     die_left_visible_face:"What value is on the left visible face of the die?",
     die_right_visible_face:"What value is on the right visible face of the die?",
-    die_opposite_left_face:"A die has opposite faces that add to 7. What is hidden behind the left visible face?",
-    die_opposite_right_face:"A die has opposite faces that add to 7. What is hidden behind the right visible face?",
+    die_opposite_left_face:"What is hidden behind the left visible face of the die?",
+    die_opposite_right_face:"What is hidden behind the right visible face of the die?",
     die_roll_onto_left_face_new_top:"If the die falls onto its left visible face, what value becomes the new top face?",
     die_roll_onto_right_face_new_top:"If the die falls onto its right visible face, what value becomes the new top face?",
     die_roll_away_left_face_new_top:"If the die rolls away from its left visible face, what value becomes the new top face?",
@@ -55778,7 +55778,7 @@ function propaedeuticQuestion(rep, transformId, cell){
     die_roll_away_left_face_top_gap_two:"Roll twice away from the left visible face. What is the gap between the two top values seen after each roll?",
     die_roll_away_right_face_top_gap_two:"Roll twice away from the right visible face. What is the gap between the two top values seen after each roll?",
     die_visible_sum:"Add the top, left visible and right visible die faces. What is the total?",
-    die_hidden_sum:"The six faces of a die sum to 21. What is the total of the three hidden opposite faces?",
+    die_hidden_sum:"What is the total of the three hidden opposite faces?",
     die_largest_visible:"What is the largest visible face of the die?",
     die_smallest_visible:"What is the smallest visible face of the die?",
     die_opposite_largest_visible:"What is the hidden face behind the largest visible face?",
@@ -55812,20 +55812,20 @@ function propaedeuticQuestion(rep, transformId, cell){
     grid_edge_count:"How many filled edge cells are in the 3×3 grid, not counting corners?",
     grid_center_filled:"Is the middle square of the 3×3 grid filled?",
     grid_full_line_count:"How many complete horizontal or vertical lines are filled in the 3×3 grid?",
-    abacus_add_upper_bead:"Add one upper abacus bead worth 5. What value would the abacus show?",
-    abacus_remove_upper_bead:"Remove one upper abacus bead worth 5. What value would the abacus show?",
-    abacus_add_lower_bead:"Add one lower abacus bead worth 1. What value would the abacus show?",
-    abacus_remove_lower_bead:"Remove one lower abacus bead worth 1. What value would the abacus show?",
-    abacus_upper_to_lower:"After replacing one upper bead worth 5 with one lower bead worth 1, what value would the abacus show?",
+    abacus_add_upper_bead:"Add one upper abacus bead. What value would the abacus show?",
+    abacus_remove_upper_bead:"Remove one upper abacus bead. What value would the abacus show?",
+    abacus_add_lower_bead:"Add one lower abacus bead. What value would the abacus show?",
+    abacus_remove_lower_bead:"Remove one lower abacus bead. What value would the abacus show?",
+    abacus_upper_to_lower:"After replacing one upper bead with one lower bead, what value would the abacus show?",
     cluster_largest_group:"Ignore the total. Count the marks in one single largest subgroup.",
     cluster_smallest_group:"Ignore the total. Count the marks in one single smallest subgroup.",
     cluster_without_largest_group:"Remove one largest subgroup. What total remains?",
     cluster_subgroup_count:"How many separate subgroups are shown?",
     cluster_without_smallest_group:"Remove one smallest subgroup. What total remains?",
     cluster_gap_largest_smallest:"What is the difference between one largest subgroup and one smallest subgroup?",
-    coins_gold_total:"Use only the gold coins. Each gold coin is worth 5. What value do they make?",
-    coins_silver_total:"Use only the silver coins. Each silver coin is worth 2. What value do they make?",
-    coins_copper_total:"Use only the copper coins. Each copper coin is worth 1. What value do they make?",
+    coins_gold_total:"Use only the gold coins. What value do they make?",
+    coins_silver_total:"Use only the silver coins. What value do they make?",
+    coins_copper_total:"Use only the copper coins. What value do they make?",
     coins_distinct_denominations_count:"How many different coin denominations are shown?",
     coins_dominant_class_count:"Which denomination appears most often? Count how many coins are in that denomination.",
     coins_modal_class_value:"Which coin denomination appears most often? What is its coin value?",
@@ -94537,6 +94537,458 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       try{ window.runFeatureAudit = runFeatureAudit; globalThis.runFeatureAudit = runFeatureAudit; }catch(_){ }
     }
   }catch(e){ warn(`${PATCH_ID}: audit export failed`, e); }
+})();
+
+</script>
+<script>
+
+(function(){
+  "use strict";
+  /* ════════════════════════════════════════════════════════════════════════
+     EUCALCULIA v6.8.38 — EPISTEMIC / TRANSFORM / SHEPARD POLISH
+     ────────────────────────────────────────────────────────────────────────
+     • Epistemic determinability prompts no longer reveal LEFT/RIGHT values.
+       They render compact cards and replace vague "public:" wording with
+       explicit clue types.
+     • Operation-effect choice avoids universal-shortcut correct answers such
+       as "multiply by 2" for divisibility-preservation prompts.
+     • Shepard conditional gates are runtime-validated so rotation and mirror
+       labels are mutually exclusive under the cube-rotation group.
+  ════════════════════════════════════════════════════════════════════════ */
+  const PATCH_ID = "v6.8.38-epistemic-transform-shepard-polish";
+  const keys = new Set(["v6838","v6_8_38","epistemic_transform_shepard_polish","epistemic_polish","shepard_audit","operation_effect_shortcuts"]);
+  const arr = x => Array.isArray(x) ? x : [];
+  const str = x => String(x == null ? "" : x);
+  const low = x => str(x).toLowerCase();
+  const htmlEsc = s => str(s).replace(/[&<>\"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+  const uniq = xs => Array.from(new Set(arr(xs).filter(Boolean)));
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const auditResultLocal = (status, details) => { try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {status, ok:status==="PASS", ...details}; };
+  function shuffleLocal(xs){ const a=arr(xs).slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+  // ── Epistemic calculation: value-hidden, card-rendered prompt ──────────
+  const FACT_LABELS = {
+    left_exact:"LEFT value",
+    right_exact:"RIGHT value",
+    left_parity:"whether LEFT is odd or even",
+    right_parity:"whether RIGHT is odd or even",
+    left_prime_status:"whether LEFT is prime",
+    right_prime_status:"whether RIGHT is prime",
+    public_sum:"exact total LEFT + RIGHT",
+    public_gap:"exact gap |LEFT − RIGHT|",
+    public_sum_parity:"whether LEFT + RIGHT is odd or even",
+    public_order:"whether LEFT is greater than, less than, or equal to RIGHT",
+    public_target_truth:"the YES/NO answer to the target",
+    public_gap_truth:"whether the gap target is true"
+  };
+  function epFactLabel(id){ return FACT_LABELS[str(id)] || str(id).replace(/^public_/,"shared clue: ").replace(/_/g," "); }
+  function epIsAggregateFact(id){ return /^public_|sum|gap|order|target_truth/i.test(str(id)); }
+  function epPlainAgentLine(agentRow){
+    const facts = uniq(agentRow?.facts).map(epFactLabel);
+    return `${agentRow?.agent || "Agent"}: ${facts.length ? facts.join("; ") : "partial information"}`;
+  }
+  function epPublicContractLine(ep){
+    const allAgents = arr(ep?.agents);
+    const publicIds = uniq([].concat(...allAgents.map(a=>arr(a?.facts).filter(f=>/^public_/.test(str(f))))));
+    if(!publicIds.length) return "";
+    const shared = publicIds.filter(id => allAgents.length && allAgents.every(a => arr(a?.facts).includes(id)));
+    const partial = publicIds.filter(id => !shared.includes(id));
+    const bits=[];
+    if(shared.length) bits.push(`shared by everyone: ${shared.map(epFactLabel).join("; ")}`);
+    if(partial.length) bits.push(`aggregate clues listed under individual agents: ${partial.map(epFactLabel).join("; ")}`);
+    return bits.join(". ");
+  }
+  function polishEpistemicTrialV6838(trial){
+    const ep = trial?.payload?.epistemicAbstract || trial?.epistemicAbstract;
+    if(!trial || !ep || ep.solver !== "v6823_calculation_determinability") return trial;
+    const target = ep.targetText || "the target relation";
+    const agentLines = arr(ep.agents).map(epPlainAgentLine);
+    const publicLine = epPublicContractLine(ep);
+    const qLines = [
+      `Epistemic calculation. Target: ${target}.`,
+      publicLine ? `Clue contract: ${publicLine}.` : "Clue contract: each row lists exactly what that person can use.",
+      "Who can determine whether the target is YES or NO?",
+      ...agentLines
+    ];
+    trial.question = qLines.join("\n");
+    trial.delayedPrompt = trial.question;
+    trial.epistemicCalculationDisplay = {
+      patch:PATCH_ID,
+      targetText:target,
+      contract:publicLine || "Each row lists exactly what that person can use.",
+      agents:arr(ep.agents).map(a=>({agent:a.agent, facts:uniq(a.facts).map(epFactLabel), canDetermine:!!a.canDetermine, answer:a.answer || null, worldCount:a.worldCount || null, truthValues:arr(a.truthValues).slice()}))
+    };
+    ep.display = trial.epistemicCalculationDisplay;
+    if(trial.payload && trial.payload.epistemicAbstract) trial.payload.epistemicAbstract.display = trial.epistemicCalculationDisplay;
+    trial.frameTags = uniq([...(trial.frameTags||[]), "epistemic_value_hidden_prompt", "structured_epistemic_cards"]);
+    return trial;
+  }
+  function patchEpistemicCatsV6838(){
+    let patched=0;
+    try{
+      for(const c of arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+        if(!c || c.family !== "epistemic_abstract" || typeof c.buildChoiceTrial !== "function" || c.__v6838EpistemicPolished) continue;
+        const prev = c.buildChoiceTrial;
+        c.buildChoiceTrial = function buildChoiceTrialEpistemicV6838(cat,m){
+          const t = prev.apply(this, arguments);
+          return polishEpistemicTrialV6838(t);
+        };
+        c.__v6838EpistemicPolished = true;
+        patched++;
+      }
+    }catch(_){ }
+    return patched;
+  }
+  function renderEpistemicCalculationCardV6838(ep){
+    const disp = ep?.display || ep;
+    if(!disp || !Array.isArray(disp.agents)) return "";
+    const parts=[];
+    parts.push(`<div class="qstep compact"><strong>Target:</strong><br>• ${htmlEsc(disp.targetText || ep?.targetText || "the target relation")}</div>`);
+    parts.push(`<div class="qstep compact"><strong>Clue contract:</strong><br>• ${htmlEsc(disp.contract || "Each row lists exactly what that person can use.")}</div>`);
+    for(const a of disp.agents.slice(0,3)){
+      const facts = arr(a.facts).length ? arr(a.facts).map(x=>`• ${htmlEsc(x)}`).join("<br>") : "• partial information";
+      parts.push(`<div class="qstep section"><strong>${htmlEsc(a.agent || "Agent")} can use:</strong><br>${facts}</div>`);
+    }
+    parts.push(`<div class="qstep prompt-end"><strong>Question:</strong> Who can determine whether the target is YES or NO?</div>`);
+    return `<div class="meta-question-card epistemic-card">${parts.join("")}</div>`;
+  }
+  function patchStructuredRendererV6838(){
+    try{
+      if(typeof renderStructuredQuestionHTML !== "function" || renderStructuredQuestionHTML.__v6838EpistemicWrapped) return false;
+      const prev = renderStructuredQuestionHTML;
+      const wrapped = function renderStructuredQuestionHTMLV6838(qText, info=null){
+        try{
+          const ep = info?.payload?.epistemicAbstract || info?.epistemicAbstract;
+          if(ep && ep.solver === "v6823_calculation_determinability"){
+            const html = renderEpistemicCalculationCardV6838(ep);
+            if(html) return html;
+          }
+        }catch(_){ }
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v6838EpistemicWrapped = true;
+      renderStructuredQuestionHTML = wrapped;
+      try{ window.renderStructuredQuestionHTML = wrapped; globalThis.renderStructuredQuestionHTML = wrapped; }catch(_){ }
+      return true;
+    }catch(_){ return false; }
+  }
+  function patchEpistemicReviewV6838(){
+    try{
+      if(typeof l0GenericChoiceReviewDetails !== "function" || l0GenericChoiceReviewDetails.__v6838EpistemicWrapped) return false;
+      const prev = l0GenericChoiceReviewDetails;
+      const wrapped = function l0GenericChoiceReviewDetailsV6838(info){
+        const ep = info?.payload?.epistemicAbstract || info?.epistemicAbstract;
+        if(ep && ep.solver === "v6823_calculation_determinability"){
+          const correct = (typeof choiceReviewCorrectIndices === "function") ? choiceReviewCorrectIndices(info) : [];
+          const selected = (typeof choiceReviewSelectedIndices === "function") ? choiceReviewSelectedIndices(info) : [];
+          const optText = i => (typeof choiceReviewOptionText === "function") ? choiceReviewOptionText(info,i) : (info?.options?.[i]?.text || `option ${Number(i)+1}`);
+          const lines=[];
+          lines.push(`Target: ${ep.targetText || "target"}. Actual answer: ${ep.actualTruth || "—"}.`);
+          lines.push(`Can determine: ${ep.correct || ep.determiners?.join(", ") || "—"}.`);
+          const agents = arr(ep.agents);
+          for(const a of agents.slice(0,3)){
+            const vals = arr(a.truthValues).length ? arr(a.truthValues).join("/") : "—";
+            const clues = arr(a.facts).map(epFactLabel).join("; ") || "partial information";
+            lines.push(`${a.agent}: ${a.canDetermine ? `can determine ${a.answer}` : "cannot determine"} from ${clues} (${a.worldCount} compatible worlds; possible answers ${vals}).`);
+          }
+          if(correct.length) lines.push(`Correct option: ${correct.map(optText).join(" + ")}.`);
+          lines.push(`You selected: ${selected.length ? selected.map(optText).join(" + ") : "—"}.`);
+          return lines.join("\n");
+        }
+        return prev.apply(this, arguments);
+      };
+      wrapped.__v6838EpistemicWrapped = true;
+      l0GenericChoiceReviewDetails = wrapped;
+      try{ window.l0GenericChoiceReviewDetails = wrapped; globalThis.l0GenericChoiceReviewDetails = wrapped; }catch(_){ }
+      return true;
+    }catch(_){ return false; }
+  }
+
+  // ── Operation-effect choice: reject universal shortcut correct answers ──
+  function opEvalPred(id,a,b){ try{ if(typeof operationInvariancePredicateEval === "function") return !!operationInvariancePredicateEval(id,a,b); }catch(_){ } if(id==="one_divides_other") return a>0&&b>0&&(a%b===0||b%a===0); if(id==="same_parity") return (a%2)===(b%2); if(id==="gap_eq_1") return Math.abs(a-b)===1; if(id==="sum_even") return ((a+b)%2)===0; if(id==="same_distance_from_5") return Math.abs(a-5)===Math.abs(b-5); return b>a; }
+  function opPredLabel(id){ try{ if(typeof operationInvariancePredicateLabel === "function") return operationInvariancePredicateLabel(id); }catch(_){ } return str(id).replace(/_/g," "); }
+  function opApply(n,t){ try{ if(typeof operationInvarianceApply === "function") return operationInvarianceApply(n,t); }catch(_){ } const v=Number(n); if(t?.id==="add_constant") return v+Number(t.k||0); if(t?.id==="multiply_positive") return v*Number(t.k||1); if(t?.id==="reflect_anchor") return Number(t.anchor||0)-v; if(t?.id==="modulo_wrap"){ const mod=Math.max(2,Number(t.mod||5)); return ((v%mod)+mod)%mod; } return v; }
+  function opEffect(a,b,t,pred){ const la=opApply(a,t), rb=opApply(b,t), before=opEvalPred(pred,a,b), after=opEvalPred(pred,la,rb); return {leftAfter:la,rightAfter:rb,beforeTruth:before,afterTruth:after,preserved:before===after,transform:t}; }
+  function opGoalDefs(before){
+    const keep = before ? {id:"keep_yes",kind:"keep",label:"keep the answer YES",targetWord:"YES",check:e=>e.afterTruth===true, q:l=>`For the displayed pair, “${l}” was YES. Which operation keeps the answer YES after applying it to both values?`}
+                        : {id:"keep_no",kind:"keep",label:"keep the answer NO",targetWord:"NO",check:e=>e.afterTruth===false, q:l=>`For the displayed pair, “${l}” was NO. Which operation keeps the answer NO after applying it to both values?`};
+    const change = before ? {id:"make_no",kind:"change",label:"change the answer to NO",targetWord:"NO",check:e=>e.afterTruth===false, q:l=>`For the displayed pair, “${l}” was YES. Which operation changes the answer to NO after applying it to both values?`}
+                          : {id:"make_yes",kind:"change",label:"change the answer to YES",targetWord:"YES",check:e=>e.afterTruth===true, q:l=>`For the displayed pair, “${l}” was NO. Which operation changes the answer to YES after applying it to both values?`};
+    return Math.random()<0.74 ? [change, keep] : [keep, change];
+  }
+  function universalShortcutForGoal(pred, transform, before, goal, max=10){
+    let n=0, ok=0;
+    for(let a=1; a<=max; a++) for(let b=1; b<=max; b++){
+      if(a===b && pred==="comparison_greater_than") continue;
+      if(opEvalPred(pred,a,b)!==before) continue;
+      n++;
+      if(goal.check(opEffect(a,b,transform,pred))) ok++;
+    }
+    return n>=8 && ok===n;
+  }
+  function v6838BuildOperationEffectChoice(cat,m){
+    if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function") return null;
+    const pred = cat?.predicateId || "comparison_greater_than";
+    const label = opPredLabel(pred);
+    const max = Math.max(8, Math.min(Number(m) || (typeof currentMax === "function" ? currentMax() : 12), 12));
+    for(let tries=0; tries<360; tries++){
+      let transforms=[];
+      try{ transforms = typeof operationInvarianceTransformChoices === "function" ? operationInvarianceTransformChoices(m) : []; }catch(_){ transforms=[]; }
+      transforms = shuffleLocal(transforms).slice(0,4);
+      if(transforms.length !== 4) return null;
+      const a = (typeof randInt === "function") ? randInt(1, max+1) : (1+Math.floor(Math.random()*max));
+      const b = (typeof randInt === "function") ? randInt(1, max+1) : (1+Math.floor(Math.random()*max));
+      if(a===b && pred==="comparison_greater_than") continue;
+      const evals = transforms.map(t=>opEffect(a,b,t,pred));
+      const before = evals[0]?.beforeTruth;
+      if(typeof before !== "boolean") continue;
+      for(const goal of opGoalDefs(before)){
+        const flags=evals.map(e=>!!goal.check(e));
+        if(flags.filter(Boolean).length !== 1) continue;
+        const semanticCorrectIndex = flags.findIndex(Boolean);
+        const correctTransform = transforms[semanticCorrectIndex];
+        if(universalShortcutForGoal(pred, correctTransform, before, goal, max)) continue;
+        const options = transforms.map((t,i)=>{
+          const ev=evals[i], correct=i===semanticCorrectIndex;
+          const reason = correct ? "correct" : (ev.afterTruth===before ? "keeps_wrong_target" : "changes_wrong_target");
+          return l0ChoiceOption(t.phrase, correct, reason, {transformId:t.id, transform:t, effect:{leftAfter:ev.leftAfter,rightAfter:ev.rightAfter,beforeTruth:before,afterTruth:ev.afterTruth,preserved:ev.preserved,predicateId:pred,predicateLabel:label,goalId:goal.id,goalLabel:goal.label,goalTarget:goal.targetWord,shortcutFiltered:false}});
+        });
+        const trial = buildL0ChoiceTrialFromOptions(cat, m, a,b, goal.q(label), options, semanticCorrectIndex, {operationEffectChoice:{predicateId:pred,predicateLabel:label,goalId:goal.id,goalLabel:goal.label,beforeTruth:before,correctTransformId:correctTransform.id, shortcutFiltered:true, evaluations:evals.map(e=>({leftAfter:e.leftAfter,rightAfter:e.rightAfter,afterTruth:e.afterTruth,preserved:e.preserved,transformId:e.transform?.id}))}, operationInvarianceChoice:{predicateId:pred,goalId:goal.id,evaluations:evals,transforms:transforms.map(t=>t.id)}, mechanismTags:["operation_effect_choice","operation_invariance_choice","shortcut_resistant_transform_choice"]});
+        if(trial){ trial.frameTags=uniq([...(trial.frameTags||[]),"shortcut_resistant_transform_choice"]); return trial; }
+      }
+    }
+    return null;
+  }
+  function patchOperationEffectCatsV6838(){
+    let patched=0;
+    try{
+      if(typeof buildL0OperationInvarianceChoice === "function"){
+        buildL0OperationInvarianceChoice = v6838BuildOperationEffectChoice;
+        try{ window.buildL0OperationInvarianceChoice = v6838BuildOperationEffectChoice; globalThis.buildL0OperationInvarianceChoice = v6838BuildOperationEffectChoice; }catch(_){ }
+      }
+      for(const c of arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+        if(c && c.family==="operation_invariance" && c.responseFormat==="choice" && /^decl_operation_invariance_property_choice_/.test(str(c.id))){
+          c.buildChoiceTrial = v6838BuildOperationEffectChoice;
+          c.variants = [{q:"Choose the operation with the requested effect on the YES/NO answer."}];
+          c.mechanismTags = uniq([...(c.mechanismTags||[]),"shortcut_resistant_transform_choice"]);
+          c.__v6838OperationEffectPatched = true;
+          patched++;
+        }
+      }
+    }catch(_){ }
+    return patched;
+  }
+
+  // ── Shepard mirror/rotation validation ────────────────────────────────
+  function shepardClassifyPairV6838(left,right){
+    try{
+      if(!Array.isArray(left)||!Array.isArray(right)||typeof shepardFiguresEquivalentUnderRotation!=="function"||typeof shepardFigureMirror!=="function") return "unknown";
+      const rot = !!shepardFiguresEquivalentUnderRotation(left,right);
+      const mir = !!shepardFiguresEquivalentUnderRotation(shepardFigureMirror(left),right);
+      if(rot && !mir) return "rotation";
+      if(mir && !rot) return "mirror";
+      if(rot && mir) return "ambiguous";
+      return "different";
+    }catch(_){ return "unknown"; }
+  }
+  function patchShepardConditionalCatsV6838(){
+    let patched=0;
+    try{
+      for(const c of arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+        if(!c || c.family!=="l0_shepard_conditional" || typeof c.gen!=="function" || c.__v6838ShepardValidated) continue;
+        const prev = c.gen;
+        c.gen = function genShepardValidatedV6838(m,t){
+          for(let i=0;i<90;i++){
+            const out = prev.apply(this, arguments);
+            if(!out) continue;
+            const rel = shepardClassifyPairV6838(out._shepardFigureLeft, out._shepardFigureRight);
+            if(rel === out._shepardRelation && ((rel==="rotation"&&out._shepardActiveBranch==="rotated") || (rel==="mirror"&&out._shepardActiveBranch==="mirrored"))) return out;
+          }
+          return null;
+        };
+        c.__v6838ShepardValidated = true;
+        patched++;
+      }
+    }catch(_){ }
+    return patched;
+  }
+
+  function bootV6838(){
+    const ep = patchEpistemicCatsV6838();
+    const sr = patchStructuredRendererV6838();
+    const er = patchEpistemicReviewV6838();
+    const op = patchOperationEffectCatsV6838();
+    const sh = patchShepardConditionalCatsV6838();
+    try{ if(typeof window !== "undefined") window.EUCA_V6838_PATCH = {patch:PATCH_ID, epCats:ep, structuredRenderer:!!sr, epistemicReview:!!er, operationCats:op, shepardCats:sh}; }catch(_){ }
+    return {ep, sr, er, op, sh};
+  }
+
+  function auditV6838EpistemicTransformShepardPolish(opts={}){
+    bootV6838();
+    const block=[], warnings=[], samples={epistemic:[], operation:[], shepard:[]};
+    try{
+      const cats=arr(typeof POSNER_CATS!=="undefined"?POSNER_CATS:[]).filter(c=>c?.family==="epistemic_abstract"&&typeof c.buildChoiceTrial==="function");
+      if(!cats.length) block.push("no epistemic_abstract cats");
+      for(let i=0;i<20 && cats.length;i++){
+        const t=cats[0].buildChoiceTrial(cats[0], 12);
+        if(!t){ block.push(`epistemic sample ${i}: unbuildable`); continue; }
+        const q=str(t.question);
+        if(/\bLEFT\s*=\s*\d|\bRIGHT\s*=\s*\d/i.test(q)) block.push(`epistemic sample ${i}: prompt reveals exact side value`);
+        if(/\bpublic\s*:/i.test(q)) block.push(`epistemic sample ${i}: legacy public-colon wording leaked`);
+        if(!t.epistemicCalculationDisplay) block.push(`epistemic sample ${i}: missing card display payload`);
+        samples.epistemic.push({q:q.split("\n").slice(0,4), display:!!t.epistemicCalculationDisplay});
+      }
+    }catch(e){ block.push("epistemic audit exception: "+(e?.message||e)); }
+    try{
+      const cats=arr(typeof POSNER_CATS!=="undefined"?POSNER_CATS:[]).filter(c=>c?.family==="operation_invariance"&&c.responseFormat==="choice"&&/^decl_operation_invariance_property_choice_/.test(str(c.id)));
+      if(!cats.length) block.push("no operation effect choice cats");
+      const divCat=cats.find(c=>c.predicateId==="one_divides_other") || cats[0];
+      const correctByTransform={}; let divKeepMul=0;
+      for(let i=0;i<90 && divCat;i++){
+        const t=divCat.buildChoiceTrial(divCat, 12);
+        if(!t) continue;
+        const p=t.payload?.operationEffectChoice || t.operationEffectChoice;
+        const ci=arr(t.options).findIndex(o=>o?.correct);
+        const tid=t.options?.[ci]?.transformId || t.options?.[ci]?.payload?.transformId || p?.correctTransformId || "?";
+        correctByTransform[tid]=(correctByTransform[tid]||0)+1;
+        if(p?.predicateId==="one_divides_other" && /^keep_/.test(str(p?.goalId)) && tid==="multiply_positive") divKeepMul++;
+      }
+      if(divKeepMul>0) block.push(`divisibility keep questions still use multiply_positive as correct ${divKeepMul} times`);
+      if(Object.keys(correctByTransform).length<2) warnings.push("operation-effect correct transform diversity low in audit sample");
+      samples.operation.push({divisibilityCorrectByTransform:correctByTransform, divKeepMul});
+    }catch(e){ block.push("operation audit exception: "+(e?.message||e)); }
+    try{
+      if(typeof SHEPARD_CATALOG==="undefined") block.push("missing SHEPARD_CATALOG");
+      else{
+        for(const entry of arr(SHEPARD_CATALOG)){
+          const rel=shepardClassifyPairV6838(entry.voxels, (typeof shepardFigureMirror==="function"?shepardFigureMirror(entry.voxels):[]));
+          if(rel!=="mirror") block.push(`catalog ${entry.id}: mirror classifies as ${rel}`);
+        }
+      }
+      const cats=arr(typeof POSNER_CATS!=="undefined"?POSNER_CATS:[]).filter(c=>c?.family==="l0_shepard_conditional"&&typeof c.gen==="function");
+      if(!cats.length) block.push("no shepard conditional cats");
+      for(let i=0;i<80 && cats.length;i++){
+        const c=cats[i%cats.length]; const want=(i%2)===0;
+        const g=c.gen(12,want);
+        if(!g){ warnings.push(`shepard sample ${i}: unbuildable`); continue; }
+        const rel=shepardClassifyPairV6838(g._shepardFigureLeft, g._shepardFigureRight);
+        if(rel!==g._shepardRelation) block.push(`shepard sample ${i}: expected ${g._shepardRelation}, classified ${rel}`);
+        if(samples.shepard.length<10) samples.shepard.push({cat:c.id, expected:g._shepardRelation, classified:rel});
+      }
+    }catch(e){ block.push("shepard audit exception: "+(e?.message||e)); }
+    return auditResultLocal(block.length?"BLOCK":(warnings.length?"WARN":"PASS"), {appVersion:(typeof currentAppVersion==="function"?currentAppVersion():PATCH_ID), patch:PATCH_ID, warnings:warnings.slice(0,30), block:block.slice(0,40), samples});
+  }
+
+  const bootState = bootV6838();
+  try{ window.shepardClassifyPairV6838 = shepardClassifyPairV6838; globalThis.shepardClassifyPairV6838 = shepardClassifyPairV6838; }catch(_){ }
+  try{ window.auditV6838EpistemicTransformShepardPolish = auditV6838EpistemicTransformShepardPolish; globalThis.auditV6838EpistemicTransformShepardPolish = auditV6838EpistemicTransformShepardPolish; }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6838Wrapped){
+      const wrapped = function runFeatureAuditV6838(feature, opts={}){
+        const f=low(feature).replace(/[.\-]/g,"_");
+        if(keys.has(f)) return auditV6838EpistemicTransformShepardPolish(opts||{});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v6838Wrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v6.8.39 — Answer-first transform prompts: no rule explanations in INPUT
+// ─────────────────────────────────────────────────────────────────────────────
+(function(){
+  const PATCH_ID = "v6.8.39-answer-first-review-learning";
+  const keys = new Set(["v6839", "v6_8_39", "answer_first_review_learning", "visual_transform_answer_first"]);
+  function sText(x){ return String(x == null ? "" : x); }
+  function low(x){ return sText(x).toLowerCase(); }
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function auditResultLocal(status, details){
+    const ok = status === "PASS";
+    return {status, ok, ...(details||{})};
+  }
+  const EXPLANATION_PATTERNS = [
+    /opposite faces? (?:of a die )?(?:always )?(?:add|sum) to 7/i,
+    /(?:whole|six faces? of a) die (?:sums?|add) to 21/i,
+    /each (?:upper|lower) (?:abacus )?bead(?:s)? (?:is|are) worth \d+/i,
+    /(?:upper|lower)-row beads? \(×\d+ each\)/i,
+    /counting each (?:upper|lower) bead as \d+/i,
+    /each (?:gold|silver|copper) coin(?:s)? (?:is|are) worth \d+/i,
+    /counting each (?:gold|silver|copper) coin as \d+/i,
+    /(?:gold|silver|copper) coins? only \(\d+ each\)/i,
+    /copper\s*=\s*1|silver\s*=\s*2|gold\s*=\s*5/i,
+    /upper (?:pink\/red )?beads?\s*=\s*5|lower (?:green )?beads?\s*=\s*1/i
+  ];
+  function textHasInputExplanationV6839(text){
+    const t = sText(text);
+    return EXPLANATION_PATTERNS.some(re => re.test(t));
+  }
+  function collectVisualTransformPromptRowsV6839(){
+    const rows = [];
+    try{
+      if(typeof explicitTransformInstruction === "function"){
+        const ids = [
+          ["dice","die_opposite_face"],["dice","die_opposite_left_face"],["dice","die_opposite_right_face"],["dice","die_hidden_sum"],
+          ["abacus","abacus_upper_row_value"],["abacus","abacus_lower_row_value"],["abacus","abacus_add_upper_bead"],["abacus","abacus_remove_upper_bead"],["abacus","abacus_add_lower_bead"],["abacus","abacus_remove_lower_bead"],["abacus","abacus_upper_to_lower"],
+          ["coins","coins_gold_total"],["coins","coins_silver_total"],["coins","coins_copper_total"]
+        ];
+        for(const [rep,id] of ids) rows.push({source:"explicitTransformInstruction", rep, id, text:explicitTransformInstruction(rep,id,{})});
+      }
+    }catch(e){ rows.push({source:"explicitTransformInstruction", error:e?.message||String(e), text:""}); }
+    try{
+      if(typeof propaedeuticQuestion === "function"){
+        const ids = [
+          ["dice","die_opposite_face"],["dice","die_opposite_left_face"],["dice","die_opposite_right_face"],["dice","die_hidden_sum"],
+          ["abacus","abacus_upper_row_value"],["abacus","abacus_lower_row_value"],["abacus","abacus_add_upper_bead"],["abacus","abacus_remove_upper_bead"],["abacus","abacus_add_lower_bead"],["abacus","abacus_remove_lower_bead"],["abacus","abacus_upper_to_lower"],
+          ["coins","coins_gold_total"],["coins","coins_silver_total"],["coins","coins_copper_total"]
+        ];
+        for(const [rep,id] of ids) rows.push({source:"propaedeuticQuestion", rep, id, text:propaedeuticQuestion(rep,id,{})});
+      }
+    }catch(e){ rows.push({source:"propaedeuticQuestion", error:e?.message||String(e), text:""}); }
+    try{
+      const bank = (typeof L0_TRANSFORM_DESCRIPTORS !== "undefined") ? L0_TRANSFORM_DESCRIPTORS : null;
+      for(const id of ["abacus_upper_row_value","abacus_lower_row_value","coins_gold_total","coins_silver_total","coins_copper_total"]){
+        const d = bank?.[id];
+        if(d){ rows.push({source:"L0_TRANSFORM_DESCRIPTORS.left", id, text:d.left}); rows.push({source:"L0_TRANSFORM_DESCRIPTORS.right", id, text:d.right}); rows.push({source:"L0_TRANSFORM_DESCRIPTORS.short", id, text:d.short}); }
+      }
+    }catch(e){ rows.push({source:"L0_TRANSFORM_DESCRIPTORS", error:e?.message||String(e), text:""}); }
+    return rows;
+  }
+  function auditV6839AnswerFirstReviewLearning(opts={}){
+    const block=[], warnings=[], rows=collectVisualTransformPromptRowsV6839();
+    for(const r of rows){
+      if(textHasInputExplanationV6839(r.text)) block.push({source:r.source, id:r.id||null, rep:r.rep||null, text:r.text});
+    }
+    try{
+      const reviewSamples=[];
+      if(typeof transformReviewDetails === "function"){
+        const samples = [
+          {rep:"abacus", v:8, answer:13, userAnswer:8, representationTransform:{transformId:"abacus_add_upper_bead", displayValue:8}},
+          {rep:"coins", v:7, answer:2, userAnswer:1, representationTransform:{transformId:"coins_silver_total", coins:[5,2,1,2], displayValue:10}},
+          {rep:"dice", v:3, answer:4, userAnswer:3, representationTransform:{transformId:"die_opposite_face", displayValue:3, orientation:{top:3,front:2,side:1}}}
+        ];
+        for(const sample of samples) reviewSamples.push(transformReviewDetails(sample));
+      }
+      if(!reviewSamples.some(t=>/worth|×\s*5|×\s*2|opposite/i.test(sText(t)))) warnings.push("review samples did not expose rule/convention details; verify transformReviewDetails manually");
+    }catch(e){ warnings.push("review sample exception: "+(e?.message||String(e))); }
+    return auditResultLocal(block.length?"BLOCK":(warnings.length?"WARN":"PASS"), {appVersion:(typeof currentAppVersion==="function"?currentAppVersion():PATCH_ID), patch:PATCH_ID, checkedRows:rows.length, block:block.slice(0,40), warnings:warnings.slice(0,20)});
+  }
+  try{ window.auditV6839AnswerFirstReviewLearning = auditV6839AnswerFirstReviewLearning; globalThis.auditV6839AnswerFirstReviewLearning = auditV6839AnswerFirstReviewLearning; }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6839Wrapped){
+      const wrapped = function runFeatureAuditV6839(feature, opts={}){
+        const f=low(feature).replace(/[.\-]/g,"_");
+        if(keys.has(f)) return auditV6839AnswerFirstReviewLearning(opts||{});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v6839Wrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
 })();
 
 </script>
