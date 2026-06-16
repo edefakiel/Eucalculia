@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.45-epistemic-late-progression</title>
+<title>Eucalculia v6.8.47-source-minimal-relational-language</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3011,7 +3011,7 @@ select.cs-native {
 <div class="tier-item"><b>Difference equals smaller, larger = 2 × smaller + 1, difference &gt; half the larger:</b> evaluate a relation between a derived gap and a role-bound value.</div>
 </div>
 <p>L0 categories are not all equally likely from the beginning. The app uses soft relational frontiers: direct comparisons appear first, then joint numerical properties, explicit set-membership questions, role/property binding, metric and factor relations, and finally compound relations. User-facing wording avoids raw internal labels such as “case”, “in/out” or “vacuous truth”. Boolean gates are introduced by their rule first; for example the NAND rule is shown as “Answer NO only when both conditions are true; otherwise answer YES.” The current value range still matters, but recent accuracy, response time, relational-frame weaknesses and recent sampling concentration also shape which categories are emphasized.</p>
-<p><strong>Update Chains:</strong> after frame-burst performance is stable, a sparse advanced L0 family may appear. A burst asks several questions about the same fixed LEFT/RIGHT state. An Update Chain instead tells you to replace LEFT or RIGHT internally and then answer a YES/NO question about the updated state. For example: “Replace LEFT with the gap between LEFT and RIGHT. Is LEFT now even?” A later probe may then use that updated LEFT: “Now replace RIGHT with LEFT + 2. Is RIGHT now greater than original RIGHT?” These items remain L0: no numpad is used, and the answer channel stays YES/NO. They are initially kept out of MEM/META history so mutable-state practice does not interfere with ordinary retained-pair integration. A sparse advanced subfamily, <strong>truth-gated update</strong>, also lives here: an internal relation about the current state selects the update branch before the final YES/NO check. For example: “If GAP is prime, replace LEFT with GAP; otherwise, replace RIGHT with GAP. After the update, is LEFT greater than RIGHT?” This is operational metarelational control inside the same Update Chain architecture, not a separate mode.</p>
+<p><strong>Update Chains:</strong> after frame-burst performance is stable, a sparse advanced L0 family may appear. A burst asks several questions about the same fixed LEFT/RIGHT state. An Update Chain instead tells you to replace LEFT or RIGHT internally and then answer a YES/NO question about the updated state. For example: “Replace LEFT with the gap. Is LEFT now even?” A later probe may then use that updated LEFT: “Now replace RIGHT with LEFT + 2. Is RIGHT now greater than original RIGHT?” These items remain L0: no numpad is used, and the answer channel stays YES/NO. They are initially kept out of MEM/META history so mutable-state practice does not interfere with ordinary retained-pair integration. A sparse advanced subfamily, <strong>truth-gated update</strong>, also lives here: an internal relation about the current state selects the update branch before the final YES/NO check. For example: “If GAP is prime, replace LEFT with GAP; otherwise, replace RIGHT with GAP. After the update, is LEFT greater than RIGHT?” This is operational metarelational control inside the same Update Chain architecture, not a separate mode.</p>
 <p><strong>Paper folding checks:</strong> in late L0, the question frame may show a folded-paper sequence, including horizontal, vertical, partial and diagonal folds. Mentally unfold the sheet and count the resulting holes, then compare that hole count with the flashed LEFT/RIGHT values. The answer is still YES or NO; the hole count is not typed. The paper-folding analogy family now uses the same shared numeric-rule catalogue as the induction-chain rule checks, adapted to the paper format: LEFT/RIGHT provide the source values and the unfolded hole count is the derived third value.</p>
 <p><strong>Shepard cube checks:</strong> in late L0, the question frame may show two cube figures. Decide whether the right figure is a rotation of the left figure or a mirror image, then apply the corresponding numerical rule to the flashed LEFT/RIGHT values. These items combine mental rotation with conditional rule selection, but they remain ordinary L0 relational trials.</p>
 <p><strong>Directed graph checks:</strong> in late L0, the question frame may show two small directed graphs. Decide whether the graphs have the same structure or differ by a small structural edit, then apply the corresponding numerical rule to the flashed LEFT/RIGHT values. These items use graph-structure validation as the conditional source, but remain ordinary L0 YES/NO trials.</p>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.45-epistemic-late-progression";
+const APP_VERSION = "v6.8.47-source-minimal-relational-language";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -34944,15 +34944,15 @@ function l0StateChainOriginalValue(st, side){ return side === "right" ? st.origi
 function l0StateChainPrime(n){ return Number.isInteger(n) && n > 1 && isPrime(n); }
 
 const L0_STATE_CHAIN_UPDATES = [
-  {id:"left_gap", side:"left", stage:0, uses:null, text:()=>"Replace LEFT with the gap between LEFT and RIGHT.", fn:st=>gapValue(st.left, st.right)},
-  {id:"right_gap", side:"right", stage:0, uses:null, text:()=>"Replace RIGHT with the gap between LEFT and RIGHT.", fn:st=>gapValue(st.left, st.right)},
+  {id:"left_gap", side:"left", stage:0, uses:null, text:()=>"Replace LEFT with the gap.", fn:st=>gapValue(st.left, st.right)},
+  {id:"right_gap", side:"right", stage:0, uses:null, text:()=>"Replace RIGHT with the gap.", fn:st=>gapValue(st.left, st.right)},
   {id:"left_twice_smaller", side:"left", stage:0, uses:null, text:()=>"Replace LEFT with twice the smaller number.", fn:st=>2 * smallerValue(st.left, st.right)},
   {id:"right_twice_smaller", side:"right", stage:0, uses:null, text:()=>"Replace RIGHT with twice the smaller number.", fn:st=>2 * smallerValue(st.left, st.right)},
   {id:"left_distance_10", side:"left", stage:0, uses:"left", text:()=>"Replace LEFT with LEFT's distance from 10.", fn:st=>gapValue(st.left, 10)},
   {id:"right_distance_10", side:"right", stage:0, uses:"right", text:()=>"Replace RIGHT with RIGHT's distance from 10.", fn:st=>gapValue(st.right, 10)},
   {id:"right_left_plus_2", side:"right", stage:1, uses:"left", text:()=>"Now replace RIGHT with LEFT + 2.", fn:st=>st.left + 2},
   {id:"left_right_plus_2", side:"left", stage:1, uses:"right", text:()=>"Now replace LEFT with RIGHT + 2.", fn:st=>st.right + 2},
-  {id:"right_gap_left_original_right", side:"right", stage:1, uses:"left", text:()=>"Now replace RIGHT with the gap between LEFT and original RIGHT.", fn:st=>gapValue(st.left, st.originalRight)},
+  {id:"right_gap_left_original_right", side:"right", stage:1, uses:"left", text:()=>"Now replace RIGHT with the gap from original RIGHT.", fn:st=>gapValue(st.left, st.originalRight)},
   {id:"left_gap_right_original_left", side:"left", stage:1, uses:"right", text:()=>"Now replace LEFT with the gap between RIGHT and original LEFT.", fn:st=>gapValue(st.right, st.originalLeft)},
   {id:"right_left_plus_smaller_original", side:"right", stage:1, uses:"left", text:()=>"Now replace RIGHT with LEFT plus the smaller original number.", fn:st=>st.left + smallerValue(st.originalLeft, st.originalRight)},
   {id:"left_right_plus_smaller_original", side:"left", stage:1, uses:"right", text:()=>"Now replace LEFT with RIGHT plus the smaller original number.", fn:st=>st.right + smallerValue(st.originalLeft, st.originalRight)},
@@ -47114,12 +47114,12 @@ function auditL0SetMembershipChoiceUniqueness(opts={}){
 
 function modularChoiceSpecs(){
   return [
-    {id:"same_remainder_core", predicate:"same_remainder", label:"same remainder", modules:[3,4,5,7], minM:7},
-    {id:"diff_multiple_core", predicate:"diff_is_multiple", label:"difference is a multiple", modules:[3,4,5,10], minM:10},
-    {id:"sum_multiple_core", predicate:"sum_is_multiple", label:"sum is a multiple", modules:[3,4,5,7], minM:7},
-    {id:"same_remainder_decimal", predicate:"same_remainder", label:"same remainder", modules:[4,5,7,10], minM:10},
-    {id:"sum_multiple_decimal", predicate:"sum_is_multiple", label:"sum is a multiple", modules:[4,5,7,10], minM:10},
-    {id:"diff_multiple_wide", predicate:"diff_is_multiple", label:"difference is a multiple", modules:[5,7,10,12], minM:12}
+    {id:"same_remainder_core", predicate:"same_remainder", label:"gap", measure:"gap", modules:[3,4,5,7], minM:7},
+    {id:"diff_multiple_core", predicate:"diff_is_multiple", label:"gap", measure:"gap", modules:[3,4,5,10], minM:10},
+    {id:"sum_multiple_core", predicate:"sum_is_multiple", label:"total", measure:"total", modules:[3,4,5,7], minM:7},
+    {id:"same_remainder_decimal", predicate:"same_remainder", label:"gap", measure:"gap", modules:[4,5,7,10], minM:10},
+    {id:"sum_multiple_decimal", predicate:"sum_is_multiple", label:"total", measure:"total", modules:[4,5,7,10], minM:10},
+    {id:"diff_multiple_wide", predicate:"diff_is_multiple", label:"gap", measure:"gap", modules:[5,7,10,12], minM:12}
   ];
 }
 function modularChoiceEval(pred, mod, a, b){
@@ -47127,19 +47127,21 @@ function modularChoiceEval(pred, mod, a, b){
   if(pred === "sum_is_multiple") return (a+b) % mod === 0;
   return false;
 }
+function modularChoiceMeasureName(spec){
+  return spec?.measure === "total" || spec?.predicate === "sum_is_multiple" ? "total" : "gap";
+}
 function buildL0ModularClassificationChoice(cat, m){
   const spec = cat.choiceSpec;
   const mods = spec.modules.filter(x => x <= Math.max(12,m) && x > 1);
   const defs = mods.map(mod => ({mod, eval:(a,b)=>modularChoiceEval(spec.predicate, mod, a,b)}));
   const sample = samplePairWhereExactlyOne(Math.min(m,12), defs, (d,a,b)=>d.eval(a,b), {allowEqual:false, cap:Math.min(m,12)});
   if(!sample) return null;
-  const options = defs.map((d,i)=>l0ChoiceOption(`mod ${d.mod}`, i===sample.correctIndex, i===sample.correctIndex ? "correct" : "semantic_near_miss", {modulus:d.mod, predicate:spec.predicate}));
-  const modStem = choice([
-    `Under which modulus do the two values satisfy: ${spec.label}?`,
-    `For which modulus does the pair satisfy ${spec.label}?`,
-    `Pick the modulus under which the two values satisfy ${spec.label}.`
-  ]);
-  return buildL0ChoiceTrialFromOptions(cat, m, sample.a, sample.b, modStem, options, sample.correctIndex, {modularClassification:{specId:spec.id, predicate:spec.predicate, modules:mods}, mechanismTags:["modular_classification"]});
+  const measure = modularChoiceMeasureName(spec);
+  const options = defs.map((d,i)=>l0ChoiceOption(String(d.mod), i===sample.correctIndex, i===sample.correctIndex ? "correct" : "semantic_near_miss", {divisor:d.mod, modulus:d.mod, predicate:spec.predicate, measure}));
+  const modStem = measure === "total"
+    ? choice(["Which number divides the total evenly?", "The total has no remainder when divided by which number?", "Pick the divisor that works for the total."])
+    : choice(["Which number divides the gap evenly?", "The gap has no remainder when divided by which number?", "Pick the divisor that works for the gap."]);
+  return buildL0ChoiceTrialFromOptions(cat, m, sample.a, sample.b, modStem, options, sample.correctIndex, {modularClassification:{specId:spec.id, predicate:spec.predicate, modules:mods, measure}, mechanismTags:["modular_classification"]});
 }
 function makeL0ModularClassificationChoiceCats(){
   return modularChoiceSpecs().map(spec=>({
@@ -47148,7 +47150,7 @@ function makeL0ModularClassificationChoiceCats(){
     family:"modular_choice", responseFormat:"choice", choiceSpec:spec,
     frameTags:["modular_relation","class_inclusion","choice_readout","rule_identification"],
     canUse:m => Number(m) >= (spec.minM || 7),
-    variants:[{q:"Under which modulus does the displayed pair satisfy the relation?"},{q:"For which modulus does the pair satisfy the displayed relation?"},{q:"Pick the modulus under which the two values satisfy the relation."}],
+    variants:[{q:"Which number divides the active measure evenly?"},{q:"Pick the divisor that leaves no remainder."}],
     buildChoiceTrial:buildL0ModularClassificationChoice,
     gen(m,t){ return [randInt(1,m+1), randInt(1,m+1)]; }, verify(){ return INAPPLICABLE; }
   }));
@@ -47174,11 +47176,11 @@ function cyclicDistanceChoiceSpecs(){
 function cyclicDistancePromptText(spec){
   const mod = Number(spec?.mod) || 0;
   const kind = spec?.kind || "shortest";
-  if(kind === "shortest") return `On a ${mod}-step cycle, what is the shorter path length between LEFT and RIGHT?`;
+  if(kind === "shortest") return `On a ${mod}-step cycle, what is the shorter path from LEFT to RIGHT?`;
   if(kind === "clockwise") return `On a ${mod}-step cycle, how many steps clockwise from LEFT to RIGHT?`;
   if(kind === "counterclockwise") return `On a ${mod}-step cycle, how many steps counterclockwise from LEFT to RIGHT?`;
-  if(kind === "complement") return `On a ${mod}-step cycle, take the ordinary gap |LEFT−RIGHT|. What is the remaining path (${mod}−gap)?`;
-  return `On a ${mod}-step cycle, choose the requested distance between LEFT and RIGHT.`;
+  if(kind === "complement") return `On a ${mod}-step cycle, what is the wrap-around path between LEFT and RIGHT?`;
+  return `On a ${mod}-step cycle, choose the requested path between LEFT and RIGHT.`;
 }
 function buildL0CyclicDistanceChoice(cat, m){
   const spec = cat.choiceSpec;
@@ -48291,8 +48293,8 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
 
   function ep47RuleExtras(max){
     return [
-      {id:"mod_3", short:"mod 3", label:"RIGHT is LEFT modulo 3", apply:L=>L % 3, atomicId:"epistemic_modular_transform"},
-      {id:"mod_5", short:"mod 5", label:"RIGHT is LEFT modulo 5", apply:L=>L % 5, atomicId:"epistemic_modular_transform"},
+      {id:"mod_3", short:"remainder by 3", label:"RIGHT is the remainder after dividing LEFT by 3", apply:L=>L % 3, atomicId:"epistemic_modular_transform"},
+      {id:"mod_5", short:"remainder by 5", label:"RIGHT is the remainder after dividing LEFT by 5", apply:L=>L % 5, atomicId:"epistemic_modular_transform"},
       {id:"flip_parity", short:"flip parity", label:"RIGHT is one step from LEFT with parity flipped", apply:L=>L % 2 === 0 ? L + 1 : L - 1, atomicId:"epistemic_parity_transform"},
       {id:"mirror_5", short:"mirror around 5", label:"RIGHT mirrors LEFT around 5", apply:L=>L <= 5 ? 10 - L : null, atomicId:"op_reflect_around_anchor"},
       {id:"gap_to_5", short:"gap to 5", label:"RIGHT is the distance from LEFT to 5", apply:L=>Math.abs(L - 5), atomicId:"metric_gap_distance"},
@@ -48307,8 +48309,8 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
   };
   l0EpistemicRuleText = function l0EpistemicRuleTextV6547(rule){
     const id = typeof rule === "string" ? rule : rule?.id;
-    if(id === "mod_3") return "RIGHT = LEFT mod 3 (remainder after dividing LEFT by 3)";
-    if(id === "mod_5") return "RIGHT = LEFT mod 5 (remainder after dividing LEFT by 5)";
+    if(id === "mod_3") return "RIGHT is the remainder after dividing LEFT by 3";
+    if(id === "mod_5") return "RIGHT is the remainder after dividing LEFT by 5";
     if(id === "flip_parity") return "RIGHT = LEFT + 1 if LEFT is even; otherwise LEFT − 1";
     if(id === "mirror_5") return "RIGHT = 10 − LEFT, when LEFT ≤ 5";
     if(id === "gap_to_5") return "RIGHT = |LEFT − 5|";
@@ -78431,8 +78433,8 @@ try{
       const prev = l0EpistemicRuleText;
       const wrapped = function l0EpistemicRuleTextModuloGlossV668(rule){
         const id = typeof rule === "string" ? rule : rule && rule.id;
-        if(id === "mod_3") return "RIGHT = LEFT mod 3 (remainder after dividing LEFT by 3)";
-        if(id === "mod_5") return "RIGHT = LEFT mod 5 (remainder after dividing LEFT by 5)";
+        if(id === "mod_3") return "RIGHT is the remainder after dividing LEFT by 3";
+        if(id === "mod_5") return "RIGHT is the remainder after dividing LEFT by 5";
         return prev.apply(this, arguments);
       };
       wrapped.__v668ModuloGloss = true;
@@ -79637,7 +79639,7 @@ try{
   function auditTextConcisionV6617(opts={}){
     const block = [], warnings = [];
     try{
-      const fakeEp = {epistemicSufficiency:{agent:"Vera", infoLines:["LEFT = 1", "RIGHT follows one of these rules: RIGHT = LEFT + 2 OR RIGHT = LEFT mod 5 (remainder after dividing LEFT by 5)"], targetText:"RIGHT > 1"}};
+      const fakeEp = {epistemicSufficiency:{agent:"Vera", infoLines:["LEFT = 1", "RIGHT follows one of these rules: RIGHT = LEFT + 2 OR RIGHT is the remainder after dividing LEFT by 5"], targetText:"RIGHT > 1"}};
       const epHtml = typeof renderStructuredQuestionHTML === "function" ? String(renderStructuredQuestionHTML("", fakeEp) || "") : "";
       if(/You saw the actual LEFT and RIGHT|actual LEFT and RIGHT values/i.test(epHtml)) block.push("canonical epistemic card still says the user saw LEFT/RIGHT");
       if(!/What can Vera determine\?/i.test(epHtml)) block.push("canonical epistemic card missing concise question");
@@ -80185,7 +80187,7 @@ try{
   function auditTextConcisionV6617(opts={}){
     const block = [], warnings = [];
     try{
-      const fakeEp = {epistemicSufficiency:{agent:"Vera", infoLines:["LEFT = 1", "RIGHT follows one of these rules: RIGHT = LEFT + 2 OR RIGHT = LEFT mod 5 (remainder after dividing LEFT by 5)"], targetText:"RIGHT > 1"}};
+      const fakeEp = {epistemicSufficiency:{agent:"Vera", infoLines:["LEFT = 1", "RIGHT follows one of these rules: RIGHT = LEFT + 2 OR RIGHT is the remainder after dividing LEFT by 5"], targetText:"RIGHT > 1"}};
       const epHtml = typeof renderStructuredQuestionHTML === "function" ? String(renderStructuredQuestionHTML("", fakeEp) || "") : "";
       if(/You saw the actual LEFT and RIGHT|actual LEFT and RIGHT values/i.test(epHtml)) block.push("canonical epistemic card still says the user saw LEFT/RIGHT");
       if(!/What can Vera determine\?/i.test(epHtml)) block.push("canonical epistemic card missing concise question");
@@ -84456,7 +84458,7 @@ try{
       {
         id:"l1_gap_total",
         title:`Make the two pair gaps add to ${targetGapTotal}`,
-        question:`Build Pair 1 and Pair 2 so the two gaps add to ${targetGapTotal}. A pair gap is |LEFT - RIGHT|.`,
+        question:`Build two pairs so their gaps add to ${targetGapTotal}.`,
         verify:(p1,p2)=> gap(p1) + gap(p2) === targetGapTotal,
         params:{targetGapTotal},
         atomics:["generative_l1", "metric_gap_distance", "retained_pair_binding", "metric_sum_total"]
@@ -84481,7 +84483,7 @@ try{
       {
         id:"l1_same_gap_different_total",
         title:"Same gap, different totals",
-        question:"Build two pairs with the same gap between LEFT and RIGHT, but with different totals.",
+        question:"Build two pairs with the same gap but different totals.",
         verify:(p1,p2)=> gap(p1) === gap(p2) && sum(p1) !== sum(p2),
         atomics:["generative_l1", "metric_gap_distance", "metric_sum_total", "comparison_equal"]
       },
@@ -84609,10 +84611,10 @@ try{
     if(!p1 || !p2) return "No complete construction was recorded.";
     const vals = allValues(p1,p2);
     const base = `Pair 1 LEFT ${p1.a}, RIGHT ${p1.b}; Pair 2 LEFT ${p2.a}, RIGHT ${p2.b}.`;
-    if(id === "l1_gap_total") return `${base} Gaps: ${gap(p1)} and ${gap(p2)}; total gap ${gap(p1)+gap(p2)}.`;
+    if(id === "l1_gap_total") return `${base} Gaps: ${gap(p1)} and ${gap(p2)}; combined gap ${gap(p1)+gap(p2)}.`;
     if(id === "l1_only_claim_b") return `${base} Claim A total comparison: ${sum(p1)} > ${sum(p2)} is ${sum(p1)>sum(p2)?"YES":"NO"}. Claim B gap comparison: ${gap(p1)} < ${gap(p2)} is ${gap(p1)<gap(p2)?"YES":"NO"}.`;
     if(id === "l1_cross_extremes") return `${base} All four values: ${vals.join(", ")}; minimum ${Math.min(...vals)}, maximum ${Math.max(...vals)}.`;
-    if(id === "l1_same_gap_different_total") return `${base} Gaps between LEFT and RIGHT: ${gap(p1)} and ${gap(p2)}. Totals: ${sum(p1)} and ${sum(p2)}.`;
+    if(id === "l1_same_gap_different_total") return `${base} Gaps: ${gap(p1)} and ${gap(p2)}. Totals: ${sum(p1)} and ${sum(p2)}.`;
     if(id === "l1_same_total_different_gap") return `${base} Totals: ${sum(p1)} and ${sum(p2)}. Gaps: ${gap(p1)} and ${gap(p2)}.`;
     if(id === "l1_exactly_two_primes") return `${base} Prime values among the four: ${countBy(vals, isPrimeSmall)}.`;
     if(id === "l1_each_pair_exactly_one_odd") return `${base} Odd counts: Pair 1 = ${countBy(pairValues(p1), isOdd)}, Pair 2 = ${countBy(pairValues(p2), isOdd)}.`;
@@ -91640,12 +91642,12 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         id:`threshold_${sp.id}_${sp.k}`,
         mode:"threshold_bracket_induction",
         title:"Induce the boundary",
-        question:`Examples suggest a threshold rule on ${sp.label}. NO example: L${noEx.a} R${noEx.b}. YES example: L${yesEx.a} R${yesEx.b}. Build TWO new boundary cases: Pair 1 still NO; Pair 2 just crosses to YES.`,
-        sub:"Infer the boundary from the examples; do not copy them. Pair 1 and Pair 2 should be one step apart on the relevant measure.",
-        params:{metricId:sp.metricId, threshold:sp.k, noExample:noEx, yesExample:yesEx},
+        question:`Find the boundary from the examples. Build TWO new pairs that match the two example sides.`,
+        sub:`Pair 1: match the NO example's ${sp.label}. Pair 2: match the YES example's ${sp.label}. Do not copy the examples.`,
+        params:{metricId:sp.metricId, metricLabel:sp.label, threshold:sp.k, noExample:noEx, yesExample:yesEx},
         phaseCount:2,
         klauer:{process:"same_and_different", object:sp.object},
-        reviewHint:`The threshold was ${sp.label} > ${sp.k}. Pair 1 should have ${sp.label} ${sp.k}; Pair 2 should have ${sp.label} ${sp.k+1}.`,
+        reviewHint:`The examples sit on adjacent ${sp.label} values: NO has ${sp.label} ${sp.k}; YES has ${sp.label} ${sp.k+1}. Pair 1 should be a new NO-side case with ${sp.label} ${sp.k}; Pair 2 should be a new YES-side case with ${sp.label} ${sp.k+1}.`,
         example:{p1,p2}
       }));
     }
@@ -91828,7 +91830,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(ic?.mode === "system_construction") return "Target: satisfy the stated same/different system.";
     if(ic?.mode === "hidden_rule_induction") return `Target: infer the visible candidate rule and build a new ${yn(p.target)} example.`;
     if(ic?.mode === "discriminator_construction") return "Target: build a case where hypothesis A and hypothesis B disagree.";
-    if(ic?.mode === "threshold_bracket_induction") return `Target: build boundary cases at ${p.metricId} ${p.threshold} and ${Number(p.threshold)+1}.`;
+    if(ic?.mode === "threshold_bracket_induction") return `Target: Pair 1 matches the NO example's measure; Pair 2 matches the YES example's measure.`;
     if(ic?.mode === "composition_induction") return `Target: infer the connective and build a new ${yn(p.target)} example.`;
     return "Target: build a construction satisfying the stated constraints.";
   }
@@ -91866,7 +91868,11 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }
     if(p1 && p2 && ic.mode === "threshold_bracket_induction"){
       const metric = params.metricId === "gap" ? gap : sum;
-      analysis = `Pair 1 ${params.metricId} ${metric(p1)}; Pair 2 ${params.metricId} ${metric(p2)}. Boundary target was ${params.metricId} ${params.threshold} then ${Number(params.threshold)+1}.`;
+      const metricLabel = params.metricId === "gap" ? "gap" : "total";
+      const noEx = params.noExample || null, yesEx = params.yesExample || null;
+      const noText = noEx ? `NO example L${noEx.a} R${noEx.b} → ${metricLabel} ${metric(noEx)}` : "NO-side example";
+      const yesText = yesEx ? `YES example L${yesEx.a} R${yesEx.b} → ${metricLabel} ${metric(yesEx)}` : "YES-side example";
+      analysis = `${noText}; ${yesText}. Your Pair 1 ${metricLabel} ${metric(p1)}; Pair 2 ${metricLabel} ${metric(p2)}. Needed: Pair 1 ${metricLabel} ${params.threshold}; Pair 2 ${metricLabel} ${Number(params.threshold)+1}.`;
     }
     if(p1 && ic.mode === "composition_induction"){
       const cueA = cueById(params.cueAId), cueB = cueById(params.cueBId), op = compOpById(params.opId);
@@ -94589,9 +94595,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     right_parity:"whether RIGHT is odd or even",
     left_prime_status:"whether LEFT is prime",
     right_prime_status:"whether RIGHT is prime",
-    public_sum:"exact total LEFT + RIGHT",
-    public_gap:"exact gap |LEFT − RIGHT|",
-    public_sum_parity:"whether LEFT + RIGHT is odd or even",
+    public_sum:"exact total",
+    public_gap:"exact gap",
+    public_sum_parity:"sum parity",
     public_order:"whether LEFT is greater than, less than, or equal to RIGHT",
     public_target_truth:"the YES/NO answer to the target",
     public_gap_truth:"whether the gap target is true"
@@ -95911,9 +95917,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       right_parity:"whether RIGHT is odd/even",
       left_prime_status:"whether LEFT is prime",
       right_prime_status:"whether RIGHT is prime",
-      public_sum:"exact total LEFT + RIGHT",
-      public_gap:"exact gap |LEFT − RIGHT|",
-      public_sum_parity:"whether LEFT + RIGHT is odd/even",
+      public_sum:"exact total",
+      public_gap:"exact gap",
+      public_sum_parity:"sum parity",
       public_order:"whether LEFT is greater than, less than, or equal to RIGHT"
     };
     return labels[k] || readableRuleTextV6844(k.replace(/^public_/,"").replace(/_/g," "));
@@ -95943,7 +95949,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       const contract = sharedLabels.length ? `Shared by everyone: ${sharedLabels.join("; ")}` : "Only the clues on each person's card are available.";
       const qLines = [
         `Target: ${target}.`,
-        `Shared clue: ${sharedLabels.length ? sharedLabels.join("; ") : "none"}.`,
+        ...(sharedLabels.length ? [`Shared clue: ${sharedLabels.join("; ")}.`] : []),
         "Who can determine whether the target is YES or NO?",
         ...arr(ep.agents).map(a => compactAgentLineV6844(a, shared))
       ];
@@ -95976,8 +95982,6 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     parts.push(`<div class="qstep compact"><strong>Target:</strong><br>• ${htmlEsc(disp.targetText || ep?.targetText || "the target relation")}</div>`);
     if(arr(disp.sharedFacts).length){
       parts.push(`<div class="qstep compact"><strong>Shared clue:</strong><br>${arr(disp.sharedFacts).map(x=>`• ${htmlEsc(x)}`).join("<br>")}</div>`);
-    } else {
-      parts.push(`<div class="qstep compact"><strong>Shared clue:</strong><br>• none</div>`);
     }
     for(const a of disp.agents.slice(0,3)){
       const facts = arr(a.facts).length ? arr(a.facts).map(x=>`• ${htmlEsc(x)}`).join("<br>") : "• no private clue beyond the shared clue";
@@ -96566,6 +96570,161 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       };
       wrapped.__v6845EpistemicLateWrapped = true;
       try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; runFeatureAudit = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+
+
+<script>
+// ============================================================================
+// v6.8.46: threshold induction clarity
+// -----------------------------------------------------------------------------
+// Makes threshold-bracketing constructive tasks read like a small boundary card:
+// examples, measure, Pair 1 target, Pair 2 target. The verifier is unchanged;
+// this patch only aligns source wording, display, and review with the existing
+// construction contract.
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.46-threshold-induction-clarity";
+  const AUDIT_KEYS = new Set(["v6846","v6_8_46","threshold_induction_clarity","boundary_induction_clarity"]);
+  const esc = (s) => String(s ?? "").replace(/[&<>\"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+  const low = (s) => String(s || "").toLowerCase();
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {status, details}; }
+  function metricLabel(p){ return (p && p.metricId === "gap") ? "gap" : "total"; }
+  function shortMetricLabel(p){ return (p && p.metricId === "gap") ? "gap" : "total"; }
+  function pairText(p){ return p ? `LEFT ${Number(p.a)}, RIGHT ${Number(p.b)}` : "example pair"; }
+  function renderThresholdInductionCardV6846(info){
+    try{
+      const ic = info?.inductiveConstructive || null;
+      if(!ic || ic.mode !== "threshold_bracket_induction") return "";
+      const p = ic.params || {};
+      const noEx = p.noExample || null, yesEx = p.yesExample || null;
+      const phase = Math.max(1, Math.floor(Number(info?.phaseIndex || 1)));
+      const saved = Array.isArray(info?.pairs) ? info.pairs : [];
+      const m = metricLabel(p), sm = shortMetricLabel(p);
+      let html = `<div class="meta-question-card threshold-induction-card">`;
+      html += `<div class="qstep section"><strong>Boundary examples:</strong><br>• NO-side: ${esc(pairText(noEx))}<br>• YES-side: ${esc(pairText(yesEx))}</div>`;
+      html += `<div class="qstep compact"><strong>Measure:</strong><br>• ${esc(m)}</div>`;
+      html += `<div class="qstep compact"><strong>Build two new pairs:</strong><br>• Pair 1: match the NO example's ${esc(sm)}<br>• Pair 2: match the YES example's ${esc(sm)}<br>• Do not copy the examples</div>`;
+      if(saved.length){
+        const last = saved[saved.length - 1];
+        html += `<div class="qstep compact"><strong>Saved Pair ${esc(last.phase || saved.length)}:</strong><br>• ${esc(pairText(last.pair))}</div>`;
+      }
+      html += `<div class="qstep prompt-end"><strong>Now:</strong> ${phase <= 1 ? "Choose Pair 1 LEFT, then RIGHT." : "Choose Pair 2 LEFT, then RIGHT."}</div>`;
+      html += `</div>`;
+      return html;
+    }catch(_){ return ""; }
+  }
+  try{
+    const prevRender = (typeof renderStructuredQuestionHTML === "function") ? renderStructuredQuestionHTML : null;
+    if(prevRender && !prevRender.__v6846ThresholdWrapped){
+      const wrappedRender = function renderStructuredQuestionHTMLV6846(qText, info=null){
+        const threshold = renderThresholdInductionCardV6846(info || (typeof State !== "undefined" ? State.trialInfo : null));
+        if(threshold) return threshold;
+        return prevRender.apply(this, arguments);
+      };
+      wrappedRender.__v6846ThresholdWrapped = true;
+      try{ renderStructuredQuestionHTML = wrappedRender; window.renderStructuredQuestionHTML = wrappedRender; globalThis.renderStructuredQuestionHTML = wrappedRender; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevShow = (typeof showMetaQuestion === "function") ? showMetaQuestion : null;
+    if(prevShow && !prevShow.__v6846ThresholdWrapped){
+      const wrappedShow = function showMetaQuestionV6846(level, question, hint, options){
+        try{
+          const ic = (typeof State !== "undefined" && State?.trialInfo?.inductiveConstructive) ? State.trialInfo.inductiveConstructive : null;
+          if(ic && ic.mode === "threshold_bracket_induction"){
+            const phase = Math.max(1, Math.floor(Number(State.trialInfo.phaseIndex || 1)));
+            const q = "Find the boundary from the examples. Build two new pairs.";
+            const h = phase <= 1 ? "Pair 1: match the NO-side example." : "Pair 2: match the YES-side example.";
+            return prevShow.call(this, level, q, h, options);
+          }
+        }catch(_){ }
+        return prevShow.apply(this, arguments);
+      };
+      wrappedShow.__v6846ThresholdWrapped = true;
+      try{ showMetaQuestion = wrappedShow; window.showMetaQuestion = wrappedShow; globalThis.showMetaQuestion = wrappedShow; }catch(_){ }
+    }
+  }catch(_){ }
+  function auditV6846ThresholdInductionClarity(){
+    const block=[], warnings=[], details={patch:PATCH_ID};
+    try{
+      const api = (typeof window !== "undefined" && window.EUCA_V6826_INDUCTIVE_GENERATIVE) || (typeof globalThis !== "undefined" && globalThis.EUCA_V6826_INDUCTIVE_GENERATIVE) || null;
+      const sample = api && typeof api.buildPayload === "function" ? Array.from({length:160}, ()=>api.buildPayload()).filter(Boolean).map(x=>x.task).filter(t=>t && t.mode === "threshold_bracket_induction") : [];
+      details.thresholdSamples = sample.slice(0,6).map(t => ({id:t.id, question:t.question, sub:t.sub, reviewHint:t.reviewHint}));
+      if(sample.length){
+        for(const t of sample){
+          const q = `${t.question || ""} ${t.sub || ""}`;
+          if(/just crosses/i.test(q)) block.push(`${t.id}: legacy 'just crosses' wording`);
+          if(/same measure|same boundary/i.test(q)) warnings.push(`${t.id}: wording may be too abstract`);
+          if(!/match the NO example/i.test(q) || !/match the YES example/i.test(q)) block.push(`${t.id}: missing explicit NO/YES example matching contract`);
+        }
+      } else warnings.push("no threshold tasks sampled; audit could not inspect source tasks");
+      details.renderer = !!renderThresholdInductionCardV6846({inductiveConstructive:{mode:"threshold_bracket_induction", params:{metricId:"sum", noExample:{a:1,b:9}, yesExample:{a:1,b:10}}}, phaseIndex:1, pairs:[]});
+      if(!details.renderer) block.push("threshold card renderer returned empty HTML");
+    }catch(e){ block.push("audit exception: "+(e?.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
+  }
+  try{ window.auditV6846ThresholdInductionClarity = auditV6846ThresholdInductionClarity; globalThis.auditV6846ThresholdInductionClarity = auditV6846ThresholdInductionClarity; }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6846ThresholdWrapped){
+      const wrappedRun = function runFeatureAuditV6846(feature, opts={}){
+        const f = low(feature).replace(/[.\-\s]+/g,"_");
+        if(AUDIT_KEYS.has(f)) return auditV6846ThresholdInductionClarity(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrappedRun.__v6846ThresholdWrapped = true;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+<script>
+(function(){
+  const PATCH_ID = "v6.8.47-source-minimal-relational-language";
+  function auditResultLocal(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {ok:status === "PASS", status, ...details};
+  }
+  function auditV6847SourceMinimalRelationalLanguage(){
+    const block=[], warnings=[];
+    try{
+      const modular = (typeof modularChoiceSpecs === "function" ? modularChoiceSpecs() : []).map(s=>({id:s.id,label:s.label,measure:s.measure}));
+      for(const s of modular){
+        if(/mod|modulus|remainder/i.test(String(s.label || ""))) block.push(`${s.id}: modular choice label still exposes modulo/remainder jargon`);
+      }
+      const fakeCats = (typeof makeL0ModularClassificationChoiceCats === "function" ? makeL0ModularClassificationChoiceCats() : []);
+      for(const c of fakeCats){
+        const qs = (c.variants || []).map(v=>v.q || "").join(" ");
+        if(/modulus|under which modulus|mod \d/i.test(qs)) block.push(`${c.id}: legacy modular-choice variant wording remains`);
+      }
+      if(typeof cyclicDistancePromptText === "function"){
+        const p = cyclicDistancePromptText({mod:10, kind:"complement"});
+        if(/ordinary gap|\|LEFT|10.?gap|remaining path/i.test(p)) block.push("cyclic complement still exposes formula wording: " + p);
+      }else warnings.push("cyclicDistancePromptText unavailable to audit");
+      if(typeof l0EpistemicRuleText === "function"){
+        const r = l0EpistemicRuleText("mod_3");
+        if(/mod 3|modulo|= LEFT/i.test(r)) block.push("epistemic modular rule text still uses symbolic mod wording: " + r);
+      }else warnings.push("l0EpistemicRuleText unavailable to audit");
+    }catch(e){ block.push("audit exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, warnings, block});
+  }
+  try{ window.auditV6847SourceMinimalRelationalLanguage = auditV6847SourceMinimalRelationalLanguage; globalThis.auditV6847SourceMinimalRelationalLanguage = auditV6847SourceMinimalRelationalLanguage; }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6847LeanGapModWrapped){
+      const wrappedRun = function runFeatureAuditV6847(feature, opts={}){
+        const f = String(feature || "").toLowerCase().replace(/[.\-\s]+/g,"_");
+        if(f === "v6847" || f === "v6_8_47" || f === "source_minimal_relational_language" || f === "source_minimal_relational_language") return auditV6847SourceMinimalRelationalLanguage(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrappedRun.__v6847LeanGapModWrapped = true;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
     }
   }catch(_){ }
 })();
