@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.47-source-minimal-relational-language</title>
+<title>Eucalculia v6.8.48-no-result-leak-transform</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3324,7 +3324,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.47-source-minimal-relational-language";
+const APP_VERSION = "v6.8.48-no-result-leak-transform";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -89516,14 +89516,14 @@ try{
   function goalDefs(before){
     const keep = before
       ? {id:"keep_yes", kind:"keep", label:"keep the answer YES", targetWord:"YES", check:e => e.afterTruth === true,
-         question:label => `For the displayed pair, “${label}” was YES. Which operation keeps the answer YES after applying it to both values?`}
+         question:label => `For the displayed pair, decide the current answer to “${label}”. Which operation keeps that answer unchanged after applying it to both values?`}
       : {id:"keep_no", kind:"keep", label:"keep the answer NO", targetWord:"NO", check:e => e.afterTruth === false,
-         question:label => `For the displayed pair, “${label}” was NO. Which operation keeps the answer NO after applying it to both values?`};
+         question:label => `For the displayed pair, decide the current answer to “${label}”. Which operation keeps that answer unchanged after applying it to both values?`};
     const change = before
       ? {id:"make_no", kind:"change", label:"change the answer to NO", targetWord:"NO", check:e => e.afterTruth === false,
-         question:label => `For the displayed pair, “${label}” was YES. Which operation changes the answer to NO after applying it to both values?`}
+         question:label => `For the displayed pair, decide the current answer to “${label}”. Which operation flips that answer after applying it to both values?`}
       : {id:"make_yes", kind:"change", label:"change the answer to YES", targetWord:"YES", check:e => e.afterTruth === true,
-         question:label => `For the displayed pair, “${label}” was NO. Which operation changes the answer to YES after applying it to both values?`};
+         question:label => `For the displayed pair, decide the current answer to “${label}”. Which operation flips that answer after applying it to both values?`};
     // Prefer the constructive change question when it has a unique answer, but
     // keep-invariance remains in the mix when it is the clean unique contrast.
     return Math.random() < 0.58 ? [change, keep] : [keep, change];
@@ -94731,10 +94731,10 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function opApply(n,t){ try{ if(typeof operationInvarianceApply === "function") return operationInvarianceApply(n,t); }catch(_){ } const v=Number(n); if(t?.id==="add_constant") return v+Number(t.k||0); if(t?.id==="multiply_positive") return v*Number(t.k||1); if(t?.id==="reflect_anchor") return Number(t.anchor||0)-v; if(t?.id==="modulo_wrap"){ const mod=Math.max(2,Number(t.mod||5)); return ((v%mod)+mod)%mod; } return v; }
   function opEffect(a,b,t,pred){ const la=opApply(a,t), rb=opApply(b,t), before=opEvalPred(pred,a,b), after=opEvalPred(pred,la,rb); return {leftAfter:la,rightAfter:rb,beforeTruth:before,afterTruth:after,preserved:before===after,transform:t}; }
   function opGoalDefs(before){
-    const keep = before ? {id:"keep_yes",kind:"keep",label:"keep the answer YES",targetWord:"YES",check:e=>e.afterTruth===true, q:l=>`For the displayed pair, “${l}” was YES. Which operation keeps the answer YES after applying it to both values?`}
-                        : {id:"keep_no",kind:"keep",label:"keep the answer NO",targetWord:"NO",check:e=>e.afterTruth===false, q:l=>`For the displayed pair, “${l}” was NO. Which operation keeps the answer NO after applying it to both values?`};
-    const change = before ? {id:"make_no",kind:"change",label:"change the answer to NO",targetWord:"NO",check:e=>e.afterTruth===false, q:l=>`For the displayed pair, “${l}” was YES. Which operation changes the answer to NO after applying it to both values?`}
-                          : {id:"make_yes",kind:"change",label:"change the answer to YES",targetWord:"YES",check:e=>e.afterTruth===true, q:l=>`For the displayed pair, “${l}” was NO. Which operation changes the answer to YES after applying it to both values?`};
+    const keep = before ? {id:"keep_yes",kind:"keep",label:"keep the answer YES",targetWord:"YES",check:e=>e.afterTruth===true, q:l=>`For the displayed pair, decide the current answer to “${l}”. Which operation keeps that answer unchanged after applying it to both values?`}
+                        : {id:"keep_no",kind:"keep",label:"keep the answer NO",targetWord:"NO",check:e=>e.afterTruth===false, q:l=>`For the displayed pair, decide the current answer to “${l}”. Which operation keeps that answer unchanged after applying it to both values?`};
+    const change = before ? {id:"make_no",kind:"change",label:"change the answer to NO",targetWord:"NO",check:e=>e.afterTruth===false, q:l=>`For the displayed pair, decide the current answer to “${l}”. Which operation flips that answer after applying it to both values?`}
+                          : {id:"make_yes",kind:"change",label:"change the answer to YES",targetWord:"YES",check:e=>e.afterTruth===true, q:l=>`For the displayed pair, decide the current answer to “${l}”. Which operation flips that answer after applying it to both values?`};
     return Math.random()<0.74 ? [change, keep] : [keep, change];
   }
   function universalShortcutForGoal(pred, transform, before, goal, max=10){
@@ -96724,6 +96724,63 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         return prevRun.apply(this, arguments);
       };
       wrappedRun.__v6847LeanGapModWrapped = true;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+<script>
+// ============================================================================
+// v6.8.48 — no-result-leak transform prompts
+// -----------------------------------------------------------------------------
+// Operation-effect questions must not reveal the original YES/NO result or the
+// target YES/NO result in INPUT. The user should compute the original relation
+// from the displayed/remembered pair, then test whether an operation keeps or
+// flips that answer. REVIEW may still explain before/after truth values.
+// This patch is source-level: no cached-trial scrubber, no hot-path sanitiser.
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.48-no-result-leak-transform";
+  const AUDIT_KEYS = new Set(["v6848","v6_8_48","no_result_leak_transform","answer_hidden_transform"]);
+  function str(x){ return String(x == null ? "" : x); }
+  function low(x){ return str(x).toLowerCase(); }
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ } return {ok:status === "PASS", status, ...(details || {})}; }
+  function isOperationEffectCat(c){
+    if(!c) return false;
+    const bits = [c.id, c.family, c.canonicalFamily, ...(arr(c.frameTags)), ...(arr(c.mechanismTags))].join(" ");
+    return c.responseFormat === "choice" && /operation_invariance|operation_effect|truth_value_preservation/.test(bits);
+  }
+  function auditV6848NoResultLeakTransform(){
+    const block=[], warnings=[], samples=[];
+    try{
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).filter(isOperationEffectCat);
+      for(let i=0; i<Math.min(64, Math.max(1, cats.length*8)); i++){
+        const c = cats[i % cats.length];
+        if(!c || typeof c.buildChoiceTrial !== "function") continue;
+        const t = c.buildChoiceTrial(c, 12);
+        if(!t) { warnings.push(`${c.id || "operation"}: unbuildable sample`); continue; }
+        const q = str(t.question || t.delayedPrompt || "").replace(/\s+/g," ").trim();
+        samples.push({id:c.id, question:q, correct:arr(t.options).find(o=>o && o.correct)?.text || null});
+        if(/\bwas\s+(YES|NO)\b/i.test(q)) block.push(`${c.id}: INPUT reveals original answer: ${q}`);
+        if(/\b(?:changes?|keeps?)\s+the\s+answer\s+(?:to\s+)?(YES|NO)\b/i.test(q)) block.push(`${c.id}: INPUT reveals target answer: ${q}`);
+        if(/\bmake(?:s)?\s+(?:the\s+answer\s+)?(YES|NO)\b/i.test(q)) block.push(`${c.id}: INPUT reveals target state: ${q}`);
+      }
+    }catch(e){ block.push("audit exception: " + (e && e.message || e)); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, checked:samples.length, samples:samples.slice(0,12), warnings, block});
+  }
+  try{ window.auditV6848NoResultLeakTransform = auditV6848NoResultLeakTransform; globalThis.auditV6848NoResultLeakTransform = auditV6848NoResultLeakTransform; }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6848NoResultLeakWrapped){
+      const wrappedRun = function runFeatureAuditV6848(feature, opts={}){
+        const f = low(feature).replace(/[.\-\s]+/g,"_");
+        if(AUDIT_KEYS.has(f)) return auditV6848NoResultLeakTransform(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrappedRun.__v6848NoResultLeakWrapped = true;
       try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
     }
   }catch(_){ }
