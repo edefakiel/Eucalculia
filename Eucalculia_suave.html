@@ -156,11 +156,14 @@ canvas { width:100%; height:100%; display:block; }
   opacity:0;
   border-radius:999px;
   border:1px solid rgba(255,255,255,0.09);
-  background:rgba(8,8,13,0.72);
+  background:rgba(8,8,13,0.82);
   box-shadow:0 8px 24px rgba(0,0,0,0.30), 0 0 0 1px rgba(255,255,255,0.025) inset;
   overflow:hidden;
   transition:opacity 240ms ease, transform 240ms ease, border-color 240ms ease;
-  backdrop-filter:blur(6px);
+  /* v6.8.49 (perf): dropped backdrop-filter:blur(6px). It was composited live over
+     the animating canvas during BLOCK_INTRO / interstitial transitions (one of the
+     most expensive mobile-GPU compositing ops); the 0.82-opacity solid background
+     reads almost identically without re-sampling/blurring the backdrop each frame. */
 }
 #levelProgress.visible { opacity:1; transform:translateX(-50%) translateY(0); }
 #levelProgressFill {
@@ -346,10 +349,16 @@ canvas { width:100%; height:100%; display:block; }
 }
 #levelBadge.level-up .level-title {
   display:block;
-  font-size:clamp(1.24rem,4.8svh,1.95rem);
-  line-height:0.98;
-  letter-spacing:2.8px;
+  /* v6.8.49: long titles ("VISUAL TRANSFORMATION") overflowed the card on narrow
+     screens (clamp sizes by svh = height, but overflow is a width constraint) and
+     got clipped by overflow:hidden. Lower the cap + letter-spacing and allow wrap. */
+  font-size:clamp(1.12rem,4.4svh,1.72rem);
+  line-height:1.04;
+  letter-spacing:1.2px;
   font-weight:950;
+  max-width:100%;
+  overflow-wrap:break-word;
+  word-break:break-word;
   text-shadow:0 2px 20px rgba(255,193,7,0.35);
 }
 #levelBadge.level-up .level-sub {
@@ -409,9 +418,12 @@ canvas { width:100%; height:100%; display:block; }
 #levelBadge.level-down .level-title {
   display:block;
   font-size:clamp(1.02rem,3.8svh,1.48rem);
-  line-height:1.02;
-  letter-spacing:2px;
+  line-height:1.04;
+  letter-spacing:1.2px;
   font-weight:920;
+  max-width:100%;
+  overflow-wrap:break-word;
+  word-break:break-word;
   text-shadow:0 2px 18px rgba(77,166,255,0.20);
 }
 #levelBadge.level-down .level-sub {
@@ -645,8 +657,17 @@ canvas { width:100%; height:100%; display:block; }
   .program-card-title::after { display:none; }
 }
 #metaQuestion .meta-hint {
-  font-size:0.7rem; color:var(--muted);
-  margin-top:8px;
+  /* v6.8.49 legibility: the sub/instruction line was 0.7rem in low-contrast --muted
+     (#666677) on near-black — tiny and barely readable, worst on small screens.
+     Larger + responsive, much higher contrast, real line-height, capped line length,
+     left-aligned for dense instructions, and pre-line so prompts can use line breaks. */
+  font-size:clamp(0.8rem, 1.95svh, 0.96rem);
+  color:rgba(232,232,240,0.82);
+  line-height:1.5;
+  max-width:44ch;
+  margin:10px auto 0;
+  text-align:left;
+  white-space:pre-line;
 }
 #metaQuestion .meta-options {
   display:none;
@@ -2658,6 +2679,7 @@ select.cs-native {
       <button class="btn" id="panicEndBlockBtn" type="button">End block</button>
       <button class="btn" id="panicMenuBtn" type="button">Return to menu</button>
       <button class="btn" id="panicResetRuntimeBtn" type="button">Reset runtime only</button>
+      <button class="btn" id="panicRestoreBtn" type="button">Restore last backup</button>
       <button class="btn" id="panicExportBtn" type="button">Export diagnostics</button>
     </div>
   </div>
@@ -6705,13 +6727,28 @@ if(typeof window !== "undefined"){
   };
 }
 
+// v6.8.49: escalate uncaught errors to the recovery overlay even OUTSIDE active
+// gameplay (boot / menu / PREP / paused). Previously those were only recorded, so a
+// crash there left a dead screen with no recovery affordance. Re-entrancy guarded so
+// an error storm can't reopen the overlay every frame; well-known benign/cross-origin
+// noise (ResizeObserver loop, bare "Script error.") is filtered to avoid false alarms.
+function escalateRuntimeError(reason, detail={}){
+  try {
+    const msg = String((detail && detail.message) || "");
+    if(/ResizeObserver loop|^Script error\.?$/i.test(msg)) return;
+    const po = $("panicOverlay");
+    if(po && po.classList.contains("visible")) return; // recovery UI already shown
+  } catch(_) {}
+  try { enterPanicMenu(reason, detail); }
+  catch(_) { try { openPanicOverlayMinimal(reason, detail); } catch(__) {} }
+}
 window.addEventListener("error", e => {
   recordRuntimeError(e.error || e.message, {source:"window.error", filename:e.filename, lineno:e.lineno, colno:e.colno});
-  if(State.running && !State.paused) enterPanicMenu("window_error", {message:e.message || String(e.error || "error")});
+  escalateRuntimeError("window_error", {message:e.message || String(e.error || "error")});
 });
 window.addEventListener("unhandledrejection", e => {
   recordRuntimeError(e.reason || "unhandled rejection", {source:"window.unhandledrejection"});
-  if(State.running && !State.paused) enterPanicMenu("unhandledrejection", {message:String(e.reason?.message || e.reason || "rejection")});
+  escalateRuntimeError("unhandledrejection", {message:String(e.reason?.message || e.reason || "rejection")});
 });
 
 let _wakeLock = null;
@@ -8209,11 +8246,19 @@ function setupCanvas(canvas, context, w, h){
   context.setTransform(DPR, 0, 0, DPR, 0, 0);
 }
 
+let _resizeRafId = 0, _resizeDidInit = false, _resizeLastDpr = 0;
 function resize(){
   const container = cvs.parentElement;
   const r = container.getBoundingClientRect();
-  W = Math.floor(r.width) || 400;
-  H = Math.floor(r.height) || 400;
+  const newW = Math.floor(r.width) || 400;
+  const newH = Math.floor(r.height) || 400;
+  const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+  // v6.8.49 (perf): skip the heavy regen when the content-box size (and DPR) are
+  // unchanged. Mobile resize events (URL-bar show/hide, scroll) fire in storms,
+  // usually with identical dimensions, and Mask.gen() + cacheStim are expensive to
+  // repeat for nothing. DPR is included so browser-zoom still triggers a real resize.
+  if(_resizeDidInit && newW === W && newH === H && dpr === _resizeLastDpr) return;
+  W = newW; H = newH; _resizeLastDpr = dpr; _resizeDidInit = true;
 
   setupCanvas(cvs, ctx, W, H);
   setupCanvas(pCvs, pCtx, W, H);
@@ -8226,7 +8271,15 @@ function resize(){
     State.secCache = cacheStim(State.secStim, Math.floor(W/2)-2, H);
   }
 }
-window.addEventListener("resize", resize);
+// v6.8.49 (perf): coalesce a storm of resize events into a single trailing rAF call.
+function resizeDebounced(){
+  if(_resizeRafId) return;
+  _resizeRafId = requestAnimationFrame(() => {
+    _resizeRafId = 0;
+    try { resize(); } catch(e){ try { recordRuntimeError(e, {source:"resize"}); } catch(_) {} }
+  });
+}
+window.addEventListener("resize", resizeDebounced);
 window.addEventListener("orientationchange", ()=>setTimeout(resize, 100));
 
 // ---------- UI Helpers ----------
@@ -11093,7 +11146,13 @@ function readabilityPolishText(text){
     .replace(/\bcondition holds\b/gi, "condition is true")
     .replace(/\bholds\b/gi, "is true")
     .replace(/\brough\b/gi, "approximate")
-    .replace(/\s+/g, " ")
+    // v6.8.49 legibility: collapse only horizontal whitespace, PRESERVE newlines so
+    // structured prompts can use line breaks. Newlines render as breaks only in
+    // white-space:pre-line elements (currently just .meta-hint); everywhere else a
+    // newline still renders as a space, so this changes nothing for other text.
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
   return s;
 }
@@ -12968,6 +13027,14 @@ const Mask = {
     this.frames = [];
     const count = Math.max(4, this.frameCount || 8);
     for(let f=0; f<count; f++) this.frames.push(this.buildFrame(f));
+    // v6.8.49 (perf): precompute the speck overlay once per gen()/resize instead of
+    // calling Math.random() ~5x per speck on EVERY MASK frame. Relative coords are
+    // scaled to W/H at draw time; the cycling cached frames already supply motion.
+    const speckCount = Math.max(40, Math.floor((W * H) / 5200));
+    this.specks = new Array(speckCount);
+    for(let i=0; i<speckCount; i++){
+      this.specks[i] = { rx:Math.random(), ry:Math.random(), w:rand(0.7,1.8), h:rand(0.7,1.8), a:0.08 + Math.random()*0.14 };
+    }
   },
   buildFrame(phase){
     const frame = document.createElement("canvas");
@@ -13002,10 +13069,14 @@ const Mask = {
     c.globalAlpha = 0.82;
     c.drawImage(frame, 0, 0, W, H);
     c.fillStyle = "#d8d8e8";
-    const specks = Math.max(40, Math.floor((W*H)/5200));
-    for(let i=0; i<specks; i++){
-      c.globalAlpha = 0.08 + Math.random()*0.14;
-      c.fillRect(rand(0,W), rand(0,H), rand(0.7,1.8), rand(0.7,1.8));
+    // v6.8.49 (perf): iterate the precomputed speck pool (see gen()) — no per-frame
+    // Math.random(). Falls back to a one-time gen() if the pool is missing.
+    let sp = this.specks;
+    if(!sp){ this.gen(); sp = this.specks || []; }
+    for(let i=0; i<sp.length; i++){
+      const s = sp[i];
+      c.globalAlpha = s.a;
+      c.fillRect(s.rx * W, s.ry * H, s.w, s.h);
     }
     c.restore();
   }
@@ -20247,7 +20318,13 @@ function l0RelationEquivalenceSamplePair(spec, m){
   return pool.length ? choice(pool) : null;
 }
 function buildL0RelationEquivalenceProbe(cat, m){
-  const spec = l0RelationEquivalenceById(cat?.l0RelationEquivalenceId || cat?.id);
+  // v6.8.49: fall back to cat.choiceSpec when the id isn't in the static catalogue.
+  // The v6.x gap-polish patch attaches a directed-gap spec to rel_eq_gap_*_order via
+  // cat.choiceSpec AND sets cat.l0RelationEquivalenceId (which routes dispatch here),
+  // but this builder only consulted l0RelationEquivalenceById — so those 4 cats had a
+  // null spec and NEVER built (offered-but-impossible). Catalogue ids resolve first
+  // (the 5 existing specs are unchanged); choiceSpec is used only as the fallback.
+  const spec = l0RelationEquivalenceById(cat?.l0RelationEquivalenceId || cat?.id) || (cat && cat.choiceSpec) || null;
   if(!spec) return null;
   const pair = l0RelationEquivalenceSamplePair(spec, m);
   if(!pair) return null;
@@ -20562,7 +20639,9 @@ function _directedVisualTruthAvailability(predicateId, m, opts={}){
   }
   const key = _directedVisualAvailabilityCacheKey(predicateId, m, opts);
   const nowTs = Date.now();
-  const ttl = Math.max(1000, Number(CONFIG.directedVisualAvailabilityCacheTtlMs) || 90000);
+  // v6.8.49 perf: this computation is deterministic in (predicateId, m, reps) — its result
+  // cannot change within a session, so default to an effectively-permanent TTL rather than 90s.
+  const ttl = Math.max(1000, Number(CONFIG.directedVisualAvailabilityCacheTtlMs) || (typeof SAMPLER_STRUCTURAL_AVAIL_TTL_MS !== "undefined" ? SAMPLER_STRUCTURAL_AVAIL_TTL_MS : 90000));
   const cached = _directedVisualAvailabilityCache.get(key);
   if(cached && (nowTs - cached.computedAt) < ttl){
     try { ensureSamplerBudgetDiag().directedAvailCacheHits = (ensureSamplerBudgetDiag().directedAvailCacheHits || 0) + 1; } catch(_){}
@@ -21376,6 +21455,14 @@ const SAMPLER_RUNTIME_VISUAL_PICK_BUDGET = 4;
 const SAMPLER_DEFERRED_AVAIL_TTL_MS = 8000;
 const SAMPLER_AVAIL_CACHE_TTL_MS = 60000;
 const SAMPLER_AVAIL_CACHE_MAX_ENTRIES = 240;
+// v6.8.49 perf: STRUCTURAL availability (from the exhaustive, deterministic
+// _directedVisualTruthAvailability) is a fixed fact of (m, reps, predicate) — it cannot
+// change within a session, so cache it effectively permanently instead of re-probing
+// every 60s. Diagnostics showed the same structurally-impossible clock/abacus/cross-rep
+// predicates being re-discovered every minute, burning the trial-build budget each time.
+// NOTE: only applied to the deterministic structural path, NOT the stochastic probe path
+// (a probe "false" can be a sampling miss, so it must keep the short TTL).
+const SAMPLER_STRUCTURAL_AVAIL_TTL_MS = 1800000; // 30 min — whole session at a fixed m/reps
 const _samplerAvailCache = new Map();
 const SAMPLER_EMPTY_INDEX_POOL_CACHE_MAX_ENTRIES = 180;
 const _samplerEmptyIndexPoolCache = new Map();
@@ -21673,6 +21760,7 @@ function hasFormatValuePredicatePair(m, predicate, opts={}){
     _samplerAvailCache.set(cacheKey, {
       value:okStructural, computedAt:now, structural:true, predicateId:predId, m,
       requiredRep:reqKey === "_" ? null : reqKey,
+      ttlMs:SAMPLER_STRUCTURAL_AVAIL_TTL_MS, // v6.8.49: deterministic — don't re-probe every 60s
       hadTrue:!!directedAvailability.hasTrue, hadFalse:!!directedAvailability.hasFalse
     });
     return okStructural;
@@ -21693,10 +21781,12 @@ function hasFormatValuePredicatePair(m, predicate, opts={}){
   });
   if(_samplerAvailCache.size > SAMPLER_AVAIL_CACHE_MAX_ENTRIES){
     const toEvict = Math.floor(SAMPLER_AVAIL_CACHE_MAX_ENTRIES / 6);
-    const oldest = [..._samplerAvailCache.entries()]
-      .sort((a,b) => a[1].computedAt - b[1].computedAt)
-      .slice(0, toEvict);
-    for(const [k] of oldest) _samplerAvailCache.delete(k);
+    // v6.8.49 perf: evict transient (probe/deferred) entries before deterministic
+    // structural ones, so the permanent structural-availability facts survive eviction.
+    const entries = [..._samplerAvailCache.entries()].sort((a,b) => a[1].computedAt - b[1].computedAt);
+    const evictable = entries.filter(e => !e[1].structural);
+    const pick = (evictable.length >= toEvict ? evictable : entries).slice(0, toEvict);
+    for(const [k] of pick) _samplerAvailCache.delete(k);
   }
   return ok;
 }
@@ -25857,7 +25947,10 @@ const POSNER_CATS = [
     verify(){ return false; } },
 
   { id:"dominoes_complementary_halves", tier:3, family:"visual_property", checkRep:true, checkVisual:true, requiredRep:"domino",
-    canUse:(m)=> (State.reps || []).includes("domino"),
+    // v6.8.49: complementary halves (each half pairs to sum 6) have NO constructible
+    // instance below m=6 — without this gate the sampler picked it at low m, spun on an
+    // impossible pair and fell back (verified: eligible-but-impossible at m=2..5).
+    canUse:(m)=> (State.reps || []).includes("domino") && Number(m) >= 6,
     variants:[
       { q:"Are the dominoes complementary (each half pairs with a partner that sums to 6)?" },
       { q:"Can every half on the left be matched with a half on the right that sums to 6?" },
@@ -25902,7 +25995,10 @@ const POSNER_CATS = [
     verify(){ return false; } },
 
   { id:"clocks_opposite_quadrant", tier:3, family:"visual_property", checkRep:true, checkVisual:true, requiredRep:"clock",
-    canUse:(m)=> (State.reps || []).includes("clock"),
+    // v6.8.49: an opposite-quadrant pair (quadrant diff 2) is impossible below m=7 —
+    // hours 1..6 only span the NE/SE quadrants, so no diagonal pair exists until hour 7
+    // reaches SW. Gate on m>=7 so it isn't picked-then-failed at low m (verified m=2..6).
+    canUse:(m)=> (State.reps || []).includes("clock") && Number(m) >= 7,
     variants:[
       { q:"Are the two clock hands in opposite quadrants?" },
       { q:"Does one clock hand point to a quadrant diagonally across from the other's?" },
@@ -48199,6 +48295,12 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
     auditRecursiveTraceChoiceFamilies = function auditRecursiveTraceChoiceFamiliesV6546(opts={}){
       const m=Number(opts.m || 13), block=[], built=[];
       for(const cat of (POSNER_CATS || []).filter(c=>c?.family==="recursive_trace_choice")){
+        // v6.8.49: skip cats intentionally disabled by v6.8.42 (disableCatV6842).
+        // v6.8.42 retired the first-state-satisfying recursive choice probes whose
+        // first step was not genuinely recursive: it sets canUse=false and neuters
+        // buildChoiceTrial to return null. They are not live content, so auditing them
+        // as "unbuildable choice trace" was a false BLOCK in the safety harness.
+        if(cat && (cat.__v6842Disabled || cat.disabled)){ built.push({id:cat.id, disabled:cat.__v6842Disabled || true}); continue; }
         let ok=0;
         for(let i=0;i<80;i++){
           const trial = typeof cat.buildChoiceTrial === "function" ? cat.buildChoiceTrial(cat,m) : null;
@@ -49271,7 +49373,11 @@ function auditOperationInvarianceFamily(opts={}){
       if(s.preserved !== want) block.push(`scenario_wrong_truth:${want}:${s.preserved}`);
       const q = operationInvarianceQuestion(s);
       if(!/RIGHT is greater than LEFT/.test(q)) block.push("prompt_missing_relation");
-      if(new RegExp(`\bLEFT is\s+${s.left}\b|\bRIGHT is\s+${s.right}\b`).test(q)) block.push("prompt_leaks_values");
+      // v6.8.49 fix: this guard was a template literal, so `\b`/`\s` were string
+      // escapes (backspace / literal "s"), making the compiled regex unmatchable —
+      // the leak guard was dead. Build it from a string with doubled escapes so the
+      // RegExp actually matches a value leak like "LEFT is 5" / "RIGHT is 7".
+      if(new RegExp("\\bLEFT is\\s+"+s.left+"\\b|\\bRIGHT is\\s+"+s.right+"\\b").test(q)) block.push("prompt_leaks_values");
       if(operationInvarianceTruthShortcutTransform(s.transform)) block.push(`shortcut_transform_in_runtime:${s.transform?.id}`);
       const lines = operationInvarianceReviewLines({invarianceUnderOperation:s}, s.preserved);
       if(!Array.isArray(lines) || lines.length < 3) block.push("review_too_short");
@@ -62834,6 +62940,66 @@ function backupCurrentProgress(reason="manual"){
     return false;
   }
 }
+// v6.8.49 (data-loss recovery): read-back path for backups. Previously
+// backupCurrentProgress() wrote backups (IndexedDB "backups"/"latest" or
+// localStorage _backup_latest) that NOTHING ever read — the safety net could not
+// actually recover anything. These functions close that gap.
+async function readLatestBackupRaw(){
+  // Prefer the IndexedDB backup, fall back to localStorage. The IDB get is raced
+  // against a timeout so a missing/unresponsive background worker can never hang
+  // the restore — it just falls through to the localStorage backup.
+  try {
+    if(CONFIG.backgroundIndexedDBEnabled){
+      const r = await Promise.race([
+        eucaBackgroundGet("backups", "latest"),
+        new Promise(res => setTimeout(() => res({value:null, timedOut:true}), 1500))
+      ]);
+      const rec = r && r.value;
+      if(rec && typeof rec.raw === "string" && rec.raw.trim()) return {raw:rec.raw, source:"indexeddb", meta:rec};
+    }
+  } catch(_) {}
+  try {
+    const ls = localStorage.getItem(STORAGE_KEY + "_backup_latest");
+    if(ls && ls.trim()){
+      let meta = null; try { meta = JSON.parse(localStorage.getItem(STORAGE_KEY + "_backup_meta") || "null"); } catch(_) {}
+      return {raw:ls, source:"localStorage", meta};
+    }
+  } catch(_) {}
+  return null;
+}
+function backupRawLooksValid(raw){
+  try {
+    const o = JSON.parse(raw);
+    if(!o || typeof o !== "object") return false;
+    if(o.profiles && typeof o.profiles === "object") return true;        // multi-profile wrapper
+    if(typeof o.appVersion === "string" || o.levelByMode || o.stats) return true; // legacy flat blob
+    return false;
+  } catch(_) { return false; }
+}
+async function restoreLatestBackup(opts={}){
+  const found = await readLatestBackupRaw();
+  if(!found){ try { _ioMsg("No backup found to restore.", false); } catch(_) {} return {ok:false, reason:"no_backup"}; }
+  if(!backupRawLooksValid(found.raw)){ try { _ioMsg("Backup is unreadable; not restoring.", false); } catch(_) {} return {ok:false, reason:"invalid_backup"}; }
+  // Snapshot whatever is currently stored so the restore itself is reversible.
+  try {
+    const cur = localStorage.getItem(STORAGE_KEY);
+    if(cur && cur.trim()) localStorage.setItem(STORAGE_KEY + "_pre_restore_latest", cur);
+  } catch(_) {}
+  try {
+    localStorage.setItem(STORAGE_KEY, found.raw);
+  } catch(e){
+    try { _ioMsg("Restore failed: " + (e?.name || "storage error"), false); } catch(_) {}
+    return {ok:false, reason:"write_failed", error:String(e?.message || e)};
+  }
+  // Re-enable persistence; reload so load() rehydrates cleanly from the restored blob.
+  _loadFailed = false; _persistenceDisabled = false; _lastSaveFailed = false;
+  try { _profileWrapperCache = null; } catch(_) {}
+  try { _ioMsg("Backup restored (" + found.source + "). Reloading…"); } catch(_) {}
+  if(opts.noReload) return {ok:true, source:found.source, meta:found.meta || null};
+  try { setTimeout(() => { try { location.reload(); } catch(_) {} }, 400); } catch(_) {}
+  return {ok:true, source:found.source, meta:found.meta || null};
+}
+try { if(typeof window !== "undefined"){ window.restoreLatestBackup = restoreLatestBackup; window.readLatestBackupRaw = readLatestBackupRaw; } } catch(_) {}
 // localStorage key. Pinned to the original value for backward compatibility
 // across versions; the schema *inside* the stored blob is what evolves.
 // As of v6.4.9, the blob is a multi-profile wrapper (see _saveImmediate
@@ -63210,6 +63376,7 @@ function finalizeProfileIntegrityAfterLoad(d={}, context={}){
 function _saveImmediate(force=false, reason="save"){
   const _saveT0 = perfNow();
   let _saveBytes = 0;
+  let wrapper = null; // v6.8.49: hoisted so the catch can retry a minimal blob on quota.
   if(_loadFailed){
     console.warn("Eucalculia: save blocked because load failed; refusing to overwrite existing progress.");
     return;
@@ -63319,8 +63486,27 @@ function _saveImmediate(force=false, reason="save"){
     // legacy flat blob, we promote it: the legacy data becomes
     // profile 1, and the active write goes wherever activeProfile
     // currently points. Empty profile slots are stored as null.
-    let wrapper = readProfileWrapperForSave();
+    wrapper = readProfileWrapperForSave();
     if(!wrapper){
+      // v6.8.49 (data-loss guard): only synthesize a fresh wrapper when storage is
+      // genuinely EMPTY. If a non-empty blob exists that could not be parsed into a
+      // wrapper, writing a fresh single-profile wrapper here would permanently wipe
+      // the OTHER profiles. Back the raw blob up and abort the save instead.
+      let rawExisting = null;
+      try { rawExisting = localStorage.getItem(STORAGE_KEY); } catch(_) {}
+      if(rawExisting && String(rawExisting).trim()){
+        try {
+          localStorage.setItem(STORAGE_KEY + "_corrupt_latest", rawExisting);
+          localStorage.setItem(STORAGE_KEY + "_corrupt_meta", JSON.stringify({at:new Date().toISOString(), bytes:String(rawExisting).length, appVersion:currentAppVersion()}));
+        } catch(_) {}
+        _persistenceDisabled = true;
+        _lastSaveFailed = true;
+        try { const rc = ensureRootCauseAudit(); rc.lastSaveError = {name:"CorruptWrapper", message:"existing storage unreadable; save aborted to protect other profiles", at:new Date().toISOString()}; } catch(_) {}
+        try { if(typeof recordRuntimeError === "function") recordRuntimeError("save_aborted_corrupt_wrapper", {bytes:String(rawExisting).length}); } catch(_) {}
+        try { if(typeof _ioMsg === "function") _ioMsg("Saved data was unreadable; saving paused to protect your other profiles. Use Restore last backup.", false); } catch(_) {}
+        console.warn("Eucalculia: existing storage unreadable; save aborted to avoid wiping profiles. Raw backed up to " + STORAGE_KEY + "_corrupt_latest.");
+        return;
+      }
       wrapper = {
         schemaVersion: PROFILE_WRAPPER_VERSION,
         activeProfile: State.activeProfile || 1,
@@ -63368,6 +63554,44 @@ function _saveImmediate(force=false, reason="save"){
       const rc = ensureRootCauseAudit();
       rc.lastSaveError = {name:e?.name || "error", message:e?.message || String(e), at:new Date().toISOString()};
     } catch(_) {}
+    const _msg = String(e?.message || e?.name || e || "");
+    const _isQuota = (e && (e.name === "QuotaExceededError" || e.code === 22 || e.code === 1014)) || /quota|exceeded the quota/i.test(_msg);
+    const _isSecurity = (e && e.name === "SecurityError") || /securityerror|access is denied|storage is disabled/i.test(_msg);
+    // v6.8.49: on quota, retry ONCE with a minimal blob so core adaptive progress
+    // (levels, stats, curriculum) still persists even when the rich diagnostic
+    // tails don't fit. Better than losing the whole session's progress.
+    if(_isQuota && wrapper && typeof wrapper === "object" && wrapper.profiles){
+      try {
+        const active = String(State.activeProfile || 1);
+        const slot = wrapper.profiles[active];
+        if(slot && typeof slot === "object"){
+          const heavy = ["trialTelemetryBuffer","progressHistory","productionMonitor","samplerDiagnostics","relationalConfusion","audioDiagnostics","metaDiagnostics","confusion","subitizingCellStats","posnerCatStats","problemValues"];
+          for(const k of heavy){ try { delete slot[k]; } catch(_) {} }
+          slot.shrunkForQuota = new Date().toISOString();
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(wrapper));
+        _lastSaveImmediateAt = Date.now();
+        _lastSaveFailed = false;
+        try { const rc = ensureRootCauseAudit(); rc.lastSaveQuotaShrink = {at:new Date().toISOString()}; } catch(_) {}
+        try { if(typeof _ioMsg === "function") _ioMsg("Storage was full — saved core progress (diagnostics trimmed).", false); } catch(_) {}
+        console.warn("Eucalculia: quota exceeded; saved a minimal blob (diagnostics dropped).");
+        return;
+      } catch(e2){
+        _persistenceDisabled = true;
+        try { if(typeof recordRuntimeError === "function") recordRuntimeError("save_quota_retry_failed", {name:e2?.name || "error"}); } catch(_) {}
+        try { if(typeof _ioMsg === "function") _ioMsg("Storage is full; progress can't be saved. Free space or export your progress.", false); } catch(_) {}
+        console.warn("Eucalculia: quota retry also failed; persistence disabled —", e2?.name || e2);
+        return;
+      }
+    }
+    if(_isSecurity){
+      // Private mode / storage blocked for the whole session: stop retrying and
+      // tell the user once, rather than warning to a console nobody sees.
+      _persistenceDisabled = true;
+      try { if(typeof _ioMsg === "function") _ioMsg("Storage is unavailable (private mode?). Progress won't be saved this session.", false); } catch(_) {}
+      console.warn("Eucalculia: storage unavailable (SecurityError); persistence disabled for session.");
+      return;
+    }
     try { if(typeof _ioMsg === "function") _ioMsg("Progress save failed: " + (e?.name || "storage error"), false); } catch(_) {}
     console.warn("Eucalculia: save failed —", e?.name || e);
   }
@@ -63546,7 +63770,44 @@ function mergeProductionMonitor(base, saved){
   return out;
 }
 
+// v6.8.49: version-gated migration hook. schemaVersion was written on every save
+// but never read at load, so cross-version field renames could only be dropped
+// silently by the lenient per-field hydration. This records the loaded version and
+// routes the per-profile blob through ordered migration steps (currently none —
+// the steps array is the single place to add one when a future build renames or
+// restructures a persisted field). The lenient hydration below stays as a safety net.
+function migrateLoadedProfileBlob(d, wrapper){
+  if(!d || typeof d !== "object") return d;
+  const from = Number(d.schemaVersion);
+  const wrapVer = (wrapper && typeof wrapper === "object") ? Number(wrapper.schemaVersion) : null;
+  try {
+    if(!State.productionMonitor) State.productionMonitor = {};
+    State.productionMonitor.loadedSchema = {
+      blob: Number.isFinite(from) ? from : null,
+      wrapper: Number.isFinite(wrapVer) ? wrapVer : null,
+      at: new Date().toISOString()
+    };
+  } catch(_) {}
+  const steps = [
+    // { from: 20, apply(b){ b.newField = b.oldField; delete b.oldField; return b; } },
+  ];
+  let migrated = d; const applied = [];
+  for(const step of steps){
+    try {
+      if(Number.isFinite(from) && from < step.from && typeof step.apply === "function"){
+        migrated = step.apply(migrated) || migrated;
+        applied.push(step.from);
+      }
+    } catch(_) {}
+  }
+  if(applied.length){ try { State.productionMonitor.migrationApplied = applied; } catch(_) {} }
+  return migrated;
+}
 function load(){
+  // v6.8.49 (data-loss guard): snapshot pristine State so a mid-load throw can roll
+  // back to clean defaults instead of leaving a half-hydrated "Frankenstein" profile.
+  let __preLoadSnapshot = null;
+  try { __preLoadSnapshot = (typeof structuredClone === "function") ? structuredClone(State) : null; } catch(_) { __preLoadSnapshot = null; }
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if(!raw) return;
@@ -63573,6 +63834,9 @@ function load(){
       State.trainingTimeMs = 0;
       d = raw;
     }
+
+    // v6.8.49: record the loaded schemaVersion and route through migration steps.
+    d = migrateLoadedProfileBlob(d, raw);
 
     // v6.5.22cc: keep diagnostic buffers across version bumps; diagnostic export uses non-destructive version diagnostics.
     // Trial-level entries carry their own appVersion, so cross-version
@@ -63756,6 +64020,15 @@ function load(){
     _loadFailed = true;
     _persistenceDisabled = true;
     _lastSaveFailed = true;
+    // v6.8.49 (data-loss guard): roll State back to its pre-load (pristine) snapshot
+    // so the session runs on clean defaults rather than a half-hydrated profile.
+    // Module flags above are not State properties, so they stay set (saving paused).
+    if(__preLoadSnapshot){
+      try {
+        for(const k of Object.keys(State)){ if(!(k in __preLoadSnapshot)){ try { delete State[k]; } catch(_) {} } }
+        Object.assign(State, __preLoadSnapshot);
+      } catch(_) {}
+    }
     try {
       if(!State.productionMonitor) State.productionMonitor = {};
       State.productionMonitor.loadFailedPersistenceDisabled = {
@@ -63766,6 +64039,9 @@ function load(){
       };
       if(typeof recordRuntimeError === "function") recordRuntimeError(e, {source:"load", persistenceDisabled:true});
     } catch(_) {}
+    // v6.8.49: surface the failure (previously silent except for the console).
+    try { State.loadFailedNotice = {at:new Date().toISOString(), name:e?.name || "error"}; } catch(_) {}
+    try { if(typeof _ioMsg === "function") _ioMsg("Saved progress could not be read. Saving is paused to protect it — use Restore last backup in the Menu.", false); } catch(_) {}
     console.warn("Eucalculia: load failed; persistence disabled to avoid overwriting saved progress —", e?.name || e);
   }
   // After load (whether successful or fallback), the cell stats may differ
@@ -65796,6 +66072,7 @@ function wirePanicMenuButtons(){
   $("panicEndBlockBtn")?.addEventListener("click", endBlockFromPanic);
   $("panicMenuBtn")?.addEventListener("click", returnMenuFromPanic);
   $("panicResetRuntimeBtn")?.addEventListener("click", () => resetRuntimeOnly("panic_button_reset_runtime"));
+  $("panicRestoreBtn")?.addEventListener("click", () => { try { restoreLatestBackup({source:"panic_button"}); } catch(e){ recordRuntimeError(e, {source:"panic_restore"}); } });
   $("panicExportBtn")?.addEventListener("click", () => { try { $("diagnosticExportBtn")?.click(); } catch(e){ recordRuntimeError(e, {source:"panic_export"}); } });
 }
 if(typeof window !== "undefined") setTimeout(wirePanicMenuButtons, 0);
@@ -69247,6 +69524,55 @@ function auditL1BridgeOptionLeakContracts(){
   }catch(e){ block.push(`audit exception: ${e?.message || e}`); }
   return auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {block, warnings});
 }
+// ── v6.8.49: extensible audit registry ──────────────────────────────────────
+// Before this, runFeatureAudit("all") ran a HARDCODED sub-audit list, so the
+// self-audits added by the ~50 appended patch IIFEs (operation-effect /
+// no-result-leak / threshold-induction regression guards, etc.) NEVER ran in the
+// "all" harness — they were only reachable via their own feature-key wrappers.
+// The very audits written to catch the recurring answer-leak regressions never
+// fired routinely. Patches may now register here; "all" also auto-discovers the
+// version-tagged window/globalThis audits so existing patches are covered without
+// editing all 50 of them, and any future patch is picked up automatically.
+const EUCA_EXTRA_FEATURE_AUDITS = [];
+function registerExtraFeatureAudit(key, fn){
+  try{
+    if(typeof key !== "string" || !key || typeof fn !== "function") return false;
+    if(EUCA_EXTRA_FEATURE_AUDITS.some(e => e && e.key === key)) return false;
+    EUCA_EXTRA_FEATURE_AUDITS.push({key, fn});
+    return true;
+  }catch(_){ return false; }
+}
+try{ if(typeof window !== "undefined") window.registerExtraFeatureAudit = registerExtraFeatureAudit; }catch(_){}
+// v6.8.49 consolidation: a key->handler registry for individual feature audits, so a
+// patch can REGISTER its audit key instead of adding yet another runFeatureAudit
+// wrapper (the chain is ~70 deep). The base dispatcher (see the "unknown feature"
+// fallthrough below) consults this before reporting an unknown key. Existing wrappers
+// keep working; this stops the chain from growing and lets wrappers be migrated 1-by-1.
+const EUCA_FEATURE_AUDIT_HANDLERS = {};
+function eucaNormFeatureKey(x){ return String(x == null ? "" : x).toLowerCase().replace(/[.\-\s]+/g, "_"); }
+function registerFeatureAudit(keys, fn, label){
+  try{
+    if(typeof fn !== "function") return false;
+    const arr = Array.isArray(keys) ? keys : [keys];
+    for(const k of arr){ const nk = eucaNormFeatureKey(k); if(nk) EUCA_FEATURE_AUDIT_HANDLERS[nk] = { fn, label: label || nk }; }
+    return true;
+  }catch(_){ return false; }
+}
+try{ if(typeof window !== "undefined"){ window.registerFeatureAudit = registerFeatureAudit; window.EUCA_FEATURE_AUDIT_HANDLERS = EUCA_FEATURE_AUDIT_HANDLERS; } }catch(_){}
+function discoverPatchFeatureAudits(){
+  const out = [];
+  try{
+    const scope = (typeof globalThis !== "undefined") ? globalThis : (typeof window !== "undefined" ? window : null);
+    if(scope){
+      for(const k of Object.keys(scope)){
+        // Version-tagged patch self-audits, e.g. auditV6838…, auditV6846…, auditV6848….
+        if(/^auditV6\d/.test(k) && typeof scope[k] === "function") out.push({key:k, fn:scope[k]});
+      }
+    }
+  }catch(_){}
+  for(const e of EUCA_EXTRA_FEATURE_AUDITS){ if(e && typeof e.fn === "function") out.push(e); }
+  return out;
+}
 function runFeatureAudit(featureName, opts={}){
   if(CONFIG.publicBuildHotPathAuditGuard && isPublicPerformanceBuild() && State.running && !opts.allowPublicHarness && !opts.allowPublicHarnessRuntime && !opts.force){
     const hot = ["PREP","FLASH","MASK","INPUT","LOCKED","REVIEW","REVIEW_CLOSING","BLOCK_INTRO","FLOW_RESUME","UNLOCK_INTERSTITIAL"].includes(State.status);
@@ -69256,6 +69582,14 @@ function runFeatureAudit(featureName, opts={}){
     }
   }
   const feature = canonicalFeatureName(featureName || "all");
+  // v6.8.49 consolidation: individual-key audits registered via registerFeatureAudit
+  // (replacing per-patch runFeatureAudit wrappers) dispatch here. This matches the old
+  // wrappers exactly: same precedence (above the base ladder), raw return shape, and
+  // bypass of the public-build harness gate. "all" always runs the full suite.
+  if(feature !== "all"){
+    const _h = EUCA_FEATURE_AUDIT_HANDLERS[eucaNormFeatureKey(featureName)] || EUCA_FEATURE_AUDIT_HANDLERS[eucaNormFeatureKey(feature)];
+    if(_h && typeof _h.fn === "function") return _h.fn(opts || {});
+  }
   if(CONFIG.publicBuildDisableRuntimeHarnesses && !opts.allowPublicHarness){
     return {feature, status:"PASS", at:new Date().toISOString(), results:{publicBuild:{status:"PASS", detail:"runtime harness skipped in public performance build"}}, harnessMs:0, skipped:"public_build"};
   }
@@ -69318,6 +69652,17 @@ function runFeatureAudit(featureName, opts={}){
     results.epistemicAbstract = runTimedFeatureSubAudit(feature, "epistemicAbstract", () => auditEpistemicAbstractExpansion());
     results.cellTransfer = runTimedFeatureSubAudit(feature, "cellTransfer", () => auditCellTransferScheduler());
     results.specAtomicMigration = runTimedFeatureSubAudit(feature, "specAtomicMigration", () => auditSpecAtomicMigrationCompleteness());
+    // v6.8.49: also run appended patch self-audits (see registry comment above).
+    // These are dev/diagnostic only — "all" already returns early in public builds
+    // (publicBuildDisableRuntimeHarnesses), so this never touches player sessions.
+    try{
+      const seen = new Set();
+      for(const e of discoverPatchFeatureAudits()){
+        if(!e || !e.key || seen.has(e.key) || Object.prototype.hasOwnProperty.call(results, e.key)) continue;
+        seen.add(e.key);
+        results[e.key] = runTimedFeatureSubAudit(feature, e.key, () => e.fn(opts));
+      }
+    }catch(e){ results.patchAuditDiscovery = auditResult("WARN", {block:[], warnings:[`patch_audit_discovery_failed:${e?.message||e}`]}); }
   } else if(feature === "meta_classification") {
     results.metaClassification = runTimedFeatureSubAudit(feature, "metaClassification", () => auditMetacognitiveClassificationExpansion(opts));
   } else if(feature === "l0_boolean_compound" || feature === "boolean_compound" || feature === "compound_boolean_clarity"){
@@ -78730,79 +79075,13 @@ try{
 
 
 <script>
-// v6.6.12 / v6.5.103 semantic wording guard: keep wording aligned with the predicate.
-// A previous friendly variant for larger_even_and_gap_gt2 asked whether exactly one
-// condition was "broken". That is an XOR predicate, not the AND predicate represented
-// by larger_even_and_gap_gt2. The wording must not be served from this category.
-(function(){
-  try{
-    const targetId = "larger_even_and_gap_gt2";
-    const forbidden = /exactly\s+one[^?]*condition[^?]*broken|exactly\s+one[^?]*broken/i;
-    function cleanVariants(){
-      if(typeof FRIENDLY_POSNER_VARIANTS === "undefined" || !FRIENDLY_POSNER_VARIANTS) return false;
-      const arr = FRIENDLY_POSNER_VARIANTS[targetId];
-      if(!Array.isArray(arr)) return false;
-      let changed = false;
-      for(let i=0;i<arr.length;i++){
-        const v = arr[i] || {};
-        if(forbidden.test(String(v.q || ""))){
-          arr[i] = {
-            q:"Are both required conditions satisfied: the larger value is even and the gap is more than 2?",
-            linguisticFrame:"restrictive_quantifier"
-          };
-          changed = true;
-        }
-      }
-      return changed;
-    }
-    cleanVariants();
-    window.auditCompoundSemanticWordingV6612 = function auditCompoundSemanticWordingV6612(){
-      const problems = [];
-      const rows = [];
-      const cats = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS : [];
-      function scanVariant(source, id, v){
-        const q = String((v && v.q) || "");
-        rows.push({source,id,q});
-        if(id === targetId && forbidden.test(q)){
-          problems.push({id, source, q, problem:"xor_broken_wording_attached_to_and_predicate"});
-        }
-      }
-      if(typeof FRIENDLY_POSNER_VARIANTS !== "undefined" && FRIENDLY_POSNER_VARIANTS){
-        Object.entries(FRIENDLY_POSNER_VARIANTS).forEach(([id, arr])=>{
-          if(Array.isArray(arr)) arr.forEach(v=>scanVariant("friendly", id, v));
-        });
-      }
-      cats.forEach(cat=>{
-        if(Array.isArray(cat.variants)) cat.variants.forEach(v=>scanVariant("cat", cat.id, v));
-      });
-      // Empirical semantic sanity check for the transformed/review example pattern:
-      // one condition true, one false must not be labelled by an AND wording as "broken".
-      const a=5,b=6;
-      const largerEven = Math.max(a,b) % 2 === 0;
-      const gapGt2 = Math.abs(a-b) > 2;
-      const exactlyOneBroken = ((largerEven?0:1) + (gapGt2?0:1)) === 1;
-      const andPredicate = largerEven && gapGt2;
-      if(exactlyOneBroken !== true || andPredicate !== false){
-        problems.push({problem:"sanity_check_unexpected", largerEven, gapGt2, exactlyOneBroken, andPredicate});
-      }
-      return {
-        appVersion:(typeof APP_VERSION !== "undefined" ? APP_VERSION : null),
-        ok:problems.length===0,
-        status:problems.length?"blocking":"pass",
-        scanned:rows.length,
-        problems
-      };
-    };
-    const previousRunFeatureAudit = (typeof runFeatureAudit === "function") ? runFeatureAudit : null;
-    if(previousRunFeatureAudit){
-      runFeatureAudit = function runFeatureAuditV6612SemanticWording(feature, opts={}){
-        if(String(feature||"").toLowerCase()==="compound_semantic_wording") return window.auditCompoundSemanticWordingV6612(opts);
-        return previousRunFeatureAudit(feature, opts);
-      };
-      try{ window.runFeatureAudit = runFeatureAudit; globalThis.runFeatureAudit = runFeatureAudit; }catch(_){ }
-    }
-  }catch(e){ try{ console.warn("compound semantic wording guard failed", e); }catch(_){ } }
-})();
+// v6.8.49 consolidation: removed the FIRST (superseded) copy of the v6.6.12
+// compound-semantic-wording guard. It was a byte-identical duplicate of the
+// "Recovered patch block" copy further below (~line 79950), which redefines
+// auditCompoundSemanticWordingV6612, re-wraps runFeatureAudit (later assignment
+// wins) and runs the same idempotent cleanVariants() on larger_even_and_gap_gt2.
+// Exactly one copy is kept; runtime behavior is unchanged. (Proof-of-pattern for
+// the patch-stack consolidation roadmap — see memory/the audit notes.)
 
 
 // ============================================================================
@@ -79499,7 +79778,10 @@ try{
     x = x.replace(/\bside-specific LEFT\/RIGHT readout\b/gi, "named-side readout (LEFT/RIGHT)");
     x = x.replace(/\bside-specific LEFT\/RIGHT position\b/gi, "named side (LEFT/RIGHT)");
     x = x.replace(/\bprevious META questions\b/gi, "previous META questions");
-    x = x.replace(/\s+/g, " ").trim();
+    // v6.8.49 legibility: collapse only horizontal whitespace, KEEP newlines so
+    // structured prompts (candidate lists, example lines) survive into the
+    // white-space:pre-line .meta-hint. Newlines still render as spaces elsewhere.
+    x = x.replace(/[^\S\n]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     return x;
   }
   try{
@@ -80047,7 +80329,10 @@ try{
     x = x.replace(/\bside-specific LEFT\/RIGHT readout\b/gi, "named-side readout (LEFT/RIGHT)");
     x = x.replace(/\bside-specific LEFT\/RIGHT position\b/gi, "named side (LEFT/RIGHT)");
     x = x.replace(/\bprevious META questions\b/gi, "previous META questions");
-    x = x.replace(/\s+/g, " ").trim();
+    // v6.8.49 legibility: collapse only horizontal whitespace, KEEP newlines so
+    // structured prompts (candidate lists, example lines) survive into the
+    // white-space:pre-line .meta-hint. Newlines still render as spaces elsewhere.
+    x = x.replace(/[^\S\n]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     return x;
   }
   try{
@@ -85005,6 +85290,12 @@ try{
           return governNutrientSelection(selected, cats, maxTier);
         };
         wrapped.__v681NutrientWrapped = true;
+        // v6.8.49: installV681Wrappers() runs again after the later choose-wrappers
+        // (v6.8.23b/40/45), so this V681 wrapper ends up OUTERMOST. It calls prev,
+        // so all later behavior still runs — but flag-based audits read the outermost
+        // marker. Carry prior markers forward so e.g. auditV6840ProgressionStaircase
+        // sees __v6840ProgressionWrapped instead of false-blocking.
+        try{ for(const k of Object.keys(prev)){ if(k.slice(0,2)==="__" && typeof prev[k]==="boolean" && wrapped[k]===undefined) wrapped[k]=prev[k]; } }catch(_){ }
         chooseFamilyBalancedPosnerCat = wrapped;
         try{ window.chooseFamilyBalancedPosnerCat = wrapped; globalThis.chooseFamilyBalancedPosnerCat = wrapped; }catch(_){ }
       }
@@ -85074,19 +85365,8 @@ try{
       setTimeout(boot, 300);
     }
   }catch(_){ }
-  try{
-    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v681GenerativeL1NutrientsWrapped){
-      const wrapped = function runFeatureAuditV681(feature, opts={}){
-        const key = norm(feature);
-        if(AUDIT_NAMES.has(key)) return auditV681(opts || {});
-        return prevRun.apply(this, arguments);
-      };
-      wrapped.__v681GenerativeL1NutrientsWrapped = true;
-      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
-      try{ runFeatureAudit = wrapped; }catch(_){ }
-    }
-  }catch(_){ }
+  // v6.8.49 consolidation: register audit keys instead of wrapping runFeatureAudit.
+  try{ registerFeatureAudit([...AUDIT_NAMES], (opts)=>auditV681(opts||{}), "auditV681"); }catch(_){ }
   try{ boot(); }catch(_){ }
 })();
 </script>
@@ -85597,19 +85877,8 @@ try{
       setTimeout(boot, 300);
     }
   }catch(_){ }
-  try{
-    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v684ObjectiveProbesWrapped){
-      const wrapped = function runFeatureAuditV684(feature, opts={}){
-        const key = norm(feature);
-        if(AUDIT_NAMES.has(key)) return auditV684ObjectiveProbes(opts || {});
-        return prevRun.apply(this, arguments);
-      };
-      wrapped.__v684ObjectiveProbesWrapped = true;
-      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
-      try{ runFeatureAudit = wrapped; }catch(_){ }
-    }
-  }catch(_){ }
+  // v6.8.49 consolidation: register audit keys instead of wrapping runFeatureAudit.
+  try{ registerFeatureAudit([...AUDIT_NAMES], (opts)=>auditV684ObjectiveProbes(opts||{}), "auditV684ObjectiveProbes"); }catch(_){ }
   try{ boot(); }catch(_){ }
 })();
 </script>
@@ -85810,19 +86079,8 @@ try{
       setTimeout(boot, 0);
     }
   }catch(_){ }
-  try{
-    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v685ChoiceIntegrityWrapped){
-      const wrapped = function runFeatureAuditV685(feature, opts={}){
-        const key = norm(feature);
-        if(AUDIT_NAMES.has(key)) return auditChoiceSemanticEntropy(opts || {});
-        return prevRun.apply(this, arguments);
-      };
-      wrapped.__v685ChoiceIntegrityWrapped = true;
-      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
-      try{ runFeatureAudit = wrapped; }catch(_){ }
-    }
-  }catch(_){ }
+  // v6.8.49 consolidation: register audit keys instead of wrapping runFeatureAudit.
+  try{ registerFeatureAudit([...AUDIT_NAMES], (opts)=>auditChoiceSemanticEntropy(opts||{}), "auditChoiceSemanticEntropy"); }catch(_){ }
   try{ boot(); }catch(_){ }
 })();
 </script>
@@ -85930,18 +86188,8 @@ try{
       setTimeout(boot, 0);
     }
   }catch(_){ }
-  try{
-    const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v687GenerativeAutosubmitRunfixWrapped){
-      const wrapped = function runFeatureAuditV687(feature, opts={}){
-        if(AUDIT_NAMES.has(norm(feature))) return auditChoiceRequestedSlotIntegrity(opts || {});
-        return prevRun.apply(this, arguments);
-      };
-      wrapped.__v687GenerativeAutosubmitRunfixWrapped = true;
-      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
-      try{ runFeatureAudit = wrapped; }catch(_){ }
-    }
-  }catch(_){ }
+  // v6.8.49 consolidation: register audit keys instead of wrapping runFeatureAudit.
+  try{ registerFeatureAudit([...AUDIT_NAMES], (opts)=>auditChoiceRequestedSlotIntegrity(opts||{}), "auditChoiceRequestedSlotIntegrity"); }catch(_){ }
   try{ boot(); }catch(_){ }
 })();
 </script>
@@ -87359,18 +87607,8 @@ try{
     ensureShapes();
   }
   function installAuditEntry(){
-    try{
-      const prevRun = (typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-      if(prevRun && !prevRun.__v689InvarianceWrapped){
-        const wrapped = function runFeatureAuditV689(feature, opts={}){
-          if(AUDIT_NAMES.has(norm(feature))) return auditV689(opts || {});
-          return prevRun.apply(this, arguments);
-        };
-        wrapped.__v689InvarianceWrapped = true;
-        try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; }catch(_){ }
-        try{ runFeatureAudit = wrapped; }catch(_){ }
-      }
-    }catch(_){ }
+    // v6.8.49 consolidation: register audit keys instead of wrapping runFeatureAudit.
+    try{ registerFeatureAudit([...AUDIT_NAMES], (opts)=>auditV689(opts||{}), "auditV689"); }catch(_){ }
   }
 
   function boot(){
@@ -90729,6 +90967,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         return prevPickVisuals.apply(this, arguments);
       };
       wrappedPickVisuals.__v6823bVisualDecoyWrapped=true;
+      // v6.8.49: carry forward prior wrapper markers (e.g. __v6823VisualDecoySteering)
+      // onto the outermost function; prev is still called, so its behavior persists.
+      try{ for(const k of Object.keys(prevPickVisuals)){ if(k.slice(0,2)==="__" && typeof prevPickVisuals[k]==="boolean" && wrappedPickVisuals[k]===undefined) wrappedPickVisuals[k]=prevPickVisuals[k]; } }catch(_){ }
       pickValueComparisonVisuals=wrappedPickVisuals;
       try{ window.pickValueComparisonVisuals=wrappedPickVisuals; globalThis.pickValueComparisonVisuals=wrappedPickVisuals; }catch(_){ }
     }
@@ -91119,9 +91360,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function pairInList(p, arr){ return Array.isArray(arr) && arr.some(q => eqPair(p,q)); }
   function examplePairs(yesExamples, noExamples){ return [].concat(yesExamples || [], noExamples || []); }
   function examplesText(yesExamples, noExamples){
-    const y = (yesExamples || []).map(p=>`L${p.a} R${p.b}`).join("; ") || "none";
-    const n = (noExamples || []).map(p=>`L${p.a} R${p.b}`).join("; ") || "none";
-    return `YES examples: ${y}. NO examples: ${n}.`;
+    const y = (yesExamples || []).map(p=>`LEFT ${p.a}, RIGHT ${p.b}`).join("; ") || "none";
+    const n = (noExamples || []).map(p=>`LEFT ${p.a}, RIGHT ${p.b}`).join("; ") || "none";
+    return `YES examples: ${y}.\nNO examples: ${n}.`;
   }
   function versionSpaceForExamples(yesExamples, noExamples, candidates){
     const cands = Array.isArray(candidates) && candidates.length ? candidates : HIDDEN_RULES;
@@ -91576,7 +91817,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       const teach = chooseTeachingExamples(rule, cap, 7, candidates);
       if(!teach) continue;
       const examples = examplePairs(teach.yesExamples, teach.noExamples);
-      const candidateText = hiddenCandidateLabels(candidates);
+      const candidateText = candidates.map((r,i)=>`${String.fromCharCode(65+i)}: ${r.label}`).join("\n");
       for(const target of [true,false]){
         const pool = pairs.filter(p => ruleTruth(rule,p) === target && !pairInList(p, examples));
         if(!pool.length) continue;
@@ -91586,7 +91827,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           mode:"hidden_rule_induction",
           title:"Induce the rule from examples",
           question:`Induce the rule, then build ONE new ${yn(target)} example.`,
-          sub:`Candidates: ${candidateText}. ${exText} Use only the listed candidates; do not copy an example.`,
+          sub:`Candidates:\n${candidateText}\n\n${exText}\n\nUse only the listed candidates; do not copy an example.`,
           params:{ruleId:rule.id, target, yesExamples:teach.yesExamples, noExamples:teach.noExamples, versionSpaceIds:teach.versionSpaceIds, candidateRuleIds:teach.candidateRuleIds || candidates.map(r=>r.id), inductionContract:"visible_candidate_version_space"},
           phaseCount:1,
           klauer:{process:"same", object:rule.object},
@@ -93764,7 +94005,11 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         if(!/rotation/i.test(text) || !/mirror/i.test(text)) block.push(`${c.id}: Shepard prompt must name rotation and mirror`);
         if(/enantiomer|chirality|chiral|automorphism|isomorphism/i.test(text)) block.push(`${c.id}: Shepard prompt leaks technical vocabulary`);
       }
-      if(c && c.graphConditionalId && !c.graphRelationConditionId && !c.vennConditionId){
+      if(c && c.graphConditionalId && !c.graphRelationConditionId && !c.vennConditionId && c.family !== "l0_graph_role_matching"){
+        // v6.8.49: v6.8.33 introduced legitimate role-matching cats that keep
+        // graphConditionalId but use family "l0_graph_role_matching"; exclude them
+        // from the global-graph family requirement (they are a distinct family,
+        // not a regression) so this audit stops false-blocking on them.
         if(c.family !== "l0_graph_conditional") block.push(`${c.id}: global graph cat has unexpected family ${c.family}`);
         if(/Same means/i.test(text)) block.push(`${c.id}: compact 'Same means' wording survived`);
       }
@@ -96467,6 +96712,11 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         return picked;
       };
       wrapped.__v6845EpistemicLateWrapped = true;
+      // v6.8.49: carry forward prior wrapper markers (e.g. __v6840ProgressionWrapped)
+      // onto the outermost function. Every earlier wrapper called prev, so its
+      // behavior is still in the chain; this stops flag-based audits from
+      // false-blocking just because a later re-wrap shadowed the marker.
+      try{ for(const k of Object.keys(prevChoose)){ if(k.slice(0,2)==="__" && typeof prevChoose[k]==="boolean" && wrapped[k]===undefined) wrapped[k]=prevChoose[k]; } }catch(_){ }
       chooseFamilyBalancedPosnerCat = wrapped;
       try{ window.chooseFamilyBalancedPosnerCat = wrapped; globalThis.chooseFamilyBalancedPosnerCat = wrapped; }catch(_){ }
     }
@@ -96560,18 +96810,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
 
   try{ window.epistemicLateProgressionSnapshotV6845 = epistemicLateProgressionSnapshotV6845; globalThis.epistemicLateProgressionSnapshotV6845 = epistemicLateProgressionSnapshotV6845; }catch(_){ }
   try{ window.auditV6845EpistemicLateProgression = auditV6845EpistemicLateProgression; globalThis.auditV6845EpistemicLateProgression = auditV6845EpistemicLateProgression; }catch(_){ }
-  try{
-    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v6845EpistemicLateWrapped){
-      const wrapped = function runFeatureAuditV6845(feature, opts={}){
-        const f = low(feature).replace(/[.\-\s]+/g,"_");
-        if(AUDIT_KEYS.has(f)) return auditV6845EpistemicLateProgression(opts||{});
-        return prevRun.apply(this, arguments);
-      };
-      wrapped.__v6845EpistemicLateWrapped = true;
-      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; runFeatureAudit = wrapped; }catch(_){ }
-    }
-  }catch(_){ }
+  // v6.8.49 consolidation: register audit keys instead of wrapping runFeatureAudit.
+  try{ registerFeatureAudit([...AUDIT_KEYS], (opts) => auditV6845EpistemicLateProgression(opts||{}), "auditV6845EpistemicLateProgression"); }catch(_){ }
 })();
 </script>
 
@@ -96669,18 +96909,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {...details, warnings, block});
   }
   try{ window.auditV6846ThresholdInductionClarity = auditV6846ThresholdInductionClarity; globalThis.auditV6846ThresholdInductionClarity = auditV6846ThresholdInductionClarity; }catch(_){ }
-  try{
-    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v6846ThresholdWrapped){
-      const wrappedRun = function runFeatureAuditV6846(feature, opts={}){
-        const f = low(feature).replace(/[.\-\s]+/g,"_");
-        if(AUDIT_KEYS.has(f)) return auditV6846ThresholdInductionClarity(opts || {});
-        return prevRun.apply(this, arguments);
-      };
-      wrappedRun.__v6846ThresholdWrapped = true;
-      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
-    }
-  }catch(_){ }
+  // v6.8.49 consolidation: register audit keys instead of wrapping runFeatureAudit.
+  try{ registerFeatureAudit([...AUDIT_KEYS], (opts) => auditV6846ThresholdInductionClarity(opts || {}), "auditV6846ThresholdInductionClarity"); }catch(_){ }
 })();
 </script>
 
@@ -96715,18 +96945,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, warnings, block});
   }
   try{ window.auditV6847SourceMinimalRelationalLanguage = auditV6847SourceMinimalRelationalLanguage; globalThis.auditV6847SourceMinimalRelationalLanguage = auditV6847SourceMinimalRelationalLanguage; }catch(_){ }
-  try{
-    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v6847LeanGapModWrapped){
-      const wrappedRun = function runFeatureAuditV6847(feature, opts={}){
-        const f = String(feature || "").toLowerCase().replace(/[.\-\s]+/g,"_");
-        if(f === "v6847" || f === "v6_8_47" || f === "source_minimal_relational_language" || f === "source_minimal_relational_language") return auditV6847SourceMinimalRelationalLanguage(opts || {});
-        return prevRun.apply(this, arguments);
-      };
-      wrappedRun.__v6847LeanGapModWrapped = true;
-      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
-    }
-  }catch(_){ }
+  // v6.8.49 consolidation: register audit keys instead of wrapping runFeatureAudit.
+  try{ registerFeatureAudit(["v6847","v6_8_47","source_minimal_relational_language"], (opts) => auditV6847SourceMinimalRelationalLanguage(opts || {}), "auditV6847SourceMinimalRelationalLanguage"); }catch(_){ }
 })();
 </script>
 
@@ -96772,18 +96992,10 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, checked:samples.length, samples:samples.slice(0,12), warnings, block});
   }
   try{ window.auditV6848NoResultLeakTransform = auditV6848NoResultLeakTransform; globalThis.auditV6848NoResultLeakTransform = auditV6848NoResultLeakTransform; }catch(_){ }
-  try{
-    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
-    if(prevRun && !prevRun.__v6848NoResultLeakWrapped){
-      const wrappedRun = function runFeatureAuditV6848(feature, opts={}){
-        const f = low(feature).replace(/[.\-\s]+/g,"_");
-        if(AUDIT_KEYS.has(f)) return auditV6848NoResultLeakTransform(opts || {});
-        return prevRun.apply(this, arguments);
-      };
-      wrappedRun.__v6848NoResultLeakWrapped = true;
-      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
-    }
-  }catch(_){ }
+  // v6.8.49 consolidation: register audit keys instead of adding another
+  // runFeatureAudit wrapper (the chain was ~70 deep). The base dispatcher's
+  // key->handler registry routes these; the window export above keeps "all" coverage.
+  try{ registerFeatureAudit([...AUDIT_KEYS], (opts) => auditV6848NoResultLeakTransform(opts || {}), "auditV6848NoResultLeakTransform"); }catch(_){ }
 })();
 </script>
 
