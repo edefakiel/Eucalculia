@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.50</title>
+<title>Eucalculia v6.8.52</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3331,7 +3331,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.50";
+const APP_VERSION = "v6.8.52";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -17255,13 +17255,26 @@ function l0AnalogySharedUnaryRuleCatalog(){
       paperNegRight:`is the hole count not what remains when RIGHT is counted up to ${anchorLabel(anchor)}?`
     });
   }
-  add("pair_mirror_1_12", "Reflect it across the midpoint of the 1–12 range.", "anchor_completion", n => 13 - n, {
-    distractorType:"mirror_anchor_flip",
-    paperPromptLeft:"is the hole count the mirror of LEFT on the 1–12 line?",
-    paperPromptRight:"is the hole count the mirror of RIGHT on the 1–12 line?",
-    paperNegLeft:"is the hole count not the mirror of LEFT on the 1–12 line?",
-    paperNegRight:"is the hole count not the mirror of RIGHT on the 1–12 line?"
-  });
+  // v6.8.52: replace the fixed/opaque "reflect across the 1–12 midpoint"
+  // wording with variable anchored symmetry. The operation is now framed as
+  // "same distance from N, on the other side" with N varying across trials.
+  for(const anchor of [3,4,5,6,7,8,9]){
+    add(`pair_same_distance_from_${anchor}_other_side`, `Use the value at the same distance from ${anchor}, on the other side.`, "anchor_symmetry", n => {
+      n = l0AnalogyInt(n);
+      return n === null ? null : (2 * anchor - n);
+    }, {
+      distractorType:"anchor_symmetry_flip",
+      canApply:n => {
+        n = l0AnalogyInt(n);
+        const x = n === null ? null : (2 * anchor - n);
+        return n !== null && n !== anchor && x >= 1 && x <= 12;
+      },
+      paperPromptLeft:`is the hole count at the same distance from ${anchor} as LEFT, on the other side?`,
+      paperPromptRight:`is the hole count at the same distance from ${anchor} as RIGHT, on the other side?`,
+      paperNegLeft:`is the hole count not at the same distance from ${anchor} as LEFT, on the other side?`,
+      paperNegRight:`is the hole count not at the same distance from ${anchor} as RIGHT, on the other side?`
+    });
+  }
   for(let k=1; k<=5; k++){
     add(`pair_clock_forward_${k}`, l0ClockClockwiseLabel(k), "clock_move", n => l0AnalogyClock(n, k), {
       distractorType:"clock_direction_flip",
@@ -23156,7 +23169,13 @@ function buildInverseOperationCatalogFromSharedAnalogies(){
     ["pair_fill_to_5", "five_complement", "take the 5-complement", "anchor", 1],
     ["pair_fill_to_10", "ten_complement", "take the 10-complement", "anchor", 1],
     ["pair_fill_to_12", "twelve_complement", "take the 12-complement", "anchor", 1],
-    ["pair_mirror_1_12", "mirror_1_12", "reflect LEFT across the 1–12 midpoint", "anchor", 1],
+    ["pair_same_distance_from_3_other_side", "same_distance_from_3_other_side", "same distance from 3, other side", "anchor", 1],
+    ["pair_same_distance_from_4_other_side", "same_distance_from_4_other_side", "same distance from 4, other side", "anchor", 1],
+    ["pair_same_distance_from_5_other_side", "same_distance_from_5_other_side", "same distance from 5, other side", "anchor", 1],
+    ["pair_same_distance_from_6_other_side", "same_distance_from_6_other_side", "same distance from 6, other side", "anchor", 1],
+    ["pair_same_distance_from_7_other_side", "same_distance_from_7_other_side", "same distance from 7, other side", "anchor", 1],
+    ["pair_same_distance_from_8_other_side", "same_distance_from_8_other_side", "same distance from 8, other side", "anchor", 1],
+    ["pair_same_distance_from_9_other_side", "same_distance_from_9_other_side", "same distance from 9, other side", "anchor", 1],
     ["pair_distance_from_5", "distance_from_5", "use the distance from 5", "distance", 1],
     ["pair_distance_from_10", "distance_from_10", "use the distance from 10", "distance", 1],
 
@@ -47454,19 +47473,19 @@ function extraRelationEquivalenceSpecs(){
       {text:"LEFT is farther from 5", correct:dl>dr, distractorType:"role_inversion"},
       {text:"RIGHT is closer to 5", correct:dr<dl, distractorType:"role_inversion"}
     ];}, review(a,b){ return `Distances to 5: LEFT=${Math.abs(a-5)}, RIGHT=${Math.abs(b-5)}.`; }},
-    {id:"rel_eq_modular_dual_mod3", label:"dual remainder relation by 3", minM:7, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.50 bug1: accept only pairs where the EQUIVALENT pair (opt0≡opt1, same remainder = diff multiple) is the UNIQUE true pair. Was valid:true → the sampler's "2 true" gate could mark the non-equivalent distractors (sum-multiple + exactly-one-rem-1), e.g. a=1,b=4, while the equivalent pair was false.*/ (a-b)%3===0 && (a+b)%3!==0 && ((a%3===1)!==(b%3===1))===false, build(a,b){ const same=(a-b)%3===0; return [
+    {id:"rel_eq_modular_dual_mod3", label:"dual remainder relation by 3", minM:7, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.51: accept only pairs where the EQUIVALENT pair (opt0≡opt1, same remainder = diff multiple) is the UNIQUE true pair. Was valid:true → the sampler's "2 true" gate could mark the non-equivalent distractors (sum-multiple + exactly-one-rem-1), e.g. a=1,b=2 for mod 3, while the equivalent pair was false.*/ (a-b)%3===0 && (a+b)%3!==0 && ((a%3===1)!==(b%3===1))===false, build(a,b){ const same=(a-b)%3===0; return [
       {text:"both leave the same remainder after division by 3", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 3", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 3", correct:(a+b)%3===0, distractorType:"semantic_near_miss"},
       {text:"exactly one leaves remainder 1 mod 3", correct:(a%3===1)!==(b%3===1), distractorType:"semantic_near_miss"}
     ];}, review(a,b){ return `Remainders mod 3: LEFT=${a%3}, RIGHT=${b%3}.`; }},
-    {id:"rel_eq_modular_dual_mod4", label:"dual remainder relation by 4", minM:8, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.50 bug1*/ (a-b)%4===0 && (a+b)%4!==0 && ((a%4===1)!==(b%4===1))===false, build(a,b){ const same=(a-b)%4===0; return [
+    {id:"rel_eq_modular_dual_mod4", label:"dual remainder relation by 4", minM:8, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.51: same unique-equivalence guard*/ (a-b)%4===0 && (a+b)%4!==0 && ((a%4===1)!==(b%4===1))===false, build(a,b){ const same=(a-b)%4===0; return [
       {text:"both leave the same remainder after division by 4", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 4", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 4", correct:(a+b)%4===0, distractorType:"semantic_near_miss"},
       {text:"exactly one leaves remainder 1 mod 4", correct:(a%4===1)!==(b%4===1), distractorType:"semantic_near_miss"}
     ];}, review(a,b){ return `Remainders mod 4: LEFT=${a%4}, RIGHT=${b%4}.`; }},
-    {id:"rel_eq_modular_dual_mod5", label:"dual remainder relation by 5", minM:10, stage:5, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.50 bug1*/ (a-b)%5===0 && (a+b)%5!==0 && ((a%5===1)!==(b%5===1))===false, build(a,b){ const same=(a-b)%5===0; return [
+    {id:"rel_eq_modular_dual_mod5", label:"dual remainder relation by 5", minM:10, stage:5, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.51: same unique-equivalence guard*/ (a-b)%5===0 && (a+b)%5!==0 && ((a%5===1)!==(b%5===1))===false, build(a,b){ const same=(a-b)%5===0; return [
       {text:"both leave the same remainder after division by 5", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 5", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 5", correct:(a+b)%5===0, distractorType:"semantic_near_miss"},
@@ -75790,7 +75809,7 @@ try{
     for(const cat of cats){
       if(!cat || !/^paper_x_(?:left|right)_mirror_1_12$/.test(String(cat.id || ""))) continue;
       if(Array.isArray(cat.variants)){
-        for(const v of cat.variants){ if(v && typeof v.q === "string") v.q = v.q.replace(/reflect it across the 1–12 midpoint/gi, "reflect it across the midpoint of the 1–12 range"); }
+        for(const v of cat.variants){ if(v && typeof v.q === "string") v.q = v.q.replace(/reflect it across the 1–12 midpoint/gi, "use the value equally far from the centre, on the other side"); }
       }
     }
   }catch(e){ warn("midpoint variant repair failed", e); }
@@ -82349,15 +82368,35 @@ try{
     return true;
   }
 
+  function generativeCatRequiresDistinct(cat){
+    try{
+      if(!cat) return false;
+      if(cat.allowEqual === false) return true;
+      if(cat.noEqual === true || cat.requiresDistinct === true) return true;
+      const src = typeof cat.gen === "function" ? Function.prototype.toString.call(cat.gen) : "";
+      return /allowEqual\s*:\s*false/.test(src);
+    }catch(_){ return false; }
+  }
+  function generativePairValid(cat, a, b, m){
+    try{ if(cat && typeof cat.valid === "function" && !cat.valid(a, b, m)) return false; }
+    catch(_){ return false; }
+    if(a === b && generativeCatRequiresDistinct(cat)) return false;
+    return true;
+  }
+
   const _genGridCache = new Map(); // `${catId}|${m}` → {trueCount, falseCount, total, truePairs, falsePairs, broken}
   function generativeGridStats(cat, m){
     const key = `${cat.id}|${m}`;
     const hit = _genGridCache.get(key);
     if(hit) return hit;
     const cap = generativeValueCap(m);
-    const out = {trueCount:0, falseCount:0, total:cap*cap, truePairs:[], falsePairs:[], broken:false};
+    const out = {trueCount:0, falseCount:0, total:0, invalidCount:0, truePairs:[], falsePairs:[], broken:false};
     for(let a = 1; a <= cap; a++){
       for(let b = 1; b <= cap; b++){
+        try{
+          if(!generativePairValid(cat, a, b, m)){ out.invalidCount++; continue; }
+        }catch(_){ out.broken = true; continue; }
+        out.total++;
         let v = null;
         try{ v = cat.verify(a, b, m); }catch(_){ out.broken = true; continue; }
         if(typeof v !== "boolean"){ out.broken = true; continue; }
@@ -82450,10 +82489,18 @@ try{
     return t.order[t.phaseIdx] === "true";
   }
 
-  // Judge one submission for the current phase. Range errors do not count as
-  // attempts; semantic misses do, and (since the predicate is boolean) every
-  // miss is itself a valid witness for the opposite phase — the feedback says
-  // so explicitly, because that inversion is the pedagogical payload.
+  function generativeInvalidPairMessage(cat){
+    const id = String(cat?.id || "");
+    const qs = Array.isArray(cat?.variants) ? cat.variants.map(v => String(v?.q || "")).join(" ") : "";
+    if(/larger|smaller|bigger|lesser|max|min/i.test(id + " " + qs)){
+      return "Use two different values; this claim needs a larger/smaller role.";
+    }
+    return "That pair is outside this claim's valid construction space.";
+  }
+
+  // Judge one submission for the current phase. Range errors and invalid
+  // construction-space pairs do not count as attempts; semantic misses do, and
+  // every semantic miss is itself a valid witness for the opposite phase.
   function generativeJudge(session, aRaw, bRaw){
     const t = session && session.current;
     if(!t || session.finished) return {ok:false, reason:"no_active_trial"};
@@ -82462,6 +82509,11 @@ try{
     if(!Number.isFinite(a) || !Number.isFinite(b) || a < 1 || b < 1 || a > cap || b > cap || a !== Number(aRaw) || b !== Number(bRaw)){
       return {ok:false, reason:"range", cap};
     }
+    try{
+      if(!generativePairValid(t.cat, a, b, session.m)){
+        return {ok:false, reason:"invalid_pair", cap, message:generativeInvalidPairMessage(t.cat), pair:[a, b]};
+      }
+    }catch(e){ genWarn("valid check threw for " + t.catId, e); return {ok:false, reason:"verify_error"}; }
     const target = generativeCurrentTarget(session);
     let v = null;
     try{ v = t.cat.verify(a, b, session.m); }catch(e){ genWarn("verify threw for " + t.catId, e); return {ok:false, reason:"verify_error"}; }
@@ -82664,7 +82716,7 @@ try{
       fb.className = "err";
       fb.textContent = res.reason === "range"
         ? `Both values must be whole numbers from 1 to ${res.cap}.`
-        : "This question could not be checked — please try a different trial.";
+        : (res.reason === "invalid_pair" ? (res.message || "That pair is not valid for this claim.") : "This question could not be checked — please try a different trial.");
       return;
     }
     if(res.correct){
@@ -83270,7 +83322,7 @@ try{
     }
     const res = g.judge(session, chosen.a, chosen.b);
     if(!res || !res.ok){
-      showFeedback("err", res && res.reason === "range" ? `Use whole values from 1 to ${res.cap}.` : "This pair could not be checked.");
+      showFeedback("err", res && res.reason === "range" ? `Use whole values from 1 to ${res.cap}.` : (res && res.reason === "invalid_pair" ? (res.message || "That pair is not valid for this claim.") : "This pair could not be checked."));
       clearPair();
       return;
     }
@@ -83771,6 +83823,27 @@ try{
     return `${head}: ${row.q}`;
   }
 
+  function inlineCatRequiresDistinct(cat, m){
+    try{
+      if(!cat) return false;
+      if(typeof generativeCatRequiresDistinct === "function" && generativeCatRequiresDistinct(cat)) return true;
+      return !!(typeof cat.valid === "function" && !cat.valid(1, 1, m) && !cat.valid(2, 2, m));
+    }
+    catch(_){ return false; }
+  }
+  function inlinePairValid(cat, a, b, m){
+    try{ if(typeof generativePairValid === "function") return generativePairValid(cat, a, b, m); }catch(_){ }
+    try{ if(cat && typeof cat.valid === "function" && !cat.valid(a, b, m)) return false; }catch(_){ return false; }
+    if(a === b && inlineCatRequiresDistinct(cat, m)) return false;
+    return true;
+  }
+  function inlineInvalidPairMessage(cat){
+    const id = String(cat?.id || "");
+    const qs = Array.isArray(cat?.variants) ? cat.variants.map(v => String(v?.q || "")).join(" ") : "";
+    if(/larger|smaller|bigger|lesser|max|min/i.test(id + " " + qs)) return "Use two different values; there is no larger/smaller role when LEFT equals RIGHT.";
+    return "That LEFT/RIGHT pair is not valid for this construction prompt.";
+  }
+
   function buildInlineGenerativePayload(opts={}){
     const g = engine();
     if(!g || typeof g.pool !== "function") return null;
@@ -83857,6 +83930,7 @@ try{
       State.targetValue = "correct";
       State.pendingPanel = "genpair";
       State.autoPhase = "L0";
+      const distinctHint = inlineCatRequiresDistinct(sourceCat, m) ? " Distinct values required." : "";
       State.trialInfo = {
         kind:"generative_inline",
         level:0,
@@ -83874,6 +83948,7 @@ try{
         sourceQuestion:row.q,
         targetTruth,
         dualWitness:!!dual,
+        requiresDistinctPair:!!distinctHint,
         phaseIndex:1,
         phaseCount:Array.isArray(phaseTargets) ? phaseTargets.length : 1,
         phaseTargets:Array.isArray(phaseTargets) ? phaseTargets.slice() : [targetTruth],
@@ -83889,10 +83964,10 @@ try{
         countsForAdaptation:false,
         countsForMastery:false,
         memoryEligible:false,
-        generativeInline:{sourceCatId:sourceCat.id, sourceFamily, q:row.q, targetTruth, phaseTargets:Array.isArray(phaseTargets) ? phaseTargets.slice() : [targetTruth], dualWitness:!!dual, cap, m, tier}
+        generativeInline:{sourceCatId:sourceCat.id, sourceFamily, q:row.q, targetTruth, phaseTargets:Array.isArray(phaseTargets) ? phaseTargets.slice() : [targetTruth], dualWitness:!!dual, cap, m, tier, requiresDistinctPair:!!distinctHint}
       };
       resetGenPairPanel(cap);
-      showMetaQuestion(0, prompt, `${dual ? "Two pairs. " : ""}Target: ${targetTruth ? "YES" : "NO"}. Tap LEFT, then RIGHT. Values: 1 to ${cap}.`);
+      showMetaQuestion(0, prompt, `${dual ? "Two pairs. " : ""}Target: ${targetTruth ? "YES" : "NO"}. Tap LEFT, then RIGHT. Values: 1 to ${cap}.${distinctHint}`);
       setPrompt("CONSTRUCT");
       setGameAriaLabel(`Constructive relational trial. ${dual ? "Pair 1 of 2. " : ""}Make the claim answer ${targetTruth ? "YES" : "NO"}. Choose LEFT and RIGHT. ${row.q}`);
       inline.blockCount++;
@@ -83940,8 +84015,19 @@ try{
       const info = State.trialInfo;
       const cat = findInlineSourceCat(info);
       if(!cat || typeof cat.verify !== "function") return false;
+      const m = Math.max(2, Number(info.m || State.maxValue || cap));
+      try{
+        if(!inlinePairValid(cat, a, b, m)){
+          info.constructiveInvalidPair = {a, b, reason:"invalid_pair", message:inlineInvalidPairMessage(cat), at:Date.now()};
+          resetGenPairPanel(cap);
+          try{ if(typeof pulse === "function") pulse("bad"); }catch(_){ }
+          showMetaQuestion(0, info.question || info.delayedPrompt || "Build a pair.", `${inlineInvalidPairMessage(cat)} Tap LEFT, then RIGHT. Values: 1 to ${cap}.`);
+          setPrompt("CONSTRUCT");
+          return true;
+        }
+      }catch(_){ return false; }
       let actual = null;
-      try{ actual = !!cat.verify(a, b, Math.max(2, Number(info.m || State.maxValue || cap))); }catch(_){ return false; }
+      try{ actual = !!cat.verify(a, b, m); }catch(_){ return false; }
       const phaseIndex = Math.max(1, Math.floor(Number(info.phaseIndex || 1)));
       const phaseTargets = Array.isArray(info.phaseTargets) && info.phaseTargets.length ? info.phaseTargets.map(Boolean) : [!!info.targetTruth];
       const phaseCount = Math.max(1, Math.floor(Number(info.phaseCount || phaseTargets.length || 1)));
@@ -83973,7 +84059,7 @@ try{
         // v6.8.4: make pair-1 acceptance unmistakable. Previously the slots
         // were silently wiped and only a small hint line changed, so the
         // accepted entry read as an erased/rejected one.
-        showMetaQuestion(0, nextPrompt, `Pair ${phaseIndex} saved: LEFT ${a} · RIGHT ${b}. Now build Pair ${nextPhase} of ${phaseCount}. Target: ${nextTarget ? "YES" : "NO"}. Tap LEFT, then RIGHT.`);
+        showMetaQuestion(0, nextPrompt, `Pair ${phaseIndex} saved: LEFT ${a} · RIGHT ${b}. Now build Pair ${nextPhase} of ${phaseCount}. Target: ${nextTarget ? "YES" : "NO"}. Tap LEFT, then RIGHT.${info.requiresDistinctPair ? " Distinct values required." : ""}`);
         try{ if(typeof pulse === "function") pulse("fast"); }catch(_){ }
         setPrompt("CONSTRUCT");
         setGameAriaLabel(`Constructive relational trial. Pair ${nextPhase} of ${phaseCount}. Make the claim answer ${nextTarget ? "YES" : "NO"}. Choose LEFT and RIGHT. ${info.sourceQuestion || ""}`);
@@ -84037,6 +84123,7 @@ try{
         const m = Math.max(2, Number(info.m || State.maxValue || cap) || cap);
         if(cat && typeof cat.verify === "function"){
           outer: for(let x=1; x<=cap; x++){ for(let y=1; y<=cap; y++){
+            try{ if(typeof inlinePairValid === "function" && !inlinePairValid(cat, x, y, m)) continue; }catch(_){ continue; }
             if(!!cat.verify(x, y, m) === target){ example = ` Example ${targetLabel} pair: LEFT ${x}, RIGHT ${y}.`; break outer; }
           }}
         }
@@ -91263,7 +91350,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     {id:"same_right", label:"the same RIGHT value", same:(p,q)=>Number(p.b)===Number(q.b)},
     {id:"same_total", label:"the same total", same:(p,q)=>sum(p)===sum(q)},
     {id:"same_gap", label:"the same gap", same:(p,q)=>gap(p)===gap(q)},
-    {id:"same_left_parity", label:"the same LEFT parity (odd or even; the LEFT value may differ)", same:(p,q)=>isEven(p.a)===isEven(q.a)}
+    {id:"same_left_parity", label:"the same LEFT parity", same:(p,q)=>isEven(p.a)===isEven(q.a)}
   ];
   function featureById(id){ return FEATURES.find(f => f.id === id) || FEATURES[0]; }
 
@@ -97145,6 +97232,670 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     try{ window.auditV6850RuntimeZeroErrors = auditV6850RuntimeZeroErrors; globalThis.auditV6850RuntimeZeroErrors = auditV6850RuntimeZeroErrors; }catch(_){ }
     registerFeatureAudit(["runtime_zero_errors", "v6850_runtime_zero_errors"], (opts) => auditV6850RuntimeZeroErrors(opts || {}), "auditV6850RuntimeZeroErrors");
   }catch(e){ try{ recordRuntimeError(e, {source:"v6850_runtime_zero_errors_install"}); }catch(_){ } }
+})();
+</script>
+
+
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   EUCALCULIA v6.8.51 — L0 PRODUCTIVE SCALAR WITNESS CONTRACTS
+   -------------------------------------------------------------------------
+   This patch does NOT add more visual-transform primitives. v6.8.50 already
+   has that architecture. Instead it adds a small, quarantined L0 response-
+   contract layer: after the ordinary masked LEFT/RIGHT flash, the delayed
+   prompt may ask the player to PRODUCE a scalar witness, or an exact scalar
+   readout, from the retained pair. The goal is answer-contract entropy:
+   validate / choose / transform / count / produce — without re-showing the
+   trained magnitudes and without touching the L1 shown-vs-transformed memory
+   contract.
+   ════════════════════════════════════════════════════════════════════════ */
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.51-scalar-witness-contracts";
+  const AUDIT_KEYS = ["v6851", "v6_8_51", "scalar_witness", "v6851_scalar_witness", "response_contract_entropy", "productive_scalar_witness"];
+  const local = {blockCount:0, lastBlockTrial:-99, recentOps:[]};
+
+  function auditResultLocal(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {ok:status === "PASS", status, details};
+  }
+  function appVersion(){
+    try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){ }
+    try{ if(typeof APP_VERSION !== "undefined") return APP_VERSION; }catch(_){ }
+    return PATCH_ID;
+  }
+  function clampLocal(x, lo, hi){ x = Number(x); if(!Number.isFinite(x)) x = lo; return Math.max(lo, Math.min(hi, x)); }
+  function intSet(arr){ return Array.from(new Set((arr || []).map(Number).filter(Number.isInteger))).sort((a,b)=>a-b); }
+  function isPrimeLocal(n){ n = Number(n); if(!Number.isInteger(n) || n < 2) return false; for(let d=2; d*d<=n; d++) if(n%d===0) return false; return true; }
+  function pickLocal(arr){ return Array.isArray(arr) && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null; }
+  function randIntLocal(lo, hiInclusive){ return Math.floor(Math.random() * (hiInclusive - lo + 1)) + lo; }
+  function scalarDomain(cap, allowZero=false){ const start = allowZero ? 0 : 1; const out=[]; for(let x=start; x<=cap; x++) out.push(x); return out; }
+  function scalarSolutionsFor(op, a, b, cap){
+    if(!op || typeof op.solutions !== "function") return [];
+    try{ return intSet(op.solutions(Number(a), Number(b), Number(cap))).filter(x => x >= (op.allowZero ? 0 : 1) && x <= cap); }catch(_){ return []; }
+  }
+  function solutionLabel(xs, limit=9){
+    xs = intSet(xs);
+    if(!xs.length) return "—";
+    if(xs.length <= limit) return xs.join(", ");
+    return xs.slice(0, limit).join(", ") + ", …";
+  }
+  function currentScalarCap(){
+    let m = 9;
+    try{ if(typeof currentMax === "function") m = Number(currentMax()) || m; }catch(_){ }
+    try{ if(State && Number.isFinite(Number(State.maxValue))) m = Math.max(m, Number(State.maxValue)); }catch(_){ }
+    return Math.max(6, Math.min(9, Math.floor(m || 9)));
+  }
+  function activeRepsForValue(v){
+    let reps = [];
+    try{ if(typeof allowedReps === "function") reps = allowedReps(v).slice(); }catch(_){ }
+    if(!reps.length) reps = ["dots", "ten", "dice", "domino", "tally", "abacus", "card", "coins", "clock", "grid", "digit"];
+    try{
+      if(State && Array.isArray(State.reps) && State.reps.length){
+        const active = new Set(State.reps);
+        const filtered = reps.filter(r => active.has(r));
+        if(filtered.length) reps = filtered;
+      }
+    }catch(_){ }
+    const nonDigit = reps.filter(r => r !== "digit");
+    return nonDigit.length ? nonDigit : reps;
+  }
+  function pickRepForValue(v, avoid=null){
+    const reps = activeRepsForValue(v);
+    const fresh = avoid ? reps.filter(r => r !== avoid) : reps;
+    return pickLocal(fresh.length ? fresh : reps) || "dots";
+  }
+
+  const SCALAR_WITNESS_OPS = [
+    {
+      id:"gt_both", label:"greater than both", answerKind:"scalar_witness", minCap:6,
+      prompt:"Enter a number greater than both remembered values.",
+      shortPrompt:"Number greater than both",
+      frameTags:["comparison", "boundary_witness", "productive_generation"],
+      solutions:(a,b,cap)=>scalarDomain(cap).filter(x => x > a && x > b),
+      detail:(a,b,xs)=>`Greater than both means x > ${Math.max(a,b)}. Valid answers: ${solutionLabel(xs)}.`
+    },
+    {
+      id:"lt_both", label:"less than both", answerKind:"scalar_witness", minCap:6,
+      prompt:"Enter a number less than both remembered values.",
+      shortPrompt:"Number less than both",
+      frameTags:["comparison", "boundary_witness", "productive_generation"],
+      solutions:(a,b,cap)=>scalarDomain(cap).filter(x => x < a && x < b),
+      detail:(a,b,xs)=>`Less than both means x < ${Math.min(a,b)}. Valid answers: ${solutionLabel(xs)}.`
+    },
+    {
+      id:"between_open", label:"strictly between", answerKind:"scalar_witness", minCap:6,
+      prompt:"Enter a number strictly between LEFT and RIGHT.",
+      shortPrompt:"Number between them",
+      frameTags:["interval_relation", "comparison", "productive_generation"],
+      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarDomain(cap).filter(x => lo < x && x < hi); },
+      detail:(a,b,xs)=>`Strictly between means ${Math.min(a,b)} < x < ${Math.max(a,b)}. Valid answers: ${solutionLabel(xs)}.`
+    },
+    {
+      id:"even_between", label:"even number strictly between", answerKind:"scalar_witness", minCap:6,
+      prompt:"Enter an even number strictly between LEFT and RIGHT.",
+      shortPrompt:"Even number between them",
+      frameTags:["interval_relation", "class_inclusion", "parity", "productive_generation"],
+      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarDomain(cap).filter(x => lo < x && x < hi && x % 2 === 0); },
+      detail:(a,b,xs)=>`The interval is ${Math.min(a,b)} < x < ${Math.max(a,b)}, and x must be even. Valid answers: ${solutionLabel(xs)}.`
+    },
+    {
+      id:"prime_between", label:"prime number strictly between", answerKind:"scalar_witness", minCap:7,
+      prompt:"Enter a prime number strictly between LEFT and RIGHT.",
+      shortPrompt:"Prime number between them",
+      frameTags:["interval_relation", "class_inclusion", "primality", "productive_generation"],
+      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarDomain(cap).filter(x => lo < x && x < hi && isPrimeLocal(x)); },
+      detail:(a,b,xs)=>`The interval is ${Math.min(a,b)} < x < ${Math.max(a,b)}, and x must be prime. Valid answers: ${solutionLabel(xs)}.`
+    },
+    {
+      id:"gap_exact", label:"exact distance", answerKind:"numeric_exact", allowZero:true, minCap:6,
+      prompt:"Enter the exact distance between LEFT and RIGHT.",
+      shortPrompt:"Distance between them",
+      frameTags:["metric_relation", "distance", "numeric_exact"],
+      solutions:(a,b,cap)=>[Math.abs(a-b)],
+      detail:(a,b,xs)=>`Distance: |${a}−${b}| = ${Math.abs(a-b)}.`
+    }
+  ];
+
+  function opById(id){ return SCALAR_WITNESS_OPS.find(o => o.id === id) || null; }
+  function eligibleOpsForCap(cap){ return SCALAR_WITNESS_OPS.filter(op => cap >= (op.minCap || 1)); }
+  function opRecencyWeight(op){
+    const recent = local.recentOps || [];
+    const last = recent.lastIndexOf(op.id);
+    if(last < 0) return 1;
+    const age = recent.length - 1 - last;
+    return age <= 1 ? 0.25 : (age <= 3 ? 0.55 : 0.85);
+  }
+  function pickWeightedOp(ops){
+    const rows = ops.map(op => ({op, w:opRecencyWeight(op)}));
+    const total = rows.reduce((s,r)=>s+r.w,0) || rows.length;
+    let t = Math.random() * total;
+    for(const r of rows){ t -= r.w; if(t <= 0) return r.op; }
+    return rows[rows.length-1]?.op || ops[0] || null;
+  }
+  function buildScalarWitnessPayload(opts={}){
+    const cap = Math.max(6, Math.min(9, Math.floor(Number(opts.cap || currentScalarCap()) || 9)));
+    const forcedOp = opts.forceOpId ? opById(opts.forceOpId) : null;
+    const ops = forcedOp ? [forcedOp] : eligibleOpsForCap(cap);
+    for(let attempt=0; attempt<260; attempt++){
+      const op = forcedOp || pickWeightedOp(ops);
+      if(!op) return null;
+      const a = Number.isInteger(opts.a) ? Number(opts.a) : randIntLocal(1, cap);
+      const b = Number.isInteger(opts.b) ? Number(opts.b) : randIntLocal(1, cap);
+      const sol = scalarSolutionsFor(op, a, b, cap);
+      if(!sol.length) continue;
+      const target = op.answerKind === "numeric_exact" ? sol[0] : pickLocal(sol);
+      if(!Number.isInteger(target) || target < (op.allowZero ? 0 : 1) || target > cap) continue;
+      const repA = opts.repA || pickRepForValue(a);
+      const repB = opts.repB || pickRepForValue(b, repA);
+      return {op, a, b, cap, solutionSet:sol, target, repA, repB};
+    }
+    return null;
+  }
+
+  function shouldStartScalarWitnessTrial(attempt, forcedLevel){
+    try{
+      if(typeof CONFIG === "object" && CONFIG && CONFIG.scalarWitnessInlineEnabled === false) return false;
+      if(attempt !== 0 || forcedLevel !== null) return false;
+      if(!State || State.mode !== "D" || State.modeChoice !== "auto") return false;
+      // Runs before the normal prepared-trial commit, like the existing inline
+      // constructive hook. If a scalar witness is served, the prepared payload
+      // is explicitly invalidated in the commit path below.
+      if(typeof hasMetaMemoryWorkPending === "function" && hasMetaMemoryWorkPending()) return false;
+      const level = Math.max(0, Number(State.levelByMode?.D || 0));
+      const minLevel = Math.max(0, Number((typeof CONFIG === "object" && CONFIG.scalarWitnessInlineMinDLevel) ?? 3));
+      if(level < minLevel) return false;
+      const blockTrial = Math.max(0, Number(State.blockTrials || 0));
+      if(blockTrial === 0 || blockTrial < local.lastBlockTrial){ local.blockCount = 0; local.lastBlockTrial = -99; }
+      if(blockTrial < Math.max(2, Number((typeof CONFIG === "object" && CONFIG.scalarWitnessInlineAfterBlockTrial) ?? 3))) return false;
+      const cooldown = Math.max(0, Number((typeof CONFIG === "object" && CONFIG.scalarWitnessInlineCooldownTrials) ?? 8));
+      if(blockTrial - local.lastBlockTrial < cooldown) return false;
+      const maxPerBlock = Math.max(0, Number((typeof CONFIG === "object" && CONFIG.scalarWitnessInlineMaxPerBlock) ?? 1));
+      if(maxPerBlock && local.blockCount >= maxPerBlock) return false;
+      const p = clampLocal(Number((typeof CONFIG === "object" && CONFIG.scalarWitnessInlineProbability) ?? 0.085), 0, 1);
+      if(p <= 0 || Math.random() >= p) return false;
+      return true;
+    }catch(_){ return false; }
+  }
+
+  function makeScalarWitnessTrialInfo(payload){
+    const {op, a, b, cap, solutionSet, target, repA, repB} = payload;
+    const answerKind = op.answerKind || "scalar_witness";
+    return {
+      kind:"scalar_witness_inline",
+      level:0,
+      statsMode:"D",
+      autoPhase:"L0",
+      responseFormat:"numeric",
+      answerKind,
+      family:"generative_scalar_witness",
+      catFamily:"generative_scalar_witness",
+      catId:null,
+      sourceCatId:`scalar_${op.id}`,
+      a, b, displayA:a, displayB:b,
+      repA, repB,
+      question:op.prompt,
+      delayedPrompt:op.prompt,
+      answer:target,
+      answerLabel:answerKind === "numeric_exact" ? String(target) : `Any of: ${solutionLabel(solutionSet)}`,
+      isTrue:null,
+      targetOutcome:target,
+      frameTags:uniqLocal(["constructive_generation", "scalar_witness", "response_contract_entropy", "l0_relation"].concat(op.frameTags || [])),
+      mechanismTags:["productive_scalar_witness", "answer_contract_entropy"],
+      countsForMetaHistory:false,
+      countsForAdaptation:false,
+      countsForMastery:false,
+      memoryEligible:false,
+      scalarWitness:{
+        patch:PATCH_ID,
+        opId:op.id,
+        label:op.label,
+        answerKind,
+        cap,
+        domain:scalarDomain(cap, !!op.allowZero),
+        solutionSet:solutionSet.slice(),
+        targetValue:target,
+        allowZero:!!op.allowZero,
+        prompt:op.prompt,
+        shortPrompt:op.shortPrompt || op.label,
+        multiAnswer:solutionSet.length > 1,
+        detail:op.detail ? op.detail(a, b, solutionSet) : ""
+      }
+    };
+  }
+  function uniqLocal(arr){ return Array.from(new Set((arr || []).filter(Boolean))); }
+
+  function maybeStartScalarWitnessTrialAfterReset(attempt, forcedLevel){
+    if(!shouldStartScalarWitnessTrial(attempt, forcedLevel)) return false;
+    const payload = buildScalarWitnessPayload();
+    if(!payload) return false;
+    try{
+      if(typeof invalidatePreparedTrial === "function") invalidatePreparedTrial("scalar_witness_inline_commit");
+      else { State.nextTrialPrepared = null; State.nextTrialPrepareInFlight = false; }
+      State.maxValue = payload.cap;
+      State.currentTrialLevel = 0;
+      State.currentTrialValue = Math.max(payload.a, payload.b);
+      State.currentTrialRep = null;
+      const halfW = Math.floor(W/2)-2;
+      const stimA = makeStim(payload.a, payload.repA, {});
+      const stimB = makeStim(payload.b, payload.repB, {});
+      State.mainStim = stimA; State.secStim = stimB;
+      State.mainCache = cacheStim(stimA, halfW, H);
+      State.secCache = cacheStim(stimB, halfW, H);
+      State.targetValue = payload.target;
+      State.pendingPanel = "numpad";
+      State.autoPhase = "L0";
+      State.trialInfo = makeScalarWitnessTrialInfo(payload);
+      setPrompt("Encode…");
+      setAnswer("—");
+      setGameAriaLabel(`Productive scalar witness trial. Two quantities will flash; after the mask, enter a number satisfying the delayed relation. ${payload.op.prompt}`);
+      local.blockCount++;
+      local.lastBlockTrial = Math.max(0, Number(State.blockTrials || 0));
+      local.recentOps.push(payload.op.id);
+      local.recentOps = local.recentOps.slice(-10);
+      const mon = State.productionMonitor || (State.productionMonitor = {});
+      const sw = mon.scalarWitness || (mon.scalarWitness = {shown:0, answered:0, correct:0, byOp:{}, recent:[]});
+      sw.shown = (sw.shown || 0) + 1;
+      if(!sw.byOp[payload.op.id]) sw.byOp[payload.op.id] = {shown:0, answered:0, correct:0};
+      sw.byOp[payload.op.id].shown++;
+      sw.recent = Array.isArray(sw.recent) ? sw.recent : [];
+      sw.recent.push({event:"shown", opId:payload.op.id, a:payload.a, b:payload.b, cap:payload.cap, solutionCount:payload.solutionSet.length, ts:Date.now()});
+      sw.recent = sw.recent.slice(-24);
+      if(typeof annotateLinguisticTrialInfo === "function") annotateLinguisticTrialInfo(State.trialInfo);
+      if(typeof withDTrialExtensionDefaults === "function") State.trialInfo = withDTrialExtensionDefaults(State.trialInfo);
+      if(typeof recordRuntimeContractMismatchWarnings === "function") recordRuntimeContractMismatchWarnings(State.trialInfo);
+      if(typeof annotateExecutiveTrialInfo === "function") annotateExecutiveTrialInfo(State.trialInfo);
+      if(!beginValidatedPrep("scalar_witness_inline_prep")) return false;
+      return true;
+    }catch(e){
+      try{ recordRuntimeError(e, {source:"scalar_witness_inline_start", opId:payload?.op?.id || null}); }catch(_){ }
+      return false;
+    }
+  }
+
+  function isScalarWitnessInfo(info){ return !!(info && info.kind === "scalar_witness_inline" && info.scalarWitness); }
+  function scalarWitnessSolutions(info){ return intSet(info?.scalarWitness?.solutionSet || []); }
+  function scalarWitnessAccepts(info, val){
+    const n = Number(val);
+    return Number.isInteger(n) && scalarWitnessSolutions(info).includes(n);
+  }
+  function prepareScalarWitnessInput(val){
+    const info = State?.trialInfo;
+    if(!isScalarWitnessInfo(info)) return false;
+    const n = Number(val);
+    const sols = scalarWitnessSolutions(info);
+    const valid = Number.isInteger(n) && sols.includes(n);
+    info.scalarWitnessUserValid = valid;
+    info.scalarWitnessAcceptedAnswer = valid ? n : null;
+    info.scalarWitnessUserAnswer = Number.isInteger(n) ? n : val;
+    if(valid) State.targetValue = n;
+    else State.targetValue = Number(info.scalarWitness?.targetValue ?? sols[0] ?? -9999);
+    const mon = State.productionMonitor || (State.productionMonitor = {});
+    const sw = mon.scalarWitness || (mon.scalarWitness = {shown:0, answered:0, correct:0, byOp:{}, recent:[]});
+    if(!info.scalarWitnessMonitorRecorded){
+      info.scalarWitnessMonitorRecorded = true;
+      sw.answered = (sw.answered || 0) + 1;
+      if(valid) sw.correct = (sw.correct || 0) + 1;
+      const opId = info.scalarWitness?.opId || "unknown";
+      if(!sw.byOp[opId]) sw.byOp[opId] = {shown:0, answered:0, correct:0};
+      sw.byOp[opId].answered++;
+      if(valid) sw.byOp[opId].correct++;
+      sw.recent = Array.isArray(sw.recent) ? sw.recent : [];
+      sw.recent.push({event:"answered", opId, userAnswer:n, valid, solutionCount:sols.length, ts:Date.now()});
+      sw.recent = sw.recent.slice(-24);
+    }
+    return true;
+  }
+
+  function installWrappers(){
+    try{
+      const prevStart = (typeof window !== "undefined" && window.maybeStartInlineGenerativeTrialAfterReset) || (typeof maybeStartInlineGenerativeTrialAfterReset === "function" ? maybeStartInlineGenerativeTrialAfterReset : null);
+      if(prevStart && !prevStart.__v6851ScalarWitnessWrapped){
+        const wrapped = function maybeStartInlineGenerativeTrialAfterResetV6851(attempt, forcedLevel){
+          if(maybeStartScalarWitnessTrialAfterReset(attempt, forcedLevel)) return true;
+          return prevStart.apply(this, arguments);
+        };
+        wrapped.__v6851ScalarWitnessWrapped = true;
+        try{ window.maybeStartInlineGenerativeTrialAfterReset = wrapped; globalThis.maybeStartInlineGenerativeTrialAfterReset = wrapped; }catch(_){ }
+        try{ maybeStartInlineGenerativeTrialAfterReset = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+
+    try{
+      if(typeof handleDigit === "function" && !handleDigit.__v6851ScalarWitnessWrapped){
+        const prevHandleDigit = handleDigit;
+        const wrappedHandleDigit = function handleDigitV6851ScalarWitness(d){
+          if(State?.status === "INPUT" && State?.pendingPanel === "numpad" && isScalarWitnessInfo(State?.trialInfo)){
+            try{ if(typeof noteUserInput === "function") noteUserInput("digit", d); }catch(_){ }
+            const raw = String(d ?? "").replace(/[^0-9]/g, "").slice(0,1);
+            if(raw === "") return;
+            const n = Number(raw);
+            State.inputBuffer = raw;
+            setAnswer(raw);
+            prepareScalarWitnessInput(n);
+            return processInput(n);
+          }
+          return prevHandleDigit.apply(this, arguments);
+        };
+        wrappedHandleDigit.__v6851ScalarWitnessWrapped = true;
+        handleDigit = wrappedHandleDigit;
+        try{ window.handleDigit = wrappedHandleDigit; globalThis.handleDigit = wrappedHandleDigit; }catch(_){ }
+      }
+    }catch(_){ }
+
+    try{
+      if(typeof processInput === "function" && !processInput.__v6851ScalarWitnessWrapped){
+        const prevProcessInput = processInput;
+        const wrappedProcessInput = function processInputV6851ScalarWitness(val){
+          if(State?.status === "INPUT" && isScalarWitnessInfo(State?.trialInfo)) prepareScalarWitnessInput(val);
+          return prevProcessInput.apply(this, arguments);
+        };
+        wrappedProcessInput.__v6851ScalarWitnessWrapped = true;
+        processInput = wrappedProcessInput;
+        try{ window.processInput = wrappedProcessInput; globalThis.processInput = wrappedProcessInput; }catch(_){ }
+      }
+    }catch(_){ }
+
+    try{
+      if(typeof draw === "function" && !draw.__v6851ScalarWitnessWrapped){
+        const prevDraw = draw;
+        const wrappedDraw = function drawV6851ScalarWitness(){
+          if((State.status === "REVIEW" || State.status === "REVIEW_CLOSING") && isScalarWitnessInfo(State.trialInfo)){
+            if(drawScalarWitnessReview()) return;
+          }
+          return prevDraw.apply(this, arguments);
+        };
+        wrappedDraw.__v6851ScalarWitnessWrapped = true;
+        draw = wrappedDraw;
+        try{ window.draw = wrappedDraw; globalThis.draw = wrappedDraw; }catch(_){ }
+      }
+    }catch(_){ }
+  }
+
+  function scalarWitnessReviewDetails(info){
+    const sw = info?.scalarWitness || {};
+    const sols = scalarWitnessSolutions(info);
+    const user = Number.isInteger(Number(info?.userAnswer)) ? Number(info.userAnswer) : (Number.isInteger(Number(sw.userAnswer)) ? Number(sw.userAnswer) : null);
+    const userPart = user === null ? "" : ` You entered ${user}.`;
+    const verdict = user === null ? "" : (sols.includes(user) ? " Accepted." : " Not in the valid set.");
+    const base = sw.detail || `LEFT=${info?.a}; RIGHT=${info?.b}. Valid answers: ${solutionLabel(sols)}.`;
+    return `${base}${userPart}${verdict}`;
+  }
+  function scalarWitnessAnswerLine(info){
+    const sw = info?.scalarWitness || {};
+    const sols = scalarWitnessSolutions(info);
+    if(sw.answerKind === "numeric_exact") return `Correct: ${sols[0] ?? sw.targetValue ?? State.targetValue}`;
+    const user = Number(info?.userAnswer);
+    if(Number.isInteger(user) && sols.includes(user)) return `Accepted: ${user}`;
+    return `Valid: ${solutionLabel(sols)}`;
+  }
+  function drawScalarWitnessReview(){
+    try{
+      const info = State.trialInfo || {};
+      if(!isScalarWitnessInfo(info)) return false;
+      ctx.fillStyle="#050508"; ctx.fillRect(0,0,W,H);
+      const halfW = Math.floor(W/2)-2;
+      if(State.mainCache) ctx.drawImage(State.mainCache,0,0,halfW,H);
+      if(State.secCache) ctx.drawImage(State.secCache,halfW+4,0,halfW,H);
+      ctx.fillStyle="#333"; ctx.fillRect(halfW+1,0,2,H);
+      drawReviewCard({
+        label:"L0 REVIEW · SCALAR WITNESS",
+        question:info.question || info.delayedPrompt || "Produce a number satisfying the relation.",
+        details:scalarWitnessReviewDetails(info),
+        answer:scalarWitnessAnswerLine(info),
+        color:"#ff9f43"
+      });
+      try{ if(typeof drawInstructionalReviewTip === "function") drawInstructionalReviewTip(info); }catch(_){ }
+      try{ if(typeof drawReviewContinueHint === "function") drawReviewContinueHint(); }catch(_){ }
+      try{ updateParticles(); renderParticles(); }catch(_){ }
+      return true;
+    }catch(e){
+      try{ recordRuntimeError(e, {source:"draw_scalar_witness_review"}); }catch(_){ }
+      return false;
+    }
+  }
+
+  function auditScalarWitness(opts={}){
+    const block = [], warnings = [], samples = {};
+    try{
+      for(const op of SCALAR_WITNESS_OPS){
+        let built = 0, multi = 0, zero = 0;
+        for(let cap=6; cap<=9; cap++){
+          for(let i=0; i<140; i++){
+            const payload = buildScalarWitnessPayload({cap, forceOpId:op.id});
+            if(!payload) continue;
+            built++;
+            if(payload.solutionSet.length > 1) multi++;
+            if(payload.solutionSet.includes(0)) zero++;
+            const info = makeScalarWitnessTrialInfo(payload);
+            const sols = scalarWitnessSolutions(info);
+            if(!sols.length) block.push(`${op.id}: built trial without solutions`);
+            if(!sols.every(x => scalarWitnessAccepts(info, x))) block.push(`${op.id}: verifier rejects a valid solution`);
+            const outside = scalarDomain(payload.cap, !!op.allowZero).find(x => !sols.includes(x));
+            if(outside !== undefined && scalarWitnessAccepts(info, outside)) block.push(`${op.id}: verifier accepts invalid value ${outside}`);
+            if(info.responseFormat !== "numeric" || info.kind !== "scalar_witness_inline") block.push(`${op.id}: wrong response contract`);
+            if(info.countsForAdaptation !== false || info.countsForMetaHistory !== false || info.memoryEligible !== false) block.push(`${op.id}: quarantine flags missing`);
+            if(payload.cap > 9) block.push(`${op.id}: cap exceeds one-digit input envelope`);
+            if(!samples[op.id]) samples[op.id] = {a:payload.a, b:payload.b, cap:payload.cap, solutionSet:payload.solutionSet, prompt:op.prompt};
+          }
+        }
+        if(!built) block.push(`${op.id}: no payloads built`);
+        if(op.answerKind !== "numeric_exact" && multi === 0) warnings.push(`${op.id}: no multi-answer samples in audit`);
+        if(op.id === "gap_exact" && zero === 0) warnings.push("gap_exact audit did not sample equality/zero distance");
+      }
+      const p = buildScalarWitnessPayload({cap:9});
+      if(!p) block.push("default payload builder returned null");
+      if(typeof maybeStartInlineGenerativeTrialAfterReset !== "function") block.push("startTrial inline hook missing");
+      if(typeof handleDigit !== "function" || !handleDigit.__v6851ScalarWitnessWrapped) block.push("handleDigit scalar wrapper missing");
+      if(typeof processInput !== "function" || !processInput.__v6851ScalarWitnessWrapped) block.push("processInput scalar wrapper missing");
+      if(typeof draw !== "function" || !draw.__v6851ScalarWitnessWrapped) block.push("draw scalar review wrapper missing");
+    }catch(e){ block.push(`scalar witness audit exception: ${e?.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:appVersion(), patch:PATCH_ID, ops:SCALAR_WITNESS_OPS.map(o=>o.id), samples, warnings, block});
+  }
+
+  function boot(){
+    try{
+      if(typeof CONFIG === "object" && CONFIG){
+        if(CONFIG.scalarWitnessInlineEnabled === undefined) CONFIG.scalarWitnessInlineEnabled = true;
+        if(CONFIG.scalarWitnessInlineMinDLevel === undefined) CONFIG.scalarWitnessInlineMinDLevel = 3;
+        if(CONFIG.scalarWitnessInlineProbability === undefined) CONFIG.scalarWitnessInlineProbability = 0.085;
+        if(CONFIG.scalarWitnessInlineCooldownTrials === undefined) CONFIG.scalarWitnessInlineCooldownTrials = 8;
+        if(CONFIG.scalarWitnessInlineMaxPerBlock === undefined) CONFIG.scalarWitnessInlineMaxPerBlock = 1;
+      }
+      installWrappers();
+      if(typeof registerFeatureAudit === "function") registerFeatureAudit(AUDIT_KEYS, auditScalarWitness, "scalarWitness");
+      if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6851ScalarWitness", auditScalarWitness);
+      try{ window.auditV6851ScalarWitness = auditScalarWitness; globalThis.auditV6851ScalarWitness = auditScalarWitness; }catch(_){ }
+      try{ window.auditScalarWitnessV6851 = auditScalarWitness; globalThis.auditScalarWitnessV6851 = auditScalarWitness; }catch(_){ }
+      try{ window.scalarWitnessV6851Sample = buildScalarWitnessPayload; globalThis.scalarWitnessV6851Sample = buildScalarWitnessPayload; }catch(_){ }
+      try{
+        window.EUCA_V6851_SCALAR_WITNESS = {
+          patch:PATCH_ID,
+          ops:SCALAR_WITNESS_OPS.map(o => ({id:o.id, label:o.label, answerKind:o.answerKind || "scalar_witness"})),
+          audit:auditScalarWitness,
+          buildPayload:buildScalarWitnessPayload,
+          startHook:maybeStartScalarWitnessTrialAfterReset
+        };
+      }catch(_){ }
+    }catch(e){ try{ recordRuntimeError(e, {source:"v6851_scalar_witness_boot"}); }catch(_){ } }
+  }
+
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+      setTimeout(boot, 0);
+      setTimeout(boot, 300);
+    }
+  }catch(_){ }
+})();
+</script>
+
+
+
+<script id="euca-v6852-polish-and-persistence-patch">
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.52-polish-persistence";
+  const STORAGE_KEY_LOCAL = "eucalculia_v6_2_27";
+  function nowIso(){ try{ return new Date().toISOString(); }catch(_){ return String(Date.now()); } }
+  function n(x, d=0){ const v = Number(x); return Number.isFinite(v) ? v : d; }
+  function i(x, d=0){ return Math.floor(n(x, d)); }
+  function currentVersion(){ try{ return typeof currentAppVersion === "function" ? currentAppVersion() : (typeof APP_VERSION !== "undefined" ? APP_VERSION : PATCH_ID); }catch(_){ return PATCH_ID; } }
+  function auditResultLocal(status, details){ try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){} return {ok:status === "PASS", status, details}; }
+  function maxD(){ try{ return typeof maxLevelIndexForMode === "function" ? i(maxLevelIndexForMode("D"), 0) : 0; }catch(_){ return 0; } }
+  function savedActiveProfile(){
+    try{
+      if(typeof localStorage === "undefined") return null;
+      const raw = localStorage.getItem(STORAGE_KEY_LOCAL);
+      if(!raw) return null;
+      const root = JSON.parse(raw);
+      if(!root || typeof root !== "object") return null;
+      if(root.profiles && typeof root.profiles === "object"){
+        const active = String(root.activeProfile || 1);
+        const prof = root.profiles[active] || null;
+        return prof && typeof prof === "object" ? {root, active, profile:prof, wrapper:true} : null;
+      }
+      return {root:null, active:"legacy", profile:root, wrapper:false};
+    }catch(e){ return {error:e && e.message || String(e)}; }
+  }
+  function savedDLevel(profile){
+    if(!profile || typeof profile !== "object") return null;
+    const vals = [
+      profile.levelByMode && profile.levelByMode.D,
+      profile.autoProfile && profile.autoProfile.levels && profile.autoProfile.levels.relational,
+      profile.autoProfile && profile.autoProfile.legacyLevels && profile.autoProfile.legacyLevels.D,
+      profile.publicProgressSummary && profile.publicProgressSummary.levelD,
+      profile.publicProgressSummary && profile.publicProgressSummary.relationalLevel
+    ].map(x => Number(x)).filter(Number.isFinite);
+    return vals.length ? Math.max(...vals.map(Math.floor)) : null;
+  }
+  function savedPeakD(profile){
+    if(!profile || typeof profile !== "object") return null;
+    const vals = [profile.peakLevelByMode && profile.peakLevelByMode.D, profile.publicProgressSummary && profile.publicProgressSummary.peakLevelD]
+      .map(x => Number(x)).filter(Number.isFinite);
+    return vals.length ? Math.max(...vals.map(Math.floor)) : null;
+  }
+  function logLevelEvent(type, detail={}){
+    try{
+      if(typeof State === "undefined" || !State) return;
+      const mon = State.productionMonitor || (State.productionMonitor = {});
+      const lg = mon.levelPersistenceAudit || (mon.levelPersistenceAudit = {events:[]});
+      lg.events = Array.isArray(lg.events) ? lg.events : [];
+      lg.events.push({type, at:nowIso(), appVersion:currentVersion(), levelD:n(State.levelByMode && State.levelByMode.D, null), peakD:n(State.peakLevelByMode && State.peakLevelByMode.D, null), ...detail});
+      lg.events = lg.events.slice(-30);
+    }catch(_){ }
+  }
+  function repairRunwayLevelFromSavedProfile(reason="post_load"){
+    const found = savedActiveProfile();
+    const profile = found && found.profile;
+    const saved = savedDLevel(profile);
+    const peak = savedPeakD(profile);
+    const current = n(State && State.levelByMode && State.levelByMode.D, 0);
+    const max = maxD();
+    let runwaySnap = null;
+    try{ runwaySnap = typeof relationalLevelRunwaySnapshotV6841 === "function" ? relationalLevelRunwaySnapshotV6841() : null; }catch(_){ }
+    const oldClampLevel = Math.max(0, Math.floor(Number(runwaySnap?.valueCapLevel ?? 7) || 7));
+    const profileRecentDown = !!(profile && profile.recentLevelDown && typeof profile.recentLevelDown === "object" && n(profile.recentLevelDown.to, -1) < n(profile.recentLevelDown.fromLevel, -1));
+    const peakClampSignature = peak !== null && peak > current && peak <= max && max > oldClampLevel && current <= oldClampLevel && (saved === null || saved <= oldClampLevel) && !profileRecentDown;
+    const details = {appVersion:currentVersion(), patch:PATCH_ID, reason, currentD:current, savedD:saved, savedPeakD:peak, maxD:max, oldClampLevel, peakClampSignature, profileRecentDown, repaired:false, source:found && found.wrapper ? `profile_${found.active}` : (found && found.error ? "error" : "legacy_or_none")};
+    try{
+      if(saved !== null && saved > current && saved <= max){
+        if(!State.levelByMode) State.levelByMode = {A:0, D:0};
+        if(!State.peakLevelByMode) State.peakLevelByMode = {A:0, D:0};
+        State.levelByMode.D = saved;
+        State.peakLevelByMode.D = Math.max(n(State.peakLevelByMode.D, 0), saved, n(peak, 0));
+        try{ if(typeof invalidateDAutoSnapshot === "function") invalidateDAutoSnapshot("v6852_runway_restore"); }catch(_){ }
+        try{ if(typeof ensureAdaptiveBaselineForLevel === "function") ensureAdaptiveBaselineForLevel("D", State.levelByMode.D); }catch(_){ }
+        try{ if(typeof ensureAutoProfile === "function") ensureAutoProfile({migratedFrom:"v6852_runway_restore"}); }catch(_){ }
+        details.repaired = true;
+        details.to = saved;
+        logLevelEvent("relational_runway_level_restored", details);
+        try{ if(typeof save === "function") save(); }catch(_){ }
+      } else if(peakClampSignature){
+        if(!State.levelByMode) State.levelByMode = {A:0, D:0};
+        if(!State.peakLevelByMode) State.peakLevelByMode = {A:0, D:0};
+        State.levelByMode.D = peak;
+        State.peakLevelByMode.D = Math.max(n(State.peakLevelByMode.D, 0), peak);
+        try{ if(typeof invalidateDAutoSnapshot === "function") invalidateDAutoSnapshot("v6852_runway_peak_signature_restore"); }catch(_){ }
+        try{ if(typeof ensureAdaptiveBaselineForLevel === "function") ensureAdaptiveBaselineForLevel("D", State.levelByMode.D); }catch(_){ }
+        try{ if(typeof ensureAutoProfile === "function") ensureAutoProfile({migratedFrom:"v6852_runway_peak_signature_restore"}); }catch(_){ }
+        details.repaired = true;
+        details.repairedFromPeakClampSignature = true;
+        details.to = peak;
+        logLevelEvent("relational_runway_level_restored_from_peak_clamp_signature", details);
+        try{ if(typeof save === "function") save(); }catch(_){ }
+      } else if(peak !== null && peak > n(State && State.peakLevelByMode && State.peakLevelByMode.D, 0) && peak <= max){
+        if(!State.peakLevelByMode) State.peakLevelByMode = {A:0,D:0};
+        State.peakLevelByMode.D = peak;
+        details.peakRepaired = true;
+        logLevelEvent("relational_peak_restored", details);
+        try{ if(typeof save === "function") save(); }catch(_){ }
+      }
+    }catch(e){ details.error = e && e.message || String(e); }
+    return details;
+  }
+  try{
+    const prevEval = (typeof evaluateModeDLevelChange === "function") ? evaluateModeDLevelChange : null;
+    if(prevEval && !prevEval.__v6852LevelAuditWrapped){
+      const wrapped = function evaluateModeDLevelChangeV6852(opts={}){
+        const before = {levelD:n(State?.levelByMode?.D, 0), peakD:n(State?.peakLevelByMode?.D, 0)};
+        let downTriggers = null, upBlockers = null;
+        try{ downTriggers = typeof adaptiveDLevelDownTriggers === "function" ? adaptiveDLevelDownTriggers() : null; }catch(_){ }
+        try{ upBlockers = typeof adaptiveDLevelUpBlockers === "function" ? adaptiveDLevelUpBlockers() : null; }catch(_){ }
+        const out = prevEval.apply(this, arguments);
+        try{
+          if(out && (out.leveledDown || out.leveledUp)){
+            logLevelEvent(out.leveledDown ? "adaptive_level_down" : "adaptive_level_up", {before, after:{levelD:n(State?.levelByMode?.D,0), peakD:n(State?.peakLevelByMode?.D,0)}, levelDownInfo:out.levelDownInfo || null, levelUpInfo:out.levelUpInfo || null, downTriggers, upBlockers});
+          }
+        }catch(_){ }
+        return out;
+      };
+      wrapped.__v6852LevelAuditWrapped = true;
+      try{ evaluateModeDLevelChange = wrapped; window.evaluateModeDLevelChange = wrapped; globalThis.evaluateModeDLevelChange = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  function auditV6852LevelPersistence(){
+    const block = [], warnings = [];
+    const found = savedActiveProfile();
+    const saved = savedDLevel(found && found.profile);
+    const peak = savedPeakD(found && found.profile);
+    const cur = n(State?.levelByMode?.D, 0);
+    const curPeak = n(State?.peakLevelByMode?.D, 0);
+    const max = maxD();
+    if(saved !== null && saved > cur && saved <= max) block.push(`saved D level ${saved} is higher than runtime D level ${cur}`);
+    if(cur > max) block.push(`runtime D level ${cur} exceeds max ${max}`);
+    if(peak !== null && peak > curPeak && peak <= max) warnings.push(`saved peak ${peak} exceeds runtime peak ${curPeak}`);
+    let runway = null;
+    try{ runway = typeof relationalLevelRunwaySnapshotV6841 === "function" ? relationalLevelRunwaySnapshotV6841() : null; }catch(_){ }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {
+      appVersion:currentVersion(), patch:PATCH_ID, runtime:{levelD:cur, peakD:curPeak, maxD:max}, saved:{levelD:saved, peakD:peak, active:found && found.active, source:found && found.wrapper ? "wrapper" : (found && found.error ? "error" : "legacy_or_none")}, runway, recentEvents:(State?.productionMonitor?.levelPersistenceAudit?.events || []).slice(-10), block, warnings
+    });
+  }
+  try{ window.repairV6852RunwayLevelFromSavedProfile = repairRunwayLevelFromSavedProfile; globalThis.repairV6852RunwayLevelFromSavedProfile = repairRunwayLevelFromSavedProfile; }catch(_){ }
+  try{ window.auditV6852LevelPersistence = auditV6852LevelPersistence; globalThis.auditV6852LevelPersistence = auditV6852LevelPersistence; }catch(_){ }
+  try{ repairRunwayLevelFromSavedProfile("initial_post_load"); }catch(_){ }
+  try{
+    const prevLoad = (typeof load === "function") ? load : null;
+    if(prevLoad && !prevLoad.__v6852RunwayRepairWrapped){
+      const wrappedLoad = function loadV6852(){ const out = prevLoad.apply(this, arguments); try{ repairRunwayLevelFromSavedProfile("after_load_call"); }catch(_){ } return out; };
+      wrappedLoad.__v6852RunwayRepairWrapped = true;
+      try{ load = wrappedLoad; window.load = wrappedLoad; globalThis.load = wrappedLoad; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6852PolishWrapped){
+      const wrappedRun = function runFeatureAuditV6852(feature, opts={}){
+        const key = String(feature || "").toLowerCase().replace(/[.\-\s]+/g,"_");
+        if(["v6852", "v6_8_52", "level_persistence", "runway_persistence", "progress_persistence"].includes(key)) return auditV6852LevelPersistence(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrappedRun.__v6852PolishWrapped = true;
+      try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
+    }
+  }catch(_){ }
 })();
 </script>
 
