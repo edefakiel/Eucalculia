@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.53</title>
+<title>Eucalculia v6.8.54</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3331,7 +3331,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.53";
+const APP_VERSION = "v6.8.54";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -98060,6 +98060,392 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       };
       wrappedRun.__v6852PolishWrapped = true;
       try{ window.runFeatureAudit = wrappedRun; globalThis.runFeatureAudit = wrappedRun; runFeatureAudit = wrappedRun; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+</script>
+
+<script>
+// ============================================================================
+// v6.8.54 - Epistemic determiner diversity
+// The v6.8.23/v6.8.44 possible-world epistemic cards were logically solved,
+// but the "shared exact total + Ada LEFT + Ben RIGHT" comparison template
+// produced a visible shortcut: the correct answer tended to be Ada and Ben.
+// This patch replaces the abstract epistemic sampler with varied agent/fact
+// assignments while preserving the same closed-information solver contract.
+// ============================================================================
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.54-epistemic-determiner-diversity";
+  const AUDIT_KEYS = new Set(["v6854", "v6_8_54", "epistemic_determiner_diversity", "epistemic_antidegenerate"]);
+  const AGENTS = Object.freeze(["Ada", "Ben", "Cy"]);
+  const local = {cursor:0, recentKeys:[]};
+  function str(x){ return String(x == null ? "" : x); }
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function num(x,d=0){ const n=Number(x); return Number.isFinite(n) ? n : d; }
+  function uniq(xs){ return Array.from(new Set(arr(xs).filter(x => x != null && x !== ""))); }
+  function clamp(x,lo,hi){ return Math.max(lo, Math.min(hi, num(x,lo))); }
+  function maxFor(m){
+    let n = num(m, NaN);
+    try{ if(!Number.isFinite(n) && typeof currentMax === "function") n = Number(currentMax()); }catch(_){ }
+    return Math.max(6, Math.min(12, Math.floor(Number.isFinite(n) ? n : 12)));
+  }
+  function prime(n){
+    n = Number(n);
+    if(!Number.isInteger(n) || n < 2) return false;
+    for(let d=2; d*d<=n; d++) if(n%d === 0) return false;
+    return true;
+  }
+  function fact(id, label, line, test, kind="private", load=1){
+    return {id, label, line, test, kind, load};
+  }
+  function factMapFor(actual){
+    const L = actual.left, R = actual.right, S = L + R, G = Math.abs(L - R);
+    return {
+      left_exact: fact("left_exact", "LEFT value", `LEFT = ${L}`, w => w.left === L, "exact_side", 1),
+      right_exact: fact("right_exact", "RIGHT value", `RIGHT = ${R}`, w => w.right === R, "exact_side", 1),
+      left_parity: fact("left_parity", "whether LEFT is odd/even", `LEFT is ${L%2 ? "odd" : "even"}`, w => w.left%2 === L%2, "property_witness", 1),
+      right_parity: fact("right_parity", "whether RIGHT is odd/even", `RIGHT is ${R%2 ? "odd" : "even"}`, w => w.right%2 === R%2, "property_witness", 1),
+      left_prime_status: fact("left_prime_status", "whether LEFT is prime", `LEFT is ${prime(L) ? "prime" : "not prime"}`, w => prime(w.left) === prime(L), "property_witness", 1),
+      right_prime_status: fact("right_prime_status", "whether RIGHT is prime", `RIGHT is ${prime(R) ? "prime" : "not prime"}`, w => prime(w.right) === prime(R), "property_witness", 1),
+      public_sum: fact("public_sum", "exact total", `public: LEFT + RIGHT = ${S}`, w => w.left + w.right === S, "aggregate_inference", 2),
+      public_gap: fact("public_gap", "exact gap", `public: the gap is ${G}`, w => Math.abs(w.left - w.right) === G, "aggregate_inference", 2),
+      public_sum_parity: fact("public_sum_parity", "sum parity", `public: LEFT + RIGHT is ${S%2 ? "odd" : "even"}`, w => (w.left + w.right)%2 === S%2, "aggregate_property", 1)
+    };
+  }
+  function targetSpecs(max){
+    const thr = Math.max(8, Math.min(14, Math.floor(max * 1.05)));
+    return {
+      left_gt_right: {id:"left_gt_right", text:"LEFT is greater than RIGHT", eval:w => w.left > w.right},
+      sum_gt_threshold: {id:"sum_gt_threshold", text:`LEFT + RIGHT is greater than ${thr}`, eval:w => (w.left + w.right) > thr},
+      one_divides_other: {id:"one_divides_other", text:"one value divides the other exactly", eval:w => w.left > 0 && w.right > 0 && (w.left % w.right === 0 || w.right % w.left === 0)},
+      exactly_one_prime: {id:"exactly_one_prime", text:"exactly one value is prime", eval:w => prime(w.left) !== prime(w.right)},
+      both_even: {id:"both_even", text:"both values are even", eval:w => w.left%2 === 0 && w.right%2 === 0},
+      any_odd: {id:"any_odd", text:"at least one value is odd", eval:w => w.left%2 === 1 || w.right%2 === 1}
+    };
+  }
+  function worlds(max){
+    const out = [];
+    for(let left=1; left<=max; left++) for(let right=1; right<=max; right++) out.push({left,right});
+    return out;
+  }
+  function compatible(facts, target, max){
+    const ws = worlds(max).filter(w => arr(facts).every(f => { try{ return !!f.test(w); }catch(_){ return false; } }));
+    const truths = ws.map(w => !!target.eval(w));
+    const can = ws.length > 0 && truths.every(t => t === truths[0]);
+    return {worlds:ws, truths, canDetermine:can, answer:can ? (truths[0] ? "YES" : "NO") : "MIXED"};
+  }
+  function subsetKey(xs){ return arr(xs).slice().sort().join("|") || "none"; }
+  function subsetLabel(xs){
+    xs = arr(xs).slice();
+    if(!xs.length) return "No one";
+    if(xs.length === AGENTS.length) return "all three";
+    if(xs.length === 1) return `${xs[0]} only`;
+    return xs.slice(0,-1).join(", ") + " and " + xs[xs.length-1];
+  }
+  function allSubsetRows(){
+    const rows = [];
+    for(let mask=0; mask<(1<<AGENTS.length); mask++){
+      const agents = AGENTS.filter((_, i) => mask & (1 << i));
+      rows.push({agents, key:subsetKey(agents), label:subsetLabel(agents)});
+    }
+    return rows;
+  }
+  function shuffled(xs){
+    xs = arr(xs).slice();
+    for(let i=xs.length-1; i>0; i--){ const j=Math.floor(Math.random()*(i+1)); const t=xs[i]; xs[i]=xs[j]; xs[j]=t; }
+    return xs;
+  }
+  function choice(xs, fallback=null){ xs = arr(xs); return xs.length ? xs[Math.floor(Math.random()*xs.length)] : fallback; }
+  function rotate(xs, offset){
+    xs = arr(xs);
+    if(!xs.length) return [];
+    const n = ((offset % xs.length) + xs.length) % xs.length;
+    return xs.slice(n).concat(xs.slice(0,n));
+  }
+  function holderSets(offset, allowAdaBen=false){
+    const sets = [["Ada"], ["Ben"], ["Cy"], ["Ada","Cy"], ["Ben","Cy"]];
+    if(allowAdaBen) sets.push(["Ada","Ben"]);
+    return rotate(sets, offset);
+  }
+  function exactSideFact(agent, offset){
+    const sides = ((offset + AGENTS.indexOf(agent)) % 2 === 0) ? ["left_exact","right_exact"] : ["right_exact","left_exact"];
+    return sides[0];
+  }
+  function propertySideFact(kind, agent, offset){
+    const left = kind === "prime" ? "left_prime_status" : "left_parity";
+    const right = kind === "prime" ? "right_prime_status" : "right_parity";
+    return ((offset + AGENTS.indexOf(agent)) % 2 === 0) ? left : right;
+  }
+  function buildAssignments(blueprint, offset){
+    const shared = arr(blueprint.shared);
+    const holders = choice(holderSets(offset, !!blueprint.allowAdaBen), ["Ada"]);
+    const distractors = arr(blueprint.distractors);
+    const by = {};
+    for(const agent of AGENTS){
+      by[agent] = shared.slice();
+      if(holders.includes(agent)){
+        if(blueprint.privateMode === "prime_status") by[agent].push(propertySideFact("prime", agent, offset));
+        else if(blueprint.privateMode === "parity") by[agent].push(propertySideFact("parity", agent, offset));
+        else by[agent].push(exactSideFact(agent, offset));
+      } else if(distractors.length){
+        by[agent].push(distractors[(offset + AGENTS.indexOf(agent)) % distractors.length]);
+      }
+    }
+    return by;
+  }
+  function blueprints(max){
+    const targets = targetSpecs(max);
+    return [
+      {id:"order_from_shared_total_varied_side", target:targets.left_gt_right, shared:["public_sum"], privateMode:"exact_side", distractors:["left_parity","right_parity","public_sum_parity"]},
+      {id:"divisibility_from_shared_total_varied_side", target:targets.one_divides_other, shared:["public_sum"], privateMode:"exact_side", distractors:["left_parity","right_parity","left_prime_status","right_prime_status"]},
+      {id:"sum_threshold_from_shared_gap_varied_side", target:targets.sum_gt_threshold, shared:["public_gap"], privateMode:"exact_side", distractors:["left_parity","right_parity","public_sum_parity"], allowAdaBen:true},
+      {id:"prime_status_from_shared_total_varied_side", target:targets.exactly_one_prime, shared:["public_sum"], privateMode:"prime_status", distractors:["left_parity","right_parity"], allowAdaBen:true},
+      {id:"any_odd_from_varied_parity_witness", target:targets.any_odd, shared:[], privateMode:"parity", distractors:["public_sum_parity"], allowAdaBen:true},
+      {id:"both_even_from_varied_parity_witness", target:targets.both_even, shared:[], privateMode:"parity", distractors:["public_sum_parity"], allowAdaBen:true}
+    ].filter(b => b.target);
+  }
+  function resolve(blueprint, actual, max, offset){
+    const map = factMapFor(actual);
+    const target = blueprint.target;
+    const keysByAgent = buildAssignments(blueprint, offset);
+    const agents = AGENTS.map(agent => {
+      const facts = arr(keysByAgent[agent]).map(k => map[k]).filter(Boolean);
+      const res = compatible(facts, target, max);
+      const hasExactBoth = facts.some(f => f.id === "left_exact") && facts.some(f => f.id === "right_exact");
+      const inferential = facts.some(f => /aggregate|public_sum|public_gap|public_order|relation_announcement/.test(`${f.kind}:${f.id}`)) || (res.canDetermine && res.worlds.length > 1);
+      return {
+        agent, facts, ...res, hasExactBoth, inferential,
+        line:`${agent} knows: ${facts.map(f => f.line).join("; ")}.`
+      };
+    });
+    const determiners = agents.filter(a => a.canDetermine).map(a => a.agent);
+    const actualTruth = target.eval(actual) ? "YES" : "NO";
+    return {templateId:blueprint.id, target, actual, actualTruth, agents, determiners, key:subsetKey(determiners), label:subsetLabel(determiners)};
+  }
+  function sharedFactIds(ep){
+    const agents = arr(ep?.agents);
+    if(!agents.length) return [];
+    const all = uniq([].concat(...agents.map(a => arr(a.facts))));
+    return all.filter(id => /^public_/.test(str(id)) && agents.every(a => arr(a.facts).includes(id)));
+  }
+  function privateFactIds(agent, shared){
+    const s = new Set(arr(shared));
+    return uniq(arr(agent?.facts).filter(id => !s.has(id)));
+  }
+  function labelFor(id){
+    const labels = {
+      left_exact:"LEFT value",
+      right_exact:"RIGHT value",
+      left_parity:"whether LEFT is odd/even",
+      right_parity:"whether RIGHT is odd/even",
+      left_prime_status:"whether LEFT is prime",
+      right_prime_status:"whether RIGHT is prime",
+      public_sum:"exact total",
+      public_gap:"exact gap",
+      public_sum_parity:"sum parity"
+    };
+    return labels[str(id)] || str(id).replace(/^public_/,"").replace(/_/g," ");
+  }
+  function isDegenerateScreen(ep){
+    const shared = sharedFactIds(ep);
+    if(ep?.target !== "left_gt_right" && ep?.target !== "one_divides_other") return false;
+    if(!shared.includes("public_sum")) return false;
+    if(ep?.correctKey !== "Ada|Ben") return false;
+    const by = {};
+    for(const a of arr(ep?.agents)) by[a.agent] = privateFactIds(a, shared);
+    const ada = subsetKey(by.Ada), ben = subsetKey(by.Ben), cy = subsetKey(by.Cy);
+    const exactAda = ada === "left_exact" || ada === "right_exact";
+    const exactBen = ben === "left_exact" || ben === "right_exact";
+    return exactAda && exactBen && cy === "none";
+  }
+  function qualityOK(res){
+    if(!res) return false;
+    if(res.agents.some(a => a.hasExactBoth)) return false;
+    if(!res.determiners.length || res.determiners.length >= AGENTS.length) return false;
+    if(!res.agents.some(a => !a.canDetermine)) return false;
+    if(!res.agents.filter(a => a.canDetermine).some(a => a.inferential)) return false;
+    const patterns = new Set(res.agents.map(a => `${a.canDetermine ? "D" : "?"}:${a.answer}:${a.worlds.length}`));
+    if(patterns.size < 2) return false;
+    const ep = {
+      target:res.target.id,
+      correctKey:res.key,
+      agents:res.agents.map(a => ({agent:a.agent, facts:a.facts.map(f => f.id)}))
+    };
+    if(isDegenerateScreen(ep)) return false;
+    if(local.recentKeys.slice(-3).filter(k => k === res.key).length >= 2) return false;
+    return true;
+  }
+  function optionRows(correctKey){
+    const all = allSubsetRows();
+    const correct = all.find(r => r.key === correctKey) || all[0];
+    const cset = new Set(correct.agents);
+    const distractors = all.filter(r => r.key !== correctKey).map(r => {
+      const rset = new Set(r.agents);
+      let overlap = 0;
+      for(const a of rset) if(cset.has(a)) overlap++;
+      return {...r, score:Math.abs(r.agents.length - correct.agents.length)*1.1 - overlap*0.35 + (r.agents.length === 0 || r.agents.length === 3 ? 0.18 : 0) + Math.random()*0.01};
+    }).sort((a,b) => a.score - b.score).slice(0,3);
+    return shuffled([correct, ...distractors]).slice(0,4);
+  }
+  function displayFor(ep){
+    const shared = sharedFactIds(ep);
+    return {
+      patch:PATCH_ID,
+      targetText:ep.targetText,
+      contract:shared.length ? `Shared by everyone: ${shared.map(labelFor).join("; ")}` : "Only the clues on each person's card are available.",
+      sharedFacts:shared.map(labelFor),
+      agents:arr(ep.agents).map(a => ({
+        agent:a.agent,
+        facts:privateFactIds(a, shared).map(labelFor),
+        canDetermine:!!a.canDetermine,
+        answer:a.answer || null,
+        worldCount:a.worldCount || null,
+        truthValues:arr(a.truthValues).slice()
+      }))
+    };
+  }
+  function questionFor(ep){
+    const disp = ep.display || displayFor(ep);
+    const lines = [`Target: ${disp.targetText}.`];
+    if(arr(disp.sharedFacts).length) lines.push(`Shared clue: ${disp.sharedFacts.join("; ")}.`);
+    lines.push("Who can determine whether the target is YES or NO?");
+    for(const a of arr(disp.agents)){
+      lines.push(`${a.agent}: ${arr(a.facts).length ? arr(a.facts).join("; ") : "no private clue beyond the shared clue"}`);
+    }
+    return lines.join("\n");
+  }
+  function buildTrial(cat, m){
+    if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function") return null;
+    const max = maxFor(m);
+    const bps = blueprints(max);
+    if(!bps.length) return null;
+    for(let attempt=0; attempt<240; attempt++){
+      const offset = local.cursor + attempt;
+      const blueprint = bps[offset % bps.length];
+      const actual = {left:1 + Math.floor(Math.random()*max), right:1 + Math.floor(Math.random()*max)};
+      const res = resolve(blueprint, actual, max, offset);
+      if(!qualityOK(res)) continue;
+      const rows = optionRows(res.key);
+      const idx = rows.findIndex(r => r.key === res.key);
+      if(idx < 0) continue;
+      const opts = rows.map((r,i) => l0ChoiceOption(r.label, i === idx, i === idx ? "correct" : "epistemic_determiner_near_miss", {subsetKey:r.key, agents:r.agents.slice()}));
+      const ep = {
+        solver:"v6823_calculation_determinability",
+        patch:PATCH_ID,
+        scenarioId:res.templateId,
+        target:res.target.id,
+        targetText:res.target.text,
+        actualWorld:{left:actual.left, right:actual.right},
+        actualTruth:res.actualTruth,
+        agents:res.agents.map(a => ({
+          agent:a.agent,
+          info:a.line,
+          canDetermine:a.canDetermine,
+          answer:a.answer,
+          worldCount:a.worlds.length,
+          facts:a.facts.map(f => f.id),
+          inferential:!!a.inferential,
+          truthValues:uniq(a.truths.map(t => t ? "YES" : "NO"))
+        })),
+        determiners:res.determiners.slice(),
+        correct:res.label,
+        correctKey:res.key,
+        design:"v6854 varied agent/fact assignments; no fixed Ada+Ben determiner template"
+      };
+      ep.display = displayFor(ep);
+      const question = questionFor(ep);
+      const payload = {
+        epistemicAbstract:ep,
+        mechanismTags:["epistemic_calculation","possible_worlds_solver","determinability","public_private_knowledge","determiner_diversity"]
+      };
+      const trial = buildL0ChoiceTrialFromOptions(cat, max, actual.left, actual.right, question, opts, idx, payload);
+      if(!trial) continue;
+      trial.family = "epistemic_abstract";
+      trial.catId = cat?.id || trial.catId;
+      trial.memoryEligible = false;
+      trial.countsForMetaHistory = false;
+      trial.payload = {...(trial.payload || {}), epistemicAbstract:ep};
+      trial.epistemicAbstract = ep;
+      trial.epistemicCalculationDisplay = ep.display;
+      trial.delayedPrompt = question;
+      trial.frameTags = uniq([...(trial.frameTags || []), "epistemic_reasoning", "possible_worlds_solver", "calculation_determinability", "determiner_diversity"]);
+      trial.mechanismTags = uniq([...(trial.mechanismTags || []), "epistemic_calculation", "possible_worlds_solver", "determiner_diversity"]);
+      local.cursor = (offset + 1) % 100000;
+      local.recentKeys.push(res.key);
+      local.recentKeys = local.recentKeys.slice(-10);
+      return trial;
+    }
+    return null;
+  }
+  function patchCats(){
+    let patched = 0;
+    try{
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []);
+      for(const c of cats){
+        if(!c || c.family !== "epistemic_abstract") continue;
+        c.buildChoiceTrial = function buildChoiceTrialEpistemicDiversityV6854(cat, m){ return buildTrial(cat || c, m); };
+        c.variants = [{q:"Who can determine the target by witness or calculation?"}];
+        c.frameTags = uniq([...(c.frameTags || []), "epistemic_reasoning", "possible_worlds_solver", "calculation_determinability", "determiner_diversity"]);
+        c.mechanismTags = uniq([...(c.mechanismTags || []), "epistemic_calculation", "possible_worlds_solver", "determiner_diversity"]);
+        c._v6854DeterminerDiversity = true;
+        patched++;
+      }
+    }catch(_){ }
+    return patched;
+  }
+  function auditResultLocal(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details || {}); }catch(_){ }
+    return {ok:status === "PASS", status, details:details || {}};
+  }
+  function auditV6854EpistemicDeterminerDiversity(opts={}){
+    patchCats();
+    const block = [], warnings = [], samples = [], byCorrect = {}, byScenario = {};
+    try{
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).filter(c => c?.family === "epistemic_abstract" && typeof c.buildChoiceTrial === "function");
+      if(!cats.length) block.push("no epistemic_abstract choice cats");
+      const n = clamp(opts.samples || 180, 40, 360);
+      for(let i=0; i<n && cats.length; i++){
+        const t = cats[i % cats.length].buildChoiceTrial(cats[i % cats.length], 12);
+        if(!t){ warnings.push(`sample ${i}: unbuildable`); continue; }
+        const ep = t.payload?.epistemicAbstract || t.epistemicAbstract;
+        const disp = t.epistemicCalculationDisplay || ep?.display;
+        const correct = ep?.correct || (t.options || []).find(o => o?.correct)?.text || "unknown";
+        byCorrect[correct] = (byCorrect[correct] || 0) + 1;
+        byScenario[ep?.scenarioId || "unknown"] = (byScenario[ep?.scenarioId || "unknown"] || 0) + 1;
+        if(!ep || ep.solver !== "v6823_calculation_determinability") block.push(`sample ${i}: wrong epistemic solver`);
+        if(!disp) block.push(`sample ${i}: missing structured display`);
+        if(/\bLEFT\s*=\s*\d|\bRIGHT\s*=\s*\d/.test(str(t.question))) block.push(`sample ${i}: prompt reveals exact value`);
+        if(isDegenerateScreen(ep)) block.push(`sample ${i}: fixed Ada+Ben shared-total screen`);
+        if(samples.length < 8) samples.push({scenario:ep?.scenarioId, target:ep?.targetText, shared:disp?.sharedFacts || [], agents:disp?.agents?.map(a => ({agent:a.agent, facts:a.facts})) || [], correct});
+      }
+      const distinctCorrect = Object.keys(byCorrect).length;
+      const distinctScenario = Object.keys(byScenario).length;
+      if(distinctCorrect < 4) block.push(`determiner diversity too low: ${distinctCorrect} correct labels`);
+      if(distinctScenario < 4) warnings.push(`scenario diversity low in audit sample: ${distinctScenario}`);
+      const total = Object.values(byCorrect).reduce((a,b) => a+b, 0);
+      const adaBenShare = total ? (byCorrect["Ada and Ben"] || 0) / total : 0;
+      if(adaBenShare > 0.55) block.push(`Ada and Ben dominates epistemic answers (${Math.round(adaBenShare*100)}%)`);
+    }catch(e){ block.push(`epistemic diversity audit exception: ${e?.message || e}`); }
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:typeof currentAppVersion === "function" ? currentAppVersion() : "v6.8.54", patch:PATCH_ID, byCorrect, byScenario, samples, warnings, block});
+  }
+  const patched = patchCats();
+  try{ window.auditV6854EpistemicDeterminerDiversity = auditV6854EpistemicDeterminerDiversity; globalThis.auditV6854EpistemicDeterminerDiversity = auditV6854EpistemicDeterminerDiversity; }catch(_){ }
+  try{ window.EUCA_V6854_EPISTEMIC_DETERMINER_DIVERSITY = {patch:PATCH_ID, patched, audit:auditV6854EpistemicDeterminerDiversity}; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(Array.from(AUDIT_KEYS), auditV6854EpistemicDeterminerDiversity, "auditV6854EpistemicDeterminerDiversity");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6854EpistemicDeterminerDiversity", auditV6854EpistemicDeterminerDiversity);
+  }catch(_){ }
+  try{
+    const prevRun = (typeof window !== "undefined" && typeof window.runFeatureAudit === "function") ? window.runFeatureAudit : (typeof runFeatureAudit === "function" ? runFeatureAudit : null);
+    if(prevRun && !prevRun.__v6854EpistemicDiversityWrapped){
+      const wrapped = function runFeatureAuditV6854(feature, opts={}){
+        const key = str(feature).toLowerCase().replace(/[.\-\s]+/g, "_");
+        if(AUDIT_KEYS.has(key)) return auditV6854EpistemicDeterminerDiversity(opts || {});
+        return prevRun.apply(this, arguments);
+      };
+      wrapped.__v6854EpistemicDiversityWrapped = true;
+      try{ window.runFeatureAudit = wrapped; globalThis.runFeatureAudit = wrapped; runFeatureAudit = wrapped; }catch(_){ }
     }
   }catch(_){ }
 })();
