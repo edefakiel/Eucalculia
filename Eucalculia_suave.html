@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.48-no-result-leak-transform</title>
+<title>Eucalculia v6.8.50</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -2049,22 +2049,7 @@ select.cs-native {
 }
 
 
-.recTraceBox {
-  margin:0 auto 4px auto;
-  width:min(96%, 420px);
-  border:1px solid rgba(77,166,255,0.22);
-  background:rgba(8,8,13,0.78);
-  border-radius:10px;
-  padding:6px 8px;
-  font-size:10px;
-  color:#cbd8ff;
-  pointer-events:auto;
-}
-.recTraceTitle { font-weight:800; letter-spacing:0.4px; margin-bottom:5px; color:#dcecff; }
-.recTraceSlots { display:flex; gap:4px; justify-content:center; margin-bottom:5px; }
-.recTraceSlot { min-width:34px; min-height:20px; border:1px dashed rgba(255,255,255,0.22); border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-family:monospace; color:#fff; }
-.recTraceUseBtn { border:1px solid rgba(255,255,255,0.14); background:#161618; color:#e8e8f0; border-radius:7px; padding:4px 8px; font-size:10px; font-weight:800; }
-.recTraceUseBtn:disabled { opacity:0.64; }
+/* v6.8.49: external recursive-trace box retired (no relevant place in this architecture). */
 
 #trayPanels { flex:1; position:relative; }
 .panel { position:absolute; inset:0; display:none; flex-direction:column; gap:6px; }
@@ -3346,7 +3331,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.48-no-result-leak-transform";
+const APP_VERSION = "v6.8.50";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -5470,7 +5455,7 @@ function compactTrialInfoForRuntime(info=State.trialInfo){
     responseFormat:info.responseFormat || (Array.isArray(info.options) ? "choice" : State.pendingPanel || null),
     requiredRep:info.requiredRep || null, rep:info.rep || null, repA:info.repA || null, repB:info.repB || null,
     a:info.a ?? null, b:info.b ?? null, targetValue:State.targetValue,
-    recursiveTrace:info.recursiveTrace ? {opId:info.recursiveTrace.opId, seed:info.recursiveTrace.seed, depth:info.recursiveTrace.depth, finalValue:info.recursiveTrace.finalValue, traceBoxUsed:!!info.recursiveTrace.traceBoxUsed} : null,
+    recursiveTrace:info.recursiveTrace ? {opId:info.recursiveTrace.opId, seed:info.recursiveTrace.seed, depth:info.recursiveTrace.depth, finalValue:info.recursiveTrace.finalValue} : null,
     questionHash:simpleStringHash(info.question || info.delayedPrompt || info.relationQuestion || info.prompt || "")
   };
 }
@@ -12108,7 +12093,24 @@ function memInterferenceProfile(targetLevel){
                             : (CONFIG.memInterferenceSeparationProbabilityLow ?? 0.25);
   if(targetLevel >= 2) probability *= (CONFIG.memInterferenceTarget2ProbabilityFactor ?? 0.70);
   const minLag = lv >= 8 ? (CONFIG.memInterferenceMinLagHigh || 2) : (CONFIG.memInterferenceMinLagLow || 1);
-  const maxLag = Math.max(minLag, CONFIG.memInterferenceMaxLag || 4);
+  let maxLag = Math.max(minLag, CONFIG.memInterferenceMaxLag || 4);
+  // v6.8.49: LOAD-AWARE separation (beta signal: meta chains become an opaque memory wall when
+  // the intervening trials are themselves heavy ~20s L1-calc items). The retention burden is
+  // (intervening trials) × (load per trial); counting only trials mis-scales across exercise
+  // TYPES. Scale maxLag by a cognitive-load budget (retention ms ÷ recent per-trial RT) so the
+  // separation stays in the PRODUCTIVE zone (white paper §5.9) regardless of exercise heaviness.
+  // minLag (>=1) keeps interference on, so robustness-over-duration training is preserved.
+  // v6.8.50: load-aware lag is now OPT-IN (=== true) and DISABLED by default during stabilization —
+  // the RT EWMA that feeds it is contaminated until the robustness classifier is repaired & validated
+  // (then re-enable per audit). Default reverts to the fixed CONFIG.memInterferenceMaxLag.
+  if(CONFIG.memInterferenceLoadAwareLag === true){
+    const ewma = Number(State.productionMonitor && State.productionMonitor.robustness && State.productionMonitor.robustness.recentRtEwmaMs) || 0;
+    if(ewma > 0){
+      const budgetMs = Number(CONFIG.memInterferenceRetentionBudgetMs) || 45000;
+      const byLoad = Math.floor(budgetMs / Math.max(2500, ewma));
+      maxLag = clamp(Math.max(minLag, byLoad), minLag, CONFIG.memInterferenceMaxLag || 4);
+    }
+  }
   return {enabled:true, probability:clamp(probability, 0, 0.85), minLag, maxLag};
 }
 function clearPlanSpacing(plan){
@@ -12873,7 +12875,6 @@ function beginInputPhase(){
   if(panel && panel !== "none") showPanel(panel);
   $("answerDisplay").classList.remove("typing");
   setStatus("INPUT");
-  maybeShowRecursiveTraceBox();
   State.trialStartTime = now();
   resetCognitiveTiming();
   State.timing.inputOpenedAt = State.trialStartTime;
@@ -16169,7 +16170,7 @@ function makeSetMembershipPosnerCats(){
       // public variants now explicitly enumerate both-in OR both-out.
       {q:`Are both numbers ${short}, or both not ${short}?`},
       {q:`Are the values either both ${short} or both outside ${short}?`, linguisticFrame:"universal_scope"},
-      {q:`Do both numbers have the same status (in or out) regarding ${short}?`, linguisticFrame:"restrictive_quantifier"},
+      {q:`Do both numbers fall the same way — both ${short} or both not ${short}?`, linguisticFrame:"restrictive_quantifier"},
       {q:`Is exactly one number ${short}?`, negate:true, linguisticFrame:"restrictive_quantifier"},
     ];
     if(suffix === "left") return [
@@ -22394,7 +22395,7 @@ function _rec_digitSum(v){ return _rec_digits(v).reduce((a,d)=>a+d,0); }
 function _rec_ensureMonitor(){
   try{
     const pm = ensureProductionRuntimeMonitor();
-    if(!pm.recursiveTrace) pm.recursiveTrace = {executed:0, failures:{}, traceBoxUsed:0, recent:[]};
+    if(!pm.recursiveTrace) pm.recursiveTrace = {executed:0, failures:{}, recent:[]};
     return pm.recursiveTrace;
   } catch(_){ return null; }
 }
@@ -22647,33 +22648,9 @@ function makeRecursiveTraceL0Cat(spec){
   };
 }
 function makeRecursiveTraceL0Cats(){ return RECURSIVE_TRACE_CAT_SPECS.map(makeRecursiveTraceL0Cat); }
-function renderRecursiveTraceBox(info){
-  const rt = info?.recursiveTrace;
-  if(!rt) return "";
-  const safe = s => String(s == null ? "" : s).replace(/[&<>\"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch]));
-  const slots = Array.from({length:Math.min(6, Math.max(3, Number(rt.depth || 3) + 1))}, (_,i)=>`<span class="recTraceSlot">${i===0 ? safe(rt.seed) : ""}</span>`).join("");
-  return `<div class="recTraceBox" data-recursive-trace-box="1"><div class="recTraceTitle">Optional trace · ${safe(rt.opLabel)}</div><div class="recTraceSlots">${slots}</div><button type="button" class="recTraceUseBtn" id="recursiveTraceUseBtn">I used the trace box</button></div>`;
-}
-function maybeShowRecursiveTraceBox(){
-  if(State.status !== "INPUT") return;
-  const info = State.trialInfo;
-  if(!info?.recursiveTrace) return;
-  setInputStimulus(renderRecursiveTraceBox(info));
-  setTimeout(()=>{
-    const btn = document.getElementById("recursiveTraceUseBtn");
-    if(!btn) return;
-    btn.addEventListener("pointerdown", e => {
-      e.preventDefault(); e.stopPropagation();
-      if(State.trialInfo?.recursiveTrace){
-        State.trialInfo.recursiveTrace.traceBoxUsed = true;
-        const mon = _rec_ensureMonitor();
-        if(mon) mon.traceBoxUsed = (mon.traceBoxUsed || 0) + 1;
-        btn.textContent = "Trace marked";
-        btn.disabled = true;
-      }
-    }, {once:true});
-  }, 0);
-}
+// v6.8.49: renderRecursiveTraceBox / maybeShowRecursiveTraceBox removed — the optional
+// external-trace scaffold is retired (it had no relevant place in this architecture). The
+// recursive_trace FAMILY itself is unchanged; trials simply no longer show a trace box.
 function auditRecursiveConvergence(opts={}){
   const m = Number(opts.m || 13);
   const block=[], details=[];
@@ -29411,14 +29388,10 @@ function cubeViewRowOrdinal(query){
   }
 }
 function cubeViewRowLabel(query){
+  // v6.8.49: dropped "to you in that view" — the viewpoint is named once by the surrounding
+  // template, so repeating it produced "…nearest to you in that view … viewed from X".
   const n = cubeViewRowOrdinal(query);
-  return n === 0
-    ? "the row nearest to you in that view"
-    : n === 1
-      ? "the middle row in that view"
-      : n === 2
-        ? "the row farthest from you in that view"
-        : cubeQueryLabel(query, "horizontal");
+  return n === 0 ? "the nearest row" : n === 1 ? "the middle row" : n === 2 ? "the farthest row" : cubeQueryLabel(query, "horizontal");
 }
 function cubeViewPromptViewLabel(transformId, orientation){
   const id = String(transformId || "");
@@ -29433,16 +29406,33 @@ function cubeViewPromptViewLabel(transformId, orientation){
   return "from the front";
 }
 function cubeViewPrompt(transformId, query, orientation){
+  const id = String(transformId || "");
+  // v6.8.49: wall (vertical) views use top/middle/bottom row language and name a viewpoint ONLY
+  // for a real rotation (above/below). A plain wall is just read — no "Viewed on the wall".
+  if(orientation === "vertical"){
+    const wrow = CUBE_QUERY_LABELS_WALL[query] || cubeQueryLabel(query, "horizontal");
+    if(id === "cubes_view_from_above") return `Seen from above, count ${wrow} of the wall.`;
+    if(id === "cubes_view_from_below") return `Seen from below, count ${wrow} of the wall.`;
+    return `Count ${wrow} of the wall.`;
+  }
   const row = cubeViewRowLabel(query || "front_row_count");
-  const view = cubeViewPromptViewLabel(transformId, orientation);
-  if(orientation === "vertical") return `Viewed ${view}, count ${row} of the wall.`;
-  return `Viewed ${view}, count ${row} of the floor layout.`;
+  const view = cubeViewPromptViewLabel(id, orientation);
+  return `Seen ${view}, count ${row} of the floor layout.`;
 }
 function cubeViewPhrase(transformId, refLetter, query, orientation){
+  // v6.8.49: drop the opaque internal "${refLetter}'s" reference (players don't know "A"), use
+  // wall row labels for vertical, and name a viewpoint only for a real rotation — so the
+  // update-chain noun phrase reads cleanly (no "A's wall viewed on the wall").
+  const id = String(transformId || "");
+  if(orientation === "vertical"){
+    const wrow = CUBE_QUERY_LABELS_WALL[query] || cubeQueryLabel(query, "horizontal");
+    if(id === "cubes_view_from_above") return `${wrow} of the wall seen from above`;
+    if(id === "cubes_view_from_below") return `${wrow} of the wall seen from below`;
+    return `${wrow} of the wall`;
+  }
   const row = cubeViewRowLabel(query || "front_row_count");
-  const view = cubeViewPromptViewLabel(transformId, orientation);
-  const surface = orientation === "vertical" ? "wall" : "floor layout";
-  return `${row} of ${refLetter}'s ${surface} viewed ${view}`;
+  const view = cubeViewPromptViewLabel(id, orientation);
+  return `${row} seen ${view}`;
 }
 function cubeGridLineCount(grid, axis, index){
   if(!Array.isArray(grid) || grid.length !== 3 || index < 0 || index > 2) return null;
@@ -31252,23 +31242,23 @@ const L0_TRANSFORM_DESCRIPTORS = {
     short: "complete grid lines",
   },
   cubes_view_opposite: {
-    left:  "the front-row cube count of A if viewed from the back",
-    right: "the front-row cube count of B if viewed from the back",
+    left:  "the front-row cube count of the LEFT figure seen from the back",
+    right: "the front-row cube count of the RIGHT figure seen from the back",
     short: "cube back view",
   },
   cubes_view_lateral_right: {
-    left:  "the front-row cube count of A if viewed from its right side",
-    right: "the front-row cube count of B if viewed from its right side",
+    left:  "the front-row cube count of the LEFT figure seen from its right side",
+    right: "the front-row cube count of the RIGHT figure seen from its right side",
     short: "cube right-side view",
   },
   cubes_view_lateral_left: {
-    left:  "the front-row cube count of A if viewed from its left side",
-    right: "the front-row cube count of B if viewed from its left side",
+    left:  "the front-row cube count of the LEFT figure seen from its left side",
+    right: "the front-row cube count of the RIGHT figure seen from its left side",
     short: "cube left-side view",
   },
   cubes_view_from_above: {
-    left:  "the bottom-row cube count of A's wall layout if viewed from above",
-    right: "the bottom-row cube count of B's wall layout if viewed from above",
+    left:  "the bottom-row cube count of the LEFT figure seen from above",
+    right: "the bottom-row cube count of the RIGHT figure seen from above",
     short: "cube wall top view",
   },
 };
@@ -38163,29 +38153,27 @@ function _applyToLarger(p, fn) {
 
 const COUNTERFACTUAL_TRANSFORMS = {
   // === DOUBLE / HALVE ===
+  // v6.8.49: per-transform `detail` field removed across COUNTERFACTUAL_TRANSFORMS —
+  // confirmed dead (no `.detail(` consumer anywhere; never rendered).
   double_smaller: {
     applies: (p) => _cf_pmin(p) > 0 && 2 * _cf_pmin(p) <= 20,
     apply:   (p) => _applyToSmaller(p, v => v * 2),
     label:   (pl) => `${pl}'s smaller value were doubled`,
-    detail:  (p) => `${_cf_pmin(p)}→${_cf_pmin(p)*2}`,
   },
   double_larger: {
     applies: (p) => _cf_pmax(p) > 0 && 2 * _cf_pmax(p) <= 20,
     apply:   (p) => _applyToLarger(p, v => v * 2),
     label:   (pl) => `${pl}'s larger value were doubled`,
-    detail:  (p) => `${_cf_pmax(p)}→${_cf_pmax(p)*2}`,
   },
   halve_smaller: {
     applies: (p) => _cf_pmin(p) > 0 && _cf_pmin(p) % 2 === 0,
     apply:   (p) => _applyToSmaller(p, v => v / 2),
     label:   (pl) => `${pl}'s smaller value were halved`,
-    detail:  (p) => `${_cf_pmin(p)}→${_cf_pmin(p)/2}`,
   },
   halve_larger: {
     applies: (p) => _cf_pmax(p) > 0 && _cf_pmax(p) % 2 === 0,
     apply:   (p) => _applyToLarger(p, v => v / 2),
     label:   (pl) => `${pl}'s larger value were halved`,
-    detail:  (p) => `${_cf_pmax(p)}→${_cf_pmax(p)/2}`,
   },
 
   // === ADD / SUBTRACT ===
@@ -38198,25 +38186,21 @@ for(const k of _CF_K_RANGE) {
     applies: (p) => _cf_pmin(p) + k <= 15,
     apply:   (p) => _applyToSmaller(p, v => v + k),
     label:   (pl) => `${pl}'s smaller value were increased by ${k}`,
-    detail:  (p) => `${_cf_pmin(p)}→${_cf_pmin(p)+k}`,
   };
   COUNTERFACTUAL_TRANSFORMS[`add_${k}_to_larger`] = {
     applies: (p) => _cf_pmax(p) + k <= 15,
     apply:   (p) => _applyToLarger(p, v => v + k),
     label:   (pl) => `${pl}'s larger value were increased by ${k}`,
-    detail:  (p) => `${_cf_pmax(p)}→${_cf_pmax(p)+k}`,
   };
   COUNTERFACTUAL_TRANSFORMS[`sub_${k}_from_smaller`] = {
     applies: (p) => _cf_pmin(p) >= k && _cf_pmin(p) - k >= 0,
     apply:   (p) => _applyToSmaller(p, v => v - k),
     label:   (pl) => `${pl}'s smaller value were decreased by ${k}`,
-    detail:  (p) => `${_cf_pmin(p)}→${_cf_pmin(p)-k}`,
   };
   COUNTERFACTUAL_TRANSFORMS[`sub_${k}_from_larger`] = {
     applies: (p) => _cf_pmax(p) >= k && _cf_pmax(p) - k >= 0,
     apply:   (p) => _applyToLarger(p, v => v - k),
     label:   (pl) => `${pl}'s larger value were decreased by ${k}`,
-    detail:  (p) => `${_cf_pmax(p)}→${_cf_pmax(p)-k}`,
   };
 }
 
@@ -38225,7 +38209,6 @@ COUNTERFACTUAL_TRANSFORMS.swap_sides = {
   applies: (p) => p.a !== p.b, // swap is meaningful only when sides differ
   apply:   (p) => ({ a: p.b, b: p.a }),
   label:   (pl) => `${pl}'s two sides were swapped`,
-  detail:  (p) => `(${p.a},${p.b})→(${p.b},${p.a})`,
 };
 
 // === REPLACE WITH OTHER PAIR'S VALUE ===
@@ -38234,14 +38217,12 @@ COUNTERFACTUAL_TRANSFORMS.replace_smaller_with_other_smaller = {
   applies: (p, ctx) => ctx && _cf_pmin(p) !== _cf_pmin(ctx.otherPair),
   apply:   (p, ctx) => _applyToSmaller(p, _ => _cf_pmin(ctx.otherPair)),
   label:   (pl, ctx) => `${pl}'s smaller value were replaced by ${ctx.otherPairLabel}'s smaller value`,
-  detail:  (p, ctx) => `${_cf_pmin(p)}→${_cf_pmin(ctx.otherPair)}`,
   needsOtherPair: true,
 };
 COUNTERFACTUAL_TRANSFORMS.replace_larger_with_other_larger = {
   applies: (p, ctx) => ctx && _cf_pmax(p) !== _cf_pmax(ctx.otherPair),
   apply:   (p, ctx) => _applyToLarger(p, _ => _cf_pmax(ctx.otherPair)),
   label:   (pl, ctx) => `${pl}'s larger value were replaced by ${ctx.otherPairLabel}'s larger value`,
-  detail:  (p, ctx) => `${_cf_pmax(p)}→${_cf_pmax(ctx.otherPair)}`,
   needsOtherPair: true,
 };
 
@@ -44890,7 +44871,6 @@ function cloneRecursiveTracePayload(rt){
     seed:rt.seed ?? null,
     depth:rt.depth ?? null,
     finalValue:rt.finalValue ?? null,
-    traceBoxUsed:!!rt.traceBoxUsed,
     branchIds:Array.isArray(rt.branchIds) ? rt.branchIds.slice(0,8) : null
   };
 }
@@ -47474,19 +47454,19 @@ function extraRelationEquivalenceSpecs(){
       {text:"LEFT is farther from 5", correct:dl>dr, distractorType:"role_inversion"},
       {text:"RIGHT is closer to 5", correct:dr<dl, distractorType:"role_inversion"}
     ];}, review(a,b){ return `Distances to 5: LEFT=${Math.abs(a-5)}, RIGHT=${Math.abs(b-5)}.`; }},
-    {id:"rel_eq_modular_dual_mod3", label:"dual remainder relation by 3", minM:7, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%3===0; return [
+    {id:"rel_eq_modular_dual_mod3", label:"dual remainder relation by 3", minM:7, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.50 bug1: accept only pairs where the EQUIVALENT pair (opt0≡opt1, same remainder = diff multiple) is the UNIQUE true pair. Was valid:true → the sampler's "2 true" gate could mark the non-equivalent distractors (sum-multiple + exactly-one-rem-1), e.g. a=1,b=4, while the equivalent pair was false.*/ (a-b)%3===0 && (a+b)%3!==0 && ((a%3===1)!==(b%3===1))===false, build(a,b){ const same=(a-b)%3===0; return [
       {text:"both leave the same remainder after division by 3", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 3", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 3", correct:(a+b)%3===0, distractorType:"semantic_near_miss"},
       {text:"exactly one leaves remainder 1 mod 3", correct:(a%3===1)!==(b%3===1), distractorType:"semantic_near_miss"}
     ];}, review(a,b){ return `Remainders mod 3: LEFT=${a%3}, RIGHT=${b%3}.`; }},
-    {id:"rel_eq_modular_dual_mod4", label:"dual remainder relation by 4", minM:8, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%4===0; return [
+    {id:"rel_eq_modular_dual_mod4", label:"dual remainder relation by 4", minM:8, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.50 bug1*/ (a-b)%4===0 && (a+b)%4!==0 && ((a%4===1)!==(b%4===1))===false, build(a,b){ const same=(a-b)%4===0; return [
       {text:"both leave the same remainder after division by 4", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 4", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 4", correct:(a+b)%4===0, distractorType:"semantic_near_miss"},
       {text:"exactly one leaves remainder 1 mod 4", correct:(a%4===1)!==(b%4===1), distractorType:"semantic_near_miss"}
     ];}, review(a,b){ return `Remainders mod 4: LEFT=${a%4}, RIGHT=${b%4}.`; }},
-    {id:"rel_eq_modular_dual_mod5", label:"dual remainder relation by 5", minM:10, stage:5, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=>true, build(a,b){ const same=(a-b)%5===0; return [
+    {id:"rel_eq_modular_dual_mod5", label:"dual remainder relation by 5", minM:10, stage:5, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.50 bug1*/ (a-b)%5===0 && (a+b)%5!==0 && ((a%5===1)!==(b%5===1))===false, build(a,b){ const same=(a-b)%5===0; return [
       {text:"both leave the same remainder after division by 5", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 5", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 5", correct:(a+b)%5===0, distractorType:"semantic_near_miss"},
@@ -57898,7 +57878,14 @@ function handleDigit(d){
 
   if(n===t){ setAnswer(n); processInput(parseInt(n,10)); }
   else if(t.startsWith(n)){ State.inputBuffer=n; setAnswer(n+"…"); $("answerDisplay").classList.add("typing"); }
-  else { setAnswer(n); processInput(parseInt(n,10)); }
+  else {
+    // v6.8.50: a numeric input that diverges from the target is a FULL real error — precision
+    // under pressure is part of the trained behavior, so there is NO adaptive "slip" exception.
+    // Keep only a NON-ADAPTIVE diagnostic marker; it must never feed consolidation/stability/
+    // fragility/level/history (it is not read by any adaptive path).
+    if(State.trialInfo){ State.trialInfo.inputDivergedAtDigit = true; State.trialInfo.inputBufferAtDivergence = n; }
+    setAnswer(n); processInput(parseInt(n,10));
+  }
 }
 
 function ensureDiagBucket(map, key){
@@ -59061,7 +59048,6 @@ function processInputPostAnswer(ctx){
     recursiveSeed:State.trialInfo?.recursiveTrace?.seed ?? null,
     recursiveDepth:State.trialInfo?.recursiveTrace?.depth ?? null,
     recursiveFinalValue:State.trialInfo?.recursiveTrace?.finalValue ?? null,
-    recursiveTraceBoxUsed:!!State.trialInfo?.recursiveTrace?.traceBoxUsed,
     isInductionTerminal:!!State.trialInfo?.isInductionTerminal,
   }); }
   }
@@ -72758,6 +72744,8 @@ setInterval(tickPlaytimeAccumulator, 30000);
       else cell.dueAt=prevDueAt;
     }
     else {
+      // v6.8.50: input-slip exception REMOVED — every wrong answer (incl. a divergent numeric
+      // input) consolidates as a real error: reset the interval ladder, mark fragile, drop stability.
       cell.lastWrongAt=now;
       cell.stability=Math.max(0,(Number(cell.stability)||0)-1.5);
       cell.intervalIndex=0;
@@ -81471,7 +81459,7 @@ try{
       CONFIG.v6621InputPrewarmMaxMsPerTick = 11;
       CONFIG.v6621InputPrewarmMaxCatsPerTick = 2;
       CONFIG.v6621InputPrewarmProbeBudget = 1;
-      CONFIG.v6621RescueDelayMs = 95;
+      CONFIG.v6621RescueDelayMs = 300; // v6.8.50 (Fase 5, I4): past the ~260ms feedback dwell, so the rescue rarely even evaluates mid-feedback (I1 is the real state-gate)
       CONFIG.v6621OptimisticColdVisualAvailability = true;
     }
   }catch(_){ }
@@ -81641,6 +81629,17 @@ try{
   // pay a fully synchronous PREP build.
   function rescuePreparedTrialBuild(reason="rescue"){
     try{
+      // v6.8.50 (Fase 5, I1 — primary stall+panic fix): NEVER run the synchronous rescue build
+      // while the user is in a feedback/review phase. The rescue does NOT advance the state
+      // machine, so a heavy family build (epistemic/inverse/generative, hundreds of ms to >1s)
+      // blocking here keeps status at REVIEW_CLOSING past its 1200ms watchdog limit → panic, and
+      // freezes feedback. Gated by status, the build instead happens at its proper place (PREP,
+      // behind showTrialPrepLoading) via the ≤90ms wait-cap + startTrial() fallback.
+      if(State && (State.status === "LOCKED" || State.status === "REVIEW" || State.status === "REVIEW_CLOSING")){
+        try{ mon().rescueSkipped++; }catch(_){ }
+        try{ note("rescue_skipped_status", {status:State.status, reason}); }catch(_){ }
+        return false;
+      }
       if(!State || !State.nextTrialPrepareInFlight || State.nextTrialPrepared) { mon().rescueSkipped++; return false; }
       if(typeof canPrepareAutoNextTrialForPreparation === "function" && !canPrepareAutoNextTrialForPreparation()){ mon().rescueSkipped++; return false; }
       if(typeof buildPreparedAutoNextTrial !== "function" || typeof stillValidPreparedTrial !== "function") { mon().rescueSkipped++; return false; }
@@ -81673,7 +81672,7 @@ try{
         const ok = prevScheduleNextTrialPreparation.apply(this, arguments);
         try{
           if(ok && State && State.nextTrialPrepareInFlight && !State.nextTrialPrepared){
-            const delay = Math.max(35, Number(CONFIG && CONFIG.v6621RescueDelayMs)||95);
+            const delay = Math.max(35, Number(CONFIG && CONFIG.v6621RescueDelayMs)||300);
             mon().rescueScheduled++;
             setTimeout(() => rescuePreparedTrialBuild(`v6621_${reason || "post_answer"}`), delay);
           }
@@ -88984,11 +88983,14 @@ try{
       const previous = (typeof metaClassificationRuleTextForReview === "function") ? metaClassificationRuleTextForReview : null;
       if(previous && previous.__v6820ReviewRecursionGuard) return;
       let active = false;
+      // v6.8.50: hoist prevName to the outer scope — it was declared inside `wrapped` but also read
+      // by log("review_guard_installed", …) below, throwing "prevName is not defined" on EVERY install
+      // (the repeated v6820_install_review_guard runtime error seen from MENU cold-start in diagnostics).
+      const prevName = str(previous?.name || "");
       const wrapped = function metaClassificationRuleTextForReviewV6820(info){
         const direct = safeMetaReviewText(info);
         if(direct) return direct;
         if(active) return fallbackMetaReviewText(info);
-        const prevName = str(previous?.name || "");
         const delegateLooksRecursive = /V6818|V6819|PromptLogic|IdealPromptLogic/i.test(prevName);
         if(previous && previous !== wrapped && !delegateLooksRecursive){
           active = true;
@@ -91261,7 +91263,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     {id:"same_right", label:"the same RIGHT value", same:(p,q)=>Number(p.b)===Number(q.b)},
     {id:"same_total", label:"the same total", same:(p,q)=>sum(p)===sum(q)},
     {id:"same_gap", label:"the same gap", same:(p,q)=>gap(p)===gap(q)},
-    {id:"same_left_parity", label:"the same LEFT parity", same:(p,q)=>isEven(p.a)===isEven(q.a)}
+    {id:"same_left_parity", label:"the same LEFT parity (odd or even; the LEFT value may differ)", same:(p,q)=>isEven(p.a)===isEven(q.a)}
   ];
   function featureById(id){ return FEATURES.find(f => f.id === id) || FEATURES[0]; }
 
@@ -91975,10 +91977,17 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       {mode:"minimal_flip", share:0.14, items:makeMinimalFlipTasks(cap)},
       {mode:"progressive_alignment", share:0.12, items:makeProgressiveAlignmentTasks(cap)},
       {mode:"system_construction", share:0.08, items:makeSystemConstructionTasks(cap)},
-      {mode:"hidden_rule_induction", share:0.08, items:makeHiddenRuleTasks(cap)},
-      {mode:"discriminator_construction", share:0.06, items:makeDiscriminatorTasks(cap)},
+      // v6.8.49: re-weighted toward CONSTRUCTION / active discrimination and away from the two
+      // reveal-the-candidates modes. Chuderski 2022 / Jastrzębski 2020: rule *discovery* is
+      // dispensable for Gf — the value is constructing/validating the relation. hidden_rule and
+      // composition reveal the candidate space and engineer examples to a version-space of 1, so
+      // they are solvable by ELIMINATION on the identification; discriminator_construction (build
+      // a pair that separates two hypotheses) is non-eliminable active induction → promoted.
+      // The construction itself is already the scored action in verifyInductiveTask for every mode.
+      {mode:"hidden_rule_induction", share:0.04, items:makeHiddenRuleTasks(cap)},
+      {mode:"discriminator_construction", share:0.12, items:makeDiscriminatorTasks(cap)},
       {mode:"threshold_bracket_induction", share:0.04, items:makeThresholdInductionTasks(cap)},
-      {mode:"composition_induction", share:0.03, items:makeCompositionInductionTasks(cap)}
+      {mode:"composition_induction", share:0.02, items:makeCompositionInductionTasks(cap)}
     ].filter(b => b.items && b.items.length);
     if(!modeBuckets.length) return null;
     try{
@@ -94562,7 +94571,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         requiredRep: src.requiredRep || undefined,
         inverseOperation: src.inverseOperation ? {correctOpId:src.inverseOperation.correctOpId || null, v:src.inverseOperation.v ?? null, w:src.inverseOperation.w ?? null} : undefined,
         epistemicSufficiency: src.epistemicSufficiency ? {outcomeKey:src.epistemicSufficiency.outcomeKey || null, scenarioKind:src.epistemicSufficiency.scenarioKind || null, targetProfile:src.epistemicSufficiency.targetProfile || null, possibleWorldCount:src.epistemicSufficiency.possibleWorldCount ?? null} : undefined,
-        recursiveTrace: src.recursiveTrace ? {opId:src.recursiveTrace.opId || null, seed:src.recursiveTrace.seed ?? null, depth:src.recursiveTrace.depth ?? null, finalValue:src.recursiveTrace.finalValue ?? null, traceBoxUsed:!!src.recursiveTrace.traceBoxUsed} : undefined
+        recursiveTrace: src.recursiveTrace ? {opId:src.recursiveTrace.opId || null, seed:src.recursiveTrace.seed ?? null, depth:src.recursiveTrace.depth ?? null, finalValue:src.recursiveTrace.finalValue ?? null} : undefined
       };
     }catch(_){
       return (typeof compactTrialInfoForRuntime === "function") ? compactTrialInfoForRuntime(info) : {kind:info?.kind||null, catId:info?.catId||null, level:info?.level ?? State.currentTrialLevel ?? 0};
@@ -95951,11 +95960,23 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     return String(rt?.opLabel || id || "recursive rule");
   }
   function focusPhraseV6842(qText, rt, rc){
+    if(rc && rc.type === "applied_rule_identification") return "Which listed rule generated the observed trace?";
+    if(rc && rc.type === "branch_change_step") return "Which later transition is the first one that changes step type?";
     let s = String(qText || "").replace(/\s+/g, " ").trim();
     s = s.replace(/\s*Trace:\s*.*$/i, "").trim();
+    // v6.8.49: the seed + recursive rule are already shown as their own rows above, but the
+    // raw qText restates them before the actual question. The regex cut-list below missed
+    // several variant wordings (e.g. "Start with LEFT. While the current value is even, divide
+    // it by 2; stop when it becomes odd. Were there more than one divide-by-2 step?"), leaving
+    // the rule stated a THIRD time inside the Question (white paper §5.8 prompt-hygiene).
+    // Prefer pulling just the final interrogative sentence; fall back to the cut-list otherwise.
+    const qm = s.match(/[^.?!]*\?\s*$/);
+    if(qm && qm[0].trim().length >= 6) return qm[0].trim();
     const cuts = [
       /^Starting from [^.]+\.\s*/i,
       /^Start from [^.]+\.\s*/i,
+      /^Start with [^.]+\.\s*/i,
+      /^While [^.]*;\s*stop [^.]+\.\s*/i,
       /^From [^.]+, repeat until 1:\s*[^.]+\.\s*/i,
       /^Use LEFT as the tens digit and RIGHT as the ones digit\.\s*/i,
       /^Feed the LEFT digit first, then the RIGHT digit, to [^.]+\.\s*/i,
@@ -95966,8 +95987,6 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       /^Subtract 5 from LEFT\+RIGHT with [^.]+\.\s*/i
     ];
     for(const re of cuts) s = s.replace(re, "").trim();
-    if(rc && rc.type === "applied_rule_identification") return "Which listed rule generated the observed trace?";
-    if(rc && rc.type === "branch_change_step") return "Which later transition is the first one that changes step type?";
     if(!s) s = "Is the stated recursive property true?";
     return s;
   }
@@ -96007,7 +96026,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       rows.push(`<div class="qstep compact"><strong>Task</strong><br>• choose the rule that could have produced that trace</div>`);
     } else {
       rows.push(`<div class="qstep section"><strong>Recursive rule</strong><br>• ${esc(rulePhraseV6842(rt || {}, true))}</div>`);
-      if(rt?.baseLabel) rows.push(`<div class="qstep compact"><strong>Base case</strong><br>• ${esc(rt.baseLabel)}</div>`);
+      // v6.8.49: Base-case row removed — rulePhraseV6842 already states the stop/base
+      // condition for every op, so a separate "Base case" row restated it verbatim
+      // (redundant; white paper §5.8 linguistic-contract / prompt-hygiene).
       if(traceChoice) rows.push(`<div class="qstep compact"><strong>Choice task</strong><br>• inspect the trace/options; do not answer from the first state alone</div>`);
     }
     rows.push(`<div class="qstep prompt-end"><strong>Question</strong><br>• ${esc(focusPhraseV6842(qText, rt, rc))}</div>`);
@@ -96996,6 +97017,134 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   // runFeatureAudit wrapper (the chain was ~70 deep). The base dispatcher's
   // key->handler registry routes these; the window export above keeps "all" coverage.
   try{ registerFeatureAudit([...AUDIT_KEYS], (opts) => auditV6848NoResultLeakTransform(opts || {}), "auditV6848NoResultLeakTransform"); }catch(_){ }
+})();
+</script>
+
+<script>
+// === v6.8.49: robustness-under-interference instrumentation (genuine vs rote) ===============
+// The most defensible Gf-transfer bet is robust maintenance of a relation binding under
+// interference (Chuderski 2022; Jastrzębski 2020). To tell GENUINE gains (relation re-derived
+// each time) from ROTE (the specific format/item automatized), we log per relational trial: the
+// relation-level signature, a novelty flag (signature unseen within a recency window), META depth
+// (retained-binding = interference-exposed), correctness and RT. Read: on NOVEL meta trials,
+// accuracy up with RT held = genuine; on REPEATED meta trials, a large RT drop with flat accuracy
+// = rote. Diagnostic-only; lives on productionMonitor.robustness (exported) + window.robustnessSnapshot().
+(function(){
+  try{
+    if(typeof window === "undefined" || typeof processInputPostAnswer !== "function") return;
+    function ensureRob(){
+      const pm = (typeof ensureProductionRuntimeMonitor === "function") ? ensureProductionRuntimeMonitor() : ((State.productionMonitor = State.productionMonitor || {}));
+      if(!pm.robustness) pm.robustness = {n:0, seenSig:{}, byClass:{}, recent:[], recencyWindow:40};
+      return pm.robustness;
+    }
+    function trialDepthForRobustness(info){
+      // v6.8.50: the trial's RELATIONAL DEPTH is info.level / State.currentTrialLevel — NOT
+      // info.metaLevel (that is the MEM-chain level, 0 for ordinary L1/L2, which made every
+      // L1/L2/generative trial misclassify as base / meta:false). Clamp 0..3.
+      let raw;
+      if(info && info.level != null) raw = info.level;
+      else if(info && info.trialLevel != null) raw = info.trialLevel;
+      else raw = (typeof State !== "undefined" && State) ? State.currentTrialLevel : 0;
+      const n = Number(raw);
+      return Number.isFinite(n) ? Math.max(0, Math.min(3, n)) : 0;
+    }
+    function robSig(info, depth){
+      const op = (typeof deriveRelOpId === "function" && deriveRelOpId(info)) || info.relOpId
+        || (info.op && info.op.id) || info.catId || (info.cat && info.cat.id)
+        || (info.task && info.task.id) || info.family || info.kind || "?";
+      return [String(op), String(info.responseFormat || info.answerKind || ""),
+              String(info.linguisticFrame || ""),
+              String((info.representationTransform && info.representationTransform.transformId) || ""),
+              String(Number(depth) || 0)].join("|");
+    }
+    function recordRobustnessSignal(info, correct, rt, depth){
+      if(!info) return null;
+      const r = ensureRob(); r.n++;
+      const d = (typeof depth === "number") ? depth : trialDepthForRobustness(info);
+      const sig = robSig(info, d);
+      const last = r.seenSig[sig];
+      const novel = !(typeof last === "number" && (r.n - last) <= r.recencyWindow);
+      r.seenSig[sig] = r.n;
+      const meta = d >= 1;
+      const lure = !!(info.underLure || info.memInterferenceActive || info.isLure);
+      const cls = (novel ? "novel" : "repeated") + "_" + (meta ? "meta" : "base");
+      const b = r.byClass[cls] || (r.byClass[cls] = {t:0, c:0, rtSum:0, rtN:0});
+      b.t++; if(correct) b.c++;
+      if(Number.isFinite(Number(rt))){
+        b.rtSum += Number(rt); b.rtN++;
+        // EWMA of recent relational per-trial RT — feeds load-aware META separation (memInterferenceProfile).
+        const a = 0.25;
+        r.recentRtEwmaMs = r.recentRtEwmaMs ? Math.round(r.recentRtEwmaMs * (1 - a) + Number(rt) * a) : Math.round(Number(rt));
+      }
+      r.recent.push({sig, novel, meta, lure, correct:!!correct, rt:Number.isFinite(Number(rt)) ? Math.round(Number(rt)) : null, ts:Date.now()});
+      if(r.recent.length > 200) r.recent = r.recent.slice(-200);
+      const keys = Object.keys(r.seenSig);
+      if(keys.length > 600){ for(const k of keys){ if(r.n - r.seenSig[k] > 400) delete r.seenSig[k]; } }
+      return r;
+    }
+    function robustnessSnapshot(){
+      const r = ensureRob(), classes = {};
+      for(const k in r.byClass){ const b = r.byClass[k]; classes[k] = {trials:b.t, acc:b.t ? +(b.c/b.t).toFixed(3) : null, meanRt:b.rtN ? Math.round(b.rtSum/b.rtN) : null}; }
+      const nm = classes.novel_meta, rm = classes.repeated_meta;
+      const genuineVsRote = (nm && rm) ? {
+        novelMetaAcc:nm.acc, novelMetaRt:nm.meanRt, repeatedMetaAcc:rm.acc, repeatedMetaRt:rm.meanRt,
+        rtDropOnRepeated:(nm.meanRt && rm.meanRt) ? +(1 - rm.meanRt / nm.meanRt).toFixed(3) : null
+      } : null;
+      return {appVersion:(typeof currentAppVersion === "function" ? currentAppVersion() : null), totalTrials:r.n, classes, genuineVsRote};
+    }
+    window.recordRobustnessSignal = recordRobustnessSignal;
+    window.robustnessSnapshot = robustnessSnapshot;
+    const oldPost = processInputPostAnswer;
+    if(!oldPost.__robustnessWrapped){
+      const wrapped = function(ctx){
+        // v6.8.50: SNAPSHOT the trial's depth BEFORE post-answer mutates State (so L1/L2 are not
+        // read back as base), then record after the original handler runs.
+        let snap = null;
+        try{ const info = (typeof State !== "undefined" && State) ? State.trialInfo : null; if(info) snap = { info: info, depth: trialDepthForRobustness(info) }; }catch(_){ }
+        const ret = oldPost.apply(this, arguments);
+        try{ if(snap) recordRobustnessSignal(snap.info, !!(ctx && ctx.correct), ctx && ctx.rt, snap.depth); }catch(_){ }
+        return ret;
+      };
+      wrapped.__robustnessWrapped = true;
+      try{ wrapped.__postAnswerCore = oldPost.__postAnswerCore || oldPost; }catch(_){ }
+      try{ processInputPostAnswer = wrapped; }catch(_){ }
+      try{ window.processInputPostAnswer = wrapped; globalThis.processInputPostAnswer = wrapped; }catch(_){ }
+    }
+  }catch(e){ try{ recordRuntimeError(e, {source:"robustnessInstrumentation"}); }catch(_){ } }
+})();
+</script>
+
+<script>
+// === v6.8.50 stabilization acceptance audit: runtime_zero_errors ============================
+// Regression guard for the Fase-1 prevName fix (installMetaReviewRecursionGuard): BLOCK if the
+// "v6820_install_review_guard" runtime error ever reappears (it threw "prevName is not defined"
+// on every MENU install in v6.8.49). Read-only — scans productionMonitor.runtimeErrors, never
+// mutates state. Other runtime errors are surfaced as WARN (Fase-1.2 will classify them), so this
+// audit can never false-BLOCK the harness on an unrelated benign boot error.
+(function(){
+  try{
+    if(typeof registerFeatureAudit !== "function" || typeof auditResult !== "function") return;
+    function auditV6850RuntimeZeroErrors(opts){
+      const block = [], warnings = [], samples = [];
+      try{
+        const pm = (typeof State !== "undefined" && State && State.productionMonitor) ? State.productionMonitor : null;
+        const errs = (pm && Array.isArray(pm.runtimeErrors)) ? pm.runtimeErrors : [];
+        for(const e of errs){
+          const src = String((e && e.detail && e.detail.source) || "");
+          const msg = String((e && e.message) || "");
+          const row = { source: src || null, message: msg.slice(0, 160), status: (e && e.status) || null };
+          samples.push(row);
+          if(src === "v6820_install_review_guard") block.push(row); else warnings.push(row);
+        }
+      }catch(err){ warnings.push({ auditError: String(err) }); }
+      return auditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {
+        appVersion: (typeof currentAppVersion === "function" ? currentAppVersion() : null),
+        runtimeErrorCount: samples.length, block: block.slice(0, 12), warnings: warnings.slice(0, 12), samples: samples.slice(0, 12)
+      });
+    }
+    try{ window.auditV6850RuntimeZeroErrors = auditV6850RuntimeZeroErrors; globalThis.auditV6850RuntimeZeroErrors = auditV6850RuntimeZeroErrors; }catch(_){ }
+    registerFeatureAudit(["runtime_zero_errors", "v6850_runtime_zero_errors"], (opts) => auditV6850RuntimeZeroErrors(opts || {}), "auditV6850RuntimeZeroErrors");
+  }catch(e){ try{ recordRuntimeError(e, {source:"v6850_runtime_zero_errors_install"}); }catch(_){ } }
 })();
 </script>
 
