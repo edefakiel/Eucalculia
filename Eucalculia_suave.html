@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.52</title>
+<title>Eucalculia v6.8.53</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3331,7 +3331,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.52";
+const APP_VERSION = "v6.8.53";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -97252,8 +97252,10 @@ ${res.agents.map(a=>a.line).join(" ")}`;
    ════════════════════════════════════════════════════════════════════════ */
 (function(){
   "use strict";
-  const PATCH_ID = "v6.8.51-scalar-witness-contracts";
-  const AUDIT_KEYS = ["v6851", "v6_8_51", "scalar_witness", "v6851_scalar_witness", "response_contract_entropy", "productive_scalar_witness"];
+  const PATCH_ID = "v6.8.53-scalar-witness-entry-contract";
+  const AUDIT_KEYS = ["v6851", "v6_8_51", "scalar_witness", "v6851_scalar_witness", "response_contract_entropy", "productive_scalar_witness", "v6853", "v6_8_53", "scalar_witness_entry_contract", "minimal_width_autosubmit"];
+  const V6853_L1_BRIDGE_FAMILIES = ["witness", "coherence", "counterfactual", "chained_proportion"];
+  const V6853_EXECUTIVE_BRIDGE_TAGS = ["selection", "inhibition", "abstract_role", "quantifier_scope", "transformation", "source_provenance"];
   const local = {blockCount:0, lastBlockTrial:-99, recentOps:[]};
 
   function auditResultLocal(status, details){
@@ -97271,9 +97273,47 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function pickLocal(arr){ return Array.isArray(arr) && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null; }
   function randIntLocal(lo, hiInclusive){ return Math.floor(Math.random() * (hiInclusive - lo + 1)) + lo; }
   function scalarDomain(cap, allowZero=false){ const start = allowZero ? 0 : 1; const out=[]; for(let x=start; x<=cap; x++) out.push(x); return out; }
+  function scalarInputMax(){
+    let m = 99;
+    try{
+      if(typeof CONFIG === "object" && CONFIG && Number.isFinite(Number(CONFIG.scalarWitnessInputMax))) m = Number(CONFIG.scalarWitnessInputMax);
+    }catch(_){ }
+    return Math.max(9, Math.min(99, Math.floor(m || 99)));
+  }
+  function scalarSourceHardCap(){
+    let m = 12;
+    try{
+      if(typeof CONFIG === "object" && CONFIG && Number.isFinite(Number(CONFIG.scalarWitnessSourceMax))) m = Number(CONFIG.scalarWitnessSourceMax);
+      else if(typeof CONFIG === "object" && CONFIG && Number.isFinite(Number(CONFIG.relationalMaxValue))) m = Number(CONFIG.relationalMaxValue);
+    }catch(_){ }
+    return Math.max(6, Math.min(40, Math.floor(m || 12)));
+  }
+  function scalarAnswerDomain(allowZero=false){ return scalarDomain(scalarInputMax(), allowZero); }
+  function scalarInputWidth(n){ return String(Math.abs(Number(n) || 0)).length; }
+  function minimalInputWidthSolutions(xs){
+    xs = intSet(xs);
+    if(!xs.length) return xs;
+    const minWidth = Math.min(...xs.map(scalarInputWidth));
+    return xs.filter(x => scalarInputWidth(x) === minWidth);
+  }
   function scalarSolutionsFor(op, a, b, cap){
     if(!op || typeof op.solutions !== "function") return [];
-    try{ return intSet(op.solutions(Number(a), Number(b), Number(cap))).filter(x => x >= (op.allowZero ? 0 : 1) && x <= cap); }catch(_){ return []; }
+    try{
+      const xs = intSet(op.solutions(Number(a), Number(b), Number(cap))).filter(x => x >= (op.allowZero ? 0 : 1) && x <= scalarInputMax());
+      return minimalInputWidthSolutions(xs);
+    }catch(_){ return []; }
+  }
+  function scalarEntryContractFor(op, sourceCap, solutionSet){
+    const sols = intSet(solutionSet);
+    const inputWidth = sols.length ? Math.min(...sols.map(scalarInputWidth)) : 1;
+    return {
+      answerDomainMax: scalarInputMax(),
+      allowZero: !!op?.allowZero,
+      solutionSet: sols.slice(),
+      completionPolicy: "minimal_width_autosubmit",
+      sourceCap: Number(sourceCap),
+      inputWidth
+    };
   }
   function solutionLabel(xs, limit=9){
     xs = intSet(xs);
@@ -97285,7 +97325,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     let m = 9;
     try{ if(typeof currentMax === "function") m = Number(currentMax()) || m; }catch(_){ }
     try{ if(State && Number.isFinite(Number(State.maxValue))) m = Math.max(m, Number(State.maxValue)); }catch(_){ }
-    return Math.max(6, Math.min(9, Math.floor(m || 9)));
+    return Math.max(6, Math.min(scalarSourceHardCap(), Math.floor(m || 9)));
   }
   function activeRepsForValue(v){
     let reps = [];
@@ -97310,26 +97350,26 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   const SCALAR_WITNESS_OPS = [
     {
       id:"gt_both", label:"greater than both", answerKind:"scalar_witness", minCap:6,
-      prompt:"Enter a number greater than both remembered values.",
+      prompt:"Enter a whole number greater than both remembered values.",
       shortPrompt:"Number greater than both",
       frameTags:["comparison", "boundary_witness", "productive_generation"],
-      solutions:(a,b,cap)=>scalarDomain(cap).filter(x => x > a && x > b),
-      detail:(a,b,xs)=>`Greater than both means x > ${Math.max(a,b)}. Valid answers: ${solutionLabel(xs)}.`
+      solutions:(a,b,cap)=>scalarAnswerDomain(false).filter(x => x > a && x > b),
+      detail:(a,b,xs)=>`Greater than both means x > ${Math.max(a,b)}.`
     },
     {
-      id:"lt_both", label:"less than both", answerKind:"scalar_witness", minCap:6,
-      prompt:"Enter a number less than both remembered values.",
+      id:"lt_both", label:"less than both", answerKind:"scalar_witness", allowZero:true, minCap:6,
+      prompt:"Enter a whole number less than both remembered values.",
       shortPrompt:"Number less than both",
       frameTags:["comparison", "boundary_witness", "productive_generation"],
-      solutions:(a,b,cap)=>scalarDomain(cap).filter(x => x < a && x < b),
-      detail:(a,b,xs)=>`Less than both means x < ${Math.min(a,b)}. Valid answers: ${solutionLabel(xs)}.`
+      solutions:(a,b,cap)=>scalarAnswerDomain(true).filter(x => x < a && x < b),
+      detail:(a,b,xs)=>`Less than both means whole-number x < ${Math.min(a,b)}.`
     },
     {
       id:"between_open", label:"strictly between", answerKind:"scalar_witness", minCap:6,
       prompt:"Enter a number strictly between LEFT and RIGHT.",
       shortPrompt:"Number between them",
       frameTags:["interval_relation", "comparison", "productive_generation"],
-      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarDomain(cap).filter(x => lo < x && x < hi); },
+      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarAnswerDomain(false).filter(x => lo < x && x < hi); },
       detail:(a,b,xs)=>`Strictly between means ${Math.min(a,b)} < x < ${Math.max(a,b)}. Valid answers: ${solutionLabel(xs)}.`
     },
     {
@@ -97337,7 +97377,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       prompt:"Enter an even number strictly between LEFT and RIGHT.",
       shortPrompt:"Even number between them",
       frameTags:["interval_relation", "class_inclusion", "parity", "productive_generation"],
-      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarDomain(cap).filter(x => lo < x && x < hi && x % 2 === 0); },
+      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarAnswerDomain(false).filter(x => lo < x && x < hi && x % 2 === 0); },
       detail:(a,b,xs)=>`The interval is ${Math.min(a,b)} < x < ${Math.max(a,b)}, and x must be even. Valid answers: ${solutionLabel(xs)}.`
     },
     {
@@ -97345,7 +97385,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       prompt:"Enter a prime number strictly between LEFT and RIGHT.",
       shortPrompt:"Prime number between them",
       frameTags:["interval_relation", "class_inclusion", "primality", "productive_generation"],
-      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarDomain(cap).filter(x => lo < x && x < hi && isPrimeLocal(x)); },
+      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); return scalarAnswerDomain(false).filter(x => lo < x && x < hi && isPrimeLocal(x)); },
       detail:(a,b,xs)=>`The interval is ${Math.min(a,b)} < x < ${Math.max(a,b)}, and x must be prime. Valid answers: ${solutionLabel(xs)}.`
     },
     {
@@ -97375,7 +97415,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     return rows[rows.length-1]?.op || ops[0] || null;
   }
   function buildScalarWitnessPayload(opts={}){
-    const cap = Math.max(6, Math.min(9, Math.floor(Number(opts.cap || currentScalarCap()) || 9)));
+    const cap = Math.max(6, Math.min(scalarSourceHardCap(), Math.floor(Number(opts.cap || currentScalarCap()) || 9)));
     const forcedOp = opts.forceOpId ? opById(opts.forceOpId) : null;
     const ops = forcedOp ? [forcedOp] : eligibleOpsForCap(cap);
     for(let attempt=0; attempt<260; attempt++){
@@ -97386,7 +97426,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       const sol = scalarSolutionsFor(op, a, b, cap);
       if(!sol.length) continue;
       const target = op.answerKind === "numeric_exact" ? sol[0] : pickLocal(sol);
-      if(!Number.isInteger(target) || target < (op.allowZero ? 0 : 1) || target > cap) continue;
+      if(!Number.isInteger(target) || target < (op.allowZero ? 0 : 1) || target > scalarInputMax()) continue;
       const repA = opts.repA || pickRepForValue(a);
       const repB = opts.repB || pickRepForValue(b, repA);
       return {op, a, b, cap, solutionSet:sol, target, repA, repB};
@@ -97442,7 +97482,13 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       isTrue:null,
       targetOutcome:target,
       frameTags:uniqLocal(["constructive_generation", "scalar_witness", "response_contract_entropy", "l0_relation"].concat(op.frameTags || [])),
-      mechanismTags:["productive_scalar_witness", "answer_contract_entropy"],
+      mechanismTags:["productive_scalar_witness", "answer_contract_entropy", "minimal_width_autosubmit", "l1_extension_bridge"],
+      executiveTags:V6853_EXECUTIVE_BRIDGE_TAGS.slice(),
+      l1ExtensionBridge:{
+        families:V6853_L1_BRIDGE_FAMILIES.slice(),
+        dosing:"late_sparse_diagnostic",
+        publicModeChange:false
+      },
       countsForMetaHistory:false,
       countsForAdaptation:false,
       countsForMastery:false,
@@ -97453,15 +97499,22 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         label:op.label,
         answerKind,
         cap,
-        domain:scalarDomain(cap, !!op.allowZero),
+        sourceCap:cap,
+        answerDomainMax:scalarInputMax(),
+        completionPolicy:"minimal_width_autosubmit",
+        inputWidth:scalarInputWidth(target),
+        domain:scalarAnswerDomain(!!op.allowZero),
         solutionSet:solutionSet.slice(),
         targetValue:target,
         allowZero:!!op.allowZero,
         prompt:op.prompt,
         shortPrompt:op.shortPrompt || op.label,
         multiAnswer:solutionSet.length > 1,
-        detail:op.detail ? op.detail(a, b, solutionSet) : ""
-      }
+        detail:op.detail ? op.detail(a, b, solutionSet) : "",
+        entryContract:scalarEntryContractFor(op, cap, solutionSet),
+        l1BridgeFamilies:V6853_L1_BRIDGE_FAMILIES.slice()
+      },
+      numericEntryContract:scalarEntryContractFor(op, cap, solutionSet)
     };
   }
   function uniqLocal(arr){ return Array.from(new Set((arr || []).filter(Boolean))); }
@@ -97547,6 +97600,18 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }
     return true;
   }
+  function scalarWitnessInputDecision(info, rawText){
+    const maxDigits = String(scalarInputMax()).length;
+    const raw = String(rawText ?? "").replace(/[^0-9]/g, "").slice(0, maxDigits);
+    if(raw === "") return {action:"wait", raw:"", value:null};
+    const sols = scalarWitnessSolutions(info).map(String);
+    const n = Number(raw);
+    const exact = sols.includes(String(n));
+    const prefixLonger = sols.some(s => s.length > raw.length && s.startsWith(raw));
+    if(exact) return {action:"submit", raw, value:n};
+    if(prefixLonger) return {action:"wait", raw, value:n};
+    return {action:"submit", raw, value:n};
+  }
 
   function installWrappers(){
     try{
@@ -97570,11 +97635,17 @@ ${res.agents.map(a=>a.line).join(" ")}`;
             try{ if(typeof noteUserInput === "function") noteUserInput("digit", d); }catch(_){ }
             const raw = String(d ?? "").replace(/[^0-9]/g, "").slice(0,1);
             if(raw === "") return;
-            const n = Number(raw);
-            State.inputBuffer = raw;
-            setAnswer(raw);
-            prepareScalarWitnessInput(n);
-            return processInput(n);
+            const decision = scalarWitnessInputDecision(State.trialInfo, String(State.inputBuffer || "") + raw);
+            State.inputBuffer = decision.raw;
+            if(decision.action === "wait"){
+              setAnswer(decision.raw + "...");
+              try{ $("answerDisplay")?.classList.add("typing"); }catch(_){ }
+              return true;
+            }
+            try{ $("answerDisplay")?.classList.remove("typing"); }catch(_){ }
+            setAnswer(decision.raw);
+            prepareScalarWitnessInput(decision.value);
+            return processInput(decision.value);
           }
           return prevHandleDigit.apply(this, arguments);
         };
@@ -97613,12 +97684,30 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }catch(_){ }
   }
 
+  function scalarWitnessInvalidExplanation(info, user){
+    const sw = info?.scalarWitness || {};
+    const a = Number(info?.a), b = Number(info?.b), n = Number(user);
+    const lo = Math.min(a,b), hi = Math.max(a,b);
+    if(!Number.isInteger(n)) return "Enter a whole number.";
+    if(sw.opId === "gt_both") return `It is not greater than ${hi}.`;
+    if(sw.opId === "lt_both") return `It is not a whole number less than ${lo}.`;
+    if(sw.opId === "between_open") return `It is not strictly between ${lo} and ${hi}.`;
+    if(sw.opId === "even_between"){
+      if(n % 2 !== 0) return `${n} is not even.`;
+      return `It is not strictly between ${lo} and ${hi}.`;
+    }
+    if(sw.opId === "prime_between"){
+      if(!isPrimeLocal(n)) return `${n} is not prime.`;
+      return `It is not strictly between ${lo} and ${hi}.`;
+    }
+    return "It does not satisfy the requested rule.";
+  }
   function scalarWitnessReviewDetails(info){
     const sw = info?.scalarWitness || {};
     const sols = scalarWitnessSolutions(info);
     const user = Number.isInteger(Number(info?.userAnswer)) ? Number(info.userAnswer) : (Number.isInteger(Number(sw.userAnswer)) ? Number(sw.userAnswer) : null);
     const userPart = user === null ? "" : ` You entered ${user}.`;
-    const verdict = user === null ? "" : (sols.includes(user) ? " Accepted." : " Not in the valid set.");
+    const verdict = user === null ? "" : (sols.includes(user) ? " Accepted." : ` ${scalarWitnessInvalidExplanation(info, user)}`);
     const base = sw.detail || `LEFT=${info?.a}; RIGHT=${info?.b}. Valid answers: ${solutionLabel(sols)}.`;
     return `${base}${userPart}${verdict}`;
   }
@@ -97672,17 +97761,79 @@ ${res.agents.map(a=>a.line).join(" ")}`;
             const sols = scalarWitnessSolutions(info);
             if(!sols.length) block.push(`${op.id}: built trial without solutions`);
             if(!sols.every(x => scalarWitnessAccepts(info, x))) block.push(`${op.id}: verifier rejects a valid solution`);
-            const outside = scalarDomain(payload.cap, !!op.allowZero).find(x => !sols.includes(x));
+            const outside = scalarAnswerDomain(!!op.allowZero).find(x => !sols.includes(x));
             if(outside !== undefined && scalarWitnessAccepts(info, outside)) block.push(`${op.id}: verifier accepts invalid value ${outside}`);
             if(info.responseFormat !== "numeric" || info.kind !== "scalar_witness_inline") block.push(`${op.id}: wrong response contract`);
+            const contract = info.numericEntryContract || info.scalarWitness?.entryContract || {};
+            if(contract.completionPolicy !== "minimal_width_autosubmit") block.push(`${op.id}: missing minimal-width completion policy`);
+            if(contract.answerDomainMax !== scalarInputMax()) block.push(`${op.id}: answerDomainMax mismatch`);
+            if(contract.sourceCap !== payload.cap) block.push(`${op.id}: sourceCap mismatch`);
+            if(!Array.isArray(contract.solutionSet) || contract.solutionSet.join(",") !== sols.join(",")) block.push(`${op.id}: contract solutionSet mismatch`);
+            if(contract.allowZero !== !!op.allowZero) block.push(`${op.id}: allowZero contract mismatch`);
+            if(!Number.isInteger(contract.inputWidth) || contract.inputWidth < 1) block.push(`${op.id}: invalid inputWidth`);
             if(info.countsForAdaptation !== false || info.countsForMetaHistory !== false || info.memoryEligible !== false) block.push(`${op.id}: quarantine flags missing`);
-            if(payload.cap > 9) block.push(`${op.id}: cap exceeds one-digit input envelope`);
+            if(payload.solutionSet.some(x => scalarInputWidth(x) > String(scalarInputMax()).length)) block.push(`${op.id}: solution exceeds numeric input envelope`);
             if(!samples[op.id]) samples[op.id] = {a:payload.a, b:payload.b, cap:payload.cap, solutionSet:payload.solutionSet, prompt:op.prompt};
           }
         }
         if(!built) block.push(`${op.id}: no payloads built`);
         if(op.answerKind !== "numeric_exact" && multi === 0) warnings.push(`${op.id}: no multi-answer samples in audit`);
         if(op.id === "gap_exact" && zero === 0) warnings.push("gap_exact audit did not sample equality/zero distance");
+      }
+      const gtNine = buildScalarWitnessPayload({cap:7, forceOpId:"gt_both", a:5, b:5});
+      if(!gtNine || !gtNine.solutionSet.includes(9)) block.push("gt_both: visible one-digit witness 9 rejected by hidden source cap");
+      else {
+        const gtNineInfo = makeScalarWitnessTrialInfo(gtNine);
+        if(!scalarWitnessAccepts(gtNineInfo, 9)) block.push("gt_both: verifier rejects visible one-digit witness 9");
+        if(scalarWitnessAccepts(gtNineInfo, 10)) block.push("gt_both: accepts two-digit witness when a one-digit witness is available");
+        const d9 = scalarWitnessInputDecision(gtNineInfo, "9");
+        if(d9.action !== "submit" || d9.value !== 9) block.push("gt_both: one-digit witness 9 does not autosubmit");
+        const d8 = scalarWitnessInputDecision(gtNineInfo, "8");
+        if(d8.action !== "submit" || d8.value !== 8) block.push("gt_both: one-digit witness 8 does not autosubmit");
+        gtNineInfo.userAnswer = 5;
+        const review = scalarWitnessReviewDetails(gtNineInfo);
+        if(/valid set|range/i.test(review)) block.push("gt_both: review still uses opaque range/set wording");
+        if(!/greater than 5|x > 5/i.test(review)) block.push("gt_both: review does not explain the failed rule");
+      }
+      const gtTen = buildScalarWitnessPayload({cap:9, forceOpId:"gt_both", a:9, b:9});
+      if(!gtTen || !gtTen.solutionSet.includes(10)) block.push("gt_both: no two-digit witness when one is required");
+      else {
+        const gtTenInfo = makeScalarWitnessTrialInfo(gtTen);
+        const d1 = scalarWitnessInputDecision(gtTenInfo, "1");
+        const d10 = scalarWitnessInputDecision(gtTenInfo, "10");
+        if(d1.action !== "wait") block.push("gt_both: first digit should wait when the minimum witness is 10");
+        if(d10.action !== "submit" || d10.value !== 10) block.push("gt_both: two-digit witness 10 does not submit");
+      }
+      const gapTen = buildScalarWitnessPayload({cap:12, forceOpId:"gap_exact", a:12, b:2});
+      if(!gapTen || !gapTen.solutionSet.includes(10)) block.push("gap_exact: exact distance 10 unavailable");
+      else {
+        const gapTenInfo = makeScalarWitnessTrialInfo(gapTen);
+        const g1 = scalarWitnessInputDecision(gapTenInfo, "1");
+        const g10 = scalarWitnessInputDecision(gapTenInfo, "10");
+        if(g1.action !== "wait") block.push("gap_exact: first digit should wait for distance 10");
+        if(g10.action !== "submit" || g10.value !== 10) block.push("gap_exact: distance 10 does not submit on second digit");
+      }
+      const ltZero = buildScalarWitnessPayload({cap:6, forceOpId:"lt_both", a:1, b:2});
+      if(!ltZero || !ltZero.solutionSet.includes(0)) block.push("lt_both: zero witness unavailable when it is the boundary case");
+      else {
+        const ltZeroInfo = makeScalarWitnessTrialInfo(ltZero);
+        const z0 = scalarWitnessInputDecision(ltZeroInfo, "0");
+        if(z0.action !== "submit" || z0.value !== 0) block.push("lt_both: zero witness does not autosubmit");
+      }
+      const gapZero = buildScalarWitnessPayload({cap:6, forceOpId:"gap_exact", a:4, b:4});
+      if(!gapZero || !gapZero.solutionSet.includes(0)) block.push("gap_exact: exact distance 0 unavailable");
+      else {
+        const gapZeroInfo = makeScalarWitnessTrialInfo(gapZero);
+        const g0 = scalarWitnessInputDecision(gapZeroInfo, "0");
+        if(g0.action !== "submit" || g0.value !== 0) block.push("gap_exact: distance 0 does not submit on first digit");
+      }
+      const primeMiss = buildScalarWitnessPayload({cap:9, forceOpId:"prime_between", a:2, b:7});
+      if(primeMiss){
+        const primeInfo = makeScalarWitnessTrialInfo(primeMiss);
+        primeInfo.userAnswer = 4;
+        const primeReview = scalarWitnessReviewDetails(primeInfo);
+        if(!/not prime/i.test(primeReview)) block.push("prime_between: review does not explain composite error");
+        if(/valid set/i.test(primeReview)) block.push("prime_between: review still uses valid-set wording");
       }
       const p = buildScalarWitnessPayload({cap:9});
       if(!p) block.push("default payload builder returned null");
@@ -97693,6 +97844,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }catch(e){ block.push(`scalar witness audit exception: ${e?.message || e}`); }
     return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {appVersion:appVersion(), patch:PATCH_ID, ops:SCALAR_WITNESS_OPS.map(o=>o.id), samples, warnings, block});
   }
+  function auditV6853ScalarWitnessEntryContract(opts={}){
+    return auditScalarWitness(opts || {});
+  }
 
   function boot(){
     try{
@@ -97702,12 +97856,16 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         if(CONFIG.scalarWitnessInlineProbability === undefined) CONFIG.scalarWitnessInlineProbability = 0.085;
         if(CONFIG.scalarWitnessInlineCooldownTrials === undefined) CONFIG.scalarWitnessInlineCooldownTrials = 8;
         if(CONFIG.scalarWitnessInlineMaxPerBlock === undefined) CONFIG.scalarWitnessInlineMaxPerBlock = 1;
+        if(CONFIG.scalarWitnessInputMax === undefined) CONFIG.scalarWitnessInputMax = 99;
+        if(CONFIG.scalarWitnessSourceMax === undefined && Number.isFinite(Number(CONFIG.relationalMaxValue))) CONFIG.scalarWitnessSourceMax = Number(CONFIG.relationalMaxValue);
       }
       installWrappers();
       if(typeof registerFeatureAudit === "function") registerFeatureAudit(AUDIT_KEYS, auditScalarWitness, "scalarWitness");
       if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6851ScalarWitness", auditScalarWitness);
+      if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6853ScalarWitnessEntryContract", auditV6853ScalarWitnessEntryContract);
       try{ window.auditV6851ScalarWitness = auditScalarWitness; globalThis.auditV6851ScalarWitness = auditScalarWitness; }catch(_){ }
       try{ window.auditScalarWitnessV6851 = auditScalarWitness; globalThis.auditScalarWitnessV6851 = auditScalarWitness; }catch(_){ }
+      try{ window.auditV6853ScalarWitnessEntryContract = auditV6853ScalarWitnessEntryContract; globalThis.auditV6853ScalarWitnessEntryContract = auditV6853ScalarWitnessEntryContract; }catch(_){ }
       try{ window.scalarWitnessV6851Sample = buildScalarWitnessPayload; globalThis.scalarWitnessV6851Sample = buildScalarWitnessPayload; }catch(_){ }
       try{
         window.EUCA_V6851_SCALAR_WITNESS = {
@@ -97716,6 +97874,14 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           audit:auditScalarWitness,
           buildPayload:buildScalarWitnessPayload,
           startHook:maybeStartScalarWitnessTrialAfterReset
+        };
+        window.EUCA_V6853_SCALAR_WITNESS_ENTRY_CONTRACT = {
+          patch:PATCH_ID,
+          completionPolicy:"minimal_width_autosubmit",
+          l1BridgeFamilies:V6853_L1_BRIDGE_FAMILIES.slice(),
+          executiveBridgeTags:V6853_EXECUTIVE_BRIDGE_TAGS.slice(),
+          audit:auditV6853ScalarWitnessEntryContract,
+          buildPayload:buildScalarWitnessPayload
         };
       }catch(_){ }
     }catch(e){ try{ recordRuntimeError(e, {source:"v6851_scalar_witness_boot"}); }catch(_){ } }
