@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.61</title>
+<title>Eucalculia v6.8.64</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3331,7 +3331,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.61";
+const APP_VERSION = "v6.8.64";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -8576,8 +8576,34 @@ function renderPaperFoldingInputStimulus(info){
   // cleared on entry so large SVGs cannot squeeze the YES/NO controls.
   clearInputStimulus();
 }
+// v6.8.61: rasterize a single per-value rep glyph (clock/card/ten/...) into an <svg><image> string,
+// used to show the relational-reference family's reference value C post-mask. Reuses the same canvas
+// pipeline as the flashed stims (black background, makeStim + draw), then bridges canvas → data URL.
+function relRefReferenceGlyphSVG(g){
+  try{
+    if(!g || typeof makeStim !== "function") return "";
+    const value = Number(g.value), rep = String(g.rep || "");
+    if(!Number.isFinite(value) || !rep) return "";
+    const SIZE = 132;
+    const dpr = (typeof window !== "undefined" && Number(window.devicePixelRatio) > 0) ? Math.min(2, Number(window.devicePixelRatio)) : 1;
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.floor(SIZE * dpr));
+    cv.height = Math.max(1, Math.floor(SIZE * dpr));
+    const c = cv.getContext("2d");
+    if(!c) return "";
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.fillStyle = "#000"; c.fillRect(0, 0, SIZE, SIZE);
+    const stim = makeStim(value, rep, {});
+    if(!stim || typeof stim.draw !== "function") return "";
+    stim.draw(c, 0, 0, SIZE, SIZE);
+    const url = cv.toDataURL ? cv.toDataURL("image/png") : "";
+    if(!url || /NaN|undefined/.test(url)) return "";
+    return `<svg viewBox="0 0 ${SIZE} ${SIZE}" width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg" class="rel-ref-glyph"><image href="${url}" x="0" y="0" width="${SIZE}" height="${SIZE}"/></svg>`;
+  }catch(_){ return ""; }
+}
 function metaStimulusSVGForTrialInfo(info){
   if(!info) return "";
+  if(info.payload && info.payload.relRefReferenceGlyph) return relRefReferenceGlyphSVG(info.payload.relRefReferenceGlyph);
   if(info.balanceSpec && info.balanceSpec.svg) return info.balanceSpec.svg;
   if(info.paperFolding && Array.isArray(info.paperFolding.ops)){
     return paperFoldingRenderSequence(info.paperFolding.ops);
@@ -17714,18 +17740,26 @@ function _buildCrossRepProjectionPair(predicateId, m, wantTrue){
     }
   }
   const picked = _vpbChoice(candidates);
+  if(!picked) return _vpbReturnPair(picked);
+  // v6.8.61 item-5b: randomize which SIDE shows the cue rep. Candidates are built LEFT-cue
+  // (rawA=cue/claim, rawB=value/right, repA=cueRep, repB=valueRep). Capture cue/value BEFORE any
+  // swap so the projection truth is side-agnostic, then optionally move the cue onto the RIGHT.
+  const _cueVal = picked.rawA, _valueVal = picked.rawB, _valueRep = picked.repB;
+  const cueSide = (typeof CONFIG !== "undefined" && CONFIG.v6861CrossRepCueRandomize !== false && Math.random() < 0.5) ? "RIGHT" : "LEFT";
+  if(cueSide === "RIGHT"){ picked.rawA = _valueVal; picked.rawB = _cueVal; picked.repA = _valueRep; picked.repB = op.cueRep; }
   const pair = _vpbReturnPair(picked);
-  if(pair && picked){
-    const projected = l0CrossRepProjectionResult(op, picked.rawB);
+  if(pair){
+    const projected = l0CrossRepProjectionResult(op, _valueVal);
     pair.crossRepProjection = {
       projectionId:op.id,
       cueRep:op.cueRep,
-      valueRep:picked.repB,
-      rightValue:picked.rawB,
+      valueRep:_valueRep,
+      cueSide,
+      rightValue:_valueVal,
       projectedValue:projected,
-      claimedValue:picked.rawA,
+      claimedValue:_cueVal,
       operatorLabel:op.label,
-      isTrue:projected === picked.rawA
+      isTrue:projected === _cueVal
     };
   }
   return pair;
@@ -22399,11 +22433,15 @@ function l0CrossRepProjectionCats(){
     ],
     gen(m,t){ return [randInt(1, Math.max(2,m+1)), randInt(1, Math.max(2,m+1))]; },
     visualVerify(rawA, rawB, visA, visB){
-      if(visA?.rep !== op.cueRep) return INAPPLICABLE;
-      if(visB?.rep === op.cueRep || visB?.rep === "digit") return INAPPLICABLE;
-      const projected = l0CrossRepProjectionResult(op, Number(rawB));
+      // v6.8.61 item-5b: accept the cue rep on EITHER side (cue side is randomized at build).
+      // The value side feeds the projection rule; the cue side carries the claimed result.
+      let cueRaw, valueRaw;
+      if(visA?.rep === op.cueRep && visB?.rep !== op.cueRep && visB?.rep !== "digit"){ cueRaw = rawA; valueRaw = rawB; }
+      else if(visB?.rep === op.cueRep && visA?.rep !== op.cueRep && visA?.rep !== "digit"){ cueRaw = rawB; valueRaw = rawA; }
+      else return INAPPLICABLE;
+      const projected = l0CrossRepProjectionResult(op, Number(valueRaw));
       if(!Number.isInteger(projected)) return INAPPLICABLE;
-      return projected === Number(rawA);
+      return projected === Number(cueRaw);
     },
     verify(){ return false; }
   }));
@@ -26225,7 +26263,7 @@ const L0_STRUCTURAL_DIVISIBILITY_CATS = [
       {q:"Is the greatest common divisor of the two numbers exactly 1?"},
       {q:"Do they have a common divisor greater than 1?", negate:true, linguisticFrame:"negation_scope"},
     ],
-    gen(m,t){ return genPairByPredicate(m,t,(a,b)=> gcdInt(a,b)===1); },
+    gen(m,t){ return genPairByPredicate(m,t,(a,b)=> gcdInt(a,b)===1, {valid:(a,b)=>a>1 && b>1}); }, // v6.8.61 plausibility: exclude a 1 (gcd(1,x)=1 -> trivially coprime; was ~15% operand=1)
     verify(a,b){ return gcdInt(a,b)===1; } },
 
   { id:"complement_to_max", tier:3, stage:3, minM:5, family:"metric",
@@ -32332,14 +32370,19 @@ function auditL0CrossRepProjection(opts={}){
           const evald = evaluateVisualPredicate(cat.visualVerify, pair.rawA, pair.rawB, pair.visA, pair.visB, {});
           if(evald === INAPPLICABLE){ block.push(`${op.id}: directed sample inapplicable`); continue; }
           if(evald !== want) block.push(`${op.id}: polarity drift wanted ${want} got ${evald}`);
-          if(pair.visA?.rep !== op.cueRep) block.push(`${op.id}: LEFT cue rep drift ${pair.visA?.rep}`);
-          if(pair.visB?.rep === op.cueRep || pair.visB?.rep === "digit") block.push(`${op.id}: RIGHT rep not cross-rep (${pair.visB?.rep})`);
-          const projected = l0CrossRepProjectionResult(op, pair.rawB);
-          if(!Number.isInteger(projected)) block.push(`${op.id}: projection not canonical for RIGHT=${pair.rawB}`);
-          if(want && projected !== pair.rawA) block.push(`${op.id}: YES claim mismatch projected=${projected} claim=${pair.rawA}`);
-          if(!want && projected === pair.rawA) block.push(`${op.id}: NO claim accidentally true projected=${projected}`);
+          // v6.8.61 item-5b: cue rep may be on EITHER side now (randomized cue side).
+          const _cueOnA = pair.visA?.rep === op.cueRep;
+          if(!_cueOnA && pair.visB?.rep !== op.cueRep) block.push(`${op.id}: cue rep on neither side (${pair.visA?.rep}/${pair.visB?.rep})`);
+          const _valueVis = _cueOnA ? pair.visB : pair.visA;
+          if(_valueVis?.rep === op.cueRep || _valueVis?.rep === "digit") block.push(`${op.id}: value side not cross-rep (${_valueVis?.rep})`);
+          const _valueRaw = _cueOnA ? pair.rawB : pair.rawA;
+          const _cueRaw = _cueOnA ? pair.rawA : pair.rawB;
+          const projected = l0CrossRepProjectionResult(op, _valueRaw);
+          if(!Number.isInteger(projected)) block.push(`${op.id}: projection not canonical for value=${_valueRaw}`);
+          if(want && projected !== _cueRaw) block.push(`${op.id}: YES claim mismatch projected=${projected} claim=${_cueRaw}`);
+          if(!want && projected === _cueRaw) block.push(`${op.id}: NO claim accidentally true projected=${projected}`);
           outputs.add(projected);
-          reps.add(pair.visB?.rep);
+          reps.add(_valueVis?.rep);
           counts[want ? "true" : "false"]++;
           if(rows.length < 80) rows.push({id:op.id, want, cueRep:op.cueRep, valueRep:pair.visB?.rep, right:pair.rawB, projected, claim:pair.rawA, evald});
         }
@@ -34351,9 +34394,13 @@ function setupPosnerCore(){
     if(baseEval === INAPPLICABLE){ samplerDiagInc("failures", cat.id + "_inapplicable"); return fallbackPosnerTrial(m, wantTrue, {cat:cat.id, reason:"visual predicate inapplicable after generation"}); }
     const base = baseEval;
     const isTrue = vnt.negate ? !base : base;
+    // v6.8.61 item-5b: if the cross-rep cue landed on the RIGHT this trial, swap LEFT<->RIGHT in
+    // the (statically LEFT-cue) question so the wording matches the displayed cue side.
+    let _crpQuestion = renderRangeCenterPrompt(vnt.q, m);
+    try{ if(pair.crossRepProjection && pair.crossRepProjection.cueSide === "RIGHT" && typeof swapLeftRightText === "function") _crpQuestion = swapLeftRightText(_crpQuestion); }catch(_){ }
     return { a:rawA, b:rawB, repA:visA.rep, repB:visB.rep,
              stimSeedA:pair.seedA, stimSeedB:pair.seedB, stimSpecA:pair.specA || null, stimSpecB:pair.specB || null,
-             question:renderRangeCenterPrompt(vnt.q, m), isTrue, targetOutcome:wantTrue, requiredRep:visualRequiredRepsForCat(cat), catId:cat.id, family:posnerFamily(cat), experienceAxis:l0ExperientialAxisFromCat(cat),
+             question:_crpQuestion, isTrue, targetOutcome:wantTrue, requiredRep:visualRequiredRepsForCat(cat), catId:cat.id, family:posnerFamily(cat), experienceAxis:l0ExperientialAxisFromCat(cat),
              visualSemantic:{baseTruth:!!base, finalTruth:!!isTrue, source:"checkVisual", crossRepProjection:pair.crossRepProjection || null},
              crossRepProjection:pair.crossRepProjection || null,
              mechanismTags:pair.crossRepProjection ? ["cross_rep_projection","analogical_frame_transfer"] : [],
@@ -34800,9 +34847,14 @@ function buildL0BurstCandidates(pair){
   const m = currentMax();
   const maxTier = getPosnerTier();
   const stageLimit = dRelationalStageLimit();
-  const cats = availablePosnerCatsForTier(m, maxTier)
+  let cats = availablePosnerCatsForTier(m, maxTier)
     .filter(cat => !cat.checkRep && !cat.checkVisual)
     .filter(cat => dPosnerStage(cat) <= stageLimit + 1);
+  // v6.8.61 perf: cap how many categories get a probe instantiated. A burst only needs a few
+  // distinct candidates; instantiating a probe for EVERY cat x variant was a large share of the
+  // ~6.7s build. A shuffled subset preserves variety while cutting the cost dramatically.
+  const _catCap = Math.max(8, Number(CONFIG.l0FrameBurstCandidateCatCap) || 24);
+  if(cats.length > _catCap) cats = shuffle(cats.slice()).slice(0, _catCap);
   const out = [];
   for(const cat of cats){
     const variants = posnerVariantListForCat(cat);
@@ -34812,6 +34864,15 @@ function buildL0BurstCandidates(pair){
     }
   }
   return out;
+}
+// v6.8.61 perf: memoize frameDemandDistance within a single burst build (same probe pairs recur
+// across the Monte-Carlo samples). Cleared at the start of buildL0FrameBurst.
+const _l0BurstDistCache = new Map();
+function _cachedFrameDemandDistance(a, b){
+  const k = `${a&&a.catId}${a&&a.question}${b&&b.catId}${b&&b.question}`;
+  let v = _l0BurstDistCache.get(k);
+  if(v === undefined){ v = frameDemandDistance(a, b); _l0BurstDistCache.set(k, v); }
+  return v;
 }
 function scoreL0BurstSequence(seq){
   if(!Array.isArray(seq) || seq.length < 2) return -Infinity;
@@ -34824,7 +34885,7 @@ function scoreL0BurstSequence(seq){
     catIds.add(p.catId); families.add(p.family); answers.add(p.isTrue ? "Y" : "N"); questions.add(p.question);
     for(const m of (p.mechanismTags || [])) mechanisms.add(m);
     if(i>0){
-      const d = frameDemandDistance(seq[i-1], p);
+      const d = _cachedFrameDemandDistance(seq[i-1], p);
       distSum += d;
       if(d < minPairwiseDist) minPairwiseDist = d;
       if(seq[i-1].family === p.family) adjacentSameFamily++;
@@ -34905,7 +34966,10 @@ function buildL0FrameBurst(basePos, n=null){
   const candidates = buildL0BurstCandidates(first).filter(p => p.catId !== first.catId && p.question !== first.question);
   if(candidates.length < probeCount - 1) return null;
   let best = null;
-  const samples = Math.max(40, Number(CONFIG.l0FrameBurstMaxSequenceSamples || 180));
+  _l0BurstDistCache.clear(); // v6.8.61 perf: per-build memo of frameDemandDistance
+  // v6.8.61 perf: 180 Monte-Carlo samples was overkill for picking a 2-3 element sequence; bound
+  // it to ~40 (and to candidate count) — diversity is unchanged, build time drops sharply.
+  const samples = Math.max(16, Math.min(Number(CONFIG.l0FrameBurstSampleCap) || 40, Math.max(24, candidates.length * 2)));
   for(let i=0; i<samples; i++){
     const pool = shuffle(candidates.slice());
     const seq = [first];
@@ -35364,7 +35428,7 @@ function buildL0StateChain(basePos, n=null){
   const episodeId = makeRuntimeId("ep");
   const samples = Math.max(60, Number(CONFIG.l0StateChainMaxSequenceSamples || 220));
   const initial = {left:basePos.a, right:basePos.b, originalLeft:basePos.a, originalRight:basePos.b};
-  let best = null;
+  let bestL = null, bestR = null;
   for(let attempt=0; attempt<samples; attempt++){
     let st = l0StateChainClone(initial);
     const seq = [];
@@ -35376,6 +35440,13 @@ function buildL0StateChain(basePos, n=null){
         if(dependent.length) candidates = dependent;
       }
       candidates = shuffle(candidates.slice());
+      // v6.8.61 item-5c: at the first probe (no dependency constraint, both sides equally valid)
+      // force a 50/50 side anchor so the chain does not start on LEFT ~75% of the time. Put the
+      // randomly-chosen side's (already-shuffled) updates first so the first-fit prefers it.
+      if(i === 0){
+        const _ls = candidates.filter(u => u && u.side === "left"), _rs = candidates.filter(u => u && u.side === "right");
+        if(_ls.length && _rs.length) candidates = (Math.random() < 0.5) ? _ls.concat(_rs) : _rs.concat(_ls);
+      }
       let picked = null;
       let probe = null;
       const truthGateProb = Math.max(0, Math.min(1, Number(CONFIG.l0TruthGatedStateUpdateProbability || 0)));
@@ -35400,8 +35471,14 @@ function buildL0StateChain(basePos, n=null){
     }
     if(seq.length < probeCount) continue;
     const score = scoreL0StateChainSequence(seq);
-    if(!best || score > best.score) best = {seq, score};
+    // v6.8.61 item-5c: keep the best sequence PER first-probe side, then pick a side 50/50, so the
+    // chain doesn't start on LEFT ~75% (the score rewards dependent chains, which structurally favor
+    // LEFT-first; per-attempt ordering alone can't fix it since the winner is score-selected).
+    const _fs = seq[0] && seq[0].updatedSide;
+    if(_fs === "right"){ if(!bestR || score > bestR.score) bestR = {seq, score}; }
+    else { if(!bestL || score > bestL.score) bestL = {seq, score}; }
   }
+  const best = (Math.random() < 0.5) ? (bestR || bestL) : (bestL || bestR);
   if(!best) return null;
   best.seq.forEach((p, i) => { p.probeIndex = i; p.probeCount = best.seq.length; });
   return {id:chainId, episodeId, probes:best.seq, score:best.score, primaryFamily:"state_chain", primaryCatId:"l0_state_chain"};
@@ -84892,11 +84969,11 @@ try{
     const vals = allValues(p1, p2);
     if(new Set(vals.map(Number)).size < 2) return true;                                   // all four equal
     if(Number(p1.a) === Number(p2.a) && Number(p1.b) === Number(p2.b)) return true;       // the two pairs are identical
-    // NOTE: the "both pairs zero-gap" case (e.g. [1,1],[2,2]) is deliberately NOT rejected here —
-    // it is a VALID answer per the public contract of l1_same_gap_different_total (asserted by
-    // auditV6843GenerativeGapContract @~85549/@96333, per the §5.8 no-hidden-constraint doctrine).
-    // Killing it requires making "non-zero gap" explicit in the task WORDING + flipping those two
-    // audits — a deliberate contract change, left as a focused follow-up.
+    // NOTE: the "both pairs zero-gap" case (e.g. [1,1],[2,2]) is intentionally NOT a *universal* ban
+    // here — it stays a task-local rule. As of v6.8.61 the gap tasks (l1_same_gap_different_total,
+    // l1_gap_total) state an EXPLICIT non-zero gap in their wording and reject zero-gap answers in
+    // their own verify; the contract audit (auditV681 @~85600) asserts that new behavior. The §5.8
+    // no-hidden-constraint doctrine is preserved because the constraint lives in the visible question.
     return false;
   }
   const _l1ConstructiveExampleCache = new Map();
@@ -84929,14 +85006,17 @@ try{
     if(isTrivialConstruction(p1,p2)) return false; // v6.8.61: reject rote/degenerate constructions
     if(taskId === "l1_gap_total"){
       const target = Math.max(1, Math.floor(Number(params.targetGapTotal) || 6));
-      return gap(p1) + gap(p2) === target;
+      return gap(p1) > 0 && gap(p2) > 0 && gap(p1) + gap(p2) === target; // both gaps non-zero (no repeated-value escape)
     }
     if(taskId === "l1_only_claim_b") return !(sum(p1) > sum(p2)) && (gap(p1) < gap(p2));
     if(taskId === "l1_cross_extremes"){
       const mn = Math.min(...vals), mx = Math.max(...vals);
       return (p1.a === mn || p1.b === mn) && !(p2.a === mn || p2.b === mn) && (p2.a === mx || p2.b === mx) && !(p1.a === mx || p1.b === mx);
     }
-    if(taskId === "l1_same_gap_different_total") return gap(p1) === gap(p2) && sum(p1) !== sum(p2);
+    if(taskId === "l1_same_gap_different_total"){
+      const G = Math.max(1, Math.floor(Number(params.targetGap) || 2)); // explicit non-zero gap stated in the wording
+      return gap(p1) === G && gap(p2) === G && sum(p1) !== sum(p2);
+    }
     if(taskId === "l1_same_total_different_gap") return sum(p1) === sum(p2) && gap(p1) !== gap(p2);
     if(taskId === "l1_exactly_two_primes") return countBy(vals, isPrimeSmall) === 2;
     if(taskId === "l1_each_pair_exactly_one_odd") return exactlyOne(pairValues(p1), isOdd) && exactlyOne(pairValues(p2), isOdd);
@@ -84962,12 +85042,15 @@ try{
   function buildL1ConstructivePayload(opts={}){
     const cap = Math.max(6, Math.min(12, Math.floor(Number(opts.cap || l1Cap()) || 8)));
     const targetGapTotal = Math.max(3, Math.min(Math.max(4, cap + 2), 3 + Math.floor(Math.random()*Math.min(7, cap + 1))));
+    // v6.8.61: explicit, per-trial non-zero gap for the same-gap task — removes the rote
+    // "park both pairs at [k,k]" (zero-gap) escape and varies the constraint each trial.
+    const targetGap = 1 + Math.floor(Math.random() * Math.max(1, Math.min(5, cap - 2)));
     const tasks = [
       {
         id:"l1_gap_total",
         title:`Make the two pair gaps add to ${targetGapTotal}`,
-        question:`Build two pairs so their gaps add to ${targetGapTotal}.`,
-        verify:(p1,p2)=> gap(p1) + gap(p2) === targetGapTotal,
+        question:`Build two pairs whose gaps add to ${targetGapTotal}. Both pairs must have a non-zero gap (no repeated-value pair).`,
+        verify:(p1,p2)=> gap(p1) > 0 && gap(p2) > 0 && gap(p1) + gap(p2) === targetGapTotal,
         params:{targetGapTotal},
         atomics:["generative_l1", "metric_gap_distance", "retained_pair_binding", "metric_sum_total"]
       },
@@ -84990,9 +85073,10 @@ try{
       },
       {
         id:"l1_same_gap_different_total",
-        title:"Same gap, different totals",
-        question:"Build two pairs with the same gap but different totals.",
-        verify:(p1,p2)=> gap(p1) === gap(p2) && sum(p1) !== sum(p2),
+        title:`Both gaps ${targetGap}, different totals`,
+        question:`Build two pairs that BOTH have a gap of exactly ${targetGap}, but with different totals.`,
+        verify:(p1,p2)=> gap(p1) === targetGap && gap(p2) === targetGap && sum(p1) !== sum(p2),
+        params:{targetGap},
         atomics:["generative_l1", "metric_gap_distance", "metric_sum_total", "comparison_equal"]
       },
       {
@@ -85546,12 +85630,19 @@ try{
       }
       details.taskIds = Array.from(new Set(payloads.map(p => p.task.id)));
       if(details.taskIds.length < 3) warnings.push("L1 constructive task variety thin in audit sample");
+      // v6.8.61 contract change: the gap tasks now state an EXPLICIT non-zero gap in their wording, so
+      // the zero-gap "park both pairs at [k,k]" rote answer is no longer valid (and IS rejected). The
+      // §5.8 no-hidden-constraint doctrine still holds — the constraint is in the visible question text.
       details.v6843GapContract = {
-        sameZeroGapDifferentTotals: verifyL1ConstructiveTask({l1Constructive:{taskId:"l1_same_gap_different_total", params:{}}}, {a:1,b:1}, {a:2,b:2}),
-        zeroPlusPositiveGapTotal: verifyL1ConstructiveTask({l1Constructive:{taskId:"l1_gap_total", params:{targetGapTotal:3}}}, {a:1,b:1}, {a:1,b:4})
+        sameGapHonorsStatedGap: verifyL1ConstructiveTask({l1Constructive:{taskId:"l1_same_gap_different_total", params:{targetGap:2}}}, {a:1,b:3}, {a:5,b:7}) === true,
+        sameGapRejectsZeroGap:  verifyL1ConstructiveTask({l1Constructive:{taskId:"l1_same_gap_different_total", params:{targetGap:2}}}, {a:1,b:1}, {a:2,b:2}) === false,
+        gapTotalHonorsNonZero:  verifyL1ConstructiveTask({l1Constructive:{taskId:"l1_gap_total", params:{targetGapTotal:3}}}, {a:1,b:2}, {a:3,b:5}) === true,
+        gapTotalRejectsZeroGap: verifyL1ConstructiveTask({l1Constructive:{taskId:"l1_gap_total", params:{targetGapTotal:3}}}, {a:1,b:1}, {a:1,b:4}) === false
       };
-      if(!details.v6843GapContract.sameZeroGapDifferentTotals) block.push("same-gap/different-total rejects zero gap despite no public non-zero constraint");
-      if(!details.v6843GapContract.zeroPlusPositiveGapTotal) block.push("gap-total rejects a zero gap despite no public non-zero constraint");
+      if(!details.v6843GapContract.sameGapHonorsStatedGap) block.push("same-gap/different-total rejects a pair that meets the stated non-zero gap");
+      if(!details.v6843GapContract.sameGapRejectsZeroGap)  block.push("same-gap/different-total still accepts a zero-gap answer despite the stated non-zero gap");
+      if(!details.v6843GapContract.gapTotalHonorsNonZero)  block.push("gap-total rejects a valid both-non-zero split");
+      if(!details.v6843GapContract.gapTotalRejectsZeroGap) block.push("gap-total still accepts a zero-gap pair despite the stated non-zero requirement");
       details.panel = !!document.getElementById("panelGenL1Pair");
       if(!details.panel) block.push("L1 pair panel missing");
       details.directSubmitReducer = /processL1ConstructiveInput\(\{a:L1Gen\.chosen\.a, b:L1Gen\.chosen\.b\}\)/.test(String(submitL1Pair));
@@ -91472,7 +91563,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     {id:"left_gt_right", label:"LEFT is greater than RIGHT", short:"LEFT > RIGHT", object:"relation", pred:p=>Number(p.a)>Number(p.b)},
     {id:"same_value", label:"LEFT equals RIGHT", short:"LEFT = RIGHT", object:"relation", pred:p=>Number(p.a)===Number(p.b)},
     {id:"one_divides_other", label:"one value divides the other exactly", short:"one divides the other", object:"relation", pred:oneDividesOther},
-    {id:"gap_even", label:"the gap is even", short:"even gap", object:"relation", pred:p=>gap(p)>0 && isEven(gap(p))},
+    {id:"gap_even", label:"the gap is even", short:"even gap", object:"relation", pred:p=>isEven(gap(p))}, // v6.8.64 fix: 0 IS even — the >0 guard contradicted the wording and disagreed with same_parity on (k,k)
     {id:"gap_exactly_two", label:"the gap is exactly 2", short:"gap = 2", object:"relation", pred:p=>gap(p)===2},
     {id:"same_parity", label:"LEFT and RIGHT have the same parity", short:"same parity", object:"attribute", pred:p=>isEven(p.a)===isEven(p.b)},
     {id:"exactly_one_prime", label:"exactly one value is prime", short:"exactly one prime", object:"attribute", pred:p=>count([p.a,p.b], isPrime)===1},
@@ -92076,8 +92167,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           id:`discriminate_${r1.id}_vs_${r2.id}`,
           mode:"discriminator_construction",
           title:"Build a discriminator",
-          question:`Build ONE pair that tells these two hypotheses apart. A: ${r1.label}. B: ${r2.label}.`,
-          sub:"Your pair must make one hypothesis YES and the other NO. This trains active induction: choose the test case that separates rules.",
+          question:`Build a pair that makes one of these true and the other false.\nA: ${r1.label}\nB: ${r2.label}`,
+          sub:"One must answer YES, the other NO.",
           params:{ruleAId:r1.id, ruleBId:r2.id},
           phaseCount:1,
           klauer:{process:"different", object:(r1.object === r2.object ? r1.object : "relation")},
@@ -92125,7 +92216,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     {id:"left_even", label:"LEFT is even", pred:p=>isEven(p.a)},
     {id:"right_prime", label:"RIGHT is prime", pred:p=>isPrime(p.b)},
     {id:"left_gt_right", label:"LEFT is greater than RIGHT", pred:p=>Number(p.a)>Number(p.b)},
-    {id:"gap_even", label:"the gap is even", pred:p=>gap(p)>0 && isEven(gap(p))}
+    {id:"gap_even", label:"the gap is even", pred:p=>isEven(gap(p))} // v6.8.64 fix: 0 is even (matches the cue's own wording)
   ];
   const COMPOSITION_OPS = [
     {id:"and", label:"A AND B", pred:(a,b)=>a && b},
@@ -92303,7 +92394,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }
     if(ic?.mode === "system_construction") return "Target: satisfy the stated same/different system.";
     if(ic?.mode === "hidden_rule_induction") return `Target: infer the visible candidate rule and build a new ${yn(p.target)} example.`;
-    if(ic?.mode === "discriminator_construction") return "Target: build a case where hypothesis A and hypothesis B disagree.";
+    if(ic?.mode === "discriminator_construction") return "Target: make one rule YES and the other NO.";
     if(ic?.mode === "threshold_bracket_induction") return `Target: Pair 1 matches the NO example's measure; Pair 2 matches the YES example's measure.`;
     if(ic?.mode === "composition_induction") return `Target: infer the connective and build a new ${yn(p.target)} example.`;
     return "Target: build a construction satisfying the stated constraints.";
@@ -92749,7 +92840,40 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       if(built.length < 40) block.push("could not build enough inductive tasks");
       const modes = new Set(built.map(t=>t.mode));
       details.modes = Array.from(modes).sort();
-      for(const m of ["single_witness","counterexample","dual_contrast","minimal_flip","progressive_alignment","system_construction","hidden_rule_induction","discriminator_construction","threshold_bracket_induction","composition_induction"]){ if(!modes.has(m)) block.push(`missing mode ${m}`); }
+      // v6.8.61: REACHABILITY is now tested DETERMINISTICALLY, not by presence in the random sample.
+      // composition_induction (share 0.02) and other low-share modes are intentionally RARE (v6.8.49
+      // Chuderski/Jastrzębski de-emphasis of elimination-solvable modes), so a 160-draw sample would
+      // intermittently miss them and FALSE-BLOCK the acceptance gate. The audit's real intent is "every
+      // mode is AVAILABLE" — so confirm each mode's task-maker yields ≥1 buildable task whose
+      // constructive example passes its own verifier. (Distribution is reported, not gated.)
+      const MODE_MAKERS = {
+        single_witness:()=>makeSingleWitnessTasks(cap),
+        counterexample:()=>makeCounterexampleTasks(cap),
+        dual_contrast:()=>makeDualContrastTasks(cap),
+        minimal_flip:()=>makeMinimalFlipTasks(cap),
+        progressive_alignment:()=>makeProgressiveAlignmentTasks(cap),
+        system_construction:()=>makeSystemConstructionTasks(cap),
+        hidden_rule_induction:()=>makeHiddenRuleTasks(cap),
+        discriminator_construction:()=>makeDiscriminatorTasks(cap),
+        threshold_bracket_induction:()=>makeThresholdInductionTasks(cap),
+        composition_induction:()=>makeCompositionInductionTasks(cap)
+      };
+      const reachable = [];
+      for(const mode of Object.keys(MODE_MAKERS)){
+        let items = [];
+        try{ items = MODE_MAKERS[mode]() || []; }catch(e){ block.push(`mode ${mode} maker threw: ${e && e.message || e}`); continue; }
+        if(!items.length){ block.push(`mode ${mode} not reachable (no tasks at cap ${cap})`); continue; }
+        const sample = items.find(t => t && t.example && t.example.p1);
+        if(!sample){ block.push(`mode ${mode} produced no task with a constructive example`); continue; }
+        try{
+          const pairs = [{phase:1, pair:sample.example.p1}];
+          if(sample.example.p2) pairs.push({phase:2, pair:sample.example.p2});
+          if(!verifyInductiveTask({inductiveConstructive:sample}, pairs)){ block.push(`mode ${mode} sample example failed its verifier`); continue; }
+        }catch(e){ block.push(`mode ${mode} verify threw: ${e && e.message || e}`); continue; }
+        reachable.push(mode);
+      }
+      details.reachableModes = reachable;
+      details.sampledMissing = Object.keys(MODE_MAKERS).filter(m => !modes.has(m)); // informational only (rare modes legitimately absent from a 160-draw sample)
       const cells = new Set(built.filter(t=>t.klauer?.coverage !== false).map(t=>t.klauer?.cell).filter(Boolean));
       details.cells = Array.from(cells).sort();
       for(const c of ["same:attribute","same:relation","different:attribute","different:relation","same_and_different:attribute","same_and_different:relation"]){ if(!cells.has(c)) warnings.push(`no sampled task in Klauer cell ${c}`); }
@@ -99591,14 +99715,14 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       {
         id:"place_value_productive_min_tens_exceed_pair1",
         kind:"min_tens_exceed",
-        q:(p1,p2)=>"Pair 1 forms a target number: LEFT is tens and RIGHT is ones. Use Pair 2 RIGHT as the ones digit. What is the smallest tens digit from 1 to 9 that makes the new number greater than Pair 1's number?",
+        q:(p1,p2)=>["Pair 1 forms a target number: LEFT is tens and RIGHT is ones. Use Pair 2 RIGHT as the ones digit. What is the smallest tens digit from 1 to 9 that makes the new number greater than Pair 1's number?","Read Pair 1 as a 2-digit number (LEFT tens, RIGHT ones). With Pair 2 RIGHT fixed as the ones digit, what is the smallest tens digit from 1 to 9 whose number is greater than Pair 1's?","Pair 1's number uses LEFT as tens and RIGHT as ones. Keeping Pair 2 RIGHT as the ones digit, pick the smallest tens digit from 1 to 9 that gives a number above Pair 1's."][Math.floor(Math.random()*3)],
         answer:(target,p2)=>digitAnswerSmallestTensExceed(target, Number(p2.b)),
         extra:(p1,p2,answer)=>({relation:"greater_than_pair1_number", extremum:"smallest", digitRole:"tens", fixedDigit:Number(p2.b), fixedSource:"pair2.right"})
       },
       {
         id:"place_value_productive_max_tens_below_pair1",
         kind:"max_tens_below",
-        q:(p1,p2)=>"Pair 1 forms a target number: LEFT is tens and RIGHT is ones. Use Pair 2 RIGHT as the ones digit. What is the largest tens digit from 1 to 9 that keeps the new number less than Pair 1's number?",
+        q:(p1,p2)=>["Pair 1 forms a target number: LEFT is tens and RIGHT is ones. Use Pair 2 RIGHT as the ones digit. What is the largest tens digit from 1 to 9 that keeps the new number less than Pair 1's number?","Read Pair 1 as a 2-digit number (LEFT tens, RIGHT ones). With Pair 2 RIGHT fixed as the ones digit, what is the largest tens digit from 1 to 9 whose number stays below Pair 1's?","Pair 1's number uses LEFT as tens and RIGHT as ones. Keeping Pair 2 RIGHT as the ones digit, pick the largest tens digit from 1 to 9 that keeps the number under Pair 1's."][Math.floor(Math.random()*3)],
         answer:(target,p2)=>digitAnswerLargestTensBelow(target, Number(p2.b)),
         extra:(p1,p2,answer)=>({relation:"less_than_pair1_number", extremum:"largest", digitRole:"tens", fixedDigit:Number(p2.b), fixedSource:"pair2.right"})
       }
@@ -100376,7 +100500,6 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   if(typeof posnerVariantListForCat !== "function") return;
   const PATCH_ID = "v6.8.61-global-side-randomization";
   try{ if(typeof CONFIG !== "undefined") CONFIG.v6861GlobalSideRandomization = (CONFIG.v6861GlobalSideRandomization !== false); }catch(_){ }
-  const SENT = "";
   function swapLeftRightText(s){
     if(s == null) return s;
     // Single pass: each LEFT/RIGHT token is mapped independently, so no double-swap.
@@ -100546,6 +100669,841 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(typeof registerExtraFeatureAudit==="function") registerExtraFeatureAudit("auditV6861RecursiveRightSeed", auditV6861RecursiveRightSeed);
   }catch(_){ }
   try{ window.EUCA_V6861_RECURSIVE_RIGHT_SEED={patch:PATCH_ID, added, ids, audit:auditV6861RecursiveRightSeed}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.61 - Relational REFERENCE QUANTIFIER family. Reframes the (frequent, often-weak) epistemic
+// "Who can determine?" item into a genuine relational PUZZLE over the retained pair using rep-native
+// frames (time / score / value): the two flashed values are Ada (LEFT) and Ben (RIGHT); a reference
+// Cy is given in the question; the player must recall both, compare each to Cy, and identify who.
+// Mask-respecting (the retained values are NOT reprinted; only Cy's reference appears post-mask).
+(function(){
+  if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return;
+  if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function" || typeof randInt !== "function") return;
+  const PATCH_ID = "v6.8.61-relational-reference-quantifier";
+  const NAMES = ["Ada","Ben","Cy","Dax","Eve","Ivy","Mo","Nia","Ravi","Sol","Tao","Uma"];
+  const SPECS = [
+    {id:"rel_ref_time_before",  framing:"time",  rel:"<", relWord:"BEFORE"},
+    {id:"rel_ref_time_after",   framing:"time",  rel:">", relWord:"AFTER"},
+    {id:"rel_ref_score_higher", framing:"score", rel:">", relWord:"HIGHER than"},
+    {id:"rel_ref_score_lower",  framing:"score", rel:"<", relWord:"LOWER than"},
+    {id:"rel_ref_value_greater",framing:"value", rel:">", relWord:"GREATER than"},
+    {id:"rel_ref_value_smaller",framing:"value", rel:"<", relWord:"SMALLER than"}
+  ];
+  function relHolds(rel, x, c){ return rel === "<" ? x < c : x > c; }
+  // Names are randomized per trial: the reference is NOT always the same name, and the LEFT/RIGHT
+  // names rotate — the player must READ the roles each trial instead of memorizing "Cy = reference".
+  function pick3Names(){ const pool = NAMES.slice(); const out = []; for(let i=0;i<3 && pool.length;i++){ out.push(pool.splice(randInt(0, pool.length), 1)[0]); } return out; }
+  function relRefQuestion(spec, lN, rN, refN, C){
+    // v6.8.62: the reference C is shown ONLY as a glyph (clock/card/frame) in the stimulus slot above —
+    // it is deliberately NOT printed as a numeral, so reading the visual is genuinely necessary (rep-native).
+    if(spec.framing === "time")  return `Arrival times (all AM): ${lN} = LEFT, ${rN} = RIGHT. ${refN}'s arrival time is shown on the clock above. Who arrived ${spec.relWord} ${refN}?`;
+    if(spec.framing === "score") return `Scores: ${lN} = LEFT, ${rN} = RIGHT. ${refN}'s score is shown on the card above. Who scored ${spec.relWord} ${refN}?`;
+    return `Values: ${lN} = LEFT, ${rN} = RIGHT. ${refN}'s value is shown in the frame above. Whose value is ${spec.relWord} ${refN}'s?`;
+  }
+  function buildRelRefQuantifierChoice(cat, m){
+    const spec = cat && cat.relRefSpec; if(!spec) return null;
+    // v6.8.61: render REP-NATIVE — the flashed pair AND the reference C use the framing's native
+    // representation so the relation is read off the visuals, not parsed from prose:
+    //   time → clock (1..12), score → card (rank pips, 1..9), value → ten-frame (magnitude, 1..9).
+    const refRep = spec.framing === "time" ? "clock" : (spec.framing === "score" ? "card" : "ten");
+    const maxV = Math.max(4, Math.min(Number(m) || 9, spec.framing === "time" ? 12 : 9));
+    // Uniformly target one of the 4 outcomes so the answer distribution is balanced and not gameable.
+    const target = randInt(0, 4); // 0 = both, 1 = only LEFT, 2 = only RIGHT, 3 = neither
+    for(let tries = 0; tries < 240; tries++){
+      const L = randInt(1, maxV + 1), R = randInt(1, maxV + 1);
+      if(L === R) continue;
+      const C = randInt(1, maxV + 1);
+      if(C === L || C === R) continue; // strict comparison: keep the reference off the retained values
+      const aRel = relHolds(spec.rel, L, C), bRel = relHolds(spec.rel, R, C);
+      const correctIndex = (aRel && bRel) ? 0 : (aRel ? 1 : (bRel ? 2 : 3));
+      if(correctIndex !== target) continue;
+      const names = pick3Names(); const lN = names[0], rN = names[1], refN = names[2];
+      const options = [
+        l0ChoiceOption(`${lN} and ${rN}`, correctIndex === 0, "quantifier_both"),
+        l0ChoiceOption(`Only ${lN}`,      correctIndex === 1, "quantifier_exactly_one"),
+        l0ChoiceOption(`Only ${rN}`,      correctIndex === 2, "quantifier_exactly_one"),
+        l0ChoiceOption("Neither",         correctIndex === 3, "quantifier_neither")
+      ];
+      const trial = buildL0ChoiceTrialFromOptions(cat, m, L, R, relRefQuestion(spec, lN, rN, refN, C), options, correctIndex, {
+        relationalReference:{spec:spec.id, framing:spec.framing, relation:spec.rel, reference:C, left:L, right:R, aRel, bRel, leftName:lN, rightName:rN, refName:refN},
+        relRefReferenceGlyph:{rep:refRep, value:C}, // reference C, rendered post-mask as a glyph in the .meta-stimulus host
+        mechanismTags:["relational_reference_quantifier","retained_pair_comparison","reference_relation","role_binding"]
+      });
+      if(trial){
+        // Force the flashed pair into the framing-native rep. The flash renders pos.repA/pos.repB
+        // verbatim (line ~57659, no State.reps gating), so set rep + seed + spec from a direct
+        // visual instance — overriding the random rep buildL0ChoiceTrialFromOptions picked.
+        try{
+          if(typeof makeVisualInstance === "function"){
+            const vA = makeVisualInstance(L, refRep), vB = makeVisualInstance(R, refRep);
+            trial.repA = vA.rep; trial.repB = vB.rep;
+            trial.stimSeedA = Number.isFinite(vA.seed) ? Number(vA.seed) : null;
+            trial.stimSeedB = Number.isFinite(vB.seed) ? Number(vB.seed) : null;
+            if(typeof cloneStimReplaySpec === "function"){
+              trial.stimSpecA = cloneStimReplaySpec(vA.rep, vA.spec);
+              trial.stimSpecB = cloneStimReplaySpec(vB.rep, vB.spec);
+            }
+          }
+        }catch(_){ }
+        trial.frameTags = (typeof uniq === "function" ? uniq : (x)=>x)([...(trial.frameTags || []), "relational_reference", spec.framing === "time" ? "temporal_relation" : "metric_relation", "comparison", "quantifier_relation", "role_binding", "rep_native"]);
+      }
+      return trial;
+    }
+    return null;
+  }
+  let added = 0; const ids = [];
+  for(const spec of SPECS){
+    if(POSNER_CATS.some(c => c && c.id === spec.id)) continue;
+    POSNER_CATS.push({
+      id:spec.id, tier:4, stage:4, minM:6, minLevel:4, family:"relational_reference",
+      responseFormat:"choice", relRefSpec:spec, noL0Transform:true,
+      atomicsUsed:["relational_reference_quantifier","retained_pair_comparison","reference_relation_count"],
+      frameTags:["relational_reference", spec.framing === "time" ? "temporal_relation" : "metric_relation", "comparison", "quantifier_relation", "role_binding", "choice_readout"],
+      variants:[{q:relRefQuestion(spec, "Ada", "Ben", "Cy", "N")}],
+      canUse:(m)=>Number(m) >= 6,
+      buildChoiceTrial:buildRelRefQuantifierChoice,
+      gen(m){ const v = Math.max(4, Math.min(Number(m)||9, 9)); return [randInt(1,v+1), randInt(1,v+1)]; },
+      verify(){ return typeof INAPPLICABLE !== "undefined" ? INAPPLICABLE : null; }
+    });
+    added++; ids.push(spec.id);
+  }
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+
+  function auditV6861RelationalReferenceQuantifier(opts={}){
+    const blockers = [], warnings = [], details = {patch:PATCH_ID, added, ids};
+    try{
+      for(const spec of SPECS){
+        const cat = POSNER_CATS.find(c => c && c.id === spec.id);
+        if(!cat){ blockers.push(`missing cat ${spec.id}`); continue; }
+        const outcomes = {0:0,1:0,2:0,3:0}; let built = 0, mismatch = 0, refLeak = 0, labelMismatch = 0, nameCollision = 0, repWrong = 0, glyphWrong = 0, textLeak = 0, phrasingMissing = 0;
+        const refNamesSeen = new Set(), leftNamesSeen = new Set();
+        const expectRep = spec.framing === "time" ? "clock" : (spec.framing === "score" ? "card" : "ten");
+        for(let i=0;i<120;i++){
+          const t = buildRelRefQuantifierChoice(cat, 9);
+          if(!t){ continue; }
+          built++;
+          const rr = t.payload && t.payload.relationalReference;
+          // recompute correctIndex from the recorded values and confirm the marked-correct option matches
+          const ai = relHolds(rr.relation, rr.left, rr.reference), bi = relHolds(rr.relation, rr.right, rr.reference);
+          const ci = (ai&&bi)?0:(ai?1:(bi?2:3));
+          outcomes[ci] = (outcomes[ci]||0)+1;
+          const semCorrect = Number(t.semanticCorrectIndex);
+          if(semCorrect !== ci) mismatch++;
+          if(rr.reference === rr.left || rr.reference === rr.right) refLeak++;
+          // rep-native: the flashed pair must carry the framing's rep, and the reference-glyph
+          // descriptor must match (same rep, value === the reference C).
+          if(t.repA !== expectRep || t.repB !== expectRep) repWrong++;
+          const glyph = t.payload && t.payload.relRefReferenceGlyph;
+          if(!glyph || glyph.rep !== expectRep || Number(glyph.value) !== Number(rr.reference)) glyphWrong++;
+          // glyph-only reference: the reference value must NOT leak into the prompt as a numeral (the
+          // names are all alphabetic, so ANY digit in the question is a leak), and the prompt must point
+          // to the glyph ("…shown … above"). This makes reading the visual genuinely necessary.
+          if(typeof t.question === "string" && /\d/.test(t.question)) textLeak++;
+          if(typeof t.question === "string" && !(/shown/i.test(t.question) && /above/i.test(t.question))) phrasingMissing++;
+          if(!Array.isArray(t.options) || t.options.length !== 4) blockers.push(`${spec.id}: expected 4 options`);
+          // role binding: the option SET must use the recorded LEFT/RIGHT names (display order is
+          // shuffled by buildL0ChoiceTrialFromOptions, so check membership, not position), names must
+          // be distinct, and the reference name must appear in the question (read the roles, not memorize)
+          else if(rr){
+            refNamesSeen.add(rr.refName); leftNamesSeen.add(rr.leftName);
+            if(new Set([rr.leftName, rr.rightName, rr.refName]).size !== 3) nameCollision++;
+            const optSet = new Set(t.options.map(o => String(o.text||"")));
+            const expected = [`${rr.leftName} and ${rr.rightName}`, `Only ${rr.leftName}`, `Only ${rr.rightName}`, "Neither"];
+            if(expected.some(e => !optSet.has(e))) labelMismatch++;
+            if(typeof t.question === "string" && rr.refName && t.question.indexOf(rr.refName) < 0) labelMismatch++;
+          }
+        }
+        details[spec.id] = {built, outcomes, mismatch, refLeak, labelMismatch, nameCollision, repNative:expectRep, repWrong, glyphWrong, textLeak, phrasingMissing, distinctRefNames:refNamesSeen.size, distinctLeftNames:leftNamesSeen.size};
+        if(built < 60) warnings.push(`${spec.id}: low build count ${built}`);
+        if(mismatch > 0) blockers.push(`${spec.id}: ${mismatch} answer/count mismatches`);
+        if(repWrong > 0) blockers.push(`${spec.id}: ${repWrong} trials not flashed in the framing-native rep ${expectRep}`);
+        if(glyphWrong > 0) blockers.push(`${spec.id}: ${glyphWrong} trials missing/incorrect reference-glyph descriptor`);
+        if(textLeak > 0) blockers.push(`${spec.id}: ${textLeak} prompts leaked the reference value as a numeral (must be glyph-only)`);
+        if(phrasingMissing > 0) blockers.push(`${spec.id}: ${phrasingMissing} prompts missing the "shown … above" glyph pointer`);
+        if(refLeak > 0) blockers.push(`${spec.id}: reference equalled a retained value (${refLeak}) — should be strict`);
+        if(labelMismatch > 0) blockers.push(`${spec.id}: ${labelMismatch} option/question labels did not match recorded role names`);
+        if(nameCollision > 0) blockers.push(`${spec.id}: ${nameCollision} trials reused a name across roles`);
+        if(built >= 60 && refNamesSeen.size < 2) warnings.push(`${spec.id}: reference name never varied (${[...refNamesSeen]})`);
+        if(built >= 60 && leftNamesSeen.size < 2) warnings.push(`${spec.id}: LEFT name never varied (${[...leftNamesSeen]})`);
+        // balance: all 4 outcomes should occur (the uniform target makes this likely)
+        const zeros = Object.values(outcomes).filter(v=>v===0).length;
+        if(zeros > 1) warnings.push(`${spec.id}: ${zeros} outcomes never occurred ${JSON.stringify(outcomes)}`);
+      }
+    }catch(e){ blockers.push("relational-reference audit exception: " + (e && e.message || e)); }
+    return {status: blockers.length ? "block" : warnings.length ? "warn" : "pass", blockers, warnings, details};
+  }
+  try{ window.auditV6861RelationalReferenceQuantifier = auditV6861RelationalReferenceQuantifier; globalThis.auditV6861RelationalReferenceQuantifier = auditV6861RelationalReferenceQuantifier; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6861_rel_ref","relational_reference_quantifier","rel_ref_quantifier"], auditV6861RelationalReferenceQuantifier, "auditV6861RelationalReferenceQuantifier");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6861RelationalReferenceQuantifier", auditV6861RelationalReferenceQuantifier);
+  }catch(_){ }
+  try{ window.EUCA_V6861_REL_REF_QUANTIFIER = {patch:PATCH_ID, added, ids, audit:auditV6861RelationalReferenceQuantifier, build:buildRelRefQuantifierChoice}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.62 - place-value EXPANSION: carry detection, rounding to the nearest ten, digit swap/reverse,
+// exponent (power-of-ten) decomposition, digit squaring, and perfect-square square roots. Mirrors the
+// v6.8.58-60 place-value patches (same helpers, result shape, registration). All player-facing wording
+// is PROSE (no ², ³, √, ^ glyphs — the question render path is textContent-escaped); square roots are
+// restricted to the six two-digit perfect squares so every root is a clean whole number.
+(function(){
+  const PATCH_ID = "v6.8.62-place-value-carry-round-swap-exp-root";
+  const AUDIT_KEYS = ["v6862_place_value","v6_8_62_place_value","place_value_expansion","place_value_carry_round_swap_exp_root"];
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function uniqLocal(xs){ return Array.from(new Set(arr(xs).filter(x => x !== null && x !== undefined).map(String))); }
+  function pvDigit(v, opts={}){ const n = Number(v); const min = opts.tens ? 1 : 0; return Number.isInteger(n) && n >= min && n <= 9; }
+  function pvPairOk(p){ return !!(p && pvDigit(p.a, {tens:true}) && pvDigit(p.b)); }
+  function pvBothPairsOk(p1, p2){ return pvPairOk(p1) && pvPairOk(p2); }
+  function pvConcat(p){ return (Number(p.a) * 10) + Number(p.b); }
+  function pvPairPayload(label, p){ return {label, tens:Number(p.a), ones:Number(p.b), number:pvConcat(p)}; }
+  function pvChoice(xs){ return (typeof choice === "function") ? choice(xs) : xs[Math.floor(Math.random() * xs.length)]; }
+  function pvShuffle(xs){ if(typeof shuffle === "function") return shuffle(xs.slice()); const out = xs.slice(); for(let i=out.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=out[i]; out[i]=out[j]; out[j]=t; } return out; }
+  const FAMILY_FRAMES = ["place_value","base10","role_binding","source_relation","metric_relation"];
+  function mkResult(opId, family, p1, p2, answer, question, conceptPayload, extra={}){
+    return {
+      answer, question, answerLabel:String(answer),
+      payload:{ placeValueOp:Object.assign({ layer:"L1", opId, family, pair1:pvPairPayload("Pair 1", p1), pair2:(p2 ? pvPairPayload("Pair 2", p2) : null), contract:"left_tens_right_ones" }, conceptPayload || {}) },
+      frameTags:uniqLocal(FAMILY_FRAMES.concat(extra.frameTags || [])),
+      mechanismTags:uniqLocal(["place_value", extra.mechanism || "place_value_op"].concat(extra.mechanismTags || []))
+    };
+  }
+  // ---- L1 numeric ops (pairs are SUPPLIED, ops gated by canUse → l1OpHasValidAnswer runs fn) ----
+  const L1_NEW = [
+    { id:"place_value_carry_units_overflow", family:"place_value_carry", minLevel:4, minM:6,
+      atomicsUsed:["place_value_concat","place_value_carry_detection"], frameTags:["carry","threshold_relation","comparison"],
+      canUse:pvBothPairsOk,
+      fn:(p1,p2,m)=>{ if(!pvBothPairsOk(p1,p2)) return null; const onesSum = Number(p1.b)+Number(p2.b); const answer = onesSum >= 10 ? 1 : 0;
+        return mkResult("place_value_carry_units_overflow","place_value_carry",p1,p2,answer,
+          "Form both two-digit numbers (in each pair, LEFT is the tens digit and RIGHT is the ones digit) and add them. What is the carry out of the ones column — 0 for no carry, or 1 if it carries into the tens?",
+          {onesSum, carry:answer}, {mechanism:"place_value_carry_detection", mechanismTags:["carry_detection","tens_ones_binding"]}); } },
+    { id:"place_value_round_nearest_ten", family:"place_value_round", minLevel:4, minM:6,
+      atomicsUsed:["place_value_concat","place_value_round_nearest_ten"], frameTags:["rounding","metric_relation"],
+      canUse:(p1)=> pvPairOk(p1) && (Math.round(pvConcat(p1)/10)*10) <= 90,
+      fn:(p1,p2,m)=>{ if(!pvPairOk(p1)) return null; const n = pvConcat(p1); const answer = Math.round(n/10)*10; if(answer > 90) return null;
+        return mkResult("place_value_round_nearest_ten","place_value_round",p1,null,answer,
+          "Form the Pair 1 number with LEFT as the tens digit and RIGHT as the ones digit. Round it to the nearest ten (a ones digit of 5 rounds up). What is the rounded number?",
+          {number:n, ones:Number(p1.b), rounded:answer}, {mechanism:"place_value_round_nearest_ten", mechanismTags:["round_nearest_ten"]}); } },
+    { id:"place_value_swap_reverse_number", family:"place_value_swap", minLevel:4, minM:6,
+      atomicsUsed:["place_value_concat","place_value_digit_swap"], frameTags:["digit_swap","role_binding"],
+      canUse:(p1)=> pvPairOk(p1) && Number(p1.a) !== Number(p1.b) && Number(p1.b) >= 1,
+      fn:(p1,p2,m)=>{ if(!pvPairOk(p1) || Number(p1.a) === Number(p1.b) || Number(p1.b) < 1) return null; const answer = Number(p1.b)*10 + Number(p1.a);
+        return mkResult("place_value_swap_reverse_number","place_value_swap",p1,null,answer,
+          "Form the Pair 1 number with LEFT as the tens digit and RIGHT as the ones digit. Swap the two digits, so the ones digit becomes the tens digit and the tens digit becomes the ones. What new number do you get?",
+          {original:pvConcat(p1), swapped:answer}, {mechanism:"place_value_digit_swap", mechanismTags:["digit_swap"]}); } },
+    { id:"place_value_swap_difference", family:"place_value_swap", minLevel:5, minM:7,
+      atomicsUsed:["place_value_concat","place_value_digit_swap"], frameTags:["digit_swap","metric_relation","comparison"],
+      canUse:(p1)=> pvPairOk(p1) && Number(p1.a) !== Number(p1.b),
+      fn:(p1,p2,m)=>{ if(!pvPairOk(p1) || Number(p1.a) === Number(p1.b)) return null; const n = pvConcat(p1); const sw = Number(p1.b)*10 + Number(p1.a); const answer = Math.abs(n - sw);
+        return mkResult("place_value_swap_difference","place_value_swap",p1,null,answer,
+          "Form the Pair 1 number (LEFT is the tens digit, RIGHT is the ones digit), then swap its two digits to make a second number. What is the absolute difference between the original number and the swapped number?",
+          {original:n, swapped:sw, difference:answer}, {mechanism:"place_value_digit_swap", mechanismTags:["digit_swap","absolute_difference"]}); } },
+    { id:"place_value_exponent_tens_term", family:"place_value_exponent", minLevel:5, minM:7,
+      atomicsUsed:["place_value_concat","place_value_power_decomposition"], frameTags:["exponent","power_of_ten","role_binding"],
+      canUse:(p1)=> pvPairOk(p1),
+      fn:(p1,p2,m)=>{ if(!pvPairOk(p1)) return null; const answer = Number(p1.a)*10;
+        return mkResult("place_value_exponent_tens_term","place_value_exponent",p1,null,answer,
+          "In Pair 1, LEFT is the tens digit and RIGHT is the ones digit. The tens digit stands for LEFT times ten to the first power. What is that tens contribution on its own?",
+          {tensDigit:Number(p1.a), base:10, power:1, tensTerm:answer}, {mechanism:"place_value_power_decomposition", mechanismTags:["power_of_ten","tens_term"]}); } },
+    { id:"place_value_exponent_decompose", family:"place_value_exponent", minLevel:5, minM:7,
+      atomicsUsed:["place_value_concat","place_value_power_decomposition"], frameTags:["exponent","power_of_ten","role_binding"],
+      canUse:(p1)=> pvPairOk(p1),
+      fn:(p1,p2,m)=>{ if(!pvPairOk(p1)) return null; const answer = Number(p1.a)*10 + Number(p1.b);
+        return mkResult("place_value_exponent_decompose","place_value_exponent",p1,null,answer,
+          "In Pair 1, LEFT is the tens digit and RIGHT is the ones digit, so the number equals LEFT times ten to the first power, plus RIGHT times ten to the zero power. What is the value of that number?",
+          {tensTerm:Number(p1.a)*10, onesTerm:Number(p1.b), value:answer}, {mechanism:"place_value_power_decomposition", mechanismTags:["power_of_ten","decomposition"]}); } },
+    { id:"place_value_digit_square", family:"place_value_power", minLevel:4, minM:6,
+      atomicsUsed:["place_value_tens_ones_binding","place_value_digit_square"], frameTags:["exponent","square","role_binding"],
+      canUse:(p1)=> pvPairOk(p1),
+      fn:(p1,p2,m)=>{ if(!pvPairOk(p1)) return null; const a = Number(p1.a); const answer = a*a;
+        return mkResult("place_value_digit_square","place_value_power",p1,null,answer,
+          "In Pair 1, LEFT is the tens digit. Square the tens digit — that is, multiply LEFT by itself. What is LEFT squared?",
+          {tensDigit:a, squared:answer}, {mechanism:"place_value_digit_square", mechanismTags:["square","tens_digit"]}); } }
+  ];
+  function registerL1(){
+    if(typeof L1_OPS === "undefined" || !Array.isArray(L1_OPS)) return {added:0, reason:"no L1_OPS"};
+    const stages = {place_value_carry:4, place_value_round:4, place_value_swap:5, place_value_exponent:5, place_value_power:4};
+    try{ if(typeof L1_FAMILY_STAGE !== "undefined") for(const k in stages) L1_FAMILY_STAGE[k] = stages[k]; }catch(_){ }
+    try{ if(typeof L1_FAMILY_FRAME_MAP !== "undefined") for(const k in stages) L1_FAMILY_FRAME_MAP[k] = ["role_binding","source_relation","metric_relation"]; }catch(_){ }
+    const existing = new Set(L1_OPS.map(o => o && o.id)); let added = 0; const ids = [];
+    for(const op of L1_NEW){ if(existing.has(op.id)) continue; L1_OPS.push(Object.assign({symmetric:true, responseFormat:"numpad_dynamic"}, op)); added++; ids.push(op.id); }
+    return {added, ids};
+  }
+  // ---- L0 perfect-square-root choice cat (builder SEEDS a perfect square — reachable, unlike an L1
+  //       numeric op which only fires ~6.7% of random draws) ----
+  const SQUARE_PAIRS = [{a:1,b:6,r:4},{a:2,b:5,r:5},{a:3,b:6,r:6},{a:4,b:9,r:7},{a:6,b:4,r:8},{a:8,b:1,r:9}]; // 16,25,36,49,64,81
+  function pvBuildDigitOptions(answer, lures){
+    const vals = [Number(answer)];
+    for(const l of arr(lures)){ const v = Number(l); if(Number.isInteger(v) && v >= 2 && v <= 9 && !vals.includes(v)) vals.push(v); }
+    for(let d=1; vals.length<4 && d<8; d++){ for(const cand of [Number(answer)-d, Number(answer)+d]){ if(cand >= 2 && cand <= 9 && !vals.includes(cand)) vals.push(cand); } }
+    const labels = pvShuffle(vals.slice(0,4));
+    const ci = labels.findIndex(v => v === Number(answer));
+    return { options:labels.map((v,i)=>l0ChoiceOption(String(v), i === ci, i === ci ? "correct" : "root_digit_lure", {value:v})), correctIndex:ci };
+  }
+  function pvBuildL0RootChoice(cat, m){
+    if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function") return null;
+    const sq = pvChoice(SQUARE_PAIRS); const n = sq.a*10 + sq.b; const root = sq.r;
+    // lures include root±1 AND the visible tens/ones digits, so "just read a digit" fails (the root
+    // equals a visible digit only for some squares, never reliably).
+    const built = pvBuildDigitOptions(root, [root-1, root+1, sq.a, sq.b]);
+    const question = "Form the Pair 1 number with LEFT as the tens digit and RIGHT as the ones digit. It is a perfect square. Which whole number is its square root?";
+    const trial = buildL0ChoiceTrialFromOptions(cat, m, sq.a, sq.b, question, built.options, built.correctIndex, {
+      placeValueRoot:{ layer:"L0", opId:"decl_place_value_root_choice", contract:"left_tens_right_ones", tens:sq.a, ones:sq.b, number:n, root, perfectSquare:true },
+      mechanismTags:["place_value_concat","perfect_square_root","tens_ones_binding"]
+    });
+    if(trial){
+      trial.noL0Transform = true;
+      trial.frameTags = uniqLocal([...(trial.frameTags || []), "place_value","base10","role_binding","square_root","choice_readout"]);
+      trial.mechanismTags = uniqLocal([...(trial.mechanismTags || []), "perfect_square_root","tens_ones_binding"]);
+    }
+    return trial;
+  }
+  function registerL0(){
+    if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return {added:0, reason:"no POSNER_CATS"};
+    if(POSNER_CATS.some(c => c && c.id === "decl_place_value_root_choice")) return {added:0, reason:"already_present"};
+    POSNER_CATS.push({
+      id:"decl_place_value_root_choice", tier:4, stage:4, minM:6, minLevel:4, family:"place_value_root",
+      responseFormat:"choice", noL0Transform:true,
+      atomicsUsed:["place_value_concat","place_value_perfect_square_root"],
+      frameTags:["place_value","base10","role_binding","square_root","choice_readout"],
+      variants:[{q:"The formed number is a perfect square. Which whole number is its square root?"}],
+      canUse:m=>Number(m) >= 6,
+      buildChoiceTrial:pvBuildL0RootChoice,
+      gen(m){ const sq = pvChoice(SQUARE_PAIRS); return [sq.a, sq.b]; },
+      verify(){ return typeof INAPPLICABLE !== "undefined" ? INAPPLICABLE : null; }
+    });
+    return {added:1, id:"decl_place_value_root_choice"};
+  }
+  function safeAtomic(a){
+    try{
+      const reg = (typeof ATOMIC_REGISTRY !== "undefined") ? ATOMIC_REGISTRY : globalThis.ATOMIC_REGISTRY;
+      if(a && a.id && typeof registerAtomic === "function" && (!reg || !reg[a.id])){
+        registerAtomic({id:a.id, kind:a.kind || "operation", phrase:()=>a.label, evaluate:()=>null, reviewLine:()=>a.label, minLevel:4, source:PATCH_ID});
+      }
+    }catch(_){ }
+  }
+  [
+    {id:"place_value_carry_detection", kind:"operation", label:"Detect a carry out of the ones column"},
+    {id:"place_value_round_nearest_ten", kind:"operation", label:"Round a two-digit number to the nearest ten"},
+    {id:"place_value_digit_swap", kind:"operation", label:"Swap the tens and ones digits"},
+    {id:"place_value_power_decomposition", kind:"operation", label:"Decompose a number into powers of ten"},
+    {id:"place_value_digit_square", kind:"operation", label:"Square a place-value digit"},
+    {id:"place_value_perfect_square_root", kind:"operation", label:"Take the square root of a perfect square"}
+  ].forEach(safeAtomic);
+  const L1_REG = registerL1(); const L0_REG = registerL0();
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+
+  function auditV6862(opts={}){
+    const blockers = [], warnings = [], details = {patch:PATCH_ID, l1:L1_REG, l0:L0_REG};
+    try{
+      const byId = {}; for(const op of (Array.isArray(L1_OPS) ? L1_OPS : [])){ if(op && L1_NEW.some(o => o.id === op.id)) byId[op.id] = op; }
+      const fixedP2 = {a:4,b:7};
+      const singlePair = [
+        {id:"place_value_round_nearest_ten",   guard:p => Math.round((p.a*10+p.b)/10)*10 <= 90, expect:p => Math.round((p.a*10+p.b)/10)*10},
+        {id:"place_value_swap_reverse_number", guard:p => p.a !== p.b && p.b >= 1,              expect:p => p.b*10 + p.a},
+        {id:"place_value_swap_difference",     guard:p => p.a !== p.b,                          expect:p => Math.abs((p.a*10+p.b) - (p.b*10+p.a))},
+        {id:"place_value_exponent_tens_term",  guard:()=>true,                                  expect:p => p.a*10},
+        {id:"place_value_exponent_decompose",  guard:()=>true,                                  expect:p => p.a*10 + p.b},
+        {id:"place_value_digit_square",        guard:()=>true,                                  expect:p => p.a*p.a}
+      ];
+      for(const spec of singlePair){
+        const op = byId[spec.id]; if(!op){ blockers.push(`missing op ${spec.id}`); continue; }
+        const hist = {}; let built = 0, mism = 0, glyph = 0;
+        for(let a=1;a<=9;a++) for(let b=0;b<=9;b++){
+          const p = {a,b}; if(!spec.guard(p)) continue;
+          const r = op.fn(p, fixedP2, 9);
+          if(!r){ blockers.push(`${spec.id}: fn null on a guard-passing pair (${a},${b})`); continue; }
+          built++;
+          if(Number(r.answer) !== Number(spec.expect(p))) mism++;
+          if(/[²³√^]|10\^/.test(String(r.question || ""))) glyph++;
+          hist[r.answer] = (hist[r.answer]||0)+1;
+        }
+        const counts = Object.values(hist); const total = counts.reduce((x,y)=>x+y,0) || 1; const modal = counts.length ? Math.max(...counts) : 0;
+        const modalShare = modal/total; const distinct = Object.keys(hist).length;
+        details[spec.id] = {built, mism, distinct, modalShare:Math.round(modalShare*100)/100, glyphHits:glyph};
+        if(mism > 0) blockers.push(`${spec.id}: ${mism} answer mismatches vs independent recompute`);
+        if(glyph > 0) blockers.push(`${spec.id}: ${glyph} prompts used a forbidden math glyph`);
+        if(distinct < 4) blockers.push(`${spec.id}: only ${distinct} distinct answers (degenerate)`);
+        if(modalShare > 0.35) warnings.push(`${spec.id}: modal answer share ${Math.round(modalShare*100)}%`);
+      }
+      // guard tests: swap ops must reject palindromes / ones-zero (return null)
+      if(byId.place_value_swap_reverse_number){
+        if(byId.place_value_swap_reverse_number.fn({a:5,b:5}, fixedP2, 9)) blockers.push("swap_reverse did not reject a palindrome");
+        if(byId.place_value_swap_reverse_number.fn({a:3,b:0}, fixedP2, 9)) blockers.push("swap_reverse did not reject ones digit 0");
+      }
+      if(byId.place_value_swap_difference && byId.place_value_swap_difference.fn({a:5,b:5}, fixedP2, 9)) blockers.push("swap_difference did not reject a palindrome");
+      // carry op: full ones-digit cross sweep
+      const carry = byId.place_value_carry_units_overflow;
+      if(!carry) blockers.push("missing op place_value_carry_units_overflow");
+      else{
+        const hist = {0:0, 1:0}; let mism = 0, built = 0;
+        for(let b1=0;b1<=9;b1++) for(let b2=0;b2<=9;b2++){
+          const r = carry.fn({a:5,b:b1}, {a:4,b:b2}, 9); if(!r) continue; built++;
+          const exp = (b1+b2 >= 10) ? 1 : 0; if(Number(r.answer) !== exp) mism++;
+          hist[r.answer] = (hist[r.answer]||0)+1;
+          if(/[²³√^]/.test(String(r.question || ""))) blockers.push("carry prompt used a forbidden glyph");
+        }
+        const total = hist[0]+hist[1] || 1; const modalShare = Math.max(hist[0],hist[1])/total;
+        details.place_value_carry_units_overflow = {built, mism, dist:hist, modalShare:Math.round(modalShare*100)/100};
+        if(mism > 0) blockers.push(`carry: ${mism} mismatches`);
+        if(modalShare > 0.62) warnings.push(`carry: modal share ${Math.round(modalShare*100)}% (near-degenerate)`);
+      }
+      // exponent ops must state the power-of-ten wording
+      for(const id of ["place_value_exponent_tens_term","place_value_exponent_decompose"]){
+        const op = byId[id]; if(op){ const r = op.fn({a:3,b:7}, fixedP2, 9); if(!r || !/ten to the (first|zero) power/i.test(String(r.question))) blockers.push(`${id}: prompt missing power-of-ten wording`); }
+      }
+      // L0 perfect-square-root choice cat
+      const rootCat = (Array.isArray(POSNER_CATS) ? POSNER_CATS : []).find(c => c && c.id === "decl_place_value_root_choice");
+      if(!rootCat) blockers.push("missing root choice cat");
+      else{
+        const roots = {}; let rbuilt = 0, rbad = 0, wbad = 0, gbad = 0;
+        for(let i=0;i<120;i++){
+          const t = rootCat.buildChoiceTrial(rootCat, 9); if(!t){ continue; } rbuilt++;
+          const pr = t.payload && t.payload.placeValueRoot; const n = pr && pr.number, root = pr && pr.root;
+          if(!pr || root*root !== n || !Number.isInteger(Math.sqrt(n))) rbad++;
+          if(arr(t.options).filter(o => o && o.correct).length !== 1) rbad++;
+          const q = String(t.question || "");
+          if(!/perfect square/i.test(q) || !/(square root|whole number)/i.test(q)) wbad++;
+          if(/[²³√^]/.test(q)) gbad++;
+          roots[root] = (roots[root]||0)+1;
+        }
+        details.root = {rbuilt, rbad, wordingBad:wbad, glyphBad:gbad, distinctRoots:Object.keys(roots).length, roots};
+        if(rbad > 0) blockers.push(`root cat: ${rbad} bad trials (root squared !== number / not perfect square / not uniquely correct)`);
+        if(wbad > 0) blockers.push(`root cat: ${wbad} prompts missing 'perfect square'/'whole number' wording`);
+        if(gbad > 0) blockers.push(`root cat: ${gbad} prompts used a forbidden glyph`);
+        if(rbuilt >= 60 && Object.keys(roots).length < 5) warnings.push(`root cat: only ${Object.keys(roots).length} distinct roots`);
+      }
+    }catch(e){ blockers.push("v6.8.62 audit exception: " + (e && e.message || e)); }
+    return {status:blockers.length ? "block" : warnings.length ? "warn" : "pass", blockers, warnings, details};
+  }
+  try{ window.auditV6862PlaceValueExpansion = auditV6862; globalThis.auditV6862PlaceValueExpansion = auditV6862; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(AUDIT_KEYS, auditV6862, "auditV6862PlaceValueExpansion");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6862PlaceValueExpansion", auditV6862);
+  }catch(_){ }
+  try{ window.EUCA_V6862_PLACE_VALUE_EXPANSION = {patch:PATCH_ID, l1:L1_REG, l0:L0_REG, audit:auditV6862, ops:L1_NEW.map(o => o.id)}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.63 - G4 TRANSITIVE INFERENCE (seriation). Flash LEFT/RIGHT (retained, load-bearing); a clue
+// relates an UNFLASHED Z to LEFT; the player composes with the recalled LEFT-vs-RIGHT order to decide
+// Z vs RIGHT — sometimes determinate (Z and RIGHT straddle LEFT), sometimes "cannot be determined".
+// Genuinely new CORE relational-integration primitive (global_order only SORTS visible values; this
+// composes R(Z,LEFT) with the retained R(LEFT,RIGHT) into R(Z,RIGHT) over an unflashed element).
+(function(){
+  if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return;
+  if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function" || typeof randInt !== "function") return;
+  const PATCH_ID = "v6.8.63-transitive-inference";
+  function uniqLocal(xs){ return Array.from(new Set((xs||[]).filter(x=>x!=null).map(String))); }
+  function buildTransitiveChoice(cat, m){
+    const maxV = Math.max(4, Math.min(Number(m) || 9, 9));
+    const target = randInt(0, 3); // 0 = Z>RIGHT, 1 = Z<RIGHT, 2 = cannot be determined
+    for(let tries=0; tries<240; tries++){
+      const L = randInt(1, maxV+1), R = randInt(1, maxV+1);
+      if(L === R) continue; // strict order is the transitive bridge
+      let clue, outcome;
+      if(target === 0){ if(!(R < L)) continue; clue = "gt"; outcome = 0; }      // Z>L, R<L ⇒ Z>R
+      else if(target === 1){ if(!(R > L)) continue; clue = "lt"; outcome = 1; }  // Z<L, R>L ⇒ Z<R
+      else { clue = (R > L) ? "gt" : "lt"; outcome = 2; }                         // Z and R on the same side of L ⇒ undetermined
+      const clueWord = clue === "gt" ? "greater than" : "less than";
+      const question = `You saw a LEFT value and a RIGHT value. A third value Z is ${clueWord} the LEFT value. Compared with the RIGHT value, is Z greater, is Z less, or can you not tell?`;
+      const options = [
+        l0ChoiceOption("Z is greater than the RIGHT value", outcome === 0, "transitive_order"),
+        l0ChoiceOption("Z is less than the RIGHT value",    outcome === 1, "transitive_order"),
+        l0ChoiceOption("Cannot be determined",              outcome === 2, "transitive_indeterminate"),
+        l0ChoiceOption("Z is equal to the RIGHT value",     false,         "transitive_equal_lure")
+      ];
+      const trial = buildL0ChoiceTrialFromOptions(cat, m, L, R, question, options, outcome, {
+        transitiveInference:{ left:L, right:R, clue, outcome },
+        mechanismTags:["transitive_inference","relation_composition","determinacy_judgment","retained_pair_order"]
+      });
+      if(trial){
+        trial.noL0Transform = true;
+        trial.frameTags = uniqLocal([...(trial.frameTags||[]), "transitive_inference","seriation","comparison","determinacy"]);
+      }
+      return trial;
+    }
+    return null;
+  }
+  let added = 0;
+  if(!POSNER_CATS.some(c => c && c.id === "decl_transitive_inference_choice")){
+    POSNER_CATS.push({
+      id:"decl_transitive_inference_choice", tier:4, stage:4, minM:6, minLevel:4, family:"transitive_inference",
+      responseFormat:"choice", noL0Transform:true,
+      atomicsUsed:["transitive_inference","relation_composition","determinacy_judgment"],
+      frameTags:["transitive_inference","seriation","comparison","determinacy","choice_readout"],
+      variants:[{q:"A third value Z relates to LEFT; compared with RIGHT, is Z greater, less, or undetermined?"}],
+      canUse:m=>Number(m) >= 6,
+      buildChoiceTrial:buildTransitiveChoice,
+      gen(m){ const v = Math.max(4, Math.min(Number(m)||9, 9)); return [randInt(1,v+1), randInt(1,v+1)]; },
+      verify(){ return typeof INAPPLICABLE !== "undefined" ? INAPPLICABLE : null; }
+    });
+    added = 1;
+  }
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+  function auditV6863Transitive(opts={}){
+    const blockers=[], warnings=[], details={patch:PATCH_ID, added};
+    try{
+      const cat = POSNER_CATS.find(c => c && c.id === "decl_transitive_inference_choice");
+      if(!cat){ blockers.push("missing transitive cat"); }
+      else{
+        const outcomes={0:0,1:0,2:0}; let built=0, mism=0, badStruct=0;
+        for(let i=0;i<240;i++){
+          const t = cat.buildChoiceTrial(cat, 9); if(!t){ continue; } built++;
+          const ti = t.payload && t.payload.transitiveInference;
+          if(!ti){ badStruct++; continue; }
+          let exp;
+          if(ti.clue === "gt") exp = (ti.right < ti.left) ? 0 : 2;
+          else exp = (ti.right > ti.left) ? 1 : 2;
+          outcomes[exp] = (outcomes[exp]||0)+1;
+          if(Number(t.semanticCorrectIndex) !== exp) mism++;
+          if(!Array.isArray(t.options) || t.options.length !== 4) badStruct++;
+          if(ti.left === ti.right) badStruct++;
+          // the equal-lure (option text) must never be the correct answer
+          const correctText = Array.isArray(t.options) ? (t.options.find(o=>o&&o.correct)||{}).text : "";
+          if(/equal to the RIGHT/i.test(String(correctText))) badStruct++;
+        }
+        details.outcomes = outcomes; details.built = built; details.mismatch = mism; details.badStruct = badStruct;
+        if(built < 60) warnings.push(`low build ${built}`);
+        if(mism > 0) blockers.push(`${mism} answer/structure mismatches`);
+        if(badStruct > 0) blockers.push(`${badStruct} malformed trials`);
+        const zeros = Object.values(outcomes).filter(v=>v===0).length;
+        if(zeros > 0) warnings.push(`${zeros} outcomes never occurred ${JSON.stringify(outcomes)}`);
+      }
+    }catch(e){ blockers.push("transitive audit exception: "+(e&&e.message||e)); }
+    return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
+  }
+  try{ window.auditV6863TransitiveInference = auditV6863Transitive; globalThis.auditV6863TransitiveInference = auditV6863Transitive; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit==="function") registerFeatureAudit(["v6863_transitive","transitive_inference","seriation"], auditV6863Transitive, "auditV6863TransitiveInference");
+    if(typeof registerExtraFeatureAudit==="function") registerExtraFeatureAudit("auditV6863TransitiveInference", auditV6863Transitive);
+  }catch(_){ }
+  try{ window.EUCA_V6863_TRANSITIVE = {patch:PATCH_ID, added, audit:auditV6863Transitive, build:buildTransitiveChoice}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.63 - L1 semantic expansions: G1 signed net-change (directional accumulation over a before→after
+// episode — the game's diffs are otherwise all ABSOLUTE), G2 fair-share with remainder (division-with-
+// remainder is otherwise absent — only yes/no divisibility), G5 inclusion-exclusion cardinality
+// (|A∪B| = |A|+|B|−|A∩B|). Mask-respecting (values referenced by role, never reprinted), each with an
+// anti-degeneracy guard. Mirrors the v6.8.58/62 L1-op registration pattern; new families so the prior
+// L1 audits (which filter by their own family) are untouched.
+(function(){
+  if(typeof L1_OPS === "undefined" || !Array.isArray(L1_OPS)) return;
+  const PATCH_ID = "v6.8.63-semantic-expansions-l1";
+  function uniqLocal(xs){ return Array.from(new Set((xs||[]).filter(x=>x!=null).map(String))); }
+  function numOk(p){ return !!(p && Number.isInteger(Number(p.a)) && Number.isInteger(Number(p.b))); }
+  function dig(p){ return !!(p && Number.isInteger(Number(p.a)) && Number(p.a)>=1 && Number(p.a)<=9 && Number.isInteger(Number(p.b)) && Number(p.b)>=0 && Number(p.b)<=9); }
+  function concat2(p){ return Number(p.a)*10 + Number(p.b); }
+  function kFromPair(p){ return 2 + (Number(p.a) % 4); } // boxes 2..5
+  function mk(opId, family, answer, question, payload, frameTags, mechanismTags){
+    return { answer, question, answerLabel:String(answer),
+      payload:{ semanticOp:Object.assign({layer:"L1", opId, family}, payload||{}) },
+      frameTags:uniqLocal(["source_relation","metric_relation"].concat(frameTags||[])),
+      mechanismTags:uniqLocal([].concat(mechanismTags||[])) };
+  }
+  const G1_DIR_LABELS = ["Ended above where it started", "Ended below where it started", "Returned exactly to where it started", "Cannot be determined from the two pairs"];
+  const OPS = [
+    // ---- G1: signed net change (Pair 1 = before, Pair 2 = after) ----
+    { id:"signed_net_change_direction", family:"signed_accumulation", minLevel:5, minM:6, responseFormat:"choice", choiceLabels:G1_DIR_LABELS,
+      atomicsUsed:["signed_change","directional_accumulation"], frameTags:["signed_accumulation","before_after","direction"],
+      canUse:(p1,p2)=> numOk(p1) && numOk(p2),
+      fn:(p1,p2,m)=>{ if(!numOk(p1)||!numOk(p2)) return null;
+        const net = (Number(p2.a)-Number(p1.a)) + (Number(p2.b)-Number(p1.b)); const ci = net>0?0:(net<0?1:2);
+        return { correctIndex:ci, choiceLabels:G1_DIR_LABELS,
+          question:"Pair 1 is the starting position and Pair 2 is where things ended up. Add LEFT's change (Pair 2 LEFT minus Pair 1 LEFT) and RIGHT's change (Pair 2 RIGHT minus Pair 1 RIGHT) together into one net change. Did the pair end up above where it started, below where it started, or exactly back at the start?",
+          payload:{ semanticOp:{layer:"L1", opId:"signed_net_change_direction", family:"signed_accumulation", net, p1Sum:Number(p1.a)+Number(p1.b), p2Sum:Number(p2.a)+Number(p2.b)} },
+          frameTags:["signed_accumulation","before_after","direction"], mechanismTags:["signed_change","directional_accumulation"] }; } },
+    { id:"signed_net_change_distance", family:"signed_accumulation", minLevel:5, minM:6, responseFormat:"numpad_dynamic", symmetric:true,
+      atomicsUsed:["signed_change","net_magnitude"], frameTags:["signed_accumulation","before_after","metric_relation"],
+      canUse:(p1,p2)=> numOk(p1) && numOk(p2),
+      fn:(p1,p2,m)=>{ if(!numOk(p1)||!numOk(p2)) return null;
+        const net = (Number(p2.a)-Number(p1.a)) + (Number(p2.b)-Number(p1.b)); const answer = Math.abs(net);
+        return mk("signed_net_change_distance","signed_accumulation", answer,
+          "Pair 1 is the start and Pair 2 is the end. Combine LEFT's change and RIGHT's change into one net change. How far from the start did the pair finish? Enter the distance.",
+          {net, distance:answer}, ["signed_accumulation","before_after"], ["signed_change","net_magnitude"]); } },
+    // ---- G2: fair share with remainder ----
+    { id:"fair_share_units_to_complete", family:"fair_share", minLevel:5, minM:7, responseFormat:"numpad_dynamic", symmetric:true,
+      atomicsUsed:["fair_share","division_remainder"], frameTags:["fair_share","division","metric_relation"],
+      canUse:(p1,p2)=>{ if(!dig(p1)||!numOk(p2)) return false; const T=concat2(p1), k=kFromPair(p2); return k>=2 && (T % k) !== 0; },
+      fn:(p1,p2,m)=>{ if(!dig(p1)||!numOk(p2)) return null; const T=concat2(p1), k=kFromPair(p2); if(k<2 || (T%k)===0) return null;
+        const answer = (k - (T % k)) % k;
+        return mk("fair_share_units_to_complete","fair_share", answer,
+          `Form the Pair 1 number (LEFT is the tens digit, RIGHT is the ones digit). Share it equally among ${k} boxes. There is a leftover. How many more units must you add to the number so the ${k} boxes come out exactly even, with nothing left over?`,
+          {total:T, boxes:k, leftover:T%k, unitsToAdd:answer}, ["fair_share","division"], ["fair_share","division_remainder","complete_to_multiple"]); } },
+    { id:"fair_share_each_box", family:"fair_share", minLevel:5, minM:7, responseFormat:"numpad_dynamic", symmetric:true,
+      atomicsUsed:["fair_share","integer_quotient"], frameTags:["fair_share","division","metric_relation"],
+      canUse:(p1,p2)=>{ if(!dig(p1)||!numOk(p2)) return false; return kFromPair(p2)>=2; },
+      fn:(p1,p2,m)=>{ if(!dig(p1)||!numOk(p2)) return null; const T=concat2(p1), k=kFromPair(p2); if(k<2) return null;
+        const answer = Math.floor(T / k);
+        return mk("fair_share_each_box","fair_share", answer,
+          `Form the Pair 1 number (LEFT is the tens digit, RIGHT is the ones digit). Share it equally among ${k} boxes, putting as many whole units in each box as possible. How many units go in EACH box?`,
+          {total:T, boxes:k, perBox:answer, leftover:T%k}, ["fair_share","division"], ["fair_share","integer_quotient"]); } },
+    // ---- G5: inclusion-exclusion (sizes referenced by role, never reprinted) ----
+    { id:"set_union_size", family:"inclusion_exclusion", minLevel:5, minM:6, responseFormat:"numpad_dynamic", symmetric:true,
+      atomicsUsed:["set_cardinality","inclusion_exclusion"], frameTags:["set_cardinality","inclusion_exclusion","metric_relation"],
+      canUse:(p1,p2)=>{ if(!numOk(p1)||!numOk(p2)) return false; const A=Number(p1.a), B=Number(p1.b), ov=Number(p2.a); return A>=1 && B>=1 && ov>=0 && ov<=Math.min(A,B); },
+      fn:(p1,p2,m)=>{ const A=Number(p1.a), B=Number(p1.b), ov=Number(p2.a); if(!(A>=1&&B>=1&&ov>=0&&ov<=Math.min(A,B))) return null;
+        const answer = A + B - ov;
+        return mk("set_union_size","inclusion_exclusion", answer,
+          "Group A's size is Pair 1 LEFT; group B's size is Pair 1 RIGHT. Pair 2 LEFT members belong to BOTH groups. How many different members are there in total (everyone who is in A or in B)?",
+          {sizeA:A, sizeB:B, overlap:ov, union:answer}, ["set_cardinality","inclusion_exclusion"], ["inclusion_exclusion","union_size"]); } },
+    { id:"set_exactly_one_size", family:"inclusion_exclusion", minLevel:6, minM:6, responseFormat:"numpad_dynamic", symmetric:true,
+      atomicsUsed:["set_cardinality","inclusion_exclusion"], frameTags:["set_cardinality","inclusion_exclusion","metric_relation"],
+      canUse:(p1,p2)=>{ if(!numOk(p1)||!numOk(p2)) return false; const A=Number(p1.a), B=Number(p1.b), ov=Number(p2.a); return A>=1 && B>=1 && ov>=0 && ov<=Math.min(A,B); },
+      fn:(p1,p2,m)=>{ const A=Number(p1.a), B=Number(p1.b), ov=Number(p2.a); if(!(A>=1&&B>=1&&ov>=0&&ov<=Math.min(A,B))) return null;
+        const answer = A + B - 2*ov;
+        return mk("set_exactly_one_size","inclusion_exclusion", answer,
+          "Group A's size is Pair 1 LEFT; group B's size is Pair 1 RIGHT. Pair 2 LEFT members belong to BOTH groups. How many members belong to exactly ONE of the two groups (in A or B, but not in both)?",
+          {sizeA:A, sizeB:B, overlap:ov, exactlyOne:answer}, ["set_cardinality","inclusion_exclusion"], ["inclusion_exclusion","symmetric_difference"]); } }
+  ];
+  function registerL1(){
+    const stages={signed_accumulation:5, fair_share:5, inclusion_exclusion:5};
+    try{ if(typeof L1_FAMILY_STAGE!=="undefined") for(const k in stages) L1_FAMILY_STAGE[k]=stages[k]; }catch(_){ }
+    try{ if(typeof L1_FAMILY_FRAME_MAP!=="undefined") for(const k in stages) L1_FAMILY_FRAME_MAP[k]=["source_relation","metric_relation"]; }catch(_){ }
+    const existing=new Set(L1_OPS.map(o=>o&&o.id)); let added=0; const ids=[];
+    for(const op of OPS){ if(existing.has(op.id)) continue; L1_OPS.push(Object.assign({}, op)); added++; ids.push(op.id); }
+    return {added, ids};
+  }
+  const REG = registerL1();
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+  function auditV6863L1(opts={}){
+    const blockers=[], warnings=[], details={patch:PATCH_ID, reg:REG};
+    function rA(){ return 1+Math.floor(Math.random()*9); }
+    function rB(){ return Math.floor(Math.random()*10); }
+    try{
+      const byId={}; for(const op of L1_OPS){ if(op && OPS.some(o=>o.id===op.id)) byId[op.id]=op; }
+      // G1
+      const dist=byId.signed_net_change_distance, dir=byId.signed_net_change_direction;
+      if(!dist||!dir){ blockers.push("missing G1 ops"); }
+      else{
+        let mism=0, built=0; const dirHist={0:0,1:0,2:0,3:0};
+        for(let i=0;i<300;i++){ const p1={a:rA(),b:rB()}, p2={a:rA(),b:rB()}; const net=(p2.a-p1.a)+(p2.b-p1.b);
+          const rd=dist.fn(p1,p2,9); if(rd && Number(rd.answer)!==Math.abs(net)) mism++;
+          const rc=dir.fn(p1,p2,9); if(rc){ const exp=net>0?0:(net<0?1:2); if(rc.correctIndex!==exp) mism++; dirHist[rc.correctIndex]=(dirHist[rc.correctIndex]||0)+1; built++; } }
+        details.g1={built, mism, dirHist};
+        if(mism>0) blockers.push(`G1: ${mism} mismatches`);
+        if(dirHist[0]===0||dirHist[1]===0) warnings.push(`G1 direction thin ${JSON.stringify(dirHist)}`);
+        if(dirHist[3]>0) blockers.push(`G1: direction returned the never-correct 'cannot' option`);
+      }
+      // G2
+      const add=byId.fair_share_units_to_complete, each=byId.fair_share_each_box;
+      if(!add||!each){ blockers.push("missing G2 ops"); }
+      else{
+        let mism=0, built=0, exactFire=0; const addHist={};
+        for(let a=1;a<=9;a++) for(let b=0;b<=9;b++) for(let ka=1;ka<=9;ka++){
+          const p1={a,b}, p2={a:ka,b:0}; const T=a*10+b, k=2+(ka%4);
+          const ra=add.fn(p1,p2,9); if(ra){ built++; const exp=(k-(T%k))%k; if(Number(ra.answer)!==exp) mism++; if((T%k)===0) exactFire++; addHist[ra.answer]=(addHist[ra.answer]||0)+1; }
+          const re=each.fn(p1,p2,9); if(re){ const exp=Math.floor(T/k); if(Number(re.answer)!==exp) mism++; }
+        }
+        details.g2={built, mism, addDistinct:Object.keys(addHist).length, exactFire};
+        if(mism>0) blockers.push(`G2: ${mism} mismatches`);
+        if(exactFire>0) blockers.push(`G2: add op fired on exact division (${exactFire})`);
+        if(Object.keys(addHist).length<2) blockers.push(`G2: add op degenerate`);
+      }
+      // G5
+      const uni=byId.set_union_size, one=byId.set_exactly_one_size;
+      if(!uni||!one){ blockers.push("missing G5 ops"); }
+      else{
+        let mism=0, built=0, neg=0, badOv=0; const uHist={};
+        for(let A=1;A<=9;A++) for(let B=1;B<=9;B++) for(let ov=0;ov<=9;ov++){
+          const p1={a:A,b:B}, p2={a:ov,b:0};
+          const ru=uni.fn(p1,p2,9); if(ru){ built++; const exp=A+B-ov; if(Number(ru.answer)!==exp) mism++; if(Number(ru.answer)<0) neg++; if(ov>Math.min(A,B)) badOv++; uHist[ru.answer]=(uHist[ru.answer]||0)+1; }
+          const ro=one.fn(p1,p2,9); if(ro){ const exp=A+B-2*ov; if(Number(ro.answer)!==exp) mism++; if(Number(ro.answer)<0) neg++; }
+        }
+        details.g5={built, mism, neg, badOv, unionDistinct:Object.keys(uHist).length};
+        if(mism>0) blockers.push(`G5: ${mism} mismatches`);
+        if(neg>0) blockers.push(`G5: ${neg} negative answers`);
+        if(badOv>0) blockers.push(`G5: ${badOv} fired with overlap>min`);
+      }
+    }catch(e){ blockers.push("v6.8.63 L1 audit exception: "+(e&&e.message||e)); }
+    return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
+  }
+  try{ window.auditV6863SemanticL1 = auditV6863L1; globalThis.auditV6863SemanticL1 = auditV6863L1; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit==="function") registerFeatureAudit(["v6863_semantic_l1","signed_accumulation","fair_share","inclusion_exclusion"], auditV6863L1, "auditV6863SemanticL1");
+    if(typeof registerExtraFeatureAudit==="function") registerExtraFeatureAudit("auditV6863SemanticL1", auditV6863L1);
+  }catch(_){ }
+  try{ window.EUCA_V6863_SEMANTIC_L1 = {patch:PATCH_ID, reg:REG, audit:auditV6863L1, ops:OPS.map(o=>o.id)}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.64 - G7 CONSERVATION/REDISTRIBUTION + G9 CONSTRAINT-SATISFACTION (the two CONSIDER gaps the
+// user approved). Only the NOVEL sub-tasks the adversarial filter endorsed are built:
+//   G7: crossover direction (predict the order-flip after moving K units; total is conserved) +
+//       minimum transfer that flips which pool is larger (the tipping point ⌊gap/2⌋+1).
+//   G9: satisfiability/uniqueness judgment ("do NO / EXACTLY ONE / MORE THAN ONE pairs satisfy all
+//       these?") + minimal-repair ("smallest total edit so both become multiples of 4").
+// (Dropped: G7 total/gap-after = counterfactual re-skin; G9 cc_construct = boolean-compound re-skin.)
+// All mask-respecting (anchors referenced by role), each with an anti-degeneracy guard.
+(function(){
+  if(typeof L1_OPS === "undefined" || !Array.isArray(L1_OPS)) return;
+  const PATCH_ID = "v6.8.64-conservation-and-constraint";
+  function uniqLocal(xs){ return Array.from(new Set((xs||[]).filter(x=>x!=null).map(String))); }
+  function numOk(p){ return !!(p && Number.isInteger(Number(p.a)) && Number.isInteger(Number(p.b))); }
+  function sumP(p){ return Number(p.a)+Number(p.b); }
+  function gapP(p){ return Math.abs(Number(p.a)-Number(p.b)); }
+  function distTo4(n){ const r=((Number(n)%4)+4)%4; return Math.min(r, (4-r)%4); }
+  function countTwoSum(S){ let c=0; for(let a=1;a<=9;a++) for(let b=a+1;b<=9;b++) if(a+b===S) c++; return c; }
+  function countEvenSum(S){ const ev=[2,4,6,8]; let c=0; for(let i=0;i<ev.length;i++) for(let j=i+1;j<ev.length;j++) if(ev[i]+ev[j]===S) c++; return c; }
+  function countOutcome(c){ return c===0?0:(c===1?1:2); }
+  function mk(opId, family, answer, question, payload, frameTags, mechanismTags){
+    return { answer, question, answerLabel:String(answer),
+      payload:{ semanticOp:Object.assign({layer:"L1", opId, family}, payload||{}) },
+      frameTags:uniqLocal(["source_relation","metric_relation"].concat(frameTags||[])),
+      mechanismTags:uniqLocal([].concat(mechanismTags||[])) };
+  }
+  function mkChoice(opId, family, correctIndex, question, labels, payload, frameTags, mechanismTags){
+    return { correctIndex, choiceLabels:labels, question,
+      payload:{ semanticOp:Object.assign({layer:"L1", opId, family}, payload||{}) },
+      frameTags:uniqLocal(["source_relation","metric_relation"].concat(frameTags||[])),
+      mechanismTags:uniqLocal([].concat(mechanismTags||[])) };
+  }
+  const CROSS_LABELS = ["The LEFT pool is larger", "The RIGHT pool is larger", "The two pools are equal", "Cannot be determined"];
+  const JUDGE_LABELS = ["No pair of values satisfies all of them", "Exactly one pair satisfies all of them", "More than one pair satisfies all of them", "Cannot be determined"];
+  const OPS = [
+    // ---- G7: conservation / redistribution ----
+    { id:"redistribution_crossover_direction", family:"redistribution", minLevel:5, minM:6, responseFormat:"choice", choiceLabels:CROSS_LABELS,
+      atomicsUsed:["conservation","redistribution","order_crossover"], frameTags:["redistribution","conservation","order_crossover","comparison"],
+      canUse:(p1,p2)=>{ if(!numOk(p1)||!numOk(p2)) return false; const K=Number(p2.a); const hi=Math.max(Number(p1.a),Number(p1.b)); return Number(p1.a)!==Number(p1.b) && K>=1 && K<=hi; },
+      fn:(p1,p2,m)=>{ if(!numOk(p1)||!numOk(p2)) return null; const L=Number(p1.a), R=Number(p1.b), K=Number(p2.a);
+        if(L===R) return null; const hi=Math.max(L,R), lo=Math.min(L,R); if(!(K>=1 && K<=hi)) return null;
+        // Move K from the LARGER pool to the smaller: outcome turns on K vs gap/2 (the tipping point),
+        // so LEFT/RIGHT stay balanced and the task pairs with min_move_to_flip.
+        const hi2=hi-K, lo2=lo+K; const largerIsLeft = L>R;
+        let ci; if(hi2>lo2) ci = largerIsLeft?0:1; else if(hi2<lo2) ci = largerIsLeft?1:0; else ci=2;
+        return mkChoice("redistribution_crossover_direction","redistribution", ci,
+          "The LEFT pool and the RIGHT pool hold the two retained values. Move Pair 2 LEFT units from the LARGER pool into the SMALLER pool. After the move, which pool is larger?",
+          CROSS_LABELS, {leftBefore:L, rightBefore:R, move:K, largerWas:(largerIsLeft?"LEFT":"RIGHT"), leftAfter:(largerIsLeft?hi2:lo2), rightAfter:(largerIsLeft?lo2:hi2)},
+          ["redistribution","conservation","order_crossover"], ["conservation","order_crossover_prediction"]); } },
+    { id:"redistribution_min_move_to_flip", family:"redistribution", minLevel:5, minM:6, responseFormat:"numpad_dynamic", symmetric:true,
+      atomicsUsed:["redistribution","crossover_threshold"], frameTags:["redistribution","conservation","threshold_relation"],
+      canUse:(p1,p2)=> numOk(p1) && Number(p1.a) !== Number(p1.b),
+      fn:(p1,p2,m)=>{ if(!numOk(p1) || Number(p1.a) === Number(p1.b)) return null; const g=gapP(p1); const answer=Math.floor(g/2)+1;
+        return mk("redistribution_min_move_to_flip","redistribution", answer,
+          "The LEFT pool and the RIGHT pool hold the two retained values. What is the SMALLEST number of units you must move from the larger pool to the smaller pool so that the smaller pool becomes the larger one (the order flips)?",
+          {gap:g, minMoveToFlip:answer}, ["redistribution","conservation"], ["crossover_threshold","tipping_point"]); } },
+    // ---- G9: constraint satisfaction (satisfiability / uniqueness) ----
+    { id:"constraint_judge_two_sum", family:"constraint_satisfaction", minLevel:6, minM:6, responseFormat:"choice", choiceLabels:JUDGE_LABELS,
+      atomicsUsed:["constraint_satisfaction","satisfiability","uniqueness"], frameTags:["constraint_satisfaction","satisfiability","bounded_search"],
+      canUse:(p1,p2)=> numOk(p2),
+      fn:(p1,p2,m)=>{ if(!numOk(p2)) return null; const S=sumP(p2); const c=countTwoSum(S); const ci=countOutcome(c);
+        return mkChoice("constraint_judge_two_sum","constraint_satisfaction", ci,
+          "Think of every pair of two DIFFERENT whole numbers, each from 1 to 9. How many such pairs add up to exactly Pair 2's total — none, exactly one, or more than one?",
+          JUDGE_LABELS, {target:S, solutionCount:c}, ["constraint_satisfaction","satisfiability"], ["satisfiability_judgment","solution_counting"]); } },
+    { id:"constraint_judge_even_sum", family:"constraint_satisfaction", minLevel:6, minM:6, responseFormat:"choice", choiceLabels:JUDGE_LABELS,
+      atomicsUsed:["constraint_satisfaction","satisfiability","uniqueness"], frameTags:["constraint_satisfaction","satisfiability","bounded_search"],
+      canUse:(p1,p2)=> numOk(p2),
+      fn:(p1,p2,m)=>{ if(!numOk(p2)) return null; const S=sumP(p2); const c=countEvenSum(S); const ci=countOutcome(c);
+        return mkChoice("constraint_judge_even_sum","constraint_satisfaction", ci,
+          "Think of every pair of two DIFFERENT EVEN numbers, each from 1 to 9. How many such pairs add up to exactly Pair 2's total — none, exactly one, or more than one?",
+          JUDGE_LABELS, {target:S, solutionCount:c}, ["constraint_satisfaction","satisfiability","parity"], ["satisfiability_judgment","solution_counting"]); } },
+    { id:"constraint_repair_mult4", family:"constraint_satisfaction", minLevel:6, minM:6, responseFormat:"numpad_dynamic", symmetric:true,
+      atomicsUsed:["constraint_satisfaction","minimal_repair"], frameTags:["constraint_satisfaction","minimal_repair","metric_relation"],
+      canUse:(p1,p2)=>{ if(!numOk(p1)) return false; return !((Number(p1.a)%4)===0 && (Number(p1.b)%4)===0); },
+      fn:(p1,p2,m)=>{ if(!numOk(p1)) return null; if((Number(p1.a)%4)===0 && (Number(p1.b)%4)===0) return null;
+        const answer = distTo4(p1.a) + distTo4(p1.b);
+        return mk("constraint_repair_mult4","constraint_satisfaction", answer,
+          "Both retained values should be multiples of 4, but they are not yet. Counting every single unit you add to or remove from either value, what is the SMALLEST total change that makes BOTH values multiples of 4?",
+          {minRepair:answer}, ["constraint_satisfaction","minimal_repair"], ["minimal_repair","counter_witness"]); } }
+  ];
+  function registerL1(){
+    const stages={redistribution:5, constraint_satisfaction:6};
+    try{ if(typeof L1_FAMILY_STAGE!=="undefined") for(const k in stages) L1_FAMILY_STAGE[k]=stages[k]; }catch(_){ }
+    try{ if(typeof L1_FAMILY_FRAME_MAP!=="undefined") for(const k in stages) L1_FAMILY_FRAME_MAP[k]=["source_relation","metric_relation"]; }catch(_){ }
+    const existing=new Set(L1_OPS.map(o=>o&&o.id)); let added=0; const ids=[];
+    for(const op of OPS){ if(existing.has(op.id)) continue; L1_OPS.push(Object.assign({}, op)); added++; ids.push(op.id); }
+    return {added, ids};
+  }
+  const REG = registerL1();
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+  function auditV6864(opts={}){
+    const blockers=[], warnings=[], details={patch:PATCH_ID, reg:REG};
+    try{
+      const byId={}; for(const op of L1_OPS){ if(op && OPS.some(o=>o.id===op.id)) byId[op.id]=op; }
+      // G7 crossover direction
+      const cd=byId.redistribution_crossover_direction;
+      if(!cd) blockers.push("missing crossover op");
+      else{
+        let mism=0, built=0, lure=0; const hist={0:0,1:0,2:0,3:0};
+        for(let a=1;a<=9;a++) for(let b=1;b<=9;b++){ if(a===b) continue; const hi=Math.max(a,b), lo=Math.min(a,b);
+          for(let K=1;K<=hi;K++){
+            const r=cd.fn({a,b},{a:K,b:0},9); if(!r) continue; built++;
+            const hi2=hi-K, lo2=lo+K; const largerIsLeft=a>b;
+            let exp; if(hi2>lo2) exp=largerIsLeft?0:1; else if(hi2<lo2) exp=largerIsLeft?1:0; else exp=2;
+            if(r.correctIndex!==exp) mism++; if(r.correctIndex===3) lure++; hist[r.correctIndex]=(hist[r.correctIndex]||0)+1;
+          }
+        }
+        details.crossover={built, mism, hist};
+        if(mism>0) blockers.push(`crossover: ${mism} mismatches`);
+        if(lure>0) blockers.push(`crossover: returned the never-correct lure`);
+        if(hist[0]===0||hist[1]===0||hist[2]===0) warnings.push(`crossover outcomes thin ${JSON.stringify(hist)}`);
+      }
+      // G7 min move to flip
+      const mf=byId.redistribution_min_move_to_flip;
+      if(!mf) blockers.push("missing min-move op");
+      else{
+        let mism=0, built=0, notMinimal=0, notFlip=0; const hist={};
+        for(let a=1;a<=9;a++) for(let b=1;b<=9;b++){ if(a===b) continue;
+          const r=mf.fn({a,b},{a:1,b:0},9); if(!r) continue; built++;
+          const g=Math.abs(a-b); const exp=Math.floor(g/2)+1; if(Number(r.answer)!==exp) mism++;
+          const hi=Math.max(a,b), lo=Math.min(a,b), M=Number(r.answer);
+          if(!((hi-M) < (lo+M))) notFlip++;              // M must flip the order
+          if((hi-(M-1)) < (lo+(M-1))) notMinimal++;      // M-1 must NOT already flip
+          hist[r.answer]=(hist[r.answer]||0)+1;
+        }
+        details.minFlip={built, mism, notFlip, notMinimal, distinct:Object.keys(hist).length};
+        if(mism>0) blockers.push(`minFlip: ${mism} mismatches`);
+        if(notFlip>0) blockers.push(`minFlip: ${notFlip} answers do not flip the order`);
+        if(notMinimal>0) blockers.push(`minFlip: ${notMinimal} answers are not minimal`);
+        if(Object.keys(hist).length<3) blockers.push(`minFlip degenerate (${Object.keys(hist).length} distinct)`);
+      }
+      // G9 judges
+      for(const id of ["constraint_judge_two_sum","constraint_judge_even_sum"]){
+        const op=byId[id]; if(!op){ blockers.push(`missing ${id}`); continue; }
+        let mism=0, built=0, lure=0; const hist={0:0,1:0,2:0,3:0};
+        for(let a=1;a<=9;a++) for(let b=0;b<=9;b++){
+          const r=op.fn({a:1,b:1},{a,b},9); if(!r) continue; built++;
+          const S=a+b; const c = id==="constraint_judge_two_sum"?countTwoSum(S):countEvenSum(S); const exp=countOutcome(c);
+          if(r.correctIndex!==exp) mism++; if(r.correctIndex===3) lure++; hist[r.correctIndex]=(hist[r.correctIndex]||0)+1;
+        }
+        details[id]={built, mism, hist};
+        if(mism>0) blockers.push(`${id}: ${mism} mismatches`);
+        if(lure>0) blockers.push(`${id}: returned the never-correct lure`);
+        const zeros=[hist[0],hist[1],hist[2]].filter(v=>v===0).length;
+        if(zeros>0) warnings.push(`${id}: ${zeros} outcomes never occurred ${JSON.stringify(hist)}`);
+      }
+      // G9 repair
+      const rep=byId.constraint_repair_mult4;
+      if(!rep) blockers.push("missing repair op");
+      else{
+        let mism=0, built=0, badGuard=0; const hist={};
+        for(let a=1;a<=9;a++) for(let b=0;b<=9;b++){
+          const r=rep.fn({a,b},{a:1,b:0},9); if(!r) continue; built++;
+          const exp=distTo4(a)+distTo4(b); if(Number(r.answer)!==exp) mism++;
+          if((a%4)===0 && (b%4)===0) badGuard++;       // should not fire when both already mult4
+          if(Number(r.answer)===0) badGuard++;          // and the answer should never be 0
+          hist[r.answer]=(hist[r.answer]||0)+1;
+        }
+        details.repair={built, mism, badGuard, distinct:Object.keys(hist).length, hist};
+        if(mism>0) blockers.push(`repair: ${mism} mismatches`);
+        if(badGuard>0) blockers.push(`repair: ${badGuard} trivial/guard violations`);
+        if(Object.keys(hist).length<3) blockers.push(`repair degenerate (${Object.keys(hist).length} distinct)`);
+      }
+    }catch(e){ blockers.push("v6.8.64 audit exception: "+(e&&e.message||e)); }
+    return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
+  }
+  try{ window.auditV6864ConservationConstraint = auditV6864; globalThis.auditV6864ConservationConstraint = auditV6864; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit==="function") registerFeatureAudit(["v6864_conservation_constraint","redistribution","constraint_satisfaction"], auditV6864, "auditV6864ConservationConstraint");
+    if(typeof registerExtraFeatureAudit==="function") registerExtraFeatureAudit("auditV6864ConservationConstraint", auditV6864);
+  }catch(_){ }
+  try{ window.EUCA_V6864_CONSERVATION_CONSTRAINT = {patch:PATCH_ID, reg:REG, audit:auditV6864, ops:OPS.map(o=>o.id)}; }catch(_){ }
 })();
 </script>
 
