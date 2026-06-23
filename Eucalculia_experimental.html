@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.64</title>
+<title>Eucalculia v6.8.66</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3331,7 +3331,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.64";
+const APP_VERSION = "v6.8.66";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -61646,6 +61646,11 @@ function drawL1Review(info){
     const inverseDetails = info.op?.id === "inverse_rule_probe" ? inverseRuleReviewDetails(info) : null;
     const ruleDetails = (info.op?.family === "retained_rule_parsing_choice" || info.op?.family === "retained_rule_outlier_choice") ? l1RetainedRuleReviewDetails(info) : null;
     let details = ruleDetails || inverseDetails || `${baseLine}${transformLine} · Correct meaning: ${semantic}${userPart}`;
+    // v6.8.65: let a registered detail builder add a worked-explanation line for CHOICE ops too
+    // (the numpad path already does this) — used by the new reasoning families.
+    if(!ruleDetails && !inverseDetails){
+      try{ const b = info.op?.id && L1_REVIEW_DETAIL_BUILDERS[info.op.id]; if(typeof b === "function"){ const extra = b({p1:info.pair1, p2:info.pair2, info}); if(extra) details = `${baseLine}${transformLine} · ${extra} · Correct: ${semantic}${userPart}`; } }catch(_){ }
+    }
     if(info.episodicReview?.text) details = `${details}
 
 ${info.episodicReview.text}`;
@@ -85159,14 +85164,14 @@ try{
       {
         id:"l1_range_totals_single_composite",
         title:"Totals define a range with one composite",
-        question:"Build two pairs whose totals define an inclusive range containing exactly one composite number. The inclusive range must contain 3 to 6 integers.",
+        question:"Build two pairs so that the run of whole numbers from the smaller total up to the larger total (counted inclusively) is between 3 and 6 numbers LONG, and exactly one of those numbers is composite.",
         verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 3 && r.length <= 6 && countBy(r, isCompositeSmall) === 1; },
         atomics:["generative_l1", "range_witness", "composite", "interval_scan"]
       },
       {
         id:"l1_range_totals_two_primes_with_composite",
         title:"Totals define a range with two primes and a composite",
-        question:"Build two pairs whose totals define an inclusive range containing exactly two primes and at least one composite number. The inclusive range must contain 4 to 7 integers.",
+        question:"Build two pairs so that the run of whole numbers from the smaller total up to the larger total (counted inclusively) is between 4 and 7 numbers LONG, contains exactly two primes, and contains at least one composite number.",
         verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 4 && r.length <= 7 && countBy(r, isPrimeSmall) === 2 && countBy(r, isCompositeSmall) >= 1; },
         atomics:["generative_l1", "range_witness", "prime", "composite", "interval_scan"]
       }
@@ -85220,7 +85225,8 @@ try{
     if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT; changing RIGHT flips whether LEFT > RIGHT.`;
     if(id === "l1_range_totals_single_composite" || id === "l1_range_totals_two_primes_with_composite"){
       const r = rangeInts(sum(p1), sum(p2));
-      return `${base} Totals ${sum(p1)} and ${sum(p2)} define range ${r[0]}–${r[r.length-1]}; primes ${countBy(r, isPrimeSmall)}, composites ${countBy(r, isCompositeSmall)}.`;
+      const need = id === "l1_range_totals_single_composite" ? "3 to 6 numbers long, exactly 1 composite" : "4 to 7 numbers long, exactly 2 primes + ≥1 composite";
+      return `${base} Totals ${sum(p1)} and ${sum(p2)} → run ${r[0]}–${r[r.length-1]} is ${r.length} number${r.length===1?"":"s"} long; primes ${countBy(r, isPrimeSmall)}, composites ${countBy(r, isCompositeSmall)}. Needed: ${need}.`;
     }
     return base;
   }
@@ -92167,8 +92173,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           id:`discriminate_${r1.id}_vs_${r2.id}`,
           mode:"discriminator_construction",
           title:"Build a discriminator",
-          question:`Build a pair that makes one of these true and the other false.\nA: ${r1.label}\nB: ${r2.label}`,
-          sub:"One must answer YES, the other NO.",
+          question:`Build a pair where these two rules DISAGREE — one comes out YES and the other NO. Either direction works (you do NOT have to pick which is which).\nA: ${r1.label}\nB: ${r2.label}`,
+          sub:"Just make the two rules disagree: one YES, one NO — it does not matter which.",
           params:{ruleAId:r1.id, ruleBId:r2.id},
           phaseCount:1,
           klauer:{process:"different", object:(r1.object === r2.object ? r1.object : "relation")},
@@ -92394,7 +92400,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }
     if(ic?.mode === "system_construction") return "Target: satisfy the stated same/different system.";
     if(ic?.mode === "hidden_rule_induction") return `Target: infer the visible candidate rule and build a new ${yn(p.target)} example.`;
-    if(ic?.mode === "discriminator_construction") return "Target: make one rule YES and the other NO.";
+    if(ic?.mode === "discriminator_construction") return "Target: make the two rules disagree — one YES, one NO (either way).";
     if(ic?.mode === "threshold_bracket_induction") return `Target: Pair 1 matches the NO example's measure; Pair 2 matches the YES example's measure.`;
     if(ic?.mode === "composition_induction") return `Target: infer the connective and build a new ${yn(p.target)} example.`;
     return "Target: build a construction satisfying the stated constraints.";
@@ -100347,7 +100353,10 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     });
   }catch(_){ }
   // Heavy = construction / multi-step reasoning / epistemic / inverse / recursive / induction.
-  const HEAVY_RE = /epistemic|inverse|recursive|induction|hidden_rule|composition_induction|discriminator|generative|geninduct|witness|productive|place_value_gate|construct/i;
+  // v6.8.65: the new reasoning-heavy families (mental search, relation composition, redistribution
+  // simulation) are explicitly heavy. fair_share / inclusion_exclusion / signed_accumulation are a
+  // single arithmetic formula → they stay MEDIUM by design (not an oversight).
+  const HEAVY_RE = /epistemic|inverse|recursive|induction|hidden_rule|composition_induction|discriminator|generative|geninduct|witness|productive|place_value_gate|construct|constraint_satisfaction|transitive_inference|redistribution/i;
   const HEAVY_FORMAT_RE = /generativ|construct/i;
   const LIGHT_FORMAT_RE = /^(bool|yesno|boolean)$/i;
   function famOf(obj){ return String((obj && (obj.family || obj.catFamily || obj.extensionFamily || (obj.op && obj.op.family))) || "").toLowerCase(); }
@@ -101348,7 +101357,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function numOk(p){ return !!(p && Number.isInteger(Number(p.a)) && Number.isInteger(Number(p.b))); }
   function sumP(p){ return Number(p.a)+Number(p.b); }
   function gapP(p){ return Math.abs(Number(p.a)-Number(p.b)); }
-  function distTo4(n){ const r=((Number(n)%4)+4)%4; return Math.min(r, (4-r)%4); }
+  function isPos4(n){ n=Number(n); return n>0 && n%4===0; } // a POSITIVE multiple of 4 (4, 8, 12, …) — 0 does not count
+  function distPos4(n){ n=Number(n); let best=Infinity; for(let k=4;k<=n+4;k+=4) best=Math.min(best, Math.abs(n-k)); return best; } // distance to the nearest positive multiple of 4 (never repairs down to 0)
   function countTwoSum(S){ let c=0; for(let a=1;a<=9;a++) for(let b=a+1;b<=9;b++) if(a+b===S) c++; return c; }
   function countEvenSum(S){ const ev=[2,4,6,8]; let c=0; for(let i=0;i<ev.length;i++) for(let j=i+1;j<ev.length;j++) if(ev[i]+ev[j]===S) c++; return c; }
   function countOutcome(c){ return c===0?0:(c===1?1:2); }
@@ -101394,22 +101404,22 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       canUse:(p1,p2)=> numOk(p2),
       fn:(p1,p2,m)=>{ if(!numOk(p2)) return null; const S=sumP(p2); const c=countTwoSum(S); const ci=countOutcome(c);
         return mkChoice("constraint_judge_two_sum","constraint_satisfaction", ci,
-          "Think of every pair of two DIFFERENT whole numbers, each from 1 to 9. How many such pairs add up to exactly Pair 2's total — none, exactly one, or more than one?",
+          "Think of every pair of two DIFFERENT whole numbers, each from 1 to 9 (order does not matter — 1 and 4 is the same pair as 4 and 1). How many such pairs add up to exactly Pair 2's total — none, exactly one, or more than one?",
           JUDGE_LABELS, {target:S, solutionCount:c}, ["constraint_satisfaction","satisfiability"], ["satisfiability_judgment","solution_counting"]); } },
     { id:"constraint_judge_even_sum", family:"constraint_satisfaction", minLevel:6, minM:6, responseFormat:"choice", choiceLabels:JUDGE_LABELS,
       atomicsUsed:["constraint_satisfaction","satisfiability","uniqueness"], frameTags:["constraint_satisfaction","satisfiability","bounded_search"],
       canUse:(p1,p2)=> numOk(p2),
       fn:(p1,p2,m)=>{ if(!numOk(p2)) return null; const S=sumP(p2); const c=countEvenSum(S); const ci=countOutcome(c);
         return mkChoice("constraint_judge_even_sum","constraint_satisfaction", ci,
-          "Think of every pair of two DIFFERENT EVEN numbers, each from 1 to 9. How many such pairs add up to exactly Pair 2's total — none, exactly one, or more than one?",
+          "Think of every pair of two DIFFERENT EVEN numbers, each from 1 to 9 (order does not matter — 2 and 4 is the same pair as 4 and 2). How many such pairs add up to exactly Pair 2's total — none, exactly one, or more than one?",
           JUDGE_LABELS, {target:S, solutionCount:c}, ["constraint_satisfaction","satisfiability","parity"], ["satisfiability_judgment","solution_counting"]); } },
     { id:"constraint_repair_mult4", family:"constraint_satisfaction", minLevel:6, minM:6, responseFormat:"numpad_dynamic", symmetric:true,
       atomicsUsed:["constraint_satisfaction","minimal_repair"], frameTags:["constraint_satisfaction","minimal_repair","metric_relation"],
-      canUse:(p1,p2)=>{ if(!numOk(p1)) return false; return !((Number(p1.a)%4)===0 && (Number(p1.b)%4)===0); },
-      fn:(p1,p2,m)=>{ if(!numOk(p1)) return null; if((Number(p1.a)%4)===0 && (Number(p1.b)%4)===0) return null;
-        const answer = distTo4(p1.a) + distTo4(p1.b);
+      canUse:(p1,p2)=>{ if(!numOk(p1)) return false; return !(isPos4(p1.a) && isPos4(p1.b)); },
+      fn:(p1,p2,m)=>{ if(!numOk(p1)) return null; if(isPos4(p1.a) && isPos4(p1.b)) return null;
+        const answer = distPos4(p1.a) + distPos4(p1.b);
         return mk("constraint_repair_mult4","constraint_satisfaction", answer,
-          "Both retained values should be multiples of 4, but they are not yet. Counting every single unit you add to or remove from either value, what is the SMALLEST total change that makes BOTH values multiples of 4?",
+          "Both retained values should be multiples of 4 (that is, 4, 8, 12, …), but they are not yet. Counting every unit you add to or remove from either value, what is the SMALLEST total change that makes BOTH values into a multiple of 4? (The smallest allowed multiple is 4, not 0.)",
           {minRepair:answer}, ["constraint_satisfaction","minimal_repair"], ["minimal_repair","counter_witness"]); } }
   ];
   function registerL1(){
@@ -101485,9 +101495,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         let mism=0, built=0, badGuard=0; const hist={};
         for(let a=1;a<=9;a++) for(let b=0;b<=9;b++){
           const r=rep.fn({a,b},{a:1,b:0},9); if(!r) continue; built++;
-          const exp=distTo4(a)+distTo4(b); if(Number(r.answer)!==exp) mism++;
-          if((a%4)===0 && (b%4)===0) badGuard++;       // should not fire when both already mult4
-          if(Number(r.answer)===0) badGuard++;          // and the answer should never be 0
+          const exp=distPos4(a)+distPos4(b); if(Number(r.answer)!==exp) mism++;
+          if(isPos4(a) && isPos4(b)) badGuard++;        // should not fire when both already positive-mult-4
+          if(Number(r.answer)===0) badGuard++;          // and the answer should never be 0 (no repair-to-0)
           hist[r.answer]=(hist[r.answer]||0)+1;
         }
         details.repair={built, mism, badGuard, distinct:Object.keys(hist).length, hist};
@@ -101504,6 +101514,235 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(typeof registerExtraFeatureAudit==="function") registerExtraFeatureAudit("auditV6864ConservationConstraint", auditV6864);
   }catch(_){ }
   try{ window.EUCA_V6864_CONSERVATION_CONSTRAINT = {patch:PATCH_ID, reg:REG, audit:auditV6864, ops:OPS.map(o=>o.id)}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.65 - REVIEW DETAIL BUILDERS for the new L1 families (v6.8.62 place-value, v6.8.63 semantic,
+// v6.8.64 conservation/constraint). Without these, the post-answer REVIEW falls back to a generic
+// "Pair 1 … Pair 2 …" line — exactly where the worked calculation should be taught. Each builder
+// returns a one-line walkthrough; the numpad review path and (as of v6.8.65) the choice path both use them.
+(function(){
+  if(typeof L1_REVIEW_DETAIL_BUILDERS === "undefined") return;
+  const sgn = n => (n>=0?"+":"") + n;
+  function distPos4(n){ n=Number(n); let b=Infinity; for(let k=4;k<=n+4;k+=4) b=Math.min(b, Math.abs(n-k)); return b; }
+  const B = {
+    // ---- v6.8.62 place-value ----
+    place_value_carry_units_overflow({p1,p2}){ const s=Number(p1.b)+Number(p2.b); return `Ones column: ${p1.b}+${p2.b}=${s} → carry ${s>=10?1:0}`; },
+    place_value_round_nearest_ten({p1}){ const n=p1.a*10+p1.b; return `${n} rounds to ${Math.round(n/10)*10} (ones ${p1.b} ${Number(p1.b)>=5?"≥5 → up":"<5 → down"})`; },
+    place_value_swap_reverse_number({p1}){ return `${p1.a*10+p1.b} with its digits swapped → ${p1.b*10+p1.a}`; },
+    place_value_swap_difference({p1}){ const n=p1.a*10+p1.b, s=p1.b*10+p1.a; return `|${n}−${s}| = ${Math.abs(n-s)}  (always 9×|${p1.a}−${p1.b}|)`; },
+    place_value_exponent_tens_term({p1}){ return `tens place: ${p1.a} × 10 = ${p1.a*10}`; },
+    place_value_exponent_decompose({p1}){ return `${p1.a}×10 + ${p1.b} = ${p1.a*10+p1.b}`; },
+    place_value_digit_square({p1}){ return `${p1.a} × ${p1.a} = ${p1.a*p1.a}`; },
+    // ---- v6.8.63 signed accumulation / fair share / inclusion-exclusion ----
+    signed_net_change_direction({p1,p2}){ const dl=p2.a-p1.a, dr=p2.b-p1.b, net=dl+dr; return `LEFT ${sgn(dl)}, RIGHT ${sgn(dr)} → net ${sgn(net)} (${net>0?"above":net<0?"below":"back to start"})`; },
+    signed_net_change_distance({p1,p2}){ const dl=p2.a-p1.a, dr=p2.b-p1.b, net=dl+dr; return `LEFT ${sgn(dl)}, RIGHT ${sgn(dr)} → net ${sgn(net)}, distance ${Math.abs(net)}`; },
+    fair_share_units_to_complete({p1,p2}){ const T=p1.a*10+p1.b, k=2+(Number(p2.a)%4), r=T%k; return `${T} ÷ ${k} = ${Math.floor(T/k)} remainder ${r}; add ${k}−${r} = ${(k-r)%k}`; },
+    fair_share_each_box({p1,p2}){ const T=p1.a*10+p1.b, k=2+(Number(p2.a)%4); return `${T} ÷ ${k} = ${Math.floor(T/k)} per box (remainder ${T%k})`; },
+    set_union_size({p1,p2}){ return `${p1.a} + ${p1.b} − ${p2.a} = ${p1.a+p1.b-p2.a}`; },
+    set_exactly_one_size({p1,p2}){ return `${p1.a} + ${p1.b} − 2×${p2.a} = ${p1.a+p1.b-2*p2.a}`; },
+    // ---- v6.8.64 redistribution / constraint ----
+    redistribution_crossover_direction({p1,p2}){ const L=Number(p1.a),R=Number(p1.b),K=Number(p2.a),hi=Math.max(L,R),lo=Math.min(L,R); return `larger ${hi}−${K}=${hi-K}, smaller ${lo}+${K}=${lo+K}`; },
+    redistribution_min_move_to_flip({p1}){ const g=Math.abs(p1.a-p1.b); return `gap ${g} → ⌊${g}/2⌋+1 = ${Math.floor(g/2)+1}`; },
+    constraint_judge_two_sum({p2}){ const S=Number(p2.a)+Number(p2.b); const ex=[]; let c=0; for(let a=1;a<=9;a++) for(let b=a+1;b<=9;b++) if(a+b===S){ c++; if(ex.length<3) ex.push(`${a}+${b}`); } return `total ${S}: ${c} pair${c===1?"":"s"}${ex.length?" ("+ex.join(", ")+(c>ex.length?", …":"")+")":""}`; },
+    constraint_judge_even_sum({p2}){ const S=Number(p2.a)+Number(p2.b); const ev=[2,4,6,8], ex=[]; let c=0; for(let i=0;i<ev.length;i++) for(let j=i+1;j<ev.length;j++) if(ev[i]+ev[j]===S){ c++; ex.push(`${ev[i]}+${ev[j]}`); } return `total ${S}: ${c} even pair${c===1?"":"s"}${ex.length?" ("+ex.join(", ")+")":""}`; },
+    constraint_repair_mult4({p1}){ const da=distPos4(p1.a), db=distPos4(p1.b); return `${p1.a} → nearest of 4/8 costs ${da}; ${p1.b} → costs ${db}; total ${da+db}`; }
+  };
+  let added=0; for(const id in B){ try{ L1_REVIEW_DETAIL_BUILDERS[id] = B[id]; added++; }catch(_){ } }
+  // self-audit: every builder returns a non-empty string on a representative pair
+  function auditV6865ReviewBuilders(opts={}){
+    const blockers=[], warnings=[], details={patch:"v6.8.65-review-builders", added};
+    try{
+      const p1={a:3,b:7}, p2={a:8,b:5}; let ok=0;
+      for(const id in B){ try{ const s=B[id]({p1,p2,info:{pair1:p1,pair2:p2}}); if(typeof s==="string" && s.length>0 && !/NaN|undefined/.test(s)) ok++; else blockers.push(`${id}: bad detail "${s}"`); }catch(e){ blockers.push(`${id}: threw ${e&&e.message||e}`); } }
+      details.ok=ok; details.total=Object.keys(B).length;
+      if(ok < Object.keys(B).length) warnings.push("some builders did not produce clean detail");
+    }catch(e){ blockers.push("v6.8.65 review-builder audit exception: "+(e&&e.message||e)); }
+    return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
+  }
+  try{ window.auditV6865ReviewBuilders = auditV6865ReviewBuilders; globalThis.auditV6865ReviewBuilders = auditV6865ReviewBuilders; }catch(_){ }
+  try{ if(typeof registerFeatureAudit==="function") registerFeatureAudit(["v6865_review_builders","review_detail_builders","l1_review_details"], auditV6865ReviewBuilders, "auditV6865ReviewBuilders"); if(typeof registerExtraFeatureAudit==="function") registerExtraFeatureAudit("auditV6865ReviewBuilders", auditV6865ReviewBuilders); }catch(_){ }
+  try{ window.EUCA_V6865_REVIEW_BUILDERS = {added, ids:Object.keys(B), audit:auditV6865ReviewBuilders}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.66 - RETIRE the multi-agent epistemic-abstract "Who can determine?" family from SERVING.
+// User reported it as (a) pedagogically weak and (b) showing a button↔answer desync (tapped "Cy only",
+// recorded "Ben only"). CDP verified the BUILD is self-consistent (correctIndex points to the flagged-
+// correct option; 0/40 inconsistent), so the desync is in the render/tap layer or a one-off — not
+// reproducible at build level. Rather than risk the SHARED choice panel, and because this family is the
+// low-value one the v7 plan retires in favour of the relational_reference (Vía A) family, we gate its
+// canUse OFF so it is no longer served. The cats stay REGISTERED + patched so the 8+ epistemic_abstract
+// audits (which call buildChoiceTrial directly) still pass. Fully reversible via the CONFIG flag.
+(function(){
+  if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return;
+  try{ if(typeof CONFIG !== "undefined") CONFIG.v6866RetireEpistemicAbstract = (CONFIG.v6866RetireEpistemicAbstract !== false); }catch(_){ }
+  let retired = 0; const ids = [];
+  for(const c of POSNER_CATS){
+    if(!c || c.family !== "epistemic_abstract") continue;
+    if(c.__v6866Retired) continue;
+    const prevCanUse = (typeof c.canUse === "function") ? c.canUse.bind(c) : null;
+    c.__v6866OriginalCanUse = prevCanUse;
+    c.canUse = function(m){
+      try{ if(typeof CONFIG !== "undefined" && CONFIG.v6866RetireEpistemicAbstract === false) return prevCanUse ? prevCanUse(m) : true; }catch(_){ }
+      return false; // retired from serving
+    };
+    c.__v6866Retired = true; retired++; ids.push(c.id);
+  }
+  function auditV6866EpistemicRetired(opts={}){
+    const blockers=[], warnings=[], details={patch:"v6.8.66-retire-epistemic-abstract", retired, ids};
+    try{
+      const cats=(POSNER_CATS||[]).filter(c=>c&&c.family==="epistemic_abstract");
+      details.catCount=cats.length;
+      if(!cats.length) warnings.push("no epistemic_abstract cats present");
+      // still buildable (audits depend on it) but not eligible while retired
+      let buildable=0, eligible=0;
+      for(const c of cats){
+        try{ if(typeof c.buildChoiceTrial==="function" && c.buildChoiceTrial(c,9)) buildable++; }catch(_){ }
+        try{ if(typeof c.canUse==="function" && c.canUse(9)) eligible++; }catch(_){ }
+      }
+      details.buildable=buildable; details.eligibleWhileRetired=eligible;
+      if(cats.length && buildable===0) blockers.push("epistemic_abstract cats no longer buildable (audits need them)");
+      if(eligible>0) warnings.push(`${eligible} epistemic_abstract cats still eligible despite retire flag`);
+    }catch(e){ blockers.push("v6.8.66 retire audit exception: "+(e&&e.message||e)); }
+    return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
+  }
+  try{ window.auditV6866EpistemicRetired = auditV6866EpistemicRetired; globalThis.auditV6866EpistemicRetired = auditV6866EpistemicRetired; }catch(_){ }
+  try{ if(typeof registerFeatureAudit==="function") registerFeatureAudit(["v6866_retire_epistemic","retire_epistemic_abstract"], auditV6866EpistemicRetired, "auditV6866EpistemicRetired"); if(typeof registerExtraFeatureAudit==="function") registerExtraFeatureAudit("auditV6866EpistemicRetired", auditV6866EpistemicRetired); }catch(_){ }
+  try{ window.EUCA_V6866_RETIRE_EPISTEMIC = {retired, ids, audit:auditV6866EpistemicRetired}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.66 - TRANSFORM-THEN-RELATE (native directed relation) — Veta A×B from the v7 plan. Flash a pair
+// forced into a rep → mask → MENTALLY transform ONE operand → judge a REP-NATIVE DIRECTED relation
+// (clock earlier/later, dice higher/lower score, ten/grid fuller/emptier) between the two operands.
+// Genuinely new vs (a) the v6.8.57 magnitude overlay (generic > only, bool, rejects truth-flips) and
+// (b) relational_reference (noL0Transform + external reference C, never transformed-self vs the other
+// operand). 3-way native readout (LEFT/RIGHT/tie) — NOT a bool — and the TRANSFORMED SIDE is randomized
+// per trial, so the player cannot know a priori which side or what to encode (the prized Posner duality).
+// Values are flashed as the rep and never reprinted (mask-respecting; only the transform amount appears).
+// Seeded reps (coins copper-removal, card discard-lowest) DEFERRED (replay-fragile per the design).
+(function(){
+  if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return;
+  if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function" || typeof randInt !== "function") return;
+  const PATCH_ID = "v6.8.66-transform-then-relate-native";
+  function uniqL(xs){ return Array.from(new Set((xs||[]).filter(x=>x!=null).map(String))); }
+  function clockRot(v,n){ if(typeof rotateClockHour === "function"){ try{ const r = rotateClockHour(v,n); if(Number.isInteger(r)) return r; }catch(_){ } } return ((Number(v)-1+n)%12+12)%12+1; }
+  const SPECS = [
+    {id:"txr_clock_advance3_later",  rep:"clock", cap:12, frame:"temporal", tf:v=>clockRot(v,3),  phrase:"moves forward 3 hours",                          lead:"Two clocks show AM arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
+    {id:"txr_clock_retreat3_later",  rep:"clock", cap:12, frame:"temporal", tf:v=>clockRot(v,-3), phrase:"goes back 3 hours",                                lead:"Two clocks show AM arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
+    {id:"txr_clock_opposite_later",  rep:"clock", cap:12, frame:"temporal", tf:v=>clockRot(v,6),  phrase:"jumps to the opposite hour on the dial",        lead:"Two clocks show AM arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
+    {id:"txr_die_opposite_higher",   rep:"dice",  cap:6,  frame:"score",    tf:v=>7-Number(v),     phrase:"rolls over to its opposite face",               lead:"Two dice were shown.",              more:"scores higher", labels:["LEFT scores higher","RIGHT scores higher","They tie"]},
+    {id:"txr_ten_complement_fuller", rep:"ten",   cap:9,  frame:"fill",     tf:v=>10-Number(v),    phrase:"is replaced by its empty cells (its complement to 10)", lead:"Two ten-frames were shown.", more:"is fuller",     labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]},
+    {id:"txr_grid_complement_fuller",rep:"grid",  cap:9,  frame:"fill",     tf:v=>9-Number(v),     phrase:"has its filled and empty cells swapped (its complement)", lead:"Two 3x3 grids were shown.", more:"is fuller",     labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]}
+  ];
+  function buildTxr(cat, m){
+    const spec = cat && cat.txrSpec; if(!spec) return null;
+    const maxV = Math.max(2, Math.min(Number(m) || 9, spec.cap));
+    const target = randInt(0, 3); // 0 = LEFT-more, 1 = RIGHT-more, 2 = tie
+    const mustFlip = target !== 2 && randInt(0, 2) === 0; // ~half of non-tie trials must be transform-flips
+    for(let tries=0; tries<320; tries++){
+      const side = randInt(0, 2) === 0 ? "L" : "R"; // which operand the player must transform
+      const L = randInt(1, maxV+1), R = randInt(1, maxV+1);
+      const lv = side === "L" ? Number(spec.tf(L)) : L;
+      const rv = side === "R" ? Number(spec.tf(R)) : R;
+      const outcome = lv > rv ? 0 : (lv < rv ? 1 : 2);
+      if(outcome !== target) continue;
+      const rawOutcome = L > R ? 0 : (L < R ? 1 : 2);
+      if(mustFlip && rawOutcome === outcome) continue; // require the transform to actually change the verdict
+      const sideName = side === "L" ? "LEFT" : "RIGHT";
+      const question = `${spec.lead} ${sideName} ${spec.phrase}. After that move, who ${spec.more} — LEFT, RIGHT, or are they the same?`;
+      const options = [
+        l0ChoiceOption(spec.labels[0], outcome === 0, "txr_left_more"),
+        l0ChoiceOption(spec.labels[1], outcome === 1, "txr_right_more"),
+        l0ChoiceOption(spec.labels[2], outcome === 2, "txr_tie")
+      ];
+      const trial = buildL0ChoiceTrialFromOptions(cat, m, L, R, question, options, outcome, {
+        transformThenRelate:{spec:spec.id, rep:spec.rep, frame:spec.frame, side, left:L, right:R, leftFinal:lv, rightFinal:rv, outcome, rawOutcome, flipped:rawOutcome !== outcome},
+        mechanismTags:["transform_then_relate","representation_transform","rep_native_relation","content_form_duality"]
+      });
+      if(trial){
+        trial.noL0Transform = true; // keep the v6.8.57 hook from double-transforming this already-transformed item
+        try{
+          if(typeof makeVisualInstance === "function"){
+            const vA = makeVisualInstance(L, spec.rep), vB = makeVisualInstance(R, spec.rep);
+            trial.repA = vA.rep; trial.repB = vB.rep;
+            trial.stimSeedA = Number.isFinite(vA.seed) ? Number(vA.seed) : null;
+            trial.stimSeedB = Number.isFinite(vB.seed) ? Number(vB.seed) : null;
+            if(typeof cloneStimReplaySpec === "function"){ trial.stimSpecA = cloneStimReplaySpec(vA.rep, vA.spec); trial.stimSpecB = cloneStimReplaySpec(vB.rep, vB.spec); }
+          }
+        }catch(_){ }
+        trial.frameTags = uniqL([...(trial.frameTags || []), "transform_then_relate", spec.frame === "temporal" ? "temporal_relation" : "metric_relation", "comparison", "rep_native", "representation_transform"]);
+      }
+      return trial;
+    }
+    return null;
+  }
+  let added = 0; const ids = [];
+  for(const spec of SPECS){
+    if(POSNER_CATS.some(c => c && c.id === spec.id)) continue;
+    POSNER_CATS.push({
+      id:spec.id, tier:4, stage:4, minM:6, minLevel:5, family:"transform_then_relate_native",
+      responseFormat:"choice", noL0Transform:true, txrSpec:spec,
+      atomicsUsed:["transform_then_relate","representation_transform","rep_native_relation"],
+      frameTags:["transform_then_relate", spec.frame === "temporal" ? "temporal_relation" : "metric_relation", "comparison", "rep_native", "representation_transform", "choice_readout"],
+      variants:[{q:`${spec.lead} One side ${spec.phrase}; then judge who ${spec.more}.`}],
+      canUse:(m)=>Number(m) >= 6,
+      buildChoiceTrial:buildTxr,
+      gen(m){ const v = Math.max(2, Math.min(Number(m)||9, spec.cap)); return [randInt(1,v+1), randInt(1,v+1)]; },
+      verify(){ return typeof INAPPLICABLE !== "undefined" ? INAPPLICABLE : null; }
+    });
+    added++; ids.push(spec.id);
+  }
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+
+  function auditV6866Txr(opts={}){
+    const blockers = [], warnings = [], details = {patch:PATCH_ID, added, ids};
+    try{
+      for(const spec of SPECS){
+        const cat = POSNER_CATS.find(c => c && c.id === spec.id);
+        if(!cat){ blockers.push(`missing cat ${spec.id}`); continue; }
+        const outcomes = {0:0,1:0,2:0}; let built = 0, mismatch = 0, repWrong = 0, leak = 0, optBad = 0, flips = 0, nonTie = 0;
+        for(let i=0;i<150;i++){
+          const t = cat.buildChoiceTrial(cat, 9); if(!t){ continue; } built++;
+          const tr = t.payload && t.payload.transformThenRelate;
+          if(!tr){ optBad++; continue; }
+          // recompute the verdict independently from the recorded values + the spec transform
+          const lv = tr.side === "L" ? Number(spec.tf(tr.left)) : tr.left;
+          const rv = tr.side === "R" ? Number(spec.tf(tr.right)) : tr.right;
+          const exp = lv > rv ? 0 : (lv < rv ? 1 : 2);
+          outcomes[exp] = (outcomes[exp]||0)+1;
+          if(Number(t.semanticCorrectIndex) !== exp) mismatch++;
+          if(t.repA !== spec.rep || t.repB !== spec.rep) repWrong++;
+          if(!Array.isArray(t.options) || t.options.length !== 3) optBad++;
+          // mask-respecting: the operand values must NOT be printed (only the fixed transform amount may appear)
+          const q = String(t.question || "");
+          if(new RegExp(`\\b${tr.left}\\b`).test(q.replace(/\b(3|6|10)\b/g, "")) || new RegExp(`\\b${tr.right}\\b`).test(q.replace(/\b(3|6|10)\b/g, ""))) leak++;
+          if(exp !== 2){ nonTie++; if(tr.rawOutcome !== exp) flips++; }
+        }
+        const flipRate = nonTie ? flips/nonTie : 0;
+        details[spec.id] = {built, outcomes, mismatch, repWrong, leak, optBad, rep:spec.rep, flipRate:Math.round(flipRate*100)/100};
+        if(built < 60) warnings.push(`${spec.id}: low build ${built}`);
+        if(mismatch > 0) blockers.push(`${spec.id}: ${mismatch} answer/verdict mismatches`);
+        if(repWrong > 0) blockers.push(`${spec.id}: ${repWrong} trials not in the framing-native rep ${spec.rep}`);
+        if(optBad > 0) blockers.push(`${spec.id}: ${optBad} malformed option sets`);
+        if(leak > 0) blockers.push(`${spec.id}: ${leak} prompts leaked an operand value`);
+        const zeros = Object.values(outcomes).filter(v=>v===0).length;
+        if(zeros > 1) warnings.push(`${spec.id}: ${zeros} outcomes never occurred ${JSON.stringify(outcomes)}`);
+        if(nonTie >= 20 && flipRate < 0.35) blockers.push(`${spec.id}: transform rarely changes the verdict (flipRate ${flipRate}) — would be a re-skin of plain comparison`);
+      }
+    }catch(e){ blockers.push("transform-then-relate audit exception: " + (e && e.message || e)); }
+    return {status:blockers.length ? "block" : warnings.length ? "warn" : "pass", blockers, warnings, details};
+  }
+  try{ window.auditV6866TransformThenRelateNative = auditV6866Txr; globalThis.auditV6866TransformThenRelateNative = auditV6866Txr; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6866_txr","transform_then_relate_native","transform_then_relate"], auditV6866Txr, "auditV6866TransformThenRelateNative");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6866TransformThenRelateNative", auditV6866Txr);
+  }catch(_){ }
+  try{ window.EUCA_V6866_TXR = {patch:PATCH_ID, added, ids, audit:auditV6866Txr, build:buildTxr}; }catch(_){ }
 })();
 </script>
 
