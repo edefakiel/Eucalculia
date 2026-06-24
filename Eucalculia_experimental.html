@@ -510,10 +510,28 @@ canvas { width:100%; height:100%; display:block; }
   width:min(100%, 560px);
   max-height:clamp(190px, 38svh, 330px);
 }
+/* v6.8.72: the Venn-gate stimulus is shorter/narrower than the generic graph-svg so the long
+   4-line Venn question + YES/NO options keep the centered #metaQuestion card clear of the top HUD
+   label. Element+class selector (specificity 0,1,1) placed AFTER svg.graph-svg so it wins. */
+#metaQuestion .meta-stimulus svg.venn-gate-svg {
+  width:min(100%, 430px);
+  max-height:clamp(118px, 22svh, 168px);
+}
+/* Constrain the whole centered card so it can never migrate up into .hud-top. Reserve a top
+   safe-zone (HUD label) and cap height; the stimulus shrinks first via the rule above. */
+#metaQuestion.has-venn-gate {
+  top:calc(50% + 14px);
+  max-height:calc(100% - 96px);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
 @media (max-height: 720px) {
   #metaQuestion .meta-stimulus svg { max-height:clamp(80px, 18svh, 130px); }
   #metaQuestion .meta-stimulus svg.shepard-svg { max-height:clamp(138px, 28svh, 210px); }
   #metaQuestion .meta-stimulus svg.graph-svg { max-height:clamp(138px, 28svh, 210px); }
+  #metaQuestion .meta-stimulus svg.venn-gate-svg { max-height:clamp(96px, 19svh, 138px); }
   #metaQuestion .meta-stimulus svg.balance-system-svg { max-height:clamp(180px, 34svh, 245px); }
 }
 @media (max-height: 620px) {
@@ -3331,7 +3349,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.66";
+const APP_VERSION = "v6.8.72";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -3767,6 +3785,11 @@ const CONFIG = {
   registryStartupMinSpecs: 880,
   gridCenterFilledBalanceWindow: 20,
   inverseOperationAllowRightToLeft: true,
+  // v6.8.69: make abductive "which operation maps LEFT→RIGHT?" distractors CONFUSABLE instead of
+  // popping out by elimination-by-type. When true, the distractor picker guarantees (a) ≥1 distractor
+  // of the answer's CATEGORY and (b) for add_k/subtract_k answers ≥1 distractor on the SAME direction
+  // axis — when a genuinely-wrong (produced≠RIGHT) such op is viable. Grading/correct op untouched.
+  inverseOperationDistractorPreferSameCategory: true,
   // v6.5.6: didactic target for the Auto tutorial. Phase 1A keeps
   // running until levelByMode.A has reached this level (max value =
   // CONFIG.levels[3] = 7). This forces the user to actually progress
@@ -3889,6 +3912,12 @@ const CONFIG = {
   relationalDotsMaxValue: 7,
   relationalTenFrameMaxValue: 10, // v6.8.10: single ten-frame per side in Relational
   l0CrossRepProjectionRequireGate: true,
+  // v6.8.68 (B+C3): when a cross-rep relational item transforms ONE stimulus and compares to
+  // the OTHER (the two stimuli are ALWAYS different reps in this family), name the cue stimulus
+  // by its representation ("the ten-frame") and the other operand as "the other", instead of by
+  // side ("RIGHT's ten-frame ... LEFT"). Forces the player to recall WHERE each stimulus was.
+  // Reversible: set false to restore the legacy LEFT/RIGHT phrasing.
+  l0CrossRepProjectionRefByRep: true,
   // ---------------------------------------------------------------------------
   // l0_paper_folding_analogy: A:B::C analogical predicates over the L0 pair
   // (LEFT, RIGHT) and a third value X derived by paper folding shown
@@ -3951,6 +3980,28 @@ const CONFIG = {
   l0VennGateAuditSamples: 120,
   l0VennGateRc3LoadCeiling: 8.25,
   l0VennGateVisualCeiling: 9.0,
+  // v6.8.72 layout fix: cap the Venn-gate stimulus to a shorter, narrower box and
+  // constrain #metaQuestion so the centered card can never grow up into the top HUD
+  // label (the screenshot-5 overlap). Cosmetic only; reversible.
+  l0VennGateLayoutFix: true,
+
+  // ── v6.8.72 batch flags (all reversible; default on) ──────────────────────
+  // (1) Generative anti-REUSE: prevent trivially reusing digits ALREADY used —
+  //     between the two pairs of a two-pair build (e.g. (9,1) then (9,2)) — in
+  //     BOTH construct families, but ONLY when a valid all-fresh completion still
+  //     exists (never block answerability; never grey merely-infeasible digits).
+  v6872BetweenPairReuseDisable: true,
+  v6872InlineAntiReuse: true,
+  // (2) Operation-effect family becomes a BINARY YES/NO question ("does this one
+  //     proposed rule change the answer to the relation?") instead of a 4-option
+  //     "which operation" pick (which was trivially 'multiply by 2'). When false,
+  //     the prior 4-option builder remains.
+  v6872OperationBinary: true,
+  // (3) Retire the broken 4-way visual_transform_comparison family entirely and
+  //     give the pre-existing rotation/mirror visual stimuli more presence as
+  //     same-value decoys inside ordinary numeric trials.
+  v6872RetireVisualFourWay: true,
+  v6872VisualDecoyBoost: 0.22,
 
   // Consolidated MEM-interference layer. L0→L1 lures perturb the retained
   // numeric material (one changed value, side swap, same-sum or same-gap
@@ -11764,6 +11815,14 @@ function showMetaQuestion(level, question, hint, options){
       stimHost.style.display = "none";
     }
   }
+  // v6.8.72: tag the centered card when a Venn-gate diagram is active so the .has-venn-gate CSS
+  // (shorter stimulus + height cap + lowered anchor) keeps it clear of the top HUD label. The
+  // boolean toggle also REMOVES the class on every non-Venn trial. Reversible via CONFIG.
+  try{
+    const isVennGate = !!(typeof CONFIG !== "undefined" && CONFIG && CONFIG.l0VennGateLayoutFix &&
+      State.trialInfo && State.trialInfo.vennGate && State.trialInfo.vennGate.geom);
+    el.classList.toggle("has-venn-gate", isVennGate);
+  }catch(_){ }
   const programPayload = State.trialInfo?.programCard || null;
   if(programPayload){
     const rawProgramText = String(programPayload.question || question || "");
@@ -17696,6 +17755,31 @@ function l0CrossRepProjectionRuleText(op){
   if(op && op.ruleText) return String(op.ruleText);
   return label;
 }
+// v6.8.68 (B+C3): shared rep->prompt-noun map + side-reference helper. When the transformed
+// stimulus and the other operand are DIFFERENT representations, name the transformed one by its
+// representation ("the ten-frame") and the other as "the other" — only then is it unambiguous.
+// If they share a rep (or rep unknown), fall back to the side word. Generic so future families
+// can call relationalSideRefText(repThis, repOther, sideThis).
+const RELATIONAL_REP_NOUN = {
+  ten:"ten-frame", grid:"3×3 grid", tally:"tally", dice:"die", card:"card",
+  domino:"domino", abacus:"abacus", clock:"clock", coins:"coin set", cluster:"cluster",
+  cube:"cube stack", finger:"hand", dots:"dot field", roman:"Roman numeral", digit:"digit"
+};
+function relationalRepNoun(rep){ return RELATIONAL_REP_NOUN[rep] || String(rep || "stimulus"); }
+function relationalSideRefText(repThis, repOther, sideThis){
+  const side = String(sideThis || "").toUpperCase() === "RIGHT" ? "RIGHT" : "LEFT";
+  if(repThis && repOther && repThis !== repOther) return `the ${relationalRepNoun(repThis)}`;
+  return side;
+}
+// Rep-aware, JARGON-FREE cross-rep projection prompt: the CUE stimulus (named by its rep) sets the
+// rule; "the other" stimulus supplies the number to transform; the result is compared to the cue
+// stimulus's own number. Uses the plain ruleText (never the internal op.short like "tally · loose remainder").
+function l0CrossRepProjectionQuestionRepAware(op, cueRep, valueRep, negate){
+  const cueNoun = `the ${relationalRepNoun(cueRep)}`;
+  const rule = l0CrossRepProjectionRuleText(op);
+  const cmp = negate ? "different from" : "equal to";
+  return `Use ${cueNoun}'s format as the rule and apply it to the other's number: ${rule}. Is the result ${cmp} ${cueNoun}'s number?`;
+}
 function l0CrossRepProjectionQuestion(op){
   const rule = l0CrossRepProjectionRuleText(op);
   return `Use LEFT's visual format as a rule. Apply it to RIGHT's number by ${rule}. Is the result equal to LEFT's number?`;
@@ -22428,8 +22512,8 @@ function l0CrossRepProjectionCats(){
     },
     variants:[
       { q:l0CrossRepProjectionQuestion(op) },
-      { q:`Apply LEFT's ${op.short} rule to RIGHT's number. Is the projected result equal to LEFT's number?` },
-      { q:`Apply LEFT's ${op.short} rule to RIGHT's number. Is the projected result different from LEFT's number?`, negate:true, linguisticFrame:"negation_scope" },
+      { q:`Use LEFT's format as the rule and apply it to RIGHT's number: ${l0CrossRepProjectionRuleText(op)}. Is the result equal to LEFT's number?` },
+      { q:`Use LEFT's format as the rule and apply it to RIGHT's number: ${l0CrossRepProjectionRuleText(op)}. Is the result different from LEFT's number?`, negate:true, linguisticFrame:"negation_scope" },
     ],
     gen(m,t){ return [randInt(1, Math.max(2,m+1)), randInt(1, Math.max(2,m+1))]; },
     visualVerify(rawA, rawB, visA, visB){
@@ -23351,6 +23435,7 @@ function selectInverseOperationDistractors(correctOp, v, w, m){
   const rows = inverseOperationDistractorCandidates(correctOp, v, w, m);
   if(rows.length < 3) return null;
   const correctComplexity = inverseOperationComplexity(correctOp);
+  const correctSig = inverseOperationStepSignature(correctOp);
   const makePool = band => rows.filter(r => Math.abs(r.complexity - correctComplexity) <= band);
   let pool = makePool(0.75);
   if(pool.length < 3) pool = makePool(1.15);
@@ -23364,7 +23449,22 @@ function selectInverseOperationDistractors(correctOp, v, w, m){
     if(!eligible.length) return false;
     picked.push(eligible[0].op); used.add(eligible[0].op.id); return true;
   };
-  takeBest(r => r.categoryMatch);
+  // v6.8.69 TASK A: same-CATEGORY + direction-AXIS floors so the answer never pops out as the lone op
+  // of its type/direction. Drawn from the FULL `rows` (already filtered to produced≠RIGHT, so still
+  // genuine distractors) — honored even when the complexity band excludes same-category siblings.
+  if(CONFIG.inverseOperationDistractorPreferSameCategory !== false){
+    const pickFrom = (filt) => {
+      const elig = rows.filter(r => !used.has(r.op.id) && filt(r))
+        .sort((a,b) => (a.score + Math.random()*0.35) - (b.score + Math.random()*0.35));
+      if(elig.length){ picked.push(elig[0].op); used.add(elig[0].op.id); return true; }
+      return false;
+    };
+    pickFrom(r => r.op.category === correctOp.category);
+    if(picked.length < 3 && (correctSig.axis === "linear_add" || correctSig.axis === "linear_sub")){
+      pickFrom(r => inverseOperationStepSignature(r.op).axis === correctSig.axis);
+    }
+  }
+  while(picked.length < 3 && takeBest(r => r.categoryMatch)){}
   while(picked.length < 3 && takeBest(r => r.macroMatch)){}
   while(picked.length < 3 && takeBest()){}
   return picked.length >= 3 ? picked.slice(0,3) : null;
@@ -25980,7 +26080,7 @@ const POSNER_CATS = [
     canUse:(m)=> (State.reps || []).includes("domino"),
     variants:[
       { q:"Do the two dominoes have a half value in common?" },
-      { q:"Is there a half value (a or b) repeated across both dominoes?" },
+      { q:"Does some number appear as a half on both dominoes?" },
       { q:"Do the two dominoes have no half value in common?", negate:true, linguisticFrame:"negation_scope" },
       { q:"Is any half value present on both dominoes?", linguisticFrame:"restrictive_quantifier" },
     ],
@@ -26342,9 +26442,12 @@ const L0_STRUCTURAL_DIVISIBILITY_CATS = [
       {q:"Do the two values have the same digit sum?"},
       {q:"If you add up the digits of each number, do you get the same total?"},
       {q:"Are the digit sums equal?"},
-      {q:"Do the digit sums differ?", negate:true, linguisticFrame:"negation_scope"},
+      {q:"If you add up the digits of each number, do you get different totals?", negate:true, linguisticFrame:"negation_scope"},
     ],
-    gen(m,t){ return genPairByPredicate(m,t,(a,b)=> digitSum(a)===digitSum(b)); },
+    // v6.8.69: at least one value must be two-digit, else "digit sum" is degenerate (the digit sum of a
+    // single digit IS the digit, so the question collapses to "do the two values differ?" — the user's
+    // confusion). Distinct values only, so it never reduces to an identical-value triviality.
+    gen(m,t){ return genPairByPredicate(m,t,(a,b)=> digitSum(a)===digitSum(b), {valid:(a,b)=>Math.max(Number(a),Number(b))>=10, allowEqual:false}); },
     verify(a,b){ return digitSum(a)===digitSum(b); } },
 ];
 POSNER_CATS.push(...L0_STRUCTURAL_DIVISIBILITY_CATS);
@@ -26452,7 +26555,11 @@ function makeAdditionalL0PosnerCats(){
         {q:"Find the value farther from 5. Is it prime?"},
         {q:"Find the value farther from 5. Is it not prime?", negate:true, linguisticFrame:"negation_scope"},
       ],
-      (a,b)=>{ const da=Math.abs(a-5), db=Math.abs(b-5); if(da===db) return false; const v=da>db?a:b; return isPrime(v); },
+      // v6.8.66: when both are equidistant from 5, there is no single "farther" value. If the two
+      // values are IDENTICAL (e.g. a transform collapsed the pair to 2,2), the one farther value is
+      // unambiguously that number → judge ITS primality (fixes 2,2 → YES). If equidistant but different
+      // (e.g. 3 and 7), it is genuinely ambiguous → NO.
+      (a,b)=>{ const da=Math.abs(a-5), db=Math.abs(b-5); if(da===db) return a===b ? isPrime(a) : false; const v=da>db?a:b; return isPrime(v); },
       ["role_binding","metric_relation","class_inclusion"],
       {valid:(a,b)=>Math.abs(a-5)!==Math.abs(b-5)}
     )
@@ -34397,7 +34504,19 @@ function setupPosnerCore(){
     // v6.8.61 item-5b: if the cross-rep cue landed on the RIGHT this trial, swap LEFT<->RIGHT in
     // the (statically LEFT-cue) question so the wording matches the displayed cue side.
     let _crpQuestion = renderRangeCenterPrompt(vnt.q, m);
-    try{ if(pair.crossRepProjection && pair.crossRepProjection.cueSide === "RIGHT" && typeof swapLeftRightText === "function") _crpQuestion = swapLeftRightText(_crpQuestion); }catch(_){ }
+    try{
+      const _crp = pair.crossRepProjection;
+      const _refByRep = (typeof CONFIG === "undefined") || !CONFIG || CONFIG.l0CrossRepProjectionRefByRep !== false;
+      if(_refByRep && _crp && _crp.cueRep && _crp.valueRep && _crp.cueRep !== _crp.valueRep && typeof l0CrossRepProjectionQuestionRepAware === "function"){
+        // v6.8.68: reps always differ in this family → name the cue by its rep ("the ten-frame")
+        // and the other operand as "the other"; rebuilt fresh so it is side-token-free and jargon-free.
+        const _op = (typeof l0CrossRepProjectionById === "function") ? l0CrossRepProjectionById(_crp.projectionId) : null;
+        if(_op) _crpQuestion = l0CrossRepProjectionQuestionRepAware(_op, _crp.cueRep, _crp.valueRep, !!vnt.negate);
+        else if(_crp.cueSide === "RIGHT" && typeof swapLeftRightText === "function") _crpQuestion = swapLeftRightText(_crpQuestion);
+      } else if(_crp && _crp.cueSide === "RIGHT" && typeof swapLeftRightText === "function"){
+        _crpQuestion = swapLeftRightText(_crpQuestion);
+      }
+    }catch(_){ try{ if(pair.crossRepProjection && pair.crossRepProjection.cueSide === "RIGHT" && typeof swapLeftRightText === "function") _crpQuestion = swapLeftRightText(_crpQuestion); }catch(__){ } }
     return { a:rawA, b:rawB, repA:visA.rep, repB:visB.rep,
              stimSeedA:pair.seedA, stimSeedB:pair.seedB, stimSpecA:pair.specA || null, stimSpecB:pair.specB || null,
              question:_crpQuestion, isTrue, targetOutcome:wantTrue, requiredRep:visualRequiredRepsForCat(cat), catId:cat.id, family:posnerFamily(cat), experienceAxis:l0ExperientialAxisFromCat(cat),
@@ -35686,8 +35805,20 @@ function l0PairRuleRoleCandidates(left, right){
 function l0PairRuleOptionSet(source, target, correctRule, targetIndex=null){
   const rules = l0PairRuleCatalog();
   const wrong = shuffle(rules.filter(r => r.id !== correctRule.id && !l0PairRuleMatches(r, source, target)).slice());
+  // v6.8.69 TASK-C: prefer same-family AND same-direction near-misses so the answer never pops out as
+  // the lone 'Subtract' among 'Add' distractors (or vice-versa). Direction read from the rule label for
+  // the linear_step family; other families keep the family-match only. All distractors still fail
+  // l0PairRuleMatches, so they remain true distractors. Reversible via CONFIG.l0PairRuleSameFamilyDistractors.
+  const SAME_FAMILY = !(typeof CONFIG === "object" && CONFIG && CONFIG.l0PairRuleSameFamilyDistractors === false);
+  const sameDir = r => {
+    if(correctRule.family !== "linear_step") return true;
+    const dir = x => /subtract/i.test(String(x && (x.label || x.id) || "")) ? "sub" : "add";
+    return dir(r) === dir(correctRule);
+  };
+  const tight = wrong.filter(r => r.family === correctRule.family && sameDir(r));
   const near = wrong.filter(r => r.family === correctRule.family || r.distractorType === correctRule.distractorType);
   const picked = [];
+  if(SAME_FAMILY){ for(const r of tight){ if(picked.length < 3 && !picked.some(x=>x.id===r.id)) picked.push(r); } }
   for(const r of near){ if(picked.length < 3 && !picked.some(x=>x.id===r.id)) picked.push(r); }
   for(const r of wrong){ if(picked.length < 3 && !picked.some(x=>x.id===r.id)) picked.push(r); }
   if(picked.length < 3) return null;
@@ -42245,7 +42376,7 @@ function l1RuleEvidenceLines(ruleId, seq){
     case "fall_unequal": return [`Differences: ${d.join(", ")}. All are negative, but they are not all equal.`];
     case "alternating_direction": return [`Directions: ${d.map(x=>x>0?"up":"down").join(" → ")}. The sign changes at each step.`];
     case "modular_all_same_mod_2": return [`Parity: ${par.join(" → ")}. All four share the same parity.`];
-    case "modular_all_same_mod_3": return [`Remainders mod 3: ${mod3.join(" → ")}. All four remainders match.`];
+    case "modular_all_same_mod_3": return [`Remainders after dividing by 3: ${mod3.join(" → ")}. All four remainders match.`];
     case "parity_alternating": return [`Parity: ${par.join(" → ")}. Each parity differs from the previous one.`];
     case "palindrome": return [`Palindrome check: first=fourth (${seq[0]}=${seq[3]}) and second=third (${seq[1]}=${seq[2]}).`];
     case "period_2": return [`Period-2 check: first=third (${seq[0]}=${seq[2]}) and second=fourth (${seq[1]}=${seq[3]}).`];
@@ -42266,7 +42397,7 @@ function l1RuleFailureLine(ruleId, seq){
     case "fall_unequal": return `the differences are ${d.join(", ")}, so the chain is not an unequal fall.`;
     case "alternating_direction": return `the signs of ${d.join(", ")} do not alternate at every step.`;
     case "modular_all_same_mod_2": return `the values do not all have the same parity.`;
-    case "modular_all_same_mod_3": return `the remainders mod 3 are not all identical.`;
+    case "modular_all_same_mod_3": return `the remainders after dividing by 3 are not all identical.`;
     case "parity_alternating": return `the parities do not alternate at every transition.`;
     case "palindrome": return `first/fourth or second/third do not mirror each other.`;
     case "period_2": return `first/third or second/fourth are not matching period-2 positions.`;
@@ -46928,6 +47059,7 @@ function operationInvarianceApply(n, transform){
   const v = Number(n);
   const t = transform || {};
   if(t.id === "add_constant") return v + Number(t.k || 0);
+  if(t.id === "subtract_constant") return v - Number(t.k || 0); // v6.8.69: same-family near-miss of add_constant
   if(t.id === "multiply_positive") return v * Number(t.k || 1);
   if(t.id === "reflect_anchor") return Number(t.anchor || 0) - v;
   if(t.id === "modulo_wrap"){
@@ -47467,6 +47599,31 @@ function operationInvarianceTransformChoices(m){
     operationInvarianceTransform("modulo_wrap", m)
   ].filter(Boolean);
 }
+// v6.8.69 (issue 2 / TASK-B): same-family near-miss transforms so the GOAL-style options ("which op
+// keeps/flips the answer") do NOT pop out by operation TYPE. Returns SAME-family variants of `base`
+// with perturbed parameters (different k / anchor / mod), each a genuine variant (different effect).
+// Correctness is decided by the caller, which keeps only siblings that do NOT achieve the goal, so
+// applying any distractor does not reproduce the requested keep/flip. add_constant also yields
+// subtract_constant siblings (both are constant shifts — same surface family, still confusable).
+function operationInvarianceSameFamilySiblings(base, m){
+  if(!base || !base.id) return [];
+  const out = [];
+  const push = t => { if(t && t.phrase !== base.phrase) out.push(t); };
+  if(base.id === "add_constant" || base.id === "subtract_constant"){
+    for(const k of [1,2,3,4,5,6]) push({id:"add_constant", opAtomic:"op_add_constant", k, phrase:`add ${k} to both values`});
+    for(const k of [1,2,3,4,5]) push({id:"subtract_constant", opAtomic:"op_subtract_constant", k, phrase:`subtract ${k} from both values`});
+  } else if(base.id === "multiply_positive"){
+    for(const k of [2,3,4,5,6,7,8]) if(k !== Number(base.k)) push({id:"multiply_positive", opAtomic:"op_multiply_positive", k, phrase:`multiply both values by ${k}`});
+  } else if(base.id === "reflect_anchor"){
+    for(const d of [-4,-3,-2,-1,1,2,3,4,5,6]){ const anchor = Number(base.anchor) + d; if(anchor >= 2) push({id:"reflect_anchor", opAtomic:"op_reflect_around_anchor", anchor, phrase:`subtract each value from ${anchor}`}); }
+  } else if(base.id === "modulo_wrap"){
+    for(const mod of [2,3,4,5,6,7,8,9]) if(mod !== Number(base.mod)) push({id:"modulo_wrap", opAtomic:"op_modulo_wrap", mod, phrase:`replace each value by its remainder after division by ${mod}`});
+  }
+  // de-dup by id|param so two options never share identical text
+  const seen = new Set(); const uniq = [];
+  for(const t of out){ const key = t.id + "|" + (t.k ?? t.anchor ?? t.mod ?? ""); if(!seen.has(key)){ seen.add(key); uniq.push(t); } }
+  return uniq;
+}
 function operationInvariancePreservesPredicate(a,b,transform,predicateId){
   const before = operationInvariancePredicateEval(predicateId,a,b);
   const ta = operationInvarianceApply(a, transform);
@@ -47615,20 +47772,20 @@ function extraRelationEquivalenceSpecs(){
       {text:"both leave the same remainder after division by 3", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 3", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 3", correct:(a+b)%3===0, distractorType:"semantic_near_miss"},
-      {text:"exactly one leaves remainder 1 mod 3", correct:(a%3===1)!==(b%3===1), distractorType:"semantic_near_miss"}
-    ];}, review(a,b){ return `Remainders mod 3: LEFT=${a%3}, RIGHT=${b%3}.`; }},
+      {text:"exactly one leaves a remainder of 1 after dividing by 3", correct:(a%3===1)!==(b%3===1), distractorType:"semantic_near_miss"}
+    ];}, review(a,b){ return `Remainders after dividing by 3: LEFT=${a%3}, RIGHT=${b%3}.`; }},
     {id:"rel_eq_modular_dual_mod4", label:"dual remainder relation by 4", minM:8, stage:4, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.51: same unique-equivalence guard*/ (a-b)%4===0 && (a+b)%4!==0 && ((a%4===1)!==(b%4===1))===false, build(a,b){ const same=(a-b)%4===0; return [
       {text:"both leave the same remainder after division by 4", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 4", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 4", correct:(a+b)%4===0, distractorType:"semantic_near_miss"},
-      {text:"exactly one leaves remainder 1 mod 4", correct:(a%4===1)!==(b%4===1), distractorType:"semantic_near_miss"}
-    ];}, review(a,b){ return `Remainders mod 4: LEFT=${a%4}, RIGHT=${b%4}.`; }},
+      {text:"exactly one leaves a remainder of 1 after dividing by 4", correct:(a%4===1)!==(b%4===1), distractorType:"semantic_near_miss"}
+    ];}, review(a,b){ return `Remainders after dividing by 4: LEFT=${a%4}, RIGHT=${b%4}.`; }},
     {id:"rel_eq_modular_dual_mod5", label:"dual remainder relation by 5", minM:10, stage:5, frameTags:["relation_equivalence","modular_relation","class_inclusion"], valid:(a,b)=> /*v6.8.51: same unique-equivalence guard*/ (a-b)%5===0 && (a+b)%5!==0 && ((a%5===1)!==(b%5===1))===false, build(a,b){ const same=(a-b)%5===0; return [
       {text:"both leave the same remainder after division by 5", correct:same, distractorType:"correct"},
       {text:"their difference is a multiple of 5", correct:same, distractorType:"correct"},
       {text:"their sum is a multiple of 5", correct:(a+b)%5===0, distractorType:"semantic_near_miss"},
-      {text:"exactly one leaves remainder 1 mod 5", correct:(a%5===1)!==(b%5===1), distractorType:"semantic_near_miss"}
-    ];}, review(a,b){ return `Remainders mod 5: LEFT=${a%5}, RIGHT=${b%5}.`; }},
+      {text:"exactly one leaves a remainder of 1 after dividing by 5", correct:(a%5===1)!==(b%5===1), distractorType:"semantic_near_miss"}
+    ];}, review(a,b){ return `Remainders after dividing by 5: LEFT=${a%5}, RIGHT=${b%5}.`; }},
     {id:"rel_eq_complement7_order", label:"7-complement order", minM:7, maxValue:7, stage:4, frameTags:["relation_equivalence","transformation_relation","comparison","reversal"], valid:(a,b)=>a!==b, build(a,b){ return [
       {text:"LEFT is less than RIGHT", correct:a<b, distractorType:"role_inversion"},
       {text:"7 − LEFT is greater than 7 − RIGHT", correct:(7-a)>(7-b), distractorType:"direction_lure"},
@@ -60725,8 +60882,12 @@ function l0ReviewExplanationLines(info){
     const cue = x.cueRep || op?.cueRep || info.repA || "LEFT format";
     const projected = Number.isInteger(x.projectedValue) ? x.projectedValue : l0CrossRepProjectionResult(op, b);
     const claim = Number.isInteger(x.claimedValue) ? x.claimedValue : a;
-    add(`LEFT's ${cue} representation sets the rule; RIGHT's value is ${b}.`);
-    add(`Applying ${op?.short || "the projection rule"}: result ${projected}. LEFT's number: ${claim}.`);
+    const _refByRep = (typeof CONFIG === "undefined") || !CONFIG || CONFIG.l0CrossRepProjectionRefByRep !== false;
+    const _diff = _refByRep && x.cueRep && x.valueRep && x.cueRep !== x.valueRep;
+    const _cueNoun = (_diff && typeof relationalRepNoun === "function") ? `the ${relationalRepNoun(x.cueRep)}` : (x.cueSide === "RIGHT" ? "RIGHT" : "LEFT");
+    const _otherRef = _diff ? "the other" : (x.cueSide === "RIGHT" ? "LEFT" : "RIGHT");
+    add(`${_cueNoun} sets the rule; ${_otherRef}'s value is ${b}.`);
+    add(`Applying the rule (${op ? l0CrossRepProjectionRuleText(op) : "the projection"}): result ${projected}. ${_cueNoun}'s number: ${claim}.`);
   }
   else if(/^two_property_/.test(id)){
     const m2 = id.match(/^two_property_([^_]+)_([^_]+)_(SS|DS|SD|DD)$/);
@@ -83862,6 +84023,63 @@ try{
     }catch(_){ return 8; }
   }
 
+  function inlineGraderAcceptsV6872(cat, a, b, m, target){
+    try{ return inlinePairValid(cat, a, b, m) && (!!cat.verify(a, b, m) === !!target); }catch(_){ return false; }
+  }
+  // v6.8.72: inline-family anti-REUSE oracle. Mirrors induct8AntiReuseDisabledDigits but uses the
+  // inline correctness oracle (inlinePairValid + cat.verify). Greys the within-pair duplicate and,
+  // on dual phase 2, the saved Pair-1 digits — only while a reuse-free valid completion still
+  // exists. Never greys a merely-infeasible digit; never blocks answerability. Returns sorted ints.
+  function inlineAntiReuseDisabledDigits(info){
+    try{
+      if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6872InlineAntiReuse === false) return [];
+      info = info || State?.trialInfo || {};
+      if(info.kind !== "generative_inline") return [];
+      const cat = findInlineSourceCat(info);
+      if(!cat || typeof cat.verify !== "function") return [];
+      const c = Math.max(2, Math.min(12, Math.floor(Number(info.cap || inline.cap)) || 8));
+      const m = Math.max(2, Number(info.m || State?.maxValue || c));
+      const phaseIndex = Math.max(1, Math.floor(Number(info.phaseIndex || 1)));
+      const phaseTargets = Array.isArray(info.phaseTargets) && info.phaseTargets.length ? info.phaseTargets.map(Boolean) : [!!info.targetTruth];
+      const target = !!phaseTargets[Math.min(phaseIndex - 1, phaseTargets.length - 1)];
+      const betweenOn = (typeof CONFIG === "undefined") || !CONFIG || CONFIG.v6872BetweenPairReuseDisable !== false;
+      const priorPairs = Array.isArray(info.pairs) ? info.pairs : [];
+      const P1 = (info.dualWitness && betweenOn && phaseIndex >= 2 && priorPairs[0] && priorPairs[0].pair) ? priorPairs[0].pair : null;
+      const usedBetween = P1 ? [Math.floor(Number(P1.a)), Math.floor(Number(P1.b))].filter(d => d >= 1 && d <= c) : [];
+      const out = new Set();
+
+      if(inline.activeSide === "a"){
+        if(!usedBetween.length) return [];
+        const reuse = new Set(usedBetween);
+        let freshExists = false;
+        for(let a2=1; a2<=c && !freshExists; a2++){
+          if(reuse.has(a2)) continue;
+          for(let b2=1; b2<=c; b2++){
+            if(b2 === a2 || reuse.has(b2)) continue;
+            if(inlineGraderAcceptsV6872(cat, a2, b2, m, target)){ freshExists = true; break; }
+          }
+        }
+        if(freshExists) reuse.forEach(d => out.add(d));
+        return Array.from(out).sort((x,y)=>x-y);
+      }
+
+      const A = Math.floor(Number(inline.chosen && inline.chosen.a));
+      if(!Number.isInteger(A) || A < 1 || A > c) return [];
+      const reuse = new Set([A, ...usedBetween].filter(d => d >= 1 && d <= c));
+      let survivor = false;
+      for(let b=1; b<=c; b++){
+        if(reuse.has(b)) continue;
+        if(inlineGraderAcceptsV6872(cat, A, b, m, target)){ survivor = true; break; }
+      }
+      if(survivor){
+        reuse.forEach(d => out.add(d));
+      } else {
+        for(let b=1; b<=c; b++){ if(b === A) continue; if(inlineGraderAcceptsV6872(cat, A, b, m, target)){ out.add(A); break; } }
+      }
+      return Array.from(out).sort((x,y)=>x-y);
+    }catch(_){ return []; }
+  }
+  try{ window.EUCA_V6872_INLINE_ANTIREUSE = { fn:inlineAntiReuseDisabledDigits, graderAccepts:inlineGraderAcceptsV6872, test:(info, side, chosenA, cap)=>{ const sa=inline.activeSide, sc=inline.chosen, scap=inline.cap; try{ inline.activeSide=(side==="b"?"b":"a"); inline.chosen={a:(chosenA==null?null:Math.floor(Number(chosenA))), b:null}; inline.cap=Math.max(2,Math.min(12,Math.floor(Number(cap))||8)); return inlineAntiReuseDisabledDigits(info); } finally { inline.activeSide=sa; inline.chosen=sc; inline.cap=scap; } } }; }catch(_){ }
   function renderGenPairPanel(){
     const panel = ensureGenPairPanel();
     inline.cap = Math.max(2, Math.min(12, Math.floor(Number(inline.cap || currentInlineCap()) || 8)));
@@ -83892,6 +84110,19 @@ try{
         grid.appendChild(btn);
       }
     }
+    // v6.8.72: per-render anti-REUSE disable pass (mirrors the geninduct panel). Runs every render
+    // because activeSide / chosen.a change while the cached grid persists.
+    try{
+      const antiSet = new Set(inlineAntiReuseDisabledDigits(State?.trialInfo).map(n => Math.floor(Number(n))));
+      grid.querySelectorAll(".genPairBtn").forEach(btn => {
+        const d = Math.floor(Number(btn.textContent));
+        const off = antiSet.has(d);
+        btn.disabled = off;
+        btn.style.pointerEvents = off ? "none" : "";
+        btn.style.opacity = off ? "0.25" : "";
+        btn.setAttribute("aria-disabled", off ? "true" : "false");
+      });
+    }catch(_){ }
   }
 
   function resetGenPairPanel(cap){
@@ -83910,6 +84141,9 @@ try{
   function chooseGenPairValue(v){
     v = Math.floor(Number(v));
     if(!Number.isInteger(v) || v < 1 || v > inline.cap) return;
+    // v6.8.72: hard guard so a greyed-out reuse digit can't be committed even if a stray
+    // pointer event slips past the disabled button (covers both slots).
+    try{ if(inlineAntiReuseDisabledDigits(State?.trialInfo).includes(v)) return; }catch(_){ }
     if(inline.submitTimer){ clearTimeout(inline.submitTimer); inline.submitTimer = null; }
     inline.chosen[inline.activeSide] = v;
     if(inline.activeSide === "a") inline.activeSide = "b";
@@ -85164,14 +85398,14 @@ try{
       {
         id:"l1_range_totals_single_composite",
         title:"Totals define a range with one composite",
-        question:"Build two pairs so that the run of whole numbers from the smaller total up to the larger total (counted inclusively) is between 3 and 6 numbers LONG, and exactly one of those numbers is composite.",
+        question:"Build two pairs. Add up each pair, then count every whole number from one total to the other, including both ends. That count must be 3 to 6 numbers, and exactly ONE of them must be composite (not prime, not 1). Example: totals 3 and 5 give 3, 4, 5 — three numbers, and only 4 is composite, so that passes.",
         verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 3 && r.length <= 6 && countBy(r, isCompositeSmall) === 1; },
         atomics:["generative_l1", "range_witness", "composite", "interval_scan"]
       },
       {
         id:"l1_range_totals_two_primes_with_composite",
         title:"Totals define a range with two primes and a composite",
-        question:"Build two pairs so that the run of whole numbers from the smaller total up to the larger total (counted inclusively) is between 4 and 7 numbers LONG, contains exactly two primes, and contains at least one composite number.",
+        question:"Build two pairs. Add up each pair, then count every whole number from one total to the other, including both ends. That count must be 4 to 7 numbers; among them there must be exactly TWO primes and at least ONE composite. Example: totals 5 and 9 give 5, 6, 7, 8, 9 — five numbers, with primes 5 and 7 (two) and composites 6, 8, 9, so that passes.",
         verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 4 && r.length <= 7 && countBy(r, isPrimeSmall) === 2 && countBy(r, isCompositeSmall) >= 1; },
         atomics:["generative_l1", "range_witness", "prime", "composite", "interval_scan"]
       }
@@ -85225,7 +85459,7 @@ try{
     if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT; changing RIGHT flips whether LEFT > RIGHT.`;
     if(id === "l1_range_totals_single_composite" || id === "l1_range_totals_two_primes_with_composite"){
       const r = rangeInts(sum(p1), sum(p2));
-      const need = id === "l1_range_totals_single_composite" ? "3 to 6 numbers long, exactly 1 composite" : "4 to 7 numbers long, exactly 2 primes + ≥1 composite";
+      const need = id === "l1_range_totals_single_composite" ? "counting from one total to the other (both ends included) lands on 3 to 6 numbers, with exactly 1 composite among them" : "counting from one total to the other (both ends included) lands on 4 to 7 numbers, with exactly 2 primes and at least 1 composite among them";
       return `${base} Totals ${sum(p1)} and ${sum(p2)} → run ${r[0]}–${r[r.length-1]} is ${r.length} number${r.length===1?"":"s"} long; primes ${countBy(r, isPrimeSmall)}, composites ${countBy(r, isCompositeSmall)}. Needed: ${need}.`;
     }
     return base;
@@ -90105,9 +90339,31 @@ try{
       for(const goal of goalDefs(before)){
         const flags = evals.map(e => !!goal.check(e));
         if(flags.filter(Boolean).length !== 1) continue;
-        const semanticCorrectIndex = flags.findIndex(Boolean);
-        const options = transforms.map((t,i) => {
-          const ev = evals[i];
+        const correctTransform = transforms[flags.findIndex(Boolean)];
+        // v6.8.69 (issue 2): replace the one-per-family distractors with SAME-FAMILY near-misses of the
+        // correct transform, keeping only siblings that do NOT satisfy the goal → they stay true
+        // distractors and exactly one option is correct. The answer can no longer be read off the TYPE.
+        // Reversible via CONFIG.l0OpEffectSameFamilyDistractors. (subtract_constant siblings eval via
+        // operationInvarianceApply, which has a subtract_constant branch.)
+        let useTransforms = transforms, useEvals = evals;
+        if((typeof CONFIG !== "object" || !CONFIG || CONFIG.l0OpEffectSameFamilyDistractors !== false) && typeof operationInvarianceSameFamilySiblings === "function"){
+          const sibs = arr(operationInvarianceSameFamilySiblings(correctTransform, m))
+            .map(t => ({t, ev:effectEval(a, b, t, pred)}))
+            .filter(x => !goal.check(x.ev));
+          if(sibs.length >= 3){
+            for(let i=sibs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=sibs[i]; sibs[i]=sibs[j]; sibs[j]=tmp; }
+            const cand = [correctTransform, ...sibs.slice(0,3).map(x=>x.t)];
+            for(let i=cand.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=cand[i]; cand[i]=cand[j]; cand[j]=tmp; }
+            const candEvals = cand.map(t => effectEval(a, b, t, pred));
+            if(candEvals.map(e => !!goal.check(e)).filter(Boolean).length === 1){ useTransforms = cand; useEvals = candEvals; }
+          }
+          // else / on failure: keep the original one-per-family set so the trial still builds. Type-popout
+          // is INHERENT for goals like "which op flips order?" where only one operation (reflect) can do it.
+        }
+        const semanticCorrectIndex = useTransforms.indexOf(correctTransform);
+        if(semanticCorrectIndex < 0) continue;
+        const options = useTransforms.map((t,i) => {
+          const ev = useEvals[i];
           const correct = i === semanticCorrectIndex;
           const reason = correct ? "correct" : (ev.afterTruth === before ? "keeps_wrong_target" : "changes_wrong_target");
           return l0ChoiceOption(t.phrase, correct, reason, {
@@ -90118,8 +90374,8 @@ try{
         });
         const question = goal.question(label);
         return buildL0ChoiceTrialFromOptions(cat, m, a, b, question, options, semanticCorrectIndex, {
-          operationEffectChoice:{predicateId:pred, predicateLabel:label, goalId:goal.id, goalLabel:goal.label, beforeTruth:before, transforms:transforms.map(t=>t.id), evaluations:evals.map(e => ({leftAfter:e.leftAfter, rightAfter:e.rightAfter, afterTruth:e.afterTruth, preserved:e.preserved}))},
-          operationInvarianceChoice:{predicateId:pred, goalId:goal.id, evaluations:evals, transforms:transforms.map(t=>t.id)},
+          operationEffectChoice:{predicateId:pred, predicateLabel:label, goalId:goal.id, goalLabel:goal.label, beforeTruth:before, transforms:useTransforms.map(t=>t.id), evaluations:useEvals.map(e => ({leftAfter:e.leftAfter, rightAfter:e.rightAfter, afterTruth:e.afterTruth, preserved:e.preserved}))},
+          operationInvarianceChoice:{predicateId:pred, goalId:goal.id, evaluations:useEvals, transforms:useTransforms.map(t=>t.id)},
           mechanismTags:["operation_effect_choice","operation_invariance_choice"]
         });
       }
@@ -91094,8 +91350,21 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     {id:"stair6", cells:[[0,0],[1,0],[1,1],[2,1],[2,2],[3,2]]},
     {id:"fork6", cells:[[0,1],[1,1],[2,1],[2,0],[2,2],[3,2]]},
     {id:"bend7", cells:[[0,0],[0,1],[1,1],[2,1],[2,2],[2,3],[3,3]]},
-    {id:"snake7", cells:[[0,0],[0,1],[1,1],[1,2],[2,2],[3,2],[3,3]]}
+    {id:"snake7", cells:[[0,0],[0,1],[1,1],[1,2],[2,2],[3,2],[3,3]]},
+    // v6.8.70: extra CHIRAL candidates for variety (the isChiralCells filter below keeps only the
+    // genuinely chiral ones, so any accidentally-symmetric candidate is harmlessly dropped).
+    {id:"jay6", cells:[[0,2],[1,2],[2,2],[2,1],[2,0],[3,0]]},
+    {id:"ell6", cells:[[0,0],[1,0],[2,0],[3,0],[3,1],[2,2]]},
+    {id:"step7", cells:[[0,0],[1,0],[1,1],[2,1],[3,1],[3,2],[3,3]]},
+    {id:"hookend7", cells:[[0,0],[1,0],[2,0],[3,0],[3,1],[3,2],[2,2]]},
+    {id:"zag7", cells:[[0,1],[1,1],[1,0],[2,0],[2,1],[3,1],[3,2]]}
   ]);
+  // v6.8.70: a shape is CHIRAL when its mirror image is NOT reachable by any rotation. For chiral
+  // shapes "rotation" and "mirror" are GENUINELY distinct (well-posed); for achiral/symmetric shapes
+  // (e.g. bend7, or a 0|6 domino) mirror == rotation, so the 4-way comparison is ambiguous. The
+  // visual-comparison task therefore uses ONLY chiral shapes.
+  function isChiralCells(cells){ try{ return !eqMir(cells, cells); }catch(_){ return false; } }
+  const CHIRAL_PATTERNS = CELL_PATTERNS.filter(p => isChiralCells(p.cells));
   function renderCellStim(cells, ox, oy, label, colsHint=4, rowsHint=4){
     const cs=cellsNorm(cells), maxR=cs.length?Math.max(...cs.map(p=>p[0])):0, maxC=cs.length?Math.max(...cs.map(p=>p[1])):0;
     const cols=Math.max(colsHint,maxC+1), rows=Math.max(rowsHint,maxR+1), unit=18, pad=6, set=new Set(cs.map(p=>p.join(",")));
@@ -91118,19 +91387,32 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   }
   function buildGridRel(relation){
     for(let guard=0; guard<80; guard++){
-      const base=pick(CELL_PATTERNS); if(!base) return null;
+      // v6.8.70: chiral shapes ONLY, so mirror ≠ rotation is GUARANTEED and every item is well-posed.
+      const base=pick(CHIRAL_PATTERNS); if(!base) return null;
       const left=cellsNorm(base.cells); let right=null, target=base;
       if(relation === "exact") right=left;
       else if(relation === "rotation"){
-        const rs=rotations(left).filter(x=>cellsKey(x)!==cellsKey(left) && !eqMir(left,x)); right=pick(rs)||rotCells(left);
+        let rs=rotations(left).filter(x=>cellsKey(x)!==cellsKey(left) && !eqMir(left,x));
+        if(!rs.length) continue; // chiral shapes always have a non-mirror rotation; no ambiguous fallback
+        // v6.8.67: optional legibility softening (default OFF). When on, prefer the rotation that
+        // DISPLACES THE FEWEST cells, so a flashed asymmetric polyomino reads as "the same shape,
+        // turned" rather than a totally different shape. Default OFF preserves the mental-rotation load.
+        if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.l0VisualRotationFlashSoftening){
+          const _cd=(p0,x)=>{ const s0=new Set(cellsNorm(p0).map(p=>p.join(","))), sx=new Set(cellsNorm(x).map(p=>p.join(","))); let d=0; s0.forEach(k=>{ if(!sx.has(k)) d++; }); sx.forEach(k=>{ if(!s0.has(k)) d++; }); return d; };
+          rs=rs.slice().sort((x,y)=>_cd(left,x)-_cd(left,y)); right=rs[0];
+        } else { right=pick(rs); }
       } else if(relation === "mirror"){
-        const ms=rotations(mirCells(left)).filter(x=>cellsKey(x)!==cellsKey(left) && !eqRot(left,x)); right=pick(ms)||mirCells(left);
+        const ms=rotations(mirCells(left)).filter(x=>cellsKey(x)!==cellsKey(left) && !eqRot(left,x)); right=pick(ms);
+        if(!right) continue; // no ambiguous fallback: a chiral shape's mirror is never a rotation
       } else {
-        const pool=CELL_PATTERNS.filter(p=>p.id!==base.id && p.cells.length===base.cells.length); target=pick(pool); if(!target) continue; right=pick(rotations(target.cells));
+        const pool=CHIRAL_PATTERNS.filter(p=>p.id!==base.id && p.cells.length===base.cells.length); target=pick(pool); if(!target) continue; right=pick(rotations(target.cells));
         if(eqRot(left,right) || eqMir(left,right)) continue;
       }
       const actual=relFromCells(left,right); if(actual!==relation && !(relation==="rotation" && actual==="rotation")) continue;
-      return {kind:"grid_2d", relation:actual, count:left.length, sourceId:base.id, targetId:target.id, svg:renderPairSVG(left,right,"grid_2d")};
+      // v6.8.67: surface the concrete rotation angle (0/90/180/270) for a LEGIBLE review. Pure metadata
+      // derived by replaying rotations of LEFT until it matches RIGHT — does NOT reprint the flashed stimulus.
+      let rotDeg=null; try{ if(actual==="rotation"){ let cur=left, k=0; for(k=0;k<4;k++){ if(cellsKey(cur)===cellsKey(right)) break; cur=rotCells(cur); } rotDeg=(k%4)*90; } }catch(_){ }
+      return {kind:"grid_2d", relation:actual, count:left.length, sourceId:base.id, targetId:target.id, rotDeg:rotDeg, svg:renderPairSVG(left,right,"grid_2d")};
     }
     return null;
   }
@@ -91145,10 +91427,17 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }catch(_){ }
     return relFromCells(A,B);
   }
+  // v6.8.70: a ten-frame pattern is CHIRAL when BOTH its left-right and top-bottom mirrors are
+  // genuine mirrors (not a rotation/identity). Symmetric frame patterns (where a mirror coincides with
+  // the 180° rotation) make "mirror" vs "rotation" ambiguous, so they are excluded for non-exact items.
+  function isChiralFrame(base){
+    try{ return frameRel(base, frameVisualTransformPattern(base,"mirror_lr"))==="mirror" && frameRel(base, frameVisualTransformPattern(base,"mirror_tb"))==="mirror"; }catch(_){ return false; }
+  }
   function buildFrameRel(relation){
     if(typeof robustFrameEnumeratePatterns !== "function" || typeof frameVisualTransformPattern !== "function") return null;
     for(let guard=0; guard<120; guard++){
       const value=3+Math.floor(Math.random()*5), bases=robustFrameEnumeratePatterns(value); const base=pick(bases); if(!base) continue;
+      if(relation !== "exact" && !isChiralFrame(base)) continue; // well-posed: mirror ≠ rotation
       let right=null;
       if(relation === "exact") right=base.map(p=>p.slice());
       else if(relation === "rotation") right=frameVisualTransformPattern(base,"rot180");
@@ -91193,10 +91482,10 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   }
   function relationLabels(){
     return [
-      {id:"exact", text:"exact same visual layout"},
-      {id:"rotation", text:"same structure after rotation / viewpoint change"},
-      {id:"mirror", text:"mirror image / handedness reversed"},
-      {id:"different", text:"same count, but different structure"}
+      {id:"exact", text:"the same shape in the same orientation"},
+      {id:"rotation", text:"the same shape, turned to a new orientation"},
+      {id:"mirror", text:"the same shape flipped to its mirror image (opposite handedness)"},
+      {id:"different", text:"a different shape (matching it would need more than a turn or a flip)"}
     ];
   }
   function pickRelation(){
@@ -91227,7 +91516,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       "Do not rely on number alone: how does the right stimulus relate to the left?",
       "Compare the two stimuli as shapes. Which description is true?"
     ];
-    const payload={visualComparison:{kind:item.kind, relation:item.relation, sourceId:item.sourceId, targetId:item.targetId, count:item.count, engine:item.kind, design:"four-way_exact_rotation_mirror_different"}, mechanismTags:["visual_comparison","mental_rotation","mirror_discrimination","source_shape_encoding"]};
+    const payload={visualComparison:{kind:item.kind, relation:item.relation, sourceId:item.sourceId, targetId:item.targetId, count:item.count, rotDeg:(item.rotDeg!=null?item.rotDeg:null), engine:item.kind, design:"four-way_exact_rotation_mirror_different"}, mechanismTags:["visual_comparison","mental_rotation","mirror_discrimination","source_shape_encoding"]};
     const trial=buildL0ChoiceTrialFromOptions(cat, m, item.count, item.count, pick(questions), options, correctIndex, payload); if(!trial) return null;
     trial.family="visual_transform_comparison"; trial.catId=cat.id; trial.countsForMetaHistory=false; trial.memoryEligible=false; trial.experienceAxis="visual_spatial_comparison";
     trial.visualComparison={...payload.visualComparison, svg:item.svg}; trial.payload={...(trial.payload||{}), visualComparison:trial.visualComparison};
@@ -91333,7 +91622,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           const correct=(typeof choiceReviewCorrectIndices === "function") ? choiceReviewCorrectIndices(info) : [];
           const selected=(typeof choiceReviewSelectedIndices === "function") ? choiceReviewSelectedIndices(info) : [];
           const optText=i=>(typeof choiceReviewOptionText === "function") ? choiceReviewOptionText(info,i) : (info?.options?.[i]?.text || `option ${i+1}`);
-          const rel={exact:"the layouts were exactly the same", rotation:"the same structure appeared under a rotation/viewpoint change", mirror:"handedness was reversed by a mirror/reflection", different:"the count matched, but the structure did not match by rotation or mirror"}[vc.relation] || vc.relation;
+          const _rotTxt=(vc.relation==="rotation" && Number.isFinite(vc.rotDeg) && vc.rotDeg>0) ? ("it is the SAME shape, rotated "+vc.rotDeg+"° — a viewpoint change, NOT a different structure (so 'different shape' is wrong)") : "the same structure appeared under a rotation/viewpoint change";
+          const rel={exact:"the layouts were exactly the same", rotation:_rotTxt, mirror:"handedness was reversed by a mirror/reflection", different:"the count matched, but the structure did not match by rotation or mirror"}[vc.relation] || vc.relation;
           return [`Visual relation: ${rel}.`, `Stimulus family: ${vc.kind || "visual"}; count per stimulus: ${vc.count || "?"}.`, `Why this matters: the number is deliberately insufficient; encode shape, orientation, and handedness.`, correct.length?`Correct option: ${correct.map(optText).join(" + ")}.`:"", `You selected: ${selected.length ? selected.map(optText).join(" + ") : "—"}.`].filter(Boolean).join("\n");
         }
         return prevDetails.apply(this, arguments);
@@ -91517,6 +91807,20 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         if(CONFIG.inductiveConstructiveKlauerFragilityMinN === undefined) CONFIG.inductiveConstructiveKlauerFragilityMinN = 4;
         if(CONFIG.inductiveConstructiveKlauerFragilityTargetAcc === undefined) CONFIG.inductiveConstructiveKlauerFragilityTargetAcc = 0.75;
         if(CONFIG.inductiveConstructiveKlauerFragilityMaxBoost === undefined) CONFIG.inductiveConstructiveKlauerFragilityMaxBoost = 1.60;
+        // v6.8.66 #8: anti-trivial keypad — while choosing RIGHT of a single-pair
+        // witness build, grey out the digit already used for LEFT so a degenerate
+        // duplicate (e.g. (2,2) for "both even") can't be the answer. Only fires
+        // when a DISTINCT pair is still solvable, so same-value tasks are untouched.
+        if(CONFIG.v6866AntiTrivialKeypad === undefined) CONFIG.v6866AntiTrivialKeypad = true;
+        // v6.8.67: extend the anti-trivial keypad to TWO-PAIR construct modes (dual_contrast,
+        // progressive_alignment, system_construction, threshold_bracket_induction). Same invariant
+        // as single_witness: grey the LEFT digit while choosing the current pair's RIGHT ONLY when a
+        // DISTINCT b!=A keeps the WHOLE task satisfiable. Reversible independently of the single-pair flag.
+        if(CONFIG.v6867AntiTrivialKeypadTwoPair === undefined) CONFIG.v6867AntiTrivialKeypadTwoPair = true;
+        // v6.8.68: route ALL construct modes through the real grader (verifyInductiveTask), which
+        // also de-trivializes the 5 single-pair modes counterexample/minimal_flip/hidden_rule_induction/
+        // discriminator_construction/composition_induction. Independently reversible (off = legacy cores).
+        if(CONFIG.v6868AntiTrivialKeypadUniversal === undefined) CONFIG.v6868AntiTrivialKeypadUniversal = true;
         // The ordinary L0 constructive path remains useful, but dual contrast
         // must not become the default answer to every witness-generation task.
         if(CONFIG.generativeInlineDualShare === undefined || Number(CONFIG.generativeInlineDualShare) > 0.25) CONFIG.generativeInlineDualShare = 0.22;
@@ -92007,8 +92311,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
             id:`align_same_answer_cue_shift_${rel.id}_${target?"yes":"no"}`,
             mode:"progressive_alignment",
             title:"Same answer, changed visible cues",
-            question:`Build TWO pairs that both make ${yn(target)} for this claim: ${rel.label}. The two pairs must change at least two visible cues.`,
-            sub:"Visible cues: exact values, total, gap, order, equality status, parity pattern, prime-count, and divisibility.",
+            question:`Build TWO pairs that both make ${yn(target)} for this claim: ${rel.label}.`,
+            sub:"Change at least two things — for example different totals, different gaps, or different numbers.",
             params,
             phaseCount:2,
             klauer:{process:"same", object:rel.object},
@@ -92173,8 +92477,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           id:`discriminate_${r1.id}_vs_${r2.id}`,
           mode:"discriminator_construction",
           title:"Build a discriminator",
-          question:`Build a pair where these two rules DISAGREE — one comes out YES and the other NO. Either direction works (you do NOT have to pick which is which).\nA: ${r1.label}\nB: ${r2.label}`,
-          sub:"Just make the two rules disagree: one YES, one NO — it does not matter which.",
+          question:`Build a pair where these two rules DISAGREE: one comes out YES, the other NO.\nA: ${r1.label}\nB: ${r2.label}`,
+          sub:"Either direction is fine.",
           params:{ruleAId:r1.id, ruleBId:r2.id},
           phaseCount:1,
           klauer:{process:"different", object:(r1.object === r2.object ? r1.object : "relation")},
@@ -92240,7 +92544,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     const pairs = allPairs(cap), yesExamples=[], noExamples=[], used=new Set();
     for(let round=0; round<5; round++){
       const vs = compVersionSpace(yesExamples, noExamples, cueA, cueB);
-      if(vs.length === 1 && vs[0].id === op.id && yesExamples.length && noExamples.length) return {yesExamples,noExamples,versionSpaceIds:vs.map(o=>o.id)};
+      if(vs.length === 1 && vs[0].id === op.id && yesExamples.length && noExamples.length) break;
       let best=null, bestScore=-Infinity;
       for(const p of pairs){
         const key=pairKey(p); if(used.has(key)) continue;
@@ -92254,6 +92558,17 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       if(!best) break;
       used.add(pairKey(best));
       if(compTruth(op,cueA,cueB,best)) yesExamples.push(best); else noExamples.push(best);
+    }
+    // v6.8.70: COVER every REALIZABLE Cue-A × Cue-B combination so the examples determine the connective
+    // over ALL boolean functions, not just the 4 listed candidates → the rule is no longer "hidden"
+    // (the user disliked the hidden-cue feel); the examples themselves fully show the rule's answer for
+    // every case the player could construct. Unrealizable combinations are skipped (can't be built anyway).
+    for(const [ca,cb] of [[true,true],[true,false],[false,true],[false,false]]){
+      if(examplePairs(yesExamples,noExamples).some(p => (!!cueA.pred(p))===ca && (!!cueB.pred(p))===cb)) continue;
+      const cand = pairs.find(p => !used.has(pairKey(p)) && (!!cueA.pred(p))===ca && (!!cueB.pred(p))===cb);
+      if(!cand) continue;
+      used.add(pairKey(cand));
+      if(compTruth(op,cueA,cueB,cand)) yesExamples.push(cand); else noExamples.push(cand);
     }
     const vs = compVersionSpace(yesExamples, noExamples, cueA, cueB);
     if(vs.length === 1 && vs[0].id === op.id && yesExamples.length && noExamples.length) return {yesExamples,noExamples,versionSpaceIds:vs.map(o=>o.id)};
@@ -92275,8 +92590,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
             id:`composition_${cueA.id}_${cueB.id}_${op.id}_${target?"yes":"no"}`,
             mode:"composition_induction",
             title:"Induce the connective",
-            question:`The hidden rule combines Cue A (${cueA.label}) and Cue B (${cueB.label}). ${examplesText(teach.yesExamples, teach.noExamples)} Build ONE new ${yn(target)} example.`,
-            sub:"Closed operator family: AND, OR, EXACTLY ONE, NOT BOTH. Infer the connective from examples, then construct a case.",
+            question:`Each pair is judged by combining Cue A (${cueA.label}) and Cue B (${cueB.label}) with ONE connective. The examples below show the answer for every case. ${examplesText(teach.yesExamples, teach.noExamples)} Work out the connective, then build ONE new ${yn(target)} example.`,
+            sub:"The connective is one of: AND, OR, EXACTLY ONE, NOT BOTH. The examples cover every Cue-A / Cue-B combination, so the rule is fully determined — nothing is hidden.",
             params:{cueAId:cueA.id, cueBId:cueB.id, opId:op.id, target, yesExamples:teach.yesExamples, noExamples:teach.noExamples, versionSpaceIds:teach.versionSpaceIds},
             phaseCount:1,
             klauer:{process:"same_and_different", object:"relation"},
@@ -92513,6 +92828,146 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     panel.querySelectorAll(".genInductSlot").forEach(btn => btn.addEventListener("pointerdown", e => { e.preventDefault(); setSide(btn.dataset.side || "a"); }));
     return panel;
   }
+  // v6.8.68 — UNIVERSAL anti-trivial oracle. ONE solvability check for EVERY construct mode (the 6
+  // single-pair modes AND the 4 two-pair modes) by calling the REAL grader verifyInductiveTask
+  // directly. Correct-by-construction: whatever the grader accepts is exactly what completes the
+  // task. We only ever grey the duplicate b==A, and only when a DISTINCT solution survives, so the
+  // satisfying path is never removed (solvability preserved). priorPairs is info.pairs (the phase-1
+  // pair when on phase 2). This covers the 5 single-pair modes (counterexample, minimal_flip,
+  // hidden_rule_induction, discriminator_construction, composition_induction) that v6.8.66/67 missed.
+  const INDUCT8_TWO_PAIR_MODES = {dual_contrast:1, progressive_alignment:1, system_construction:1, threshold_bracket_induction:1};
+  function induct8GraderCompletable(mode, params, priorPairs, phaseIndex, A, b, cap){
+    const info = {inductiveConstructive:{mode, params:params || {}}};
+    const cur = pair(A, b);
+    const prior0 = (priorPairs && priorPairs[0] && priorPairs[0].pair) ? priorPairs[0].pair : null;
+    try{
+      if(!INDUCT8_TWO_PAIR_MODES[mode]){
+        // SINGLE-PAIR: the constructed pair itself must satisfy the grader.
+        return !!verifyInductiveTask(info, [{phase:1, pair:cur}]);
+      }
+      // TWO-PAIR. phase>=2: hold the prior pair; the current pair is phase-2.
+      if(Math.max(1, Math.floor(Number(phaseIndex) || 1)) >= 2){
+        if(!prior0) return false;
+        return !!verifyInductiveTask(info, [{phase:1, pair:prior0}, {phase:2, pair:cur}]);
+      }
+      // phase 1: current pair is phase-1; existential-search a feasible phase-2 pair q.
+      const grid = allPairs(cap);
+      for(const q of grid){ if(eqPair(cur, q)) continue; if(verifyInductiveTask(info, [{phase:1, pair:cur}, {phase:2, pair:q}])) return true; }
+      return false;
+    }catch(_){ return false; }
+  }
+  // Universal disable core: grey A iff SOME b!=A keeps the task completable per the grader.
+  function induct8DisabledCoreUniversal(mode, params, priorPairs, phaseIndex, A, cap){
+    const c = Math.max(2, Math.min(12, Math.floor(Number(cap)) || 8));
+    const a = Math.floor(Number(A));
+    if(!Number.isInteger(a) || a < 1 || a > c) return null;
+    const pi = Math.max(1, Math.floor(Number(phaseIndex) || 1));
+    for(let b=1; b<=c; b++){ if(b === a) continue; if(induct8GraderCompletable(mode, params || {}, priorPairs || [], pi, a, b, c)) return a; }
+    return null;
+  }
+  // Back-compat shim (legacy v6.8.66 name) kept for the window hook + the dispatcher's legacy branch.
+  function induct8DisabledCore(relationId, target, a, cap){
+    return induct8DisabledCoreUniversal("single_witness", {relationId, target}, [], 1, a, cap);
+  }
+  // Back-compat shims (legacy v6.8.67 names) — both now route through the universal grader oracle,
+  // so the hand-written per-phase predicates can no longer drift from verifyInductiveTask.
+  function induct8DisabledCoreMulti(mode, params, priorPairs, phaseIndex, A, cap){
+    if(!INDUCT8_TWO_PAIR_MODES[mode]) return null;
+    return induct8DisabledCoreUniversal(mode, params, priorPairs, phaseIndex, A, cap);
+  }
+  function induct8MultiPhaseAccepts(mode, params, priorPairs, phaseIndex, A, b, cap){
+    return induct8GraderCompletable(mode, params, priorPairs, phaseIndex, A, b, cap);
+  }
+  // Stateful wrapper read by the keypad. Routes EVERY construct mode through the universal grader-
+  // based core when CONFIG.v6868AntiTrivialKeypadUniversal is on (covering single_witness + the 4
+  // two-pair modes + the 5 previously-uncovered single-pair modes); legacy cores when the flag is off.
+  function induct8AntiTrivialDisabledDigit(info){
+    try{
+      if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6866AntiTrivialKeypad === false) return null;
+      const ic = info && info.inductiveConstructive;
+      if(!ic) return null;
+      if(Induct.activeSide !== "b") return null;
+      const A = Induct.chosen && Induct.chosen.a;
+      const phaseIndex = Math.max(1, Math.floor(Number(info.phaseIndex || 1)));
+      const priorPairs = Array.isArray(info.pairs) ? info.pairs : [];
+      const universal = (typeof CONFIG === "undefined") || !CONFIG || CONFIG.v6868AntiTrivialKeypadUniversal !== false;
+      if(universal){
+        if(ic.mode === "single_witness") return induct8DisabledCoreUniversal("single_witness", ic.params || {}, [], 1, A, Induct.cap);
+        if(INDUCT8_TWO_PAIR_MODES[ic.mode]){
+          if(CONFIG && CONFIG.v6867AntiTrivialKeypadTwoPair === false) return null;
+          return induct8DisabledCoreUniversal(ic.mode, ic.params || {}, priorPairs, phaseIndex, A, Induct.cap);
+        }
+        // the 5 single-pair modes: counterexample / minimal_flip / hidden_rule_induction /
+        // discriminator_construction / composition_induction (all single-pair in verifyInductiveTask).
+        return induct8DisabledCoreUniversal(ic.mode, ic.params || {}, priorPairs, phaseIndex, A, Induct.cap);
+      }
+      // Legacy path (v6868 flag off): only single_witness + the 4 two-pair modes.
+      if(ic.mode === "single_witness") return induct8DisabledCore(ic.params && ic.params.relationId, ic.params && ic.params.target, A, Induct.cap);
+      if(CONFIG && CONFIG.v6867AntiTrivialKeypadTwoPair === false) return null;
+      if(INDUCT8_TWO_PAIR_MODES[ic.mode]) return induct8DisabledCoreMulti(ic.mode, ic.params || {}, priorPairs, phaseIndex, A, Induct.cap);
+      return null;
+    }catch(_){ return null; }
+  }
+  // v6.8.72: anti-REUSE keypad oracle. Greys digits that would TRIVIALLY REUSE a digit the
+  // player has ALREADY used — the LEFT value within the current pair (no (x,x) duplicate) and,
+  // for two-pair builds on phase 2, the two digits of the saved Pair 1 (so you can't trivialize
+  // with (9,1) then (9,2)). It NEVER greys a merely-infeasible digit and NEVER removes the last
+  // answerable option: a reuse digit is greyed only while a valid completion that avoids the
+  // reuse still exists. Returns a sorted int array (superset of the old single-duplicate scalar).
+  function induct8AntiReuseDisabledDigits(info){
+    try{
+      if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6866AntiTrivialKeypad === false) return [];
+      const ic = info && info.inductiveConstructive;
+      if(!ic) return [];
+      const c = Math.max(2, Math.min(12, Math.floor(Number(Induct.cap)) || 8));
+      const mode = ic.mode, params = ic.params || {};
+      const phaseIndex = Math.max(1, Math.floor(Number(info.phaseIndex || 1)));
+      const priorPairs = Array.isArray(info.pairs) ? info.pairs : [];
+      const isTwoPair = !!INDUCT8_TWO_PAIR_MODES[mode];
+      const betweenOn = (typeof CONFIG === "undefined") || !CONFIG ||
+        (CONFIG.v6872BetweenPairReuseDisable !== false && CONFIG.v6867AntiTrivialKeypadTwoPair !== false);
+      const P1 = (isTwoPair && betweenOn && phaseIndex >= 2 && priorPairs[0] && priorPairs[0].pair) ? priorPairs[0].pair : null;
+      const usedBetween = P1 ? [Math.floor(Number(P1.a)), Math.floor(Number(P1.b))].filter(d => d >= 1 && d <= c) : [];
+      const out = new Set();
+
+      if(Induct.activeSide === "a"){
+        // LEFT slot: between-pair only. Grey Pair-1 digits so the player can't reuse the SAME
+        // left value, but only if a fully-fresh, valid Pair 2 still exists.
+        if(!usedBetween.length) return [];
+        const reuse = new Set(usedBetween);
+        let freshExists = false;
+        for(let a2=1; a2<=c && !freshExists; a2++){
+          if(reuse.has(a2)) continue;
+          for(let b2=1; b2<=c; b2++){
+            if(b2 === a2 || reuse.has(b2)) continue;
+            if(induct8GraderCompletable(mode, params, priorPairs, 2, a2, b2, c)){ freshExists = true; break; }
+          }
+        }
+        if(freshExists) reuse.forEach(d => out.add(d));
+        return Array.from(out).sort((x,y)=>x-y);
+      }
+
+      // RIGHT slot.
+      const A = Math.floor(Number(Induct.chosen && Induct.chosen.a));
+      if(!Number.isInteger(A) || A < 1 || A > c) return [];
+      // Reuse set on the RIGHT = the current LEFT (no duplicate) ∪ Pair-1 digits.
+      const reuse = new Set([A, ...usedBetween].filter(d => d >= 1 && d <= c));
+      let survivor = false;
+      for(let b=1; b<=c; b++){
+        if(reuse.has(b)) continue;
+        if(induct8GraderCompletable(mode, params, priorPairs, phaseIndex, A, b, c)){ survivor = true; break; }
+      }
+      if(survivor){
+        reuse.forEach(d => out.add(d));
+      } else {
+        // No reuse-free valid RIGHT exists. Fall back to the v6.8.66 behaviour: grey the within-pair
+        // duplicate alone IF a DISTINCT valid RIGHT survives (keeps the task solvable).
+        for(let b=1; b<=c; b++){ if(b === A) continue; if(induct8GraderCompletable(mode, params, priorPairs, phaseIndex, A, b, c)){ out.add(A); break; } }
+      }
+      return Array.from(out).sort((x,y)=>x-y);
+    }catch(_){ return []; }
+  }
+  try{ window.EUCA_V6866_ANTITRIVIAL = {core:induct8DisabledCore, multi:induct8DisabledCoreMulti, accepts:induct8MultiPhaseAccepts, universal:induct8DisabledCoreUniversal, completable:induct8GraderCompletable, twoPairModes:()=>Object.keys(INDUCT8_TWO_PAIR_MODES), singlePairModes:()=>["single_witness","counterexample","minimal_flip","hidden_rule_induction","discriminator_construction","composition_induction"], relations:()=>RELATIONS.map(r=>r.id), systemIds:()=>["system_same_total_different_gap","system_same_gap_opposite_order","system_same_odd_count_different_prime_count","system_same_order_different_divisibility"], buildTasks:(cap)=>({dual:makeDualContrastTasks(cap), align:makeProgressiveAlignmentTasks(cap), system:makeSystemConstructionTasks(cap), threshold:makeThresholdInductionTasks(cap)}), verifyTask:(mode,params,pairs)=>verifyInductiveTask({inductiveConstructive:{mode,params}}, pairs), antiReuse:induct8AntiReuseDisabledDigits, antiReuseTest:(info, side, chosenA, cap)=>{ const sa=Induct.activeSide, sc=Induct.chosen, scap=Induct.cap; try{ Induct.activeSide=(side==="b"?"b":"a"); Induct.chosen={a:(chosenA==null?null:Math.floor(Number(chosenA))), b:null}; Induct.cap=Math.max(2,Math.min(12,Math.floor(Number(cap))||8)); return induct8AntiReuseDisabledDigits(info); } finally { Induct.activeSide=sa; Induct.chosen=sc; Induct.cap=scap; } }}; }catch(_){ }
   function renderPanel(){
     const panel = ensurePanel();
     const info = State?.trialInfo || {};
@@ -92538,12 +92993,27 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         grid.appendChild(btn);
       }
     }
+    // v6.8.66 #8 / v6.8.72: per-render anti-REUSE disable pass (runs every render because
+    // activeSide / chosen.a change while the cached grid persists). The set now covers the
+    // within-pair duplicate AND the saved Pair-1 digits on two-pair phase 2 (both slots).
+    const antiSet = new Set(induct8AntiReuseDisabledDigits(info).map(n => Math.floor(Number(n))));
+    grid.querySelectorAll(".genInductBtn").forEach(btn => {
+      const d = Math.floor(Number(btn.textContent));
+      const off = antiSet.has(d);
+      btn.disabled = off;
+      btn.style.pointerEvents = off ? "none" : "";
+      btn.style.opacity = off ? "0.25" : "";
+      btn.setAttribute("aria-disabled", off ? "true" : "false");
+    });
   }
   function resetPanel(cap){ Induct.chosen = {a:null,b:null}; Induct.activeSide = "a"; Induct.cap = Math.max(2, Math.min(12, Math.floor(Number(cap || capNow()) || 8))); renderPanel(); }
   function setSide(side){ Induct.activeSide = side === "b" ? "b" : "a"; renderPanel(); }
   function chooseValue(v){
     v = Math.floor(Number(v));
     if(!Number.isInteger(v) || v < 1 || v > Induct.cap) return;
+    // v6.8.66 #8 / v6.8.72: hard guard so a greyed-out reuse digit can't be entered even if
+    // a stray pointer event slips past the disabled button (covers both slots).
+    if(induct8AntiReuseDisabledDigits(State?.trialInfo).includes(v)) return;
     Induct.chosen[Induct.activeSide] = v;
     if(Induct.activeSide === "a") Induct.activeSide = "b";
     renderPanel();
@@ -96778,17 +97248,32 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       const before = evals[0]?.beforeTruth;
       if(typeof before !== "boolean") continue;
       for(const kind of shuffleV6844(["flip","keep"])){
-        const flags = evals.map(e => kind === "keep" ? e.afterTruth === before : e.afterTruth !== before);
+        const goalOk = e => kind === "keep" ? e.afterTruth === before : e.afterTruth !== before;
+        const flags = evals.map(goalOk);
         if(flags.filter(Boolean).length !== 1) continue;
-        const ci = flags.findIndex(Boolean);
-        const correctTransform = transforms[ci];
+        const correctTransform = transforms[flags.findIndex(Boolean)];
         if(universalByBeforeEffectV6844(pred, correctTransform, before, kind, max)) continue;
-        const options = transforms.map((t,i)=>{
-          const ev=evals[i], correct=i===ci;
+        // v6.8.69 (issue 2): replace the one-per-family distractors with SAME-FAMILY near-misses of the
+        // correct transform, keeping only siblings that do NOT achieve the goal (so they stay true
+        // distractors and exactly one option is correct). The answer can no longer be read off the TYPE.
+        let useTransforms = transforms, useEvals = evals;
+        if((typeof CONFIG !== "object" || !CONFIG || CONFIG.l0OpEffectSameFamilyDistractors !== false) && typeof operationInvarianceSameFamilySiblings === "function"){
+          const sibs = shuffleV6844(operationInvarianceSameFamilySiblings(correctTransform, m))
+            .map(t => ({t, ev:opEffectV6844(a, b, t, pred)}))
+            .filter(x => !goalOk(x.ev));
+          if(sibs.length < 3) continue;
+          useTransforms = shuffleV6844([correctTransform, ...sibs.slice(0,3).map(x=>x.t)]);
+          useEvals = useTransforms.map(t => opEffectV6844(a, b, t, pred));
+          if(useEvals.map(goalOk).filter(Boolean).length !== 1) continue;
+        }
+        const ci = useTransforms.indexOf(correctTransform);
+        if(ci < 0) continue;
+        const options = useTransforms.map((t,i)=>{
+          const ev=useEvals[i], correct=i===ci;
           const reason = correct ? "correct" : (kind === "keep" ? "changes_when_should_keep" : "keeps_when_should_flip");
           return l0ChoiceOption(readableRuleTextV6844(t.phrase), correct, reason, {transformId:t.id, transform:t, effect:{leftAfter:ev.leftAfter,rightAfter:ev.rightAfter,beforeTruth:before,afterTruth:ev.afterTruth,preserved:ev.preserved,predicateId:pred,predicateLabel:label,goalKind:kind}});
         });
-        const payload = {operationEffectChoice:{predicateId:pred,predicateLabel:label,goalId:kind,goalKind:kind,goalLabel:kind==="keep"?"leave the answer unchanged":"flip the answer",beforeTruth:before,correctTransformId:correctTransform.id,answerHiddenPrompt:true,evaluations:evals.map(e=>({leftAfter:e.leftAfter,rightAfter:e.rightAfter,afterTruth:e.afterTruth,preserved:e.preserved,transformId:e.transform?.id}))}, operationInvarianceChoice:{predicateId:pred,goalId:kind,evaluations:evals,transforms:transforms.map(t=>t.id)}, mechanismTags:["operation_effect_choice","answer_hidden_transform_choice"]};
+        const payload = {operationEffectChoice:{predicateId:pred,predicateLabel:label,goalId:kind,goalKind:kind,goalLabel:kind==="keep"?"leave the answer unchanged":"flip the answer",beforeTruth:before,correctTransformId:correctTransform.id,answerHiddenPrompt:true,evaluations:useEvals.map(e=>({leftAfter:e.leftAfter,rightAfter:e.rightAfter,afterTruth:e.afterTruth,preserved:e.preserved,transformId:e.transform?.id}))}, operationInvarianceChoice:{predicateId:pred,goalId:kind,evaluations:useEvals,transforms:useTransforms.map(t=>t.id)}, mechanismTags:["operation_effect_choice","answer_hidden_transform_choice"]};
         const trial = buildL0ChoiceTrialFromOptions(cat, m, a,b, opQuestionV6844(label, kind), options, ci, payload);
         if(trial){ trial.frameTags=uniq([...(trial.frameTags||[]),"answer_hidden_transform_choice"]); return trial; }
       }
@@ -97616,7 +98101,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
 
   const SCALAR_WITNESS_OPS = [
     {
-      id:"gt_both", label:"greater than both", answerKind:"scalar_witness", minCap:6,
+      id:"gt_both", label:"greater than both", answerKind:"scalar_witness", openLegacy:true, minCap:6,
       prompt:"Enter a whole number greater than both remembered values.",
       shortPrompt:"Number greater than both",
       frameTags:["comparison", "boundary_witness", "productive_generation"],
@@ -97624,7 +98109,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       detail:(a,b,xs)=>`Greater than both means x > ${Math.max(a,b)}.`
     },
     {
-      id:"lt_both", label:"less than both", answerKind:"scalar_witness", allowZero:true, minCap:6,
+      id:"lt_both", label:"less than both", answerKind:"scalar_witness", openLegacy:true, allowZero:true, minCap:6,
       prompt:"Enter a whole number less than both remembered values.",
       shortPrompt:"Number less than both",
       frameTags:["comparison", "boundary_witness", "productive_generation"],
@@ -97632,7 +98117,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       detail:(a,b,xs)=>`Less than both means whole-number x < ${Math.min(a,b)}.`
     },
     {
-      id:"between_open", label:"strictly between", answerKind:"scalar_witness", minCap:6,
+      id:"between_open", label:"strictly between", answerKind:"scalar_witness", openLegacy:true, minCap:6,
       prompt:"Enter a number strictly between LEFT and RIGHT.",
       shortPrompt:"Number between them",
       frameTags:["interval_relation", "comparison", "productive_generation"],
@@ -97640,7 +98125,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       detail:(a,b,xs)=>`Strictly between means ${Math.min(a,b)} < x < ${Math.max(a,b)}. Valid answers: ${solutionLabel(xs)}.`
     },
     {
-      id:"even_between", label:"even number strictly between", answerKind:"scalar_witness", minCap:6,
+      id:"even_between", label:"even number strictly between", answerKind:"scalar_witness", openLegacy:true, minCap:6,
       prompt:"Enter an even number strictly between LEFT and RIGHT.",
       shortPrompt:"Even number between them",
       frameTags:["interval_relation", "class_inclusion", "parity", "productive_generation"],
@@ -97648,7 +98133,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       detail:(a,b,xs)=>`The interval is ${Math.min(a,b)} < x < ${Math.max(a,b)}, and x must be even. Valid answers: ${solutionLabel(xs)}.`
     },
     {
-      id:"prime_between", label:"prime number strictly between", answerKind:"scalar_witness", minCap:7,
+      id:"prime_between", label:"prime number strictly between", answerKind:"scalar_witness", openLegacy:true, minCap:7,
       prompt:"Enter a prime number strictly between LEFT and RIGHT.",
       shortPrompt:"Prime number between them",
       frameTags:["interval_relation", "class_inclusion", "primality", "productive_generation"],
@@ -97662,11 +98147,93 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       frameTags:["metric_relation", "distance", "numeric_exact"],
       solutions:(a,b,cap)=>[Math.abs(a-b)],
       detail:(a,b,xs)=>`Distance: |${a}−${b}| = ${Math.abs(a-b)}.`
+    },
+    // ===== v6.8.67 (Task 2): tightened single-answer (numeric_exact) L0 numpad ops. These REPLACE the
+    // open scalar_witness ops above (gated out via op.openLegacy + CONFIG.scalarWitnessTightenL0) and add
+    // new MORE-DEMANDING aggregate transforms (sum+1, next prime after total, ...). Each pins ONE
+    // deterministic answer; prompts name aggregates only (sum/total/larger/both/LEFT-RIGHT), never a value. =====
+    {
+      id:"smallest_gt_both", label:"smallest greater than both", answerKind:"numeric_exact", minCap:6,
+      prompt:"Enter the smallest whole number greater than both remembered values.",
+      shortPrompt:"Smallest greater than both",
+      frameTags:["comparison", "boundary_witness", "minimal_witness", "productive_generation"],
+      solutions:(a,b,cap)=>[Math.max(a,b)+1],
+      detail:(a,b,xs)=>`The larger value is ${Math.max(a,b)}; the smallest whole number greater than both is ${Math.max(a,b)+1}.`
+    },
+    {
+      id:"largest_lt_both", label:"largest less than both", answerKind:"numeric_exact", allowZero:true, minCap:6,
+      prompt:"Enter the largest whole number less than both remembered values.",
+      shortPrompt:"Largest less than both",
+      frameTags:["comparison", "boundary_witness", "extremal_witness", "productive_generation"],
+      solutions:(a,b,cap)=>{ const v=Math.min(a,b)-1; return v>=0?[v]:[]; },
+      detail:(a,b,xs)=>`The smaller value is ${Math.min(a,b)}; the largest whole number less than both is ${Math.min(a,b)-1}.`
+    },
+    {
+      id:"midpoint_between", label:"midpoint of the two", answerKind:"numeric_exact", minCap:6,
+      prompt:"Enter the exact midpoint of LEFT and RIGHT.",
+      shortPrompt:"Midpoint of the two",
+      frameTags:["interval_relation", "midpoint", "productive_generation"],
+      solutions:(a,b,cap)=>(a!==b && (a+b)%2===0) ? [(a+b)/2] : [],
+      detail:(a,b,xs)=>`Midpoint = (${a}+${b}) / 2 = ${xs[0]}.`
+    },
+    {
+      id:"largest_even_between", label:"largest even between", answerKind:"numeric_exact", minCap:6,
+      prompt:"Enter the largest even number strictly between LEFT and RIGHT.",
+      shortPrompt:"Largest even between",
+      frameTags:["interval_relation", "parity", "extremal_witness", "productive_generation"],
+      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); let best=null; for(let x=lo+1;x<hi;x++) if(x%2===0) best=x; return best!=null?[best]:[]; },
+      detail:(a,b,xs)=>`Largest even number strictly between ${Math.min(a,b)} and ${Math.max(a,b)} is ${xs[0]}.`
+    },
+    {
+      id:"smallest_prime_between", label:"smallest prime between", answerKind:"numeric_exact", minCap:7,
+      prompt:"Enter the smallest prime number strictly between LEFT and RIGHT.",
+      shortPrompt:"Smallest prime between",
+      frameTags:["interval_relation", "primality", "minimal_witness", "productive_generation"],
+      solutions:(a,b,cap)=>{ const lo=Math.min(a,b), hi=Math.max(a,b); for(let x=lo+1;x<hi;x++) if(isPrimeLocal(x)) return [x]; return []; },
+      detail:(a,b,xs)=>`Smallest prime strictly between ${Math.min(a,b)} and ${Math.max(a,b)} is ${xs[0]}.`
+    },
+    {
+      id:"smallest_gt_sum", label:"smallest greater than the sum", answerKind:"numeric_exact", minCap:6,
+      prompt:"Enter the smallest whole number greater than the sum of the two values.",
+      shortPrompt:"Smallest greater than the sum",
+      frameTags:["aggregation", "sum", "boundary_witness", "productive_generation"],
+      solutions:(a,b,cap)=>[a+b+1],
+      detail:(a,b,xs)=>`The sum is ${a}+${b} = ${a+b}; the smallest whole number greater than it is ${a+b+1}.`
+    },
+    {
+      id:"next_prime_after_sum", label:"next prime after the total", answerKind:"numeric_exact", minCap:6,
+      prompt:"Enter the next prime number after the total of the two values.",
+      shortPrompt:"Next prime after the total",
+      frameTags:["aggregation", "sum", "primality", "productive_generation"],
+      solutions:(a,b,cap)=>{ let n=a+b+1; while(!isPrimeLocal(n)) n++; return [n]; },
+      detail:(a,b,xs)=>`The total is ${a}+${b} = ${a+b}; the next prime after it is ${xs[0]}.`
+    },
+    {
+      id:"next_prime_after_max", label:"next prime after the larger", answerKind:"numeric_exact", minCap:6,
+      prompt:"Enter the next prime number after the larger of the two values.",
+      shortPrompt:"Next prime after the larger",
+      frameTags:["comparison", "primality", "boundary_witness", "productive_generation"],
+      solutions:(a,b,cap)=>{ let n=Math.max(a,b)+1; while(!isPrimeLocal(n)) n++; return [n]; },
+      detail:(a,b,xs)=>`The larger value is ${Math.max(a,b)}; the next prime after it is ${xs[0]}.`
+    },
+    {
+      id:"next_multiple_of_5_after_sum", label:"next multiple of 5 above the total", answerKind:"numeric_exact", minCap:6,
+      prompt:"Enter the next multiple of 5 above the total of the two values.",
+      shortPrompt:"Next multiple of 5 above total",
+      frameTags:["aggregation", "sum", "multiple", "productive_generation"],
+      solutions:(a,b,cap)=>{ const s=a+b; return [Math.floor(s/5)*5+5]; },
+      detail:(a,b,xs)=>`The total is ${a}+${b} = ${a+b}; the next multiple of 5 above it is ${xs[0]}.`
     }
   ];
 
   function opById(id){ return SCALAR_WITNESS_OPS.find(o => o.id === id) || null; }
-  function eligibleOpsForCap(cap){ return SCALAR_WITNESS_OPS.filter(op => cap >= (op.minCap || 1)); }
+  function eligibleOpsForCap(cap){
+    // v6.8.67 (Task 2): when tightening is on (default), the OPEN multi-answer ops (op.openLegacy)
+    // are NOT served — only deterministic single-answer ops appear in play. The open ops stay in
+    // SCALAR_WITNESS_OPS for reversibility + their op-specific audits (which use forceOpId, bypassing this gate).
+    const tighten = !(typeof CONFIG !== "undefined" && CONFIG && CONFIG.scalarWitnessTightenL0 === false);
+    return SCALAR_WITNESS_OPS.filter(op => cap >= (op.minCap || 1) && !(tighten && op.openLegacy));
+  }
   function opRecencyWeight(op){
     const recent = local.recentOps || [];
     const last = recent.lastIndexOf(op.id);
@@ -98129,6 +98696,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         if(CONFIG.scalarWitnessInlineCooldownTrials === undefined) CONFIG.scalarWitnessInlineCooldownTrials = 8;
         if(CONFIG.scalarWitnessInlineMaxPerBlock === undefined) CONFIG.scalarWitnessInlineMaxPerBlock = 1;
         if(CONFIG.scalarWitnessInputMax === undefined) CONFIG.scalarWitnessInputMax = 99;
+        // v6.8.67 (Task 2): when true (default), the OPEN multi-answer L0 numpad ops are gated out of
+        // play in favor of tightened single-answer + more-demanding ops. Set false to restore the open ops.
+        if(CONFIG.scalarWitnessTightenL0 === undefined) CONFIG.scalarWitnessTightenL0 = true;
         if(CONFIG.scalarWitnessSourceMax === undefined && Number.isFinite(Number(CONFIG.relationalMaxValue))) CONFIG.scalarWitnessSourceMax = Number(CONFIG.relationalMaxValue);
       }
       installWrappers();
@@ -99389,27 +99959,45 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function pvBuildL0ConcatChoice(cat, m){
     if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function") return null;
     const p = pvRandomPair(m);
-    const answer = pvConcat(p);
+    const formed = pvConcat(p);
     const reversed = (Number(p.b) * 10) + Number(p.a);
-    const built = pvBuildOptions(answer, [reversed, Number(p.a) + Number(p.b), Number(p.a) * 10, Number(p.b) * 10 + Number(p.b)], "left_tens_right_ones");
-    const question = "If LEFT is the tens digit and RIGHT is the ones digit, which number is formed?";
+    // v6.8.68 (C1): the bare "which number is formed?" readout was trivial — the formed number was
+    // itself one of the buttons. Require a COMPUTATION on the formed two-digit number instead:
+    // SUBTRACT 9. This keeps the tens/ones binding load-bearing (32−9=23 vs 23−9=14) and preserves a
+    // binding ("reverse") lure, while the formed number becomes only a lure, never the answer.
+    // Set CONFIG.placeValueConcatBareReadout = true to restore the legacy bare-concatenation item.
+    const bareReadout = (typeof CONFIG === "object" && CONFIG && CONFIG.placeValueConcatBareReadout === true);
+    let answer, question, built, computeMode;
+    if(bareReadout){
+      answer = formed; computeMode = "bare_concat";
+      built = pvBuildOptions(answer, [reversed, Number(p.a) + Number(p.b), Number(p.a) * 10, Number(p.b) * 10 + Number(p.b)], "left_tens_right_ones");
+      question = "If LEFT is the tens digit and RIGHT is the ones digit, which number is formed?";
+    } else {
+      answer = formed - 9; computeMode = "minus9";
+      // lures: forgot to subtract (formed), subtracted ten/one instead of nine, and a binding error
+      // (swap the digits, then subtract). pvBuildOptions dedupes, clamps 0..99, and fills to 4.
+      built = pvBuildOptions(answer, [formed, formed - 10, formed - 1, reversed - 9], "left_tens_right_ones_minus9");
+      question = "Read LEFT as the tens digit and RIGHT as the ones digit to form a two-digit number, then subtract 9. What is the result?";
+    }
     const trial = buildL0ChoiceTrialFromOptions(cat, m, p.a, p.b, question, built.options, built.correctIndex, {
       placeValueConcat:{
         layer:"L0",
         opId:"decl_place_value_concat_choice",
         contract:"left_tens_right_ones",
+        computeMode,
         tens:p.a,
         ones:p.b,
+        formed,
         answer,
         reversed
       },
-      mechanismTags:["place_value_concat","tens_ones_binding","reverse_lure_inhibition"]
+      mechanismTags:bareReadout ? ["place_value_concat","tens_ones_binding","reverse_lure_inhibition"] : ["place_value_concat","tens_ones_binding","place_value_subtraction","reverse_lure_inhibition"]
     });
     if(trial){
       trial.noL0Transform = true;
       trial.placeValueConcat = trial.payload?.placeValueConcat || null;
       trial.frameTags = uniqLocal([...(trial.frameTags || []), "place_value", "base10", "role_binding", "source_relation", "choice_readout"]);
-      trial.mechanismTags = uniqLocal([...(trial.mechanismTags || []), "place_value_concat", "tens_ones_binding", "reverse_lure_inhibition"]);
+      trial.mechanismTags = uniqLocal([...(trial.mechanismTags || []), "place_value_concat", "tens_ones_binding"].concat(bareReadout ? ["reverse_lure_inhibition"] : ["place_value_subtraction", "reverse_lure_inhibition"]));
     }
     return trial;
   }
@@ -99573,10 +100161,16 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         else{
           const correctCount = arr(trial.options).filter(o => o && o.correct).length;
           if(correctCount !== 1) blockers.push("L0 place-value concat sample is not uniquely correct");
-          const expected = Number(trial.a) * 10 + Number(trial.b);
-          if(trial.payload?.placeValueConcat?.answer !== expected) blockers.push(`L0 place-value answer mismatch: expected ${expected}`);
+          // v6.8.68 (C1): the default item now COMPUTES on the formed number (subtract 9). Branch the
+          // expected answer on computeMode; the formed-number-must-be-an-option check applies only to
+          // the legacy bare_concat mode (in compute mode the formed number is just a lure).
+          const pcMode = trial.payload?.placeValueConcat?.computeMode || "bare_concat";
+          const pcFormed = Number(trial.a) * 10 + Number(trial.b);
+          const expected = pcMode === "minus9" ? (pcFormed - 9) : (pcMode === "bare_concat" ? pcFormed : Number(trial.payload?.placeValueConcat?.answer));
+          if(trial.payload?.placeValueConcat?.answer !== expected) blockers.push(`L0 place-value answer mismatch: expected ${expected} for mode ${pcMode}`);
           if(!/tens digit/i.test(String(trial.question || "")) || !/ones digit/i.test(String(trial.question || ""))) blockers.push("L0 place-value prompt lacks tens/ones binding");
-          if(!arr(trial.options).some(o => Number(o?.text) === expected)) blockers.push("L0 options omit formed number");
+          if(pcMode === "bare_concat" && !arr(trial.options).some(o => Number(o?.text) === pcFormed)) blockers.push("L0 options omit formed number");
+          if(!arr(trial.options).some(o => Number(o?.text) === expected)) blockers.push("L0 options omit the correct answer");
         }
       }
       const ops = arr(typeof L1_OPS !== "undefined" ? L1_OPS : []).filter(o => o && o.family === "place_value_concat");
@@ -100356,7 +100950,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   // v6.8.65: the new reasoning-heavy families (mental search, relation composition, redistribution
   // simulation) are explicitly heavy. fair_share / inclusion_exclusion / signed_accumulation are a
   // single arithmetic formula → they stay MEDIUM by design (not an oversight).
-  const HEAVY_RE = /epistemic|inverse|recursive|induction|hidden_rule|composition_induction|discriminator|generative|geninduct|witness|productive|place_value_gate|construct|constraint_satisfaction|transitive_inference|redistribution/i;
+  const HEAVY_RE = /epistemic|inverse|recursive|induction|hidden_rule|composition_induction|discriminator|generative|geninduct|witness|productive|place_value_gate|construct|constraint_satisfaction|transitive_inference|redistribution|transform_then_relate/i;
   const HEAVY_FORMAT_RE = /generativ|construct/i;
   const LIGHT_FORMAT_RE = /^(bool|yesno|boolean)$/i;
   function famOf(obj){ return String((obj && (obj.family || obj.catFamily || obj.extensionFamily || (obj.op && obj.op.family))) || "").toLowerCase(); }
@@ -101118,7 +101712,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       else if(target === 1){ if(!(R > L)) continue; clue = "lt"; outcome = 1; }  // Z<L, R>L ⇒ Z<R
       else { clue = (R > L) ? "gt" : "lt"; outcome = 2; }                         // Z and R on the same side of L ⇒ undetermined
       const clueWord = clue === "gt" ? "greater than" : "less than";
-      const question = `You saw a LEFT value and a RIGHT value. A third value Z is ${clueWord} the LEFT value. Compared with the RIGHT value, is Z greater, is Z less, or can you not tell?`;
+      const question = `A third value Z is ${clueWord} the LEFT value. Compared with the RIGHT value, is Z greater, is Z less, or can you not tell?`;
       const options = [
         l0ChoiceOption("Z is greater than the RIGHT value", outcome === 0, "transitive_order"),
         l0ChoiceOption("Z is less than the RIGHT value",    outcome === 1, "transitive_order"),
@@ -101547,7 +102141,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     redistribution_min_move_to_flip({p1}){ const g=Math.abs(p1.a-p1.b); return `gap ${g} → ⌊${g}/2⌋+1 = ${Math.floor(g/2)+1}`; },
     constraint_judge_two_sum({p2}){ const S=Number(p2.a)+Number(p2.b); const ex=[]; let c=0; for(let a=1;a<=9;a++) for(let b=a+1;b<=9;b++) if(a+b===S){ c++; if(ex.length<3) ex.push(`${a}+${b}`); } return `total ${S}: ${c} pair${c===1?"":"s"}${ex.length?" ("+ex.join(", ")+(c>ex.length?", …":"")+")":""}`; },
     constraint_judge_even_sum({p2}){ const S=Number(p2.a)+Number(p2.b); const ev=[2,4,6,8], ex=[]; let c=0; for(let i=0;i<ev.length;i++) for(let j=i+1;j<ev.length;j++) if(ev[i]+ev[j]===S){ c++; ex.push(`${ev[i]}+${ev[j]}`); } return `total ${S}: ${c} even pair${c===1?"":"s"}${ex.length?" ("+ex.join(", ")+")":""}`; },
-    constraint_repair_mult4({p1}){ const da=distPos4(p1.a), db=distPos4(p1.b); return `${p1.a} → nearest of 4/8 costs ${da}; ${p1.b} → costs ${db}; total ${da+db}`; }
+    constraint_repair_mult4({p1}){ function nm(n){ let b=4,bd=Infinity; for(let k=4;k<=Number(n)+4;k+=4){ const d=Math.abs(Number(n)-k); if(d<bd){bd=d;b=k;} } return b; } const da=distPos4(p1.a), db=distPos4(p1.b); return `${p1.a} → nearest multiple of 4 is ${nm(p1.a)} (costs ${da}); ${p1.b} → ${nm(p1.b)} (costs ${db}); total ${da+db}`; }
   };
   let added=0; for(const id in B){ try{ L1_REVIEW_DETAIL_BUILDERS[id] = B[id]; added++; }catch(_){ } }
   // self-audit: every builder returns a non-empty string on a representative pair
@@ -101630,14 +102224,16 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function" || typeof randInt !== "function") return;
   const PATCH_ID = "v6.8.66-transform-then-relate-native";
   function uniqL(xs){ return Array.from(new Set((xs||[]).filter(x=>x!=null).map(String))); }
-  function clockRot(v,n){ if(typeof rotateClockHour === "function"){ try{ const r = rotateClockHour(v,n); if(Number.isInteger(r)) return r; }catch(_){ } } return ((Number(v)-1+n)%12+12)%12+1; }
+  // v6.8.66 (user's refinement, supersedes the avoid-wrap fix): the clock is LINEAR — adding hours to a
+  // MORNING time carries it into the AFTERNOON (11 + 3 = 2 PM = LATER), so apply() is just v±3 (no modular
+  // wrap, may exceed 12 = PM or drop below 1 = before-dawn) and "later" = higher linear value. The advance
+  // wording states the PM crossing so it is clear. The spatial "opposite hour" variant stays DROPPED.
   const SPECS = [
-    {id:"txr_clock_advance3_later",  rep:"clock", cap:12, frame:"temporal", tf:v=>clockRot(v,3),  phrase:"moves forward 3 hours",                          lead:"Two clocks show AM arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
-    {id:"txr_clock_retreat3_later",  rep:"clock", cap:12, frame:"temporal", tf:v=>clockRot(v,-3), phrase:"goes back 3 hours",                                lead:"Two clocks show AM arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
-    {id:"txr_clock_opposite_later",  rep:"clock", cap:12, frame:"temporal", tf:v=>clockRot(v,6),  phrase:"jumps to the opposite hour on the dial",        lead:"Two clocks show AM arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
-    {id:"txr_die_opposite_higher",   rep:"dice",  cap:6,  frame:"score",    tf:v=>7-Number(v),     phrase:"rolls over to its opposite face",               lead:"Two dice were shown.",              more:"scores higher", labels:["LEFT scores higher","RIGHT scores higher","They tie"]},
-    {id:"txr_ten_complement_fuller", rep:"ten",   cap:9,  frame:"fill",     tf:v=>10-Number(v),    phrase:"is replaced by its empty cells (its complement to 10)", lead:"Two ten-frames were shown.", more:"is fuller",     labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]},
-    {id:"txr_grid_complement_fuller",rep:"grid",  cap:9,  frame:"fill",     tf:v=>9-Number(v),     phrase:"has its filled and empty cells swapped (its complement)", lead:"Two 3x3 grids were shown.", more:"is fuller",     labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]}
+    {id:"txr_clock_advance3_later",  rep:"clock", cap:12, frame:"temporal", apply:v=>Number(v)+3, phrase:"moves forward 3 hours (if it passes 12 o'clock it becomes the afternoon, which is later)", lead:"Two clocks show morning arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
+    {id:"txr_clock_retreat3_later",  rep:"clock", cap:12, frame:"temporal", apply:v=>Number(v)-3, phrase:"goes back 3 hours",    lead:"Two clocks show morning arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
+    {id:"txr_die_opposite_higher",   rep:"dice",  cap:6,  frame:"score",    apply:v=>7-Number(v),  phrase:"rolls over to its opposite face",               lead:"Two dice were shown.",       more:"scores higher", labels:["LEFT scores higher","RIGHT scores higher","They tie"]},
+    {id:"txr_ten_complement_fuller", rep:"ten",   cap:9,  frame:"fill",     apply:v=>10-Number(v), phrase:"is replaced by its empty cells (its complement to 10)", lead:"Two ten-frames were shown.", more:"is fuller", labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]},
+    {id:"txr_grid_complement_fuller",rep:"grid",  cap:9,  frame:"fill",     apply:v=>9-Number(v),  phrase:"has its filled and empty cells swapped (its complement)", lead:"Two 3x3 grids were shown.", more:"is fuller", labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]}
   ];
   function buildTxr(cat, m){
     const spec = cat && cat.txrSpec; if(!spec) return null;
@@ -101647,8 +102243,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     for(let tries=0; tries<320; tries++){
       const side = randInt(0, 2) === 0 ? "L" : "R"; // which operand the player must transform
       const L = randInt(1, maxV+1), R = randInt(1, maxV+1);
-      const lv = side === "L" ? Number(spec.tf(L)) : L;
-      const rv = side === "R" ? Number(spec.tf(R)) : R;
+      const lv = side === "L" ? spec.apply(L) : L;
+      const rv = side === "R" ? spec.apply(R) : R;
+      if(lv == null || rv == null) continue; // a clock move that would wrap past 12 — reject so "later" stays linear
       const outcome = lv > rv ? 0 : (lv < rv ? 1 : 2);
       if(outcome !== target) continue;
       const rawOutcome = L > R ? 0 : (L < R ? 1 : 2);
@@ -101706,21 +102303,24 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         const cat = POSNER_CATS.find(c => c && c.id === spec.id);
         if(!cat){ blockers.push(`missing cat ${spec.id}`); continue; }
         const outcomes = {0:0,1:0,2:0}; let built = 0, mismatch = 0, repWrong = 0, leak = 0, optBad = 0, flips = 0, nonTie = 0;
-        for(let i=0;i<150;i++){
-          const t = cat.buildChoiceTrial(cat, 9); if(!t){ continue; } built++;
+        // build at m=12 so the high clock values (advancing into the afternoon) are exercised
+        for(let i=0;i<180;i++){
+          const t = cat.buildChoiceTrial(cat, 12); if(!t){ continue; } built++;
           const tr = t.payload && t.payload.transformThenRelate;
           if(!tr){ optBad++; continue; }
-          // recompute the verdict independently from the recorded values + the spec transform
-          const lv = tr.side === "L" ? Number(spec.tf(tr.left)) : tr.left;
-          const rv = tr.side === "R" ? Number(spec.tf(tr.right)) : tr.right;
+          // recompute the verdict independently from the recorded values + the spec transform (LINEAR;
+          // a clock value may exceed 12 = afternoon, which is later — that is correct, not a wrap bug)
+          const lv = tr.side === "L" ? spec.apply(tr.left) : tr.left;
+          const rv = tr.side === "R" ? spec.apply(tr.right) : tr.right;
+          if(lv == null || rv == null){ continue; }
           const exp = lv > rv ? 0 : (lv < rv ? 1 : 2);
           outcomes[exp] = (outcomes[exp]||0)+1;
           if(Number(t.semanticCorrectIndex) !== exp) mismatch++;
           if(t.repA !== spec.rep || t.repB !== spec.rep) repWrong++;
           if(!Array.isArray(t.options) || t.options.length !== 3) optBad++;
-          // mask-respecting: the operand values must NOT be printed (only the fixed transform amount may appear)
+          // mask-respecting: the operand values must NOT be printed (only fixed transform/clock numbers appear)
           const q = String(t.question || "");
-          if(new RegExp(`\\b${tr.left}\\b`).test(q.replace(/\b(3|6|10)\b/g, "")) || new RegExp(`\\b${tr.right}\\b`).test(q.replace(/\b(3|6|10)\b/g, ""))) leak++;
+          if(new RegExp(`\\b${tr.left}\\b`).test(q.replace(/\b(3|10|12)\b/g, "")) || new RegExp(`\\b${tr.right}\\b`).test(q.replace(/\b(3|10|12)\b/g, ""))) leak++;
           if(exp !== 2){ nonTie++; if(tr.rawOutcome !== exp) flips++; }
         }
         const flipRate = nonTie ? flips/nonTie : 0;
@@ -101743,6 +102343,209 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6866TransformThenRelateNative", auditV6866Txr);
   }catch(_){ }
   try{ window.EUCA_V6866_TXR = {patch:PATCH_ID, added, ids, audit:auditV6866Txr, build:buildTxr}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.66 - CRITICAL REACHABILITY FIX. The sampler's L0 candidate pool comes from
+// availablePosnerCatsForTier → registryLayerEntries("L0"), which returns the SPEC_REGISTRY-built index
+// (rebuildRegistryRuntimeIndex iterates SPEC_REGISTRY), NOT raw POSNER_CATS. Families pushed in
+// end-of-file IIFEs (relational_reference, transform_then_relate_native, place-value choice cats,
+// transitive_inference, …) were never migrated to specs — the migration pass (~line 73801) ran before
+// they existed — so the index excluded them and they were NEVER served (0 plays despite canUse:true).
+// CDP-confirmed: 0/700 setupPosner() hits at LV9. Fix: migrate every still-un-specced L0 cat NOW and
+// force an index rebuild so the registry index (and thus the sampler) finally includes them.
+(function(){
+  let migrated = 0, l1Migrated = 0;
+  try{
+    if(typeof migrateLegacyCatalogueEntryToSpec === "function" && typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)){
+      for(const c of POSNER_CATS){
+        if(c && c.id && !c._registrySpec && !c.registrySpecId){
+          try{ migrateLegacyCatalogueEntryToSpec("L0", c); migrated++; }catch(_){ }
+        }
+      }
+    }
+  }catch(_){ }
+  // L1 ops (place-value, fair_share, inclusion_exclusion, redistribution, constraint, signed_accumulation)
+  // have the SAME problem — registryLayerEntries("L1", L1_OPS) returns the SPEC index, and these were
+  // pushed after migrateLateL1AdditionsToRegistry ran. Re-run it now to mirror the late L1 additions.
+  try{ if(typeof migrateLateL1AdditionsToRegistry === "function"){ const rep = migrateLateL1AdditionsToRegistry(); l1Migrated = (rep && rep.migrated) || 0; } }catch(_){ }
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+  try{ if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex(); }catch(_){ }
+  try{ if(typeof _availablePosnerCatsCache !== "undefined" && _availablePosnerCatsCache && _availablePosnerCatsCache.clear) _availablePosnerCatsCache.clear(); }catch(_){ }
+  try{ window.__v6866L0Migrated = migrated; }catch(_){ }
+  function auditV6866FamilyReachability(opts={}){
+    const blockers=[], warnings=[], details={migrated, l1Migrated};
+    try{
+      // L1 reachability: the new L1 ops must be in the L1 registry index or the L1 sampler never serves them
+      if(typeof registryLayerEntries === "function" && typeof L1_OPS !== "undefined"){
+        const idxL1 = registryLayerEntries("L1", L1_OPS);
+        const l1Ids = new Set(idxL1.map(o => String(o && o.id)));
+        details.l1IndexCount = idxL1.length; details.l1OpsCount = (L1_OPS||[]).length;
+        for(const id of ["fair_share_each_box","set_union_size","place_value_carry_units_overflow","constraint_judge_two_sum","redistribution_min_move_to_flip"]){
+          if(!l1Ids.has(id)) blockers.push(`L1 op ${id} missing from the L1 registry index → never served`);
+        }
+      }
+      const idxL0 = (typeof registryLayerEntries === "function") ? registryLayerEntries("L0", POSNER_CATS) : [];
+      const idxFams = new Set(idxL0.map(c => String(c && (c.family || c.id))));
+      details.l0IndexCount = idxL0.length; details.posnerCatsCount = (POSNER_CATS||[]).length;
+      for(const f of ["relational_reference","transform_then_relate_native"]){
+        details[f+"InIndex"] = idxFams.has(f);
+        if(!idxFams.has(f)) blockers.push(`${f} missing from the L0 registry index → would never be sampled`);
+      }
+      // also confirm they survive the tier/minM/canUse filter the sampler applies
+      if(typeof availablePosnerCatsForTier === "function"){
+        const avail = availablePosnerCatsForTier(9, 5);
+        const af = new Set(avail.map(c => String(c && (c.family || c.id))));
+        details.relRefAvail = af.has("relational_reference"); details.txrAvail = af.has("transform_then_relate_native");
+        if(!af.has("relational_reference")) blockers.push("relational_reference not in availablePosnerCatsForTier(9,5)");
+        if(!af.has("transform_then_relate_native")) blockers.push("transform_then_relate_native not in availablePosnerCatsForTier(9,5)");
+      }
+    }catch(e){ blockers.push("reachability audit exception: "+(e&&e.message||e)); }
+    return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
+  }
+  try{ window.auditV6866FamilyReachability = auditV6866FamilyReachability; globalThis.auditV6866FamilyReachability = auditV6866FamilyReachability; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6866_family_reachability","family_reachability","l0_sampler_reachability"], auditV6866FamilyReachability, "auditV6866FamilyReachability");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6866FamilyReachability", auditV6866FamilyReachability);
+  }catch(_){ }
+  try{ window.EUCA_V6866_REACHABILITY = {migrated, audit:auditV6866FamilyReachability}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.68 (D2): linguistic-vs-internal-computation audit for 4-option choice questions. For each
+// rel_eq_* four-select cat, recompute every option's truth INDEPENDENTLY from the operation NAMED in
+// its text (NOT from spec.build's own `correct` flag), then BLOCK if the program's internal correctness
+// disagrees with the linguistic meaning. The recompute table was verified against build() at edit time.
+(function(){
+  "use strict";
+  const PATCH_ID = "v6.8.68-linguistic-internal-choice-audit";
+  const AUDIT_KEYS = ["v6868_linguistic_internal","linguistic_vs_internal_choice","choice_prompt_compute_match"];
+  const REL_EQ_RECOMPUTE = {
+    rel_eq_distance5_converse:(a,b)=>{ const dl=Math.abs(a-5), dr=Math.abs(b-5); return [dl<dr, dr>dl, dl>dr, dr<dl]; },
+    rel_eq_complement10_order:(a,b)=>{ const ca=10-a, cb=10-b; return [a<b, ca>cb, a>b, ca<cb]; },
+    rel_eq_direct_order:(a,b)=>[a>b, a<b, b>a, b<a],
+    rel_eq_negative_order:(a,b)=>[a>b, (-a)<(-b), a<b, (-a)>(-b)],
+    rel_eq_reciprocal_order:(a,b)=>{ const ra=1/a, rb=1/b; return [a<b, ra>rb, a>b, ra<rb]; }
+  };
+  function setFromBools(bools){ const s=new Set(); bools.forEach((v,i)=>{ if(v) s.add(i); }); return s; }
+  function eqSet(x,y){ if(x.size!==y.size) return false; for(const v of x) if(!y.has(v)) return false; return true; }
+  function auditV6868LinguisticInternal(opts={}){
+    const blockers=[], warnings=[], details={patch:PATCH_ID, samplesByCat:{}};
+    try{
+      if(typeof l0RelationEquivalenceCatalog !== "function"){ warnings.push("rel_eq catalog not visible"); }
+      else{
+        const cats = l0RelationEquivalenceCatalog();
+        const SAMPLES = Math.max(8, Number(opts.samplesPerCat || 24));
+        const cap = Math.max(2, Math.min(12, Number(opts.cap || 12)));
+        for(const spec of cats){
+          const recompute = REL_EQ_RECOMPUTE[spec.id];
+          if(!recompute){ warnings.push(`no independent recompute registered for ${spec.id}`); continue; }
+          const rec = details.samplesByCat[spec.id] = {n:0, mismatches:[]};
+          let tried=0;
+          for(let a=1; a<=cap && rec.n<SAMPLES; a++) for(let b=1; b<=cap && rec.n<SAMPLES; b++){
+            if(typeof spec.valid==="function" && !spec.valid(a,b)) continue;
+            let raw=null; try{ raw=spec.build(a,b); }catch(e){ blockers.push(`${spec.id}: build threw at (${a},${b})`); continue; }
+            if(!Array.isArray(raw) || raw.length!==4){ blockers.push(`${spec.id}: build did not return 4 options`); continue; }
+            const internalSet = setFromBools(raw.map(o=>!!o.correct));   // INTERNAL: program's own flags
+            const linguisticSet = setFromBools(recompute(a,b));          // INDEPENDENT: from the stated operation
+            tried++; rec.n++;
+            if(!eqSet(internalSet, linguisticSet)){
+              rec.mismatches.push({a,b, internal:[...internalSet], linguistic:[...linguisticSet], texts:raw.map(o=>o.text)});
+            }
+            if(internalSet.size !== 2) warnings.push(`${spec.id}: ${internalSet.size} correct options at (${a},${b}) — expected exactly 2`);
+          }
+          if(tried===0){ warnings.push(`${spec.id}: no valid sample pairs found`); }
+          if(rec.mismatches.length){ blockers.push(`${spec.id}: ${rec.mismatches.length} prompt/compute mismatches (e.g. ${JSON.stringify(rec.mismatches[0])})`); }
+        }
+      }
+    }catch(e){ blockers.push("linguistic/internal audit exception: "+(e&&e.message||e)); }
+    return {status: blockers.length?"block":(warnings.length?"warn":"pass"), blockers, warnings, details};
+  }
+  try{ window.auditV6868LinguisticInternal = auditV6868LinguisticInternal; globalThis.auditV6868LinguisticInternal = auditV6868LinguisticInternal; }catch(_){ }
+  try{ if(typeof registerFeatureAudit==="function") registerFeatureAudit(AUDIT_KEYS, (o)=>auditV6868LinguisticInternal(o||{}), "auditV6868LinguisticInternal"); }catch(_){ }
+})();
+</script>
+
+<!-- v6.8.67: the v6.8.66 #1 new-family frequency BOOST has been REMOVED — frequency NORMALIZED.
+     The new L0 families (relational_reference / transform_then_relate_native / place_value_concat /
+     place_value_root / transitive_inference) now sample at the DEFAULT family weight (0.04, ~2.4%
+     combined), exactly like any other un-tabled family — no posnerFamilyWeights boost wrapper.
+     (v6.8.66 keeps the 0.10 boost for the user's targeted testing of the new content.) -->
+
+<script>
+// v6.8.72 — retire two broken families from PLAY without disturbing their audits.
+// Both retirements work by gating the cat's canUse() to false (or a CONFIG flag the cat already
+// reads): the cats stay REGISTERED with their builders intact, so every feature-audit that builds
+// a sample directly via cat.buildChoiceTrial(...) (bypassing canUse) keeps passing — the families
+// simply never reach live selection. Reversible by flipping the CONFIG flags.
+(function retireBrokenFamiliesV6872(){
+  "use strict";
+  function arrCats(){
+    try{ if(typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) return POSNER_CATS; }catch(_){ }
+    try{ if(typeof window !== "undefined" && Array.isArray(window.POSNER_CATS)) return window.POSNER_CATS; }catch(_){ }
+    return [];
+  }
+
+  // (A) Operation-effect "which operation flips/keeps the answer" 4-OPTION family
+  //     (decl_operation_invariance_property_choice_*). The user reported it is still trivially
+  //     "multiply by 2" and asked for a BINARY YES/NO form instead. The engine already ships a
+  //     genuine binary operation-invariance question (decl_operation_invariance_gt_truth →
+  //     "apply this value-dependent rule to both values; does 'RIGHT > LEFT' keep its truth?"),
+  //     which stays live. We retire ONLY the 4-option numeric family from play.
+  const OP_RX = /^decl_operation_invariance_property_choice_/;
+  function retireOperationChoice(){
+    try{
+      if(!(typeof CONFIG === "object" && CONFIG && CONFIG.v6872OperationBinary)) return 0;
+      let n = 0;
+      for(const c of arrCats()){
+        if(c && c.family === "operation_invariance" && OP_RX.test(String(c.id || ""))){
+          if(typeof c.__v6872OrigCanUse !== "function") c.__v6872OrigCanUse = (typeof c.canUse === "function") ? c.canUse : (function(){ return true; });
+          c.canUse = function(){ return false; };
+          c.__v6872Retired = true;
+          n++;
+        }
+      }
+      return n;
+    }catch(_){ return 0; }
+  }
+
+  // (B) Broken 4-way visual_transform_comparison family ("exact / rotation / mirror / different").
+  //     The cat's canUse AND the drought-force wrapper both gate on l0VisualComparisonChoiceEnabled,
+  //     so setting it false removes the family from selection AND from forced injection. We also give
+  //     the pre-existing rotation/mirror visual stimuli more PRESENCE as same-value decoys inside
+  //     ordinary numeric trials (reusing the chiral patterns without the broken classification).
+  function retireVisualFourWay(){
+    try{
+      if(typeof CONFIG !== "object" || !CONFIG) return;
+      if(CONFIG.v6872RetireVisualFourWay === false) return;
+      CONFIG.l0VisualComparisonChoiceEnabled = false;
+      const boost = Number(CONFIG.v6872VisualDecoyBoost);
+      if(Number.isFinite(boost) && boost > 0) CONFIG.l0VisualRelationDecoySameValueProb = boost;
+    }catch(_){ }
+  }
+
+  function boot(){
+    const op = retireOperationChoice();
+    retireVisualFourWay();
+    try{
+      window.EUCA_V6872_RETIREMENTS = {
+        patch:"v6.8.72-retire-broken-families",
+        operationChoiceRetired: op,
+        visualFourWayEnabled: (typeof CONFIG !== "undefined" && CONFIG) ? CONFIG.l0VisualComparisonChoiceEnabled : null,
+        visualDecoyProb: (typeof CONFIG !== "undefined" && CONFIG) ? CONFIG.l0VisualRelationDecoySameValueProb : null
+      };
+    }catch(_){ }
+  }
+  boot();
+  // Re-assert after the late v6822/v6823/v6844 (re)installs (they reassign builders/flags on
+  // DOMContentLoaded + setTimeout + on every audit run, but they never touch canUse, and the
+  // visual-enable flag is written as `= (x !== false)` so a false value is preserved).
+  try{
+    if(typeof document !== "undefined" && document.addEventListener) document.addEventListener("DOMContentLoaded", boot);
+    if(typeof setTimeout === "function"){ setTimeout(boot, 0); setTimeout(boot, 500); setTimeout(boot, 1500); }
+  }catch(_){ }
 })();
 </script>
 
