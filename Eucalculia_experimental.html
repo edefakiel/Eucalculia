@@ -2975,7 +2975,7 @@ select.cs-native {
 </div>
 <div class="mode-item">
 <strong>Cubes</strong>
-<p>Perspective 3D cubes arranged on an explicit 3×3 grid. The basic value is the total number of cubes, capped at 9. In advanced Auto/Relational trials, cube questions may ask the user to imagine the same layout from the back or from either side, then evaluate a row, column, gap or related property after the mask.</p>
+<p>Perspective 3D cubes arranged on an explicit grid. The basic value is the total number of cubes, capped at 9. In advanced Auto/Relational trials, cube questions may ask the user to imagine the same layout from the back or from either side, then evaluate a row, column, gap or related property after the mask.</p>
 </div>
 <div class="mode-item">
 <strong>Coins</strong>
@@ -3349,7 +3349,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.72";
+const APP_VERSION = "v6.8.75";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -3992,6 +3992,13 @@ const CONFIG = {
   //     exists (never block answerability; never grey merely-infeasible digits).
   v6872BetweenPairReuseDisable: true,
   v6872InlineAntiReuse: true,
+  // v6.8.73: extend the same anti-REUSE keypad greying to the THIRD generative family
+  // (L1 Constructive two-pair builds — e.g. "same total: Pair 1 odd+odd, Pair 2 even+even"),
+  // which previously had no keypad greying at all.
+  v6873L1ConstructiveAntiReuse: true,
+  // v6.8.73: the operation-effect family is now GENERALIZED to a binary YES/NO question across
+  // ALL its relations (not just RIGHT>LEFT) — supersedes the v6.8.72 retire-from-play approach.
+  v6873OperationBinaryGeneralize: true,
   // (2) Operation-effect family becomes a BINARY YES/NO question ("does this one
   //     proposed rule change the answer to the relation?") instead of a 4-option
   //     "which operation" pick (which was trivially 'multiply by 2'). When false,
@@ -8521,6 +8528,34 @@ function handleChoiceInputIndex(idx){
   if(State.status !== "INPUT" || State.pendingPanel !== "choice" || !Array.isArray(State.trialInfo?.options)) return false;
   if(!Number.isInteger(idx) || idx < 0 || idx >= State.trialInfo.options.length) return false;
   const req = choiceRequiredSelections(State.trialInfo);
+  // v6.8.73: guarantee "what you tap = what's recorded" (the user-reported "double shuffle" symptom —
+  // the selected option not matching what the program thinks was selected). Read the option text the
+  // user actually saw at the tapped position (central card, else tray) and reconcile it with
+  // State.trialInfo.options[idx]. On a synced DOM this is a no-op; on any display/state desync we
+  // re-map to the option actually shown, or — if that is ambiguous — re-sync the panels and reject the
+  // tap so the user re-taps on a consistent display. Desyncs are logged for diagnostics.
+  try{
+    if(req <= 1){
+      const opts = State.trialInfo.options;
+      const polish = t => String((typeof readabilityPolishText==="function" ? readabilityPolishText(String(t == null ? "" : t)) : String(t == null ? "" : t))).trim();
+      const cardEls = document.querySelectorAll("#metaQuestion .meta-options .meta-option-text");
+      let shown = (cardEls && cardEls[idx]) ? String(cardEls[idx].textContent || "").trim() : "";
+      if(!shown){ const tb = document.querySelector(`#choicepad .choiceBtn[data-v="${idx}"] .choiceText`); shown = tb ? String(tb.textContent || "").trim() : ""; }
+      const expected = polish(opts[idx] && opts[idx].text);
+      if(shown && expected && shown !== expected){
+        let match = -1, count = 0;
+        for(let i=0;i<opts.length;i++){ if(polish(opts[i] && opts[i].text) === shown){ match = i; count++; } }
+        if(count === 1 && match >= 0){
+          try{ if(typeof recordRuntimeError==="function") recordRuntimeError(new Error("choice_display_desync_remap"), {source:"handleChoiceInputIndex", from:idx, to:match, shown, expected, catId:State.trialInfo.catId, family:State.trialInfo.family}); }catch(_){ }
+          idx = match;
+        } else {
+          try{ setChoiceOptions(opts); renderFrameChoiceOptions(opts); }catch(_){ }
+          try{ if(typeof recordRuntimeError==="function") recordRuntimeError(new Error("choice_display_desync_resync"), {source:"handleChoiceInputIndex", idx, shown, expected, catId:State.trialInfo.catId, family:State.trialInfo.family}); }catch(_){ }
+          return false;
+        }
+      }
+    }
+  }catch(_){ }
   if(req <= 1){
     noteUserInput("choice", idx);
     return processInput(idx);
@@ -11766,15 +11801,19 @@ function renderStructuredQuestionHTML(qText, info=null){
   }
   if(info?.epistemicSufficiency) return renderEpistemicQuestionCard(info.epistemicSufficiency);
   if(info?.nestedBoolean) return renderNestedBooleanQuestionCard(info.nestedBoolean);
-  if(!raw || !raw.includes("\n")) return "";
-  const lines = raw.split(/\n+/).map(x => x.trim()).filter(Boolean);
+  if(!raw) return "";
+  let text = String(raw);
+  // v6.8.75: clean, label-free layout (the user found Observe/Rule/Answer headers unnecessary). Long
+  // single-line questions — e.g. the graph/Venn relation gates — are auto-split into readable lines at
+  // sentence/question boundaries so they stack like the already-multi-line ones, instead of one dense
+  // block. Each resulting line just renders on its own row, with no header label.
+  if(!text.includes("\n") && text.length > 110){
+    text = text.replace(/([.?!])\s+(?=[A-Z“"])/g, "$1\n");
+  }
+  if(!text.includes("\n")) return "";
+  const lines = text.split(/\n+/).map(x => x.trim()).filter(Boolean);
   if(lines.length < 2) return "";
-  return `<div class="meta-question-card">` + lines.slice(0,5).map((line, i) => {
-    let head = i === 0 ? "Observe" : (i === lines.length - 1 ? "Answer" : "Rule");
-    if(/^if\b/i.test(line) || /branch|rotation|mirror|same structure|different structure/i.test(line)) head = "Rule";
-    if(/^then\b|^is\b|answer\b/i.test(line)) head = "Answer";
-    return `<div class="qstep"><strong>${esc(head)}:</strong> ${esc(line)}</div>`;
-  }).join("") + `</div>`;
+  return `<div class="meta-question-card">` + lines.slice(0,6).map(line => `<div class="qstep">${esc(line)}</div>`).join("") + `</div>`;
 }
 // v6.6.26: renderEpistemicQuestionCard is an inner function of
 // renderStructuredQuestionHTML, so the v6.6.24 public-announcement layer in the
@@ -14617,7 +14656,7 @@ class Clock extends Stim {
   }
 }
 
-// v6.4.21 visuospatial layer: Cubes are reformed to an aligned 3×3 grid with
+// v6.4.21 visuospatial layer: Cubes are reformed to an aligned grid with
 // stable discrete coordinates (i, j) ∈ {1,2,3}². Each value 1–9 selects a
 // configuration from a fixed bank (reused from Grid's smallLayouts so the
 // distributions are visually consistent across formats). Two canonical
@@ -15436,9 +15475,9 @@ function repPhysicallyAllows(rep, v){
   if(rep==="finger" && v>10) return false;
   if(rep==="clock" && (v<1||v>12)) return false;
   if(rep==="grid" && v>40) return false;
-  // v6.4.9 visuospatial layer: cubes are reformed to a stable 3×3 grid with
+  // v6.4.9 visuospatial layer: cubes are reformed to a stable grid with
   // discrete coordinates so mental rotation can operate on it. Capped at 9
-  // (one full 3×3 grid). Higher values are covered by other representations.
+  // (one full grid). Higher values are covered by other representations.
   if(rep==="cube" && v>9) return false;
   return true;
 }
@@ -17731,7 +17770,7 @@ function l0CrossRepProjectionCatalog(){
     {id:"cross_rep_project_coins_min_coin_count", cueRep:"coins", label:"fewest coin count", short:"coins · fewest coins", ruleText:"using the fewest coins needed to make that value", apply:v=>minCoins(v), canProject:v=>Number.isInteger(v)&&v>=1&&v<=40},
     {id:"cross_rep_project_ten_complement_10", cueRep:"ten", label:"empty cells in a ten-frame", short:"ten-frame · fill to 10", coreRuleId:"pair_fill_to_10", ruleText:"counting the empty cells needed to complete a ten-frame", apply:v=>10-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=9},
     {id:"cross_rep_project_ten_complement_5", cueRep:"ten", label:"empty cells needed to complete the first five-frame", short:"ten-frame · fill to 5", coreRuleId:"pair_fill_to_5", ruleText:"counting how many more cells are needed to complete 5", apply:v=>5-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=4},
-    {id:"cross_rep_project_grid_complement_9", cueRep:"grid", label:"empty cells in a 3×3 grid", short:"grid · fill to 9", coreRuleId:"pair_fill_to_9", ruleText:"counting the empty cells needed to complete a 3×3 grid", apply:v=>9-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=8},
+    {id:"cross_rep_project_grid_complement_9", cueRep:"grid", label:"empty cells in a grid", short:"grid · fill to 9", coreRuleId:"pair_fill_to_9", ruleText:"counting the empty cells needed to complete a grid", apply:v=>9-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=8},
     {id:"cross_rep_project_tally_complete_groups_5", cueRep:"tally", label:"complete groups of five", short:"tally · complete groups", ruleText:"counting complete groups of five tally marks", apply:v=>Math.floor(v/5), canProject:v=>Number.isInteger(v)&&v>=5&&v<=40},
     {id:"cross_rep_project_tally_remainder_after_groups", cueRep:"tally", label:"loose marks after groups of five", short:"tally · loose remainder", ruleText:"counting the loose tally marks after complete groups of five", apply:v=>v%5, canProject:v=>Number.isInteger(v)&&v>=6&&v<=40&&(v%5)>0},
     {id:"cross_rep_project_clock_opposite_hour", cueRep:"clock", label:"opposite hour", short:"clock · opposite hour", coreRuleId:"pair_clock_opposite", ruleText:"using the hour opposite the shown hour on a 12-clock", apply:v=>rotateClockHour(v,6), canProject:v=>Number.isInteger(v)&&v>=1&&v<=12},
@@ -17761,7 +17800,7 @@ function l0CrossRepProjectionRuleText(op){
 // If they share a rep (or rep unknown), fall back to the side word. Generic so future families
 // can call relationalSideRefText(repThis, repOther, sideThis).
 const RELATIONAL_REP_NOUN = {
-  ten:"ten-frame", grid:"3×3 grid", tally:"tally", dice:"die", card:"card",
+  ten:"ten-frame", grid:"grid", tally:"tally", dice:"die", card:"card",
   domino:"domino", abacus:"abacus", clock:"clock", coins:"coin set", cluster:"cluster",
   cube:"cube stack", finger:"hand", dots:"dot field", roman:"Roman numeral", digit:"digit"
 };
@@ -26175,8 +26214,8 @@ const POSNER_CATS = [
     frameTags:["visual_equivalence","mental_rotation","spatial_relation","source_relation"],
     canUse:(m)=> (State.reps || []).includes("grid") && m >= 4,
     variants:[
-      { q:"Could the two 3×3 grid patterns be the same pattern after rotation?" },
-      { q:"Is one 3×3 grid pattern a rotated version of the other?" },
+      { q:"Could the two grid patterns be the same pattern after rotation?" },
+      { q:"Is one grid pattern a rotated version of the other?" },
       { q:"Are the two grid patterns not equivalent under rotation?", negate:true, linguisticFrame:"negation_scope" },
     ],
     gen(m,t){ const v = randInt(2, Math.min(8,m)+1); return [v,v]; },
@@ -26193,7 +26232,7 @@ const POSNER_CATS = [
     frameTags:["visual_equivalence","mirror_relation","spatial_relation","source_relation"],
     canUse:(m)=> (State.reps || []).includes("grid") && m >= 4,
     variants:[
-      { q:"Is one 3×3 grid pattern a mirror image of the other?" },
+      { q:"Is one grid pattern a mirror image of the other?" },
       { q:"Could the two grid patterns match by reflection?" },
       { q:"Are the two grid patterns not mirror-equivalent?", negate:true, linguisticFrame:"negation_scope" },
     ],
@@ -29483,7 +29522,7 @@ const CUBE_VIEW_REMAPPINGS = {
   // rotations swap rows within columns, simulating tilting the camera up
   // (from_above) or down (from_below) while keeping the wall in view.
   // Geometrically: from_above flips top↔bottom (rows reversed); from_below
-  // is currently identical to from_above for a 3×3 grid (the rotation is
+  // is currently identical to from_above for a grid (the rotation is
   // 180° around the horizontal axis, indistinguishable from a row flip in
   // 2D), so it is left as an alias placeholder for future extension when
   // the wall gains depth or asymmetry.
@@ -29491,7 +29530,7 @@ const CUBE_VIEW_REMAPPINGS = {
   from_below:    (r, c) => ({ r: 2 - r, c }),
 };
 
-// Apply a view to a 3×3 boolean grid, returning a new 3×3 grid where
+// Apply a view to a 3×3 boolean grid, returning a new grid where
 // position (r, c) holds the cube that — in the original layout — would
 // be visible at that position from the rotated viewpoint.
 function viewedCubeGrid(grid, view){
@@ -30123,6 +30162,11 @@ const REPRESENTATION_TRANSFORMS = {
       canApply: (v, m) => {
         const d = Array.isArray(m?.dominoes) && m.dominoes.length === 1 ? m.dominoes[0] : null;
         if(!d || !Number.isInteger(Number(d.a)) || !Number.isInteger(Number(d.b))) return false;
+        // v6.8.74: when one half is 0, |a−b| equals the non-zero half AND the domino's whole value, so
+        // "the difference between the two halves" is indistinguishable from the plain "what number is
+        // shown?" readout. Require BOTH halves non-zero so the gap question is a genuine two-operand
+        // subtraction.
+        if(Number(d.a) === 0 || Number(d.b) === 0) return false;
         const gap = Math.abs(Number(d.a) - Number(d.b));
         return gap > 0 && gap < 7;
       },
@@ -31412,28 +31456,28 @@ const L0_TRANSFORM_DESCRIPTORS = {
     short: "loose tally remainder",
   },
   grid_complement_3x3: {
-    left:  "the empty cells of A's 3×3 grid",
-    right: "the empty cells of B's 3×3 grid",
+    left:  "the empty cells of A's grid",
+    right: "the empty cells of B's grid",
     short: "3×3 complement",
   },
   grid_corner_count: {
-    left:  "the filled corner cells of A's 3×3 grid",
-    right: "the filled corner cells of B's 3×3 grid",
+    left:  "the filled corner cells of A's grid",
+    right: "the filled corner cells of B's grid",
     short: "filled grid corners",
   },
   grid_edge_count: {
-    left:  "the filled edge cells of A's 3×3 grid, not counting corners",
-    right: "the filled edge cells of B's 3×3 grid, not counting corners",
+    left:  "the filled edge cells of A's grid, not counting corners",
+    right: "the filled edge cells of B's grid, not counting corners",
     short: "filled grid edge cells",
   },
   grid_center_filled: {
-    left:  "whether A's center square in the 3×3 grid is filled",
-    right: "whether B's center square in the 3×3 grid is filled",
+    left:  "whether A's center square in the grid is filled",
+    right: "whether B's center square in the grid is filled",
     short: "center square filled",
   },
   grid_full_line_count: {
-    left:  "the number of complete horizontal or vertical lines in A's 3×3 grid",
-    right: "the number of complete horizontal or vertical lines in B's 3×3 grid",
+    left:  "the number of complete horizontal or vertical lines in A's grid",
+    right: "the number of complete horizontal or vertical lines in B's grid",
     short: "complete grid lines",
   },
   cubes_view_opposite: {
@@ -47306,7 +47350,7 @@ const L0_RELATION_IDENTIFICATION_DEFS = {
   one_divides_other:{label:"one value divides the other exactly", atomic:"one_divides_other", eval:(a,b)=>(a>0 && b>0) && (a%b===0 || b%a===0), kind:"derived_metric"},
   closer_to_5:{label:"LEFT is closer to 5 than RIGHT", atomic:"closer_to_5", eval:(a,b)=>Math.abs(a-5)<Math.abs(b-5), kind:"derived_metric"},
   same_distance_from_5:{label:"both values are the same distance from 5", atomic:"same_distance_from_5", eval:(a,b)=>Math.abs(a-5)===Math.abs(b-5), kind:"derived_metric"},
-  same_side_of_5:{label:"both values are strictly below 5 or strictly above 5", atomic:"same_side_of_5", eval:(a,b)=>(a<5&&b<5)||(a>5&&b>5), kind:"order_relation", strictAnchor:5}
+  same_side_of_5:{label:"both values are on the same side of 5 (both below it, both above it, or both equal to it)", atomic:"same_side_of_5", eval:(a,b)=>(a<5&&b<5)||(a>5&&b>5)||(a===5&&b===5), kind:"order_relation", strictAnchor:5}
 };
 function l0ChoiceDefsUseStrictAnchor5(defs){
   return Array.isArray(defs) && defs.some(d => d && d.atomic === "same_side_of_5" && d.strictAnchor === 5);
@@ -56139,11 +56183,11 @@ function explicitTransformInstruction(rep, transformId, cell=null){
     tally_complement_to_next_5:"How many more tally marks would reach the next group of 5?",
     tally_complete_bundles:"How many complete bundles of five tally marks are shown?",
     tally_remainder_after_bundles:"How many loose tally marks remain after the complete bundles of five?",
-    grid_complement_3x3:"How many empty cells are in the 3×3 grid?",
-    grid_corner_count:"How many filled corner cells are in the 3×3 grid?",
-    grid_edge_count:"How many filled edge cells are in the 3×3 grid, not counting corners?",
-    grid_center_filled:"Is the middle square of the 3×3 grid filled?",
-    grid_full_line_count:"How many complete horizontal or vertical lines are filled in the 3×3 grid?",
+    grid_complement_3x3:"How many empty cells are in the grid?",
+    grid_corner_count:"How many filled corner cells are in the grid?",
+    grid_edge_count:"How many filled edge cells are in the grid, not counting corners?",
+    grid_center_filled:"Is the middle square of the grid filled?",
+    grid_full_line_count:"How many complete horizontal or vertical lines are filled in the grid?",
   };
   if(map[id]) return map[id];
   if(id === "cubes_pick_front_row") return isWall ? "Count only the bottom row of the wall." : "Count only the nearest row of the floor layout as shown.";
@@ -56209,11 +56253,11 @@ function propaedeuticQuestion(rep, transformId, cell){
     tally_complement_to_next_5:"How many more tally marks would reach the next group of 5?",
     tally_complete_bundles:"How many complete bundles of five tally marks are shown?",
     tally_remainder_after_bundles:"How many loose tally marks remain after the complete bundles of five?",
-    grid_complement_3x3:"How many empty cells are in the 3×3 grid?",
-    grid_corner_count:"How many filled corner cells are in the 3×3 grid?",
-    grid_edge_count:"How many filled edge cells are in the 3×3 grid, not counting corners?",
-    grid_center_filled:"Is the middle square of the 3×3 grid filled?",
-    grid_full_line_count:"How many complete horizontal or vertical lines are filled in the 3×3 grid?",
+    grid_complement_3x3:"How many empty cells are in the grid?",
+    grid_corner_count:"How many filled corner cells are in the grid?",
+    grid_edge_count:"How many filled edge cells are in the grid, not counting corners?",
+    grid_center_filled:"Is the middle square of the grid filled?",
+    grid_full_line_count:"How many complete horizontal or vertical lines are filled in the grid?",
     abacus_add_upper_bead:"Add one upper abacus bead. What value would the abacus show?",
     abacus_remove_upper_bead:"Remove one upper abacus bead. What value would the abacus show?",
     abacus_add_lower_bead:"Add one lower abacus bead. What value would the abacus show?",
@@ -66611,22 +66655,24 @@ $("hapticToggleBtn").onclick = () => {
       backupCurrentProgress("before_reset");
       const raw = localStorage.getItem(STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
-      if(parsed && parsed.profiles){
-        const active = String(State.activeProfile || 1);
+      const active = String(State.activeProfile || 1);
+      if(parsed && parsed.profiles && typeof parsed.profiles === "object"){
+        // v6.8.74 (data-loss fix): reset ONLY the active profile. ALWAYS keep the wrapper and every
+        // OTHER profile slot exactly as-is — never removeItem here. The previous code dropped the whole
+        // wrapper whenever the post-null "anyAlive" check failed (e.g. the sibling slots were empty or
+        // not plain objects), which wiped the other two profiles. Resetting one profile must never
+        // touch the others.
         parsed.profiles[active] = null;
-        if(parsed.trainingTimeMs) parsed.trainingTimeMs[active] = 0;
-        // If every slot is empty, drop the wrapper entirely so the next
-        // session starts from a pristine localStorage.
-        const anyAlive = Object.values(parsed.profiles).some(p => p !== null && typeof p === "object");
-        if(anyAlive){
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-        } else {
-          localStorage.removeItem(STORAGE_KEY);
-        }
+        if(parsed.trainingTimeMs && typeof parsed.trainingTimeMs === "object") parsed.trainingTimeMs[active] = 0;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       } else {
-        // Legacy or missing wrapper: best-effort full clear.
+        // No multi-profile wrapper: a legacy flat blob holds at most ONE profile (the active one), so
+        // clearing it only affects the active profile.
         localStorage.removeItem(STORAGE_KEY);
       }
+      // Invalidate the in-memory wrapper cache so a late save can't resurrect the just-reset profile
+      // from a stale snapshot, and so the next save re-reads the freshly-written wrapper.
+      try{ _profileWrapperCache = null; }catch(_){ }
     } catch(e) {}
     try { sessionStorage.removeItem(STORAGE_KEY); } catch(e) {}
     location.reload();
@@ -67652,8 +67698,16 @@ window.addEventListener("keydown", e => {
     if(e.key>="0" && e.key<="9") handleDigit(e.key);
   }
   if(State.status==="INPUT" && State.pendingPanel==="bool"){
-    if(e.key==="y"||e.key==="Y"||e.key==="ArrowLeft"){ noteUserInput("key_bool", 1); processInput(1); }
-    if(e.key==="n"||e.key==="N"||e.key==="ArrowRight"){ noteUserInput("key_bool", 0); processInput(0); }
+    if(e.key==="y"||e.key==="Y"){ noteUserInput("key_bool", 1); processInput(1); }
+    else if(e.key==="n"||e.key==="N"){ noteUserInput("key_bool", 0); processInput(0); }
+    else if(e.key==="ArrowLeft"||e.key==="ArrowRight"){
+      // v6.8.74: arrows follow the VISUAL position so they stay intuitive under the optional
+      // "shuffle YES/NO" mode (left arrow = left button, right arrow = right button). Default
+      // layout keeps YES on the left, so this matches the historic ←=YES / →=NO mapping.
+      const yesLeft = !(typeof window!=="undefined" && window._eucaYesNoYesLeft === false);
+      const wantYes = (e.key==="ArrowLeft") ? yesLeft : !yesLeft;
+      noteUserInput("key_bool", wantYes?1:0); processInput(wantYes?1:0);
+    }
   }
   if(State.status==="INPUT" && State.pendingPanel==="choice"){
     const idx = choiceInputIndexFromKey(e.key, State.trialInfo);
@@ -69364,7 +69418,7 @@ function auditPublicQuestionContractClarity(opts={}){
     {name:"cycle_complement_ambiguous", re:/complement to the cycle/i, hint:"Say shorter path or remaining path explicitly."},
     {name:"undefined_trace_branch", re:/\btrace\b.*\bbranch\b/i, exempt:/even\s*→|odd\s*>?1\s*→|repeat until/i, hint:"Define the trace rule in the prompt."},
     {name:"spanglish_public_label", re:/property-de-valor|relación-de-orden|pertenencia-a-conjunto|métrica-derivada|META-CLASS/i, hint:"Use plain English public labels."},
-    {name:"centre_cell_ambiguous", re:/centre cell/i, hint:"Use 'middle square of the 3×3 grid'."},
+    {name:"centre_cell_ambiguous", re:/centre cell/i, hint:"Use 'middle square of the grid'."},
     {name:"triangle_third_side_mismatch", re:/third side equals the larger value/i, hint:"The triangle check uses another copy of the smaller value; state smaller+smaller > larger."},
     {name:"triangle_inverse_prompt", re:/two smaller sides together too short|exactly equal to the larger side/i, hint:"Ask the positive triangle condition: smaller+smaller more than larger."},
     {name:"boolean_hold_together_ambiguous", re:/hold together|compound rule does not hold|compound rule holds/i, hint:"Spell out the connective: both true, at least one true, exactly one true, at least one false, or both false."},
@@ -74787,7 +74841,7 @@ openModal("overlay"); setStatus("MENU"); updateMenu({force:true});
       {id:"filler_choice", re:/\b(?:Cannot tell|I don.?t know|values were equal)\b/i, msg:"Choice distractors must be plausible under the public contract."},
       {id:"triangle_negative", re:/too short or exactly equal|third side equals the larger value/i, msg:"Triangle prompt must use positive smaller+smaller > larger contract."},
       {id:"cycle_complement", re:/complement to the cycle/i, msg:"Cycle prompts must say shorter path or remaining path explicitly."},
-      {id:"centre_cell", re:/centre cell/i, msg:"Grid prompts must say middle square of the 3×3 grid."},
+      {id:"centre_cell", re:/centre cell/i, msg:"Grid prompts must say middle square of the grid."},
       {id:"spanglish", re:/property-de-valor|relación-de-orden|pertenencia-a-conjunto|métrica-derivada|META-CLASS/i, msg:"Public labels must be plain English."},
       {id:"inclusive_next_multiple", re:/next multiple of \d+ after/i, msg:"Use 'next higher multiple' for the strict successor."}
     ];
@@ -85094,6 +85148,55 @@ try{
   function l1Cap(){
     try{ return Math.max(6, Math.min(12, Math.floor(Number(State?.maxValue || (typeof currentMax === "function" ? currentMax() : 8)) || 8))); }catch(_){ return 8; }
   }
+  // v6.8.73: anti-REUSE oracle for the L1 Constructive two-pair family (the third generative panel,
+  // previously without any keypad greying — the user's "muchos casos no cubiertos"). Mirrors
+  // induct8AntiReuseDisabledDigits using this family's own grader verifyL1ConstructiveTask: greys the
+  // within-pair duplicate (so Pair 1 = (1,3) not (1,1)) and, on phase 2, the saved Pair-1 digits —
+  // ONLY while a valid reuse-free completion still exists (never greys a merely-infeasible digit,
+  // never blocks answerability). Returns a sorted int array.
+  function l1Completable(info, phaseIndex, p1prior, a, b, cap){
+    try{
+      if(phaseIndex >= 2){ return p1prior ? !!verifyL1ConstructiveTask(info, p1prior, {a, b}) : false; }
+      for(let c=1;c<=cap;c++) for(let d=1;d<=cap;d++){ if(verifyL1ConstructiveTask(info, {a, b}, {a:c, b:d})) return true; }
+      return false;
+    }catch(_){ return false; }
+  }
+  function l1AntiReuseDisabledDigits(info){
+    try{
+      if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6873L1ConstructiveAntiReuse === false) return [];
+      info = info || State?.trialInfo || {};
+      if(!info.l1Constructive) return [];
+      const c = Math.max(2, Math.min(12, Math.floor(Number(L1Gen.cap)) || 8));
+      const phaseIndex = Math.max(1, Math.floor(Number(info.phaseIndex || 1)));
+      const priorPairs = Array.isArray(info.pairs) ? info.pairs : [];
+      const betweenOn = (typeof CONFIG === "undefined") || !CONFIG || CONFIG.v6872BetweenPairReuseDisable !== false;
+      const P1 = (betweenOn && phaseIndex >= 2 && priorPairs[0] && priorPairs[0].pair) ? priorPairs[0].pair : null;
+      const usedBetween = P1 ? [Math.floor(Number(P1.a)), Math.floor(Number(P1.b))].filter(d => d >= 1 && d <= c) : [];
+      const out = new Set();
+
+      if(L1Gen.activeSide === "a"){
+        if(!usedBetween.length) return [];
+        const reuse = new Set(usedBetween);
+        let fresh = false;
+        for(let a2=1; a2<=c && !fresh; a2++){
+          if(reuse.has(a2)) continue;
+          for(let b2=1; b2<=c; b2++){ if(b2 === a2 || reuse.has(b2)) continue; if(l1Completable(info, 2, P1, a2, b2, c)){ fresh = true; break; } }
+        }
+        if(fresh) reuse.forEach(d => out.add(d));
+        return Array.from(out).sort((x,y)=>x-y);
+      }
+
+      const A = Math.floor(Number(L1Gen.chosen && L1Gen.chosen.a));
+      if(!Number.isInteger(A) || A < 1 || A > c) return [];
+      const reuse = new Set([A, ...usedBetween].filter(d => d >= 1 && d <= c));
+      let survivor = false;
+      for(let b=1; b<=c; b++){ if(reuse.has(b)) continue; if(l1Completable(info, phaseIndex, P1, A, b, c)){ survivor = true; break; } }
+      if(survivor){ reuse.forEach(d => out.add(d)); }
+      else { for(let b=1; b<=c; b++){ if(b === A) continue; if(l1Completable(info, phaseIndex, P1, A, b, c)){ out.add(A); break; } } }
+      return Array.from(out).sort((x,y)=>x-y);
+    }catch(_){ return []; }
+  }
+  try{ window.EUCA_V6873_L1_ANTIREUSE = { fn:l1AntiReuseDisabledDigits, completable:l1Completable, test:(info, side, chosenA, cap)=>{ const sa=L1Gen.activeSide, sc=L1Gen.chosen, scap=L1Gen.cap; try{ L1Gen.activeSide=(side==="b"?"b":"a"); L1Gen.chosen={a:(chosenA==null?null:Math.floor(Number(chosenA))), b:null}; L1Gen.cap=Math.max(2,Math.min(12,Math.floor(Number(cap))||8)); return l1AntiReuseDisabledDigits(info); } finally { L1Gen.activeSide=sa; L1Gen.chosen=sc; L1Gen.cap=scap; } } }; }catch(_){ }
   function renderL1PairPanel(){
     const panel = ensureL1PairPanel();
     L1Gen.cap = Math.max(2, Math.min(12, Math.floor(Number(L1Gen.cap || l1Cap()) || 8)));
@@ -85126,6 +85229,19 @@ try{
         grid.appendChild(btn);
       }
     }
+    // v6.8.73: per-render anti-REUSE disable pass (mirrors the geninduct/genpair panels). Runs every
+    // render because activeSide / chosen.a change while the cached grid persists.
+    try{
+      const antiSet = new Set(l1AntiReuseDisabledDigits(info).map(n => Math.floor(Number(n))));
+      grid.querySelectorAll(".genL1Btn").forEach(btn => {
+        const d = Math.floor(Number(btn.textContent));
+        const off = antiSet.has(d);
+        btn.disabled = off;
+        btn.style.pointerEvents = off ? "none" : "";
+        btn.style.opacity = off ? "0.25" : "";
+        btn.setAttribute("aria-disabled", off ? "true" : "false");
+      });
+    }catch(_){ }
   }
   function resetL1PairPanel(cap){
     if(L1Gen.submitTimer){ clearTimeout(L1Gen.submitTimer); L1Gen.submitTimer = null; }
@@ -85138,6 +85254,9 @@ try{
   function chooseL1PairValue(v){
     v = Math.floor(Number(v));
     if(!Number.isInteger(v) || v < 1 || v > L1Gen.cap) return;
+    // v6.8.73: hard guard so a greyed-out reuse digit can't be committed even if a stray pointer
+    // event slips past the disabled button (covers both slots).
+    try{ if(l1AntiReuseDisabledDigits(State?.trialInfo).includes(v)) return; }catch(_){ }
     if(L1Gen.submitTimer){ clearTimeout(L1Gen.submitTimer); L1Gen.submitTimer = null; }
     L1Gen.chosen[L1Gen.activeSide] = v;
     if(L1Gen.activeSide === "a") L1Gen.activeSide = "b";
@@ -85398,14 +85517,14 @@ try{
       {
         id:"l1_range_totals_single_composite",
         title:"Totals define a range with one composite",
-        question:"Build two pairs. Add up each pair, then count every whole number from one total to the other, including both ends. That count must be 3 to 6 numbers, and exactly ONE of them must be composite (not prime, not 1). Example: totals 3 and 5 give 3, 4, 5 — three numbers, and only 4 is composite, so that passes.",
+        question:"Build two pairs. List every whole number from one pair's total to the other's (both ends included): that run must be 3–6 numbers long and contain exactly ONE composite.",
         verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 3 && r.length <= 6 && countBy(r, isCompositeSmall) === 1; },
         atomics:["generative_l1", "range_witness", "composite", "interval_scan"]
       },
       {
         id:"l1_range_totals_two_primes_with_composite",
         title:"Totals define a range with two primes and a composite",
-        question:"Build two pairs. Add up each pair, then count every whole number from one total to the other, including both ends. That count must be 4 to 7 numbers; among them there must be exactly TWO primes and at least ONE composite. Example: totals 5 and 9 give 5, 6, 7, 8, 9 — five numbers, with primes 5 and 7 (two) and composites 6, 8, 9, so that passes.",
+        question:"Build two pairs. List every whole number from one pair's total to the other's (both ends included): that run must be 4–7 numbers long with exactly TWO primes and at least ONE composite.",
         verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 4 && r.length <= 7 && countBy(r, isPrimeSmall) === 2 && countBy(r, isCompositeSmall) >= 1; },
         atomics:["generative_l1", "range_witness", "prime", "composite", "interval_scan"]
       }
@@ -95939,22 +96058,41 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       }
     }catch(e){ block.push("epistemic audit exception: "+(e?.message||e)); }
     try{
-      const cats=arr(typeof POSNER_CATS!=="undefined"?POSNER_CATS:[]).filter(c=>c?.family==="operation_invariance"&&c.responseFormat==="choice"&&/^decl_operation_invariance_property_choice_/.test(str(c.id)));
-      if(!cats.length) block.push("no operation effect choice cats");
-      const divCat=cats.find(c=>c.predicateId==="one_divides_other") || cats[0];
-      const correctByTransform={}; let divKeepMul=0;
-      for(let i=0;i<90 && divCat;i++){
-        const t=divCat.buildChoiceTrial(divCat, 12);
-        if(!t) continue;
-        const p=t.payload?.operationEffectChoice || t.operationEffectChoice;
-        const ci=arr(t.options).findIndex(o=>o?.correct);
-        const tid=t.options?.[ci]?.transformId || t.options?.[ci]?.payload?.transformId || p?.correctTransformId || "?";
-        correctByTransform[tid]=(correctByTransform[tid]||0)+1;
-        if(p?.predicateId==="one_divides_other" && /^keep_/.test(str(p?.goalId)) && tid==="multiply_positive") divKeepMul++;
+      // v6.8.73: the operation-effect numeric family is now BINARY YES/NO (decl_operation_invariance
+      // _property_choice_* converted to operationInvarianceFamily bool cats with varied value-dependent
+      // rules). When that generalization is on, the 4-option choice family is intentionally gone, so the
+      // choice-specific assertions below no longer apply — verify the binary builds + rule variety instead.
+      const v6873BinOps = (typeof CONFIG!=="undefined" && CONFIG && CONFIG.v6873OperationBinaryGeneralize !== false);
+      if(v6873BinOps){
+        const binCats = arr(typeof POSNER_CATS!=="undefined"?POSNER_CATS:[]).filter(c=>c && c.__v6873OperationBinary);
+        if(!binCats.length) warnings.push("no binary operation cats (v6873)");
+        let built=0; const transforms=new Set(); const preds=new Set();
+        for(let i=0;i<30 && binCats.length;i++){
+          const c=binCats[i%binCats.length];
+          let t=null; try{ t=(typeof buildL0OperationInvarianceTrial==="function")?buildL0OperationInvarianceTrial(c,12):null; }catch(_){ }
+          if(t && typeof t.isTrue==="boolean" && t.responseFormat==="bool"){ built++; if(t.transformId) transforms.add(t.transformId); if(t.predicateId) preds.add(t.predicateId); }
+        }
+        if(binCats.length && built===0) block.push("binary operation cats unbuildable");
+        if(binCats.length && transforms.size<2) warnings.push("binary operation rule (transform) variety low in audit sample");
+        samples.operation.push({binaryMode:true, binCats:binCats.length, built, distinctTransforms:transforms.size, distinctPredicates:preds.size});
+      } else {
+        const cats=arr(typeof POSNER_CATS!=="undefined"?POSNER_CATS:[]).filter(c=>c?.family==="operation_invariance"&&c.responseFormat==="choice"&&/^decl_operation_invariance_property_choice_/.test(str(c.id)));
+        if(!cats.length) block.push("no operation effect choice cats");
+        const divCat=cats.find(c=>c.predicateId==="one_divides_other") || cats[0];
+        const correctByTransform={}; let divKeepMul=0;
+        for(let i=0;i<90 && divCat;i++){
+          const t=divCat.buildChoiceTrial(divCat, 12);
+          if(!t) continue;
+          const p=t.payload?.operationEffectChoice || t.operationEffectChoice;
+          const ci=arr(t.options).findIndex(o=>o?.correct);
+          const tid=t.options?.[ci]?.transformId || t.options?.[ci]?.payload?.transformId || p?.correctTransformId || "?";
+          correctByTransform[tid]=(correctByTransform[tid]||0)+1;
+          if(p?.predicateId==="one_divides_other" && /^keep_/.test(str(p?.goalId)) && tid==="multiply_positive") divKeepMul++;
+        }
+        if(divKeepMul>0) block.push(`divisibility keep questions still use multiply_positive as correct ${divKeepMul} times`);
+        if(Object.keys(correctByTransform).length<2) warnings.push("operation-effect correct transform diversity low in audit sample");
+        samples.operation.push({divisibilityCorrectByTransform:correctByTransform, divKeepMul});
       }
-      if(divKeepMul>0) block.push(`divisibility keep questions still use multiply_positive as correct ${divKeepMul} times`);
-      if(Object.keys(correctByTransform).length<2) warnings.push("operation-effect correct transform diversity low in audit sample");
-      samples.operation.push({divisibilityCorrectByTransform:correctByTransform, divKeepMul});
     }catch(e){ block.push("operation audit exception: "+(e?.message||e)); }
     try{
       if(typeof SHEPARD_CATALOG==="undefined") block.push("missing SHEPARD_CATALOG");
@@ -99842,10 +99980,15 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         details.side55 = !!side.eval(5,5);
         details.side46 = !!side.eval(4,6);
         details.side34 = !!side.eval(3,4);
-        if(/same side of 5/i.test(String(side.label || ""))) blockers.push("strict side label still uses ambiguous 'same side of 5'");
-        if(!/strictly below 5 or strictly above 5/i.test(String(side.label || ""))) blockers.push("strict side label does not state below/above explicitly");
-        if(side.eval(5,5) !== false) blockers.push("local same_side_of_5 choice predicate must be false at 5,5");
-        if(side.eval(3,4) !== true || side.eval(6,7) !== true || side.eval(4,6) !== false) blockers.push("local same_side_of_5 strict predicate regression");
+        // v6.8.73: the author prefers the natural "same side of 5" phrasing; keep an explicit
+        // below/above clarification so the boundary (5 itself) stays unambiguous.
+        if(!/same side of 5/i.test(String(side.label || ""))) blockers.push("side label should state 'same side of 5'");
+        if(!/below/i.test(String(side.label || "")) || !/above/i.test(String(side.label || ""))) blockers.push("side label does not clarify below/above");
+        // v6.8.73: (5,5) now counts as same side (both values AT 5 = same position), matching the
+        // same_side_of_5 ATOMIC's "same 5-group" semantics. One value at 5 and the other not stays NOT
+        // same side (5 is the boundary).
+        if(side.eval(5,5) !== true) blockers.push("same_side_of_5 must be TRUE at 5,5 (both equal to 5)");
+        if(side.eval(3,4) !== true || side.eval(6,7) !== true || side.eval(4,6) !== false || side.eval(3,5) !== false) blockers.push("local same_side_of_5 predicate regression");
       }
       const defs = ["same_parity","sum_even","gap_even","same_side_of_5"].map(id => defsObj && defsObj[id]).filter(Boolean);
       details.counterDefs = defs.map(d => d && d.label);
@@ -99853,8 +99996,8 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       else{
         const truth55 = defs.map(d => !!d.eval(5,5));
         details.truthAt55 = truth55;
-        const ambiguous55IsOnlyFalse = truth55.filter(Boolean).length === 3 && truth55[3] === false;
-        if(!ambiguous55IsOnlyFalse) warnings.push("5,5 is no longer the old ambiguous single-false case; audit still valid but less diagnostic");
+        // v6.8.73: same_side_of_5 is now TRUE at (5,5), so all four coordination relations hold there.
+        if(!truth55.every(Boolean)) warnings.push("5,5 is not all-same across the coordination defs; audit still valid but less diagnostic");
         if(typeof l0ChoiceAnchor5PairValid !== "function") blockers.push("l0ChoiceAnchor5PairValid missing");
         else{
           if(l0ChoiceAnchor5PairValid(defs,5,5) !== false) blockers.push("anchor-5 validator allows 5,5 for strict side choice defs");
@@ -99958,48 +100101,68 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   }
   function pvBuildL0ConcatChoice(cat, m){
     if(typeof buildL0ChoiceTrialFromOptions !== "function" || typeof l0ChoiceOption !== "function") return null;
-    const p = pvRandomPair(m);
-    const formed = pvConcat(p);
-    const reversed = (Number(p.b) * 10) + Number(p.a);
-    // v6.8.68 (C1): the bare "which number is formed?" readout was trivial — the formed number was
-    // itself one of the buttons. Require a COMPUTATION on the formed two-digit number instead:
-    // SUBTRACT 9. This keeps the tens/ones binding load-bearing (32−9=23 vs 23−9=14) and preserves a
-    // binding ("reverse") lure, while the formed number becomes only a lure, never the answer.
-    // Set CONFIG.placeValueConcatBareReadout = true to restore the legacy bare-concatenation item.
+    // v6.8.68 required a COMPUTATION on the formed two-digit number (not a bare readout). v6.8.73 adds
+    // VARIETY (the user: "siempre una resta de 9"): the operation varies (subtract a varied constant /
+    // add a varied constant / round to the nearest ten) AND the tens/ones binding varies (EITHER
+    // LEFT=tens·RIGHT=ones OR RIGHT=tens·LEFT=ones). The formed number is always a lure, never the
+    // answer. Set CONFIG.placeValueConcatBareReadout = true to restore the legacy bare-concat item.
     const bareReadout = (typeof CONFIG === "object" && CONFIG && CONFIG.placeValueConcatBareReadout === true);
-    let answer, question, built, computeMode;
-    if(bareReadout){
-      answer = formed; computeMode = "bare_concat";
-      built = pvBuildOptions(answer, [reversed, Number(p.a) + Number(p.b), Number(p.a) * 10, Number(p.b) * 10 + Number(p.b)], "left_tens_right_ones");
-      question = "If LEFT is the tens digit and RIGHT is the ones digit, which number is formed?";
-    } else {
-      answer = formed - 9; computeMode = "minus9";
-      // lures: forgot to subtract (formed), subtracted ten/one instead of nine, and a binding error
-      // (swap the digits, then subtract). pvBuildOptions dedupes, clamps 0..99, and fills to 4.
-      built = pvBuildOptions(answer, [formed, formed - 10, formed - 1, reversed - 9], "left_tens_right_ones_minus9");
-      question = "Read LEFT as the tens digit and RIGHT as the ones digit to form a two-digit number, then subtract 9. What is the result?";
+    for(let tries=0; tries<48; tries++){
+      const p = pvRandomPair(m);
+      const rightTens = !bareReadout && Math.random() < 0.5;          // RIGHT can be tens, LEFT can be units
+      const tens = rightTens ? Number(p.b) : Number(p.a);
+      const ones = rightTens ? Number(p.a) : Number(p.b);
+      const ordPhrase = rightTens
+        ? "RIGHT as the tens digit and LEFT as the ones digit"
+        : "LEFT as the tens digit and RIGHT as the ones digit";
+      const formed = tens * 10 + ones;
+      const reversed = ones * 10 + tens;
+      let answer, question, lures, computeMode, opTag;
+      if(bareReadout){
+        answer = formed; computeMode = "bare_concat"; opTag = "left_tens_right_ones";
+        lures = [reversed, tens + ones, tens * 10, ones * 10 + ones];
+        question = `If ${ordPhrase}, which number is formed?`;
+      } else {
+        const k = pvChoice([6, 7, 8, 9, 11, 12]);
+        const OPS = [
+          {tag:"subtract", make:()=>({ans:formed - k, q:`then subtract ${k}`, lures:[formed, formed - 10, formed - 1, reversed - k]})},
+          {tag:"add",      make:()=>({ans:formed + k, q:`then add ${k}`,      lures:[formed, formed + 10, formed + 1, reversed + k]})},
+          {tag:"round10",  make:()=>({ans:Math.round(formed / 10) * 10, q:`then round it to the nearest ten`, lures:[formed, Math.floor(formed / 10) * 10, Math.ceil(formed / 10) * 10, reversed]})}
+        ];
+        const op = pvChoice(OPS);
+        const res = op.make();
+        answer = res.ans; lures = res.lures; opTag = op.tag;
+        computeMode = op.tag + (op.tag === "round10" ? "" : "_" + k);
+        question = `Read ${ordPhrase} to form a two-digit number, ${res.q}. What is the result?`;
+      }
+      if(!Number.isFinite(answer) || answer < 0 || answer > 99) continue;
+      if(!bareReadout && answer === formed) continue;                 // keep the formed number a lure, never the answer
+      const built = pvBuildOptions(answer, lures, opTag);
+      if(!built || built.correctIndex < 0) continue;
+      const trial = buildL0ChoiceTrialFromOptions(cat, m, p.a, p.b, question, built.options, built.correctIndex, {
+        placeValueConcat:{
+          layer:"L0",
+          opId:"decl_place_value_concat_choice",
+          contract: rightTens ? "right_tens_left_ones" : "left_tens_right_ones",
+          computeMode,
+          rightTens,
+          tens,
+          ones,
+          formed,
+          answer,
+          reversed
+        },
+        mechanismTags:bareReadout ? ["place_value_concat","tens_ones_binding","reverse_lure_inhibition"] : ["place_value_concat","tens_ones_binding","place_value_computation","reverse_lure_inhibition"]
+      });
+      if(trial){
+        trial.noL0Transform = true;
+        trial.placeValueConcat = trial.payload?.placeValueConcat || null;
+        trial.frameTags = uniqLocal([...(trial.frameTags || []), "place_value", "base10", "role_binding", "source_relation", "choice_readout"]);
+        trial.mechanismTags = uniqLocal([...(trial.mechanismTags || []), "place_value_concat", "tens_ones_binding"].concat(bareReadout ? ["reverse_lure_inhibition"] : ["place_value_computation", "reverse_lure_inhibition"]));
+      }
+      return trial;
     }
-    const trial = buildL0ChoiceTrialFromOptions(cat, m, p.a, p.b, question, built.options, built.correctIndex, {
-      placeValueConcat:{
-        layer:"L0",
-        opId:"decl_place_value_concat_choice",
-        contract:"left_tens_right_ones",
-        computeMode,
-        tens:p.a,
-        ones:p.b,
-        formed,
-        answer,
-        reversed
-      },
-      mechanismTags:bareReadout ? ["place_value_concat","tens_ones_binding","reverse_lure_inhibition"] : ["place_value_concat","tens_ones_binding","place_value_subtraction","reverse_lure_inhibition"]
-    });
-    if(trial){
-      trial.noL0Transform = true;
-      trial.placeValueConcat = trial.payload?.placeValueConcat || null;
-      trial.frameTags = uniqLocal([...(trial.frameTags || []), "place_value", "base10", "role_binding", "source_relation", "choice_readout"]);
-      trial.mechanismTags = uniqLocal([...(trial.mechanismTags || []), "place_value_concat", "tens_ones_binding"].concat(bareReadout ? ["reverse_lure_inhibition"] : ["place_value_subtraction", "reverse_lure_inhibition"]));
-    }
-    return trial;
+    return null;
   }
   function pvRegisterL0(){
     if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return {added:0, reason:"no POSNER_CATS"};
@@ -102229,11 +102392,11 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   // wrap, may exceed 12 = PM or drop below 1 = before-dawn) and "later" = higher linear value. The advance
   // wording states the PM crossing so it is clear. The spatial "opposite hour" variant stays DROPPED.
   const SPECS = [
-    {id:"txr_clock_advance3_later",  rep:"clock", cap:12, frame:"temporal", apply:v=>Number(v)+3, phrase:"moves forward 3 hours (if it passes 12 o'clock it becomes the afternoon, which is later)", lead:"Two clocks show morning arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
+    {id:"txr_clock_advance3_later",  rep:"clock", cap:12, frame:"temporal", apply:v=>Number(v)+3, phrase:"moves forward 3 hours (if it passes 12 o'clock it becomes the afternoon)", lead:"Two clocks show morning arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
     {id:"txr_clock_retreat3_later",  rep:"clock", cap:12, frame:"temporal", apply:v=>Number(v)-3, phrase:"goes back 3 hours",    lead:"Two clocks show morning arrival times.", more:"arrived later", labels:["LEFT arrived later","RIGHT arrived later","They arrived at the same time"]},
     {id:"txr_die_opposite_higher",   rep:"dice",  cap:6,  frame:"score",    apply:v=>7-Number(v),  phrase:"rolls over to its opposite face",               lead:"Two dice were shown.",       more:"scores higher", labels:["LEFT scores higher","RIGHT scores higher","They tie"]},
     {id:"txr_ten_complement_fuller", rep:"ten",   cap:9,  frame:"fill",     apply:v=>10-Number(v), phrase:"is replaced by its empty cells (its complement to 10)", lead:"Two ten-frames were shown.", more:"is fuller", labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]},
-    {id:"txr_grid_complement_fuller",rep:"grid",  cap:9,  frame:"fill",     apply:v=>9-Number(v),  phrase:"has its filled and empty cells swapped (its complement)", lead:"Two 3x3 grids were shown.", more:"is fuller", labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]}
+    {id:"txr_grid_complement_fuller",rep:"grid",  cap:9,  frame:"fill",     apply:v=>9-Number(v),  phrase:"has its filled and empty cells swapped (its complement)", lead:"Two grids were shown.", more:"is fuller", labels:["LEFT is fuller","RIGHT is fuller","They are equally full"]}
   ];
   function buildTxr(cat, m){
     const spec = cat && cat.txrSpec; if(!spec) return null;
@@ -102480,42 +102643,163 @@ ${res.agents.map(a=>a.line).join(" ")}`;
 // reads): the cats stay REGISTERED with their builders intact, so every feature-audit that builds
 // a sample directly via cat.buildChoiceTrial(...) (bypassing canUse) keeps passing — the families
 // simply never reach live selection. Reversible by flipping the CONFIG flags.
-(function retireBrokenFamiliesV6872(){
+(function operationBinaryAndVisualV6873(){
   "use strict";
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function str(x){ return x == null ? "" : String(x); }
   function arrCats(){
     try{ if(typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) return POSNER_CATS; }catch(_){ }
     try{ if(typeof window !== "undefined" && Array.isArray(window.POSNER_CATS)) return window.POSNER_CATS; }catch(_){ }
     return [];
   }
-
-  // (A) Operation-effect "which operation flips/keeps the answer" 4-OPTION family
-  //     (decl_operation_invariance_property_choice_*). The user reported it is still trivially
-  //     "multiply by 2" and asked for a BINARY YES/NO form instead. The engine already ships a
-  //     genuine binary operation-invariance question (decl_operation_invariance_gt_truth →
-  //     "apply this value-dependent rule to both values; does 'RIGHT > LEFT' keep its truth?"),
-  //     which stays live. We retire ONLY the 4-option numeric family from play.
   const OP_RX = /^decl_operation_invariance_property_choice_/;
-  function retireOperationChoice(){
+  const GT_ID = "decl_operation_invariance_gt_truth";
+
+  // ── (A) Operation-effect family → BINARY YES/NO across ALL its relations, with VARIED rules ──
+  // The 6 numeric property cats (comparison_greater_than / same_parity / gap_eq_1 / sum_even /
+  // same_distance_from_5 / one_divides_other) become genuine YES/NO operation-invariance trials
+  // ("apply this value-dependent rule to both values; does <relation> keep its truth?"), routed
+  // through the engine's operationInvarianceFamily dispatch (which precedes buildChoiceTrial). The
+  // proposed rule is drawn from a VARIED informative pool (different moduli / multipliers / anchors),
+  // fixing the "always division by 7" monotony. The single fixed-modulo gt cat is retired from play
+  // (the comparison_greater_than property cat replaces it with variety). Reversible via
+  // CONFIG.v6873OperationBinaryGeneralize.
+  function opPreserves(a,b,t,pred){
+    try{ if(typeof operationInvariancePreservesPredicate === "function") return operationInvariancePreservesPredicate(a,b,t,pred); }catch(_){ }
+    return null;
+  }
+  function opApply(n,t){ try{ if(typeof operationInvarianceApply === "function") return operationInvarianceApply(n,t); }catch(_){ } return Number(n); }
+  function opLabel(pred){ try{ if(typeof operationInvariancePredicateLabel === "function") return operationInvariancePredicateLabel(pred); }catch(_){ } return str(pred).replace(/_/g," "); }
+  function opPool(m){
+    let pool = [];
+    try{ if(typeof operationInvarianceTransformChoices === "function") pool = arr(operationInvarianceTransformChoices(m)); }catch(_){ }
     try{
-      if(!(typeof CONFIG === "object" && CONFIG && CONFIG.v6872OperationBinary)) return 0;
-      let n = 0;
+      if(typeof operationInvarianceSameFamilySiblings === "function"){
+        const extra = [];
+        for(const t of pool) extra.push(...arr(operationInvarianceSameFamilySiblings(t, m)));
+        pool = pool.concat(extra);
+      }
+    }catch(_){ }
+    const seen = new Set(), uniq = [];
+    for(const t of pool){ if(!t) continue; const k = t.id + "|" + (t.k != null ? t.k : (t.anchor != null ? t.anchor : (t.mod != null ? t.mod : ""))); if(!seen.has(k)){ seen.add(k); uniq.push(t); } }
+    return uniq;
+  }
+  function opChanges(a,b,t){ return opApply(a,t) !== Number(a) || opApply(b,t) !== Number(b); }
+  function opInformative(pred, t, max){
+    let flip=false, keep=false;
+    for(let a=1;a<=max;a++){ for(let b=1;b<=max;b++){
+      if(a===b && pred==="comparison_greater_than") continue;
+      if(!opChanges(a,b,t)) continue;
+      const e = opPreserves(a,b,t,pred); if(!e || typeof e.before!=="boolean") continue;
+      if(e.preserved) keep=true; else flip=true;
+      if(flip&&keep) return true;
+    }}
+    return false;
+  }
+  function opScenario(pred, max, wantPreserved){
+    const ts = opPool(max);
+    const inf = ts.filter(t => opInformative(pred, t, max));
+    const use = inf.length ? inf : ts;
+    if(!use.length) return null;
+    const ri = (lo,hi)=> (typeof randInt==="function") ? randInt(lo,hi) : (lo+Math.floor(Math.random()*(hi-lo)));
+    for(let g=0; g<400; g++){
+      const t = use[Math.floor(Math.random()*use.length)];
+      const a = ri(1, max+1), b = ri(1, max+1);
+      if(a===b && pred==="comparison_greater_than") continue;
+      if(!opChanges(a,b,t)) continue;
+      const e = opPreserves(a,b,t,pred);
+      if(!e || typeof e.before!=="boolean") continue;
+      if(e.preserved === !!wantPreserved) return {left:a, right:b, transform:t, predicateId:pred, before:e.before, after:e.after, preserved:e.preserved, leftAfter:e.leftAfter, rightAfter:e.rightAfter, targetOutcome:!!wantPreserved};
+    }
+    for(const t of use){ for(let a=1;a<=max;a++){ for(let b=1;b<=max;b++){
+      if(a===b && pred==="comparison_greater_than") continue;
+      if(!opChanges(a,b,t)) continue;
+      const e = opPreserves(a,b,t,pred);
+      if(e && typeof e.before==="boolean" && e.preserved===!!wantPreserved) return {left:a, right:b, transform:t, predicateId:pred, before:e.before, after:e.after, preserved:e.preserved, leftAfter:e.leftAfter, rightAfter:e.rightAfter, targetOutcome:!!wantPreserved};
+    }}}
+    return null;
+  }
+  function opReviewLines(state){
+    const src = (state && (state.invarianceUnderOperation || (state.info&&state.info.invarianceUnderOperation) || (state.trialInfo&&state.trialInfo.invarianceUnderOperation))) || state || {};
+    const pred = src.predicateId || "comparison_greater_than";
+    const t = src.transform || {};
+    const a = (src.left != null ? src.left : src.a), b = (src.right != null ? src.right : src.b);
+    const e = opPreserves(Number(a), Number(b), t, pred) || {before:false, after:false, preserved:true, leftAfter:a, rightAfter:b};
+    const label = opLabel(pred);
+    return [
+      `Before: for LEFT ${a}, RIGHT ${b}, “${label}” is ${e.before ? "YES" : "NO"}.`,
+      `Rule: ${t.phrase || "the stated rule"}. After: LEFT ${e.leftAfter}, RIGHT ${e.rightAfter} → “${label}” is ${e.after ? "YES" : "NO"}.`,
+      `The truth value ${e.preserved ? "stayed the same → YES" : "changed → NO"}.`
+    ];
+  }
+  function buildPredBool(cat, m){
+    const pred = (cat && cat.predicateId) || "comparison_greater_than";
+    const max = Math.max(8, Math.min(Number(m) || (typeof currentMax==="function"?currentMax():12), 12));
+    const wantTrue = (typeof answerBudgetPickBoolTarget==="function") ? !!answerBudgetPickBoolTarget(cat && cat.id || ("op_bin_"+pred)) : (Math.random()<0.5);
+    const s = opScenario(pred, max, wantTrue);
+    if(!s) return null;
+    let visA={rep:null}, visB={rep:null};
+    try{ const v = pickValueComparisonVisuals(s.left, s.right, cat||{}, null); if(Array.isArray(v)){ visA=v[0]||visA; visB=v[1]||visB; } }catch(_){ }
+    const q = `Look at the displayed LEFT and RIGHT. Apply this rule to both values: ${(s.transform&&s.transform.phrase)||"the stated rule"}. Does the statement “${opLabel(pred)}” keep the same truth value?`;
+    const out = {
+      a:s.left, b:s.right, repA:visA.rep, repB:visB.rep,
+      question:q, delayedPrompt:q,
+      isTrue:!!s.preserved, targetOutcome:wantTrue,
+      catId:cat && cat.id, family:"operation_invariance", canonicalFamily:"operation_invariance",
+      experienceAxis:"operation_invariance", operationInvarianceFamily:true,
+      invarianceUnderOperation:s, transformId:s.transform && s.transform.id, predicateId:pred,
+      atomicsUsed:(typeof operationInvarianceAtomicsForTransform==="function") ? operationInvarianceAtomicsForTransform(s.transform) : ["operation_invariance"],
+      frameTags:["atomic_composition","comparison","transformation_relation","virtual_transform","invariance_relation","operation_effect_binary"],
+      mechanismTags:["truth_value_preservation","operation_invariance","operation_effect_binary"],
+      linguisticFrame:"conditional_transform", responseFormat:"bool", reviewBuilder:opReviewLines
+    };
+    try{ if(Number.isFinite(visA.seed)) out.stimSeedA=Number(visA.seed); if(Number.isFinite(visB.seed)) out.stimSeedB=Number(visB.seed);
+      if(typeof cloneStimReplaySpec==="function"){ out.stimSpecA=cloneStimReplaySpec(visA.rep, visA.spec); out.stimSpecB=cloneStimReplaySpec(visB.rep, visB.spec); } }catch(_){ }
+    return out;
+  }
+  function installBuilderWrap(){
+    try{
+      if(typeof buildL0OperationInvarianceTrial !== "function") return false;
+      if(buildL0OperationInvarianceTrial.__v6873BinaryWrapped) return true;
+      const orig = buildL0OperationInvarianceTrial;
+      const wrapped = function buildL0OperationInvarianceTrialV6873(cat, m){
+        try{
+          if(cat && cat.__v6873OperationBinary && cat.predicateId && (typeof CONFIG==="undefined" || !CONFIG || CONFIG.v6873OperationBinaryGeneralize !== false)){
+            const t = buildPredBool(cat, m); if(t) return t;
+          }
+        }catch(_){ }
+        return orig.call(this, cat, m);
+      };
+      wrapped.__v6873BinaryWrapped = true; wrapped.__previous = orig;
+      buildL0OperationInvarianceTrial = wrapped;
+      try{ window.buildL0OperationInvarianceTrial = wrapped; globalThis.buildL0OperationInvarianceTrial = wrapped; }catch(_){ }
+      return true;
+    }catch(_){ return false; }
+  }
+  function convertOperationCats(){
+    let n = 0;
+    try{
+      if(typeof CONFIG === "object" && CONFIG && CONFIG.v6873OperationBinaryGeneralize === false) return 0;
       for(const c of arrCats()){
-        if(c && c.family === "operation_invariance" && OP_RX.test(String(c.id || ""))){
-          if(typeof c.__v6872OrigCanUse !== "function") c.__v6872OrigCanUse = (typeof c.canUse === "function") ? c.canUse : (function(){ return true; });
-          c.canUse = function(){ return false; };
-          c.__v6872Retired = true;
+        if(!c) continue;
+        if(c.family === "operation_invariance" && OP_RX.test(str(c.id))){
+          c.operationInvarianceFamily = true;     // dispatch routes here BEFORE buildChoiceTrial (34473)
+          c.responseFormat = "yesno";              // no longer a 4-option choice cat (v6822/v6844 now skip it)
+          c.__v6873OperationBinary = true;
+          c.variants = [{q:"After a value-dependent rule is applied to both values, does the relation keep its truth?"}];
+          if(typeof c.__v6872OrigCanUse === "function"){ c.canUse = c.__v6872OrigCanUse; }  // undo any v6.8.72 retire
+          try{ if(typeof SPEC_REGISTRY !== "undefined" && SPEC_REGISTRY){ SPEC_REGISTRY[c.id] = Object.assign({}, SPEC_REGISTRY[c.id] || {}, {reviewBuilder: opReviewLines}); } }catch(_){ }
           n++;
+        } else if(c.id === GT_ID){
+          if(typeof c.__v6873OrigCanUse !== "function") c.__v6873OrigCanUse = (typeof c.canUse === "function") ? c.canUse : (function(){ return true; });
+          c.canUse = function(){ return false; };  // retire the fixed-"÷7" gt cat from play (its audit builds the scenario directly)
         }
       }
-      return n;
-    }catch(_){ return 0; }
+    }catch(_){ }
+    return n;
   }
 
-  // (B) Broken 4-way visual_transform_comparison family ("exact / rotation / mirror / different").
-  //     The cat's canUse AND the drought-force wrapper both gate on l0VisualComparisonChoiceEnabled,
-  //     so setting it false removes the family from selection AND from forced injection. We also give
-  //     the pre-existing rotation/mirror visual stimuli more PRESENCE as same-value decoys inside
-  //     ordinary numeric trials (reusing the chiral patterns without the broken classification).
+  // ── (B) Broken 4-way visual_transform_comparison family — retired (gates on the CONFIG flag) ──
   function retireVisualFourWay(){
     try{
       if(typeof CONFIG !== "object" || !CONFIG) return;
@@ -102527,25 +102811,164 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   }
 
   function boot(){
-    const op = retireOperationChoice();
+    installBuilderWrap();
+    const converted = convertOperationCats();
     retireVisualFourWay();
     try{
-      window.EUCA_V6872_RETIREMENTS = {
-        patch:"v6.8.72-retire-broken-families",
-        operationChoiceRetired: op,
-        visualFourWayEnabled: (typeof CONFIG !== "undefined" && CONFIG) ? CONFIG.l0VisualComparisonChoiceEnabled : null,
-        visualDecoyProb: (typeof CONFIG !== "undefined" && CONFIG) ? CONFIG.l0VisualRelationDecoySameValueProb : null
-      };
+      window.EUCA_V6873_OPERATION = {patch:"v6.8.73-operation-binary-generalized", converted, build:buildPredBool, scenario:opScenario, review:opReviewLines, pool:opPool};
+      window.EUCA_V6872_RETIREMENTS = {patch:"v6.8.73", operationConverted:converted, visualFourWayEnabled:(typeof CONFIG!=="undefined"&&CONFIG)?CONFIG.l0VisualComparisonChoiceEnabled:null, visualDecoyProb:(typeof CONFIG!=="undefined"&&CONFIG)?CONFIG.l0VisualRelationDecoySameValueProb:null};
     }catch(_){ }
   }
   boot();
-  // Re-assert after the late v6822/v6823/v6844 (re)installs (they reassign builders/flags on
-  // DOMContentLoaded + setTimeout + on every audit run, but they never touch canUse, and the
-  // visual-enable flag is written as `= (x !== false)` so a false value is preserved).
+  // Re-assert after the late v6822/v6823/v6844 (re)installs. The conversion sets responseFormat="yesno"
+  // so those installs (which gate on responseFormat==="choice") naturally skip the converted cats; the
+  // dispatch routes via operationInvarianceFamily, which precedes buildChoiceTrial, so the binary builder
+  // always wins regardless of what buildChoiceTrial currently points to.
   try{
     if(typeof document !== "undefined" && document.addEventListener) document.addEventListener("DOMContentLoaded", boot);
     if(typeof setTimeout === "function"){ setTimeout(boot, 0); setTimeout(boot, 500); setTimeout(boot, 1500); }
   }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.74 — optional "Shuffle YES/NO" mode (settings, DEFAULT OFF). Per-trial it randomizes which
+// side the YES and NO buttons appear on, for extra cognitive flexibility. Tapping is label-based
+// (btnYes=YES, btnNo=NO) regardless of position, so grading is never affected; the ←/→ keys follow
+// the VISUAL position (handled in the bool key handler via window._eucaYesNoYesLeft).
+(function shuffleYesNoV6874(){
+  "use strict";
+  const LS_KEY = "euca:shuffleYesNo:v1";
+  function load(){ try{ return localStorage.getItem(LS_KEY) === "1"; }catch(_){ return false; } }
+  function persist(v){ try{ localStorage.setItem(LS_KEY, v ? "1" : "0"); }catch(_){ } }
+  try{ if(typeof CONFIG === "object" && CONFIG && typeof CONFIG.shuffleYesNo === "undefined") CONFIG.shuffleYesNo = load(); }catch(_){ }
+
+  function setHints(yesLeft){
+    try{
+      const ys = document.querySelector("#btnYes span"), ns = document.querySelector("#btnNo span");
+      if(ys) ys.textContent = (yesLeft ? "←" : "→") + " or Y";
+      if(ns) ns.textContent = (yesLeft ? "→" : "←") + " or N";
+    }catch(_){ }
+  }
+  function applyOrder(yesLeft){
+    try{
+      const y = document.getElementById("btnYes"), n = document.getElementById("btnNo");
+      if(y) y.style.order = yesLeft ? "0" : "1";   // #boolpad is display:flex → order swaps the sides
+      if(n) n.style.order = yesLeft ? "1" : "0";
+      window._eucaYesNoYesLeft = yesLeft;
+      setHints(yesLeft);
+    }catch(_){ }
+  }
+  function resetYesNoOrder(){ applyOrder(true); }
+  function applyYesNoShuffle(){ applyOrder(Math.random() < 0.5); }
+  try{ window._eucaApplyYesNoShuffle = applyYesNoShuffle; window._eucaResetYesNoOrder = resetYesNoOrder; }catch(_){ }
+
+  // Per-trial hook: beginInputPhase runs on every input open and shows the pending panel.
+  try{
+    if(typeof beginInputPhase === "function" && !beginInputPhase.__v6874ShuffleWrapped){
+      const orig = beginInputPhase;
+      const wrapped = function beginInputPhaseV6874Shuffle(){
+        const r = orig.apply(this, arguments);
+        try{
+          if(typeof State !== "undefined" && State && State.pendingPanel === "bool"){
+            if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.shuffleYesNo) applyYesNoShuffle();
+            else resetYesNoOrder();
+          }
+        }catch(_){ }
+        return r;
+      };
+      wrapped.__v6874ShuffleWrapped = true;
+      // Preserve the marker flags the wrapped function carried (e.g. __v6621PrewarmWrapped) so the
+      // governance audits that assert them on beginInputPhase still see them on the outer wrapper.
+      try{ for(const k of Object.getOwnPropertyNames(orig)){ if(k.slice(0,2) === "__" && !(k in wrapped)){ try{ wrapped[k] = orig[k]; }catch(_){ } } } }catch(_){ }
+      beginInputPhase = wrapped;
+      try{ window.beginInputPhase = wrapped; globalThis.beginInputPhase = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+
+  function updateShuffleBtn(btn){
+    const on = !!(typeof CONFIG !== "undefined" && CONFIG && CONFIG.shuffleYesNo);
+    btn.textContent = on ? "🔀 Shuffle YES/NO: On" : "🔀 Shuffle YES/NO: Off";
+    btn.classList.toggle("on", on);
+    btn.classList.toggle("off", !on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  function injectToggle(){
+    try{
+      const haptic = document.getElementById("hapticToggleBtn");
+      const panel = document.querySelector("#settingsPanel .panelBody");
+      if((!haptic && !panel) || document.getElementById("shuffleYesNoToggle")) return;
+      // Match the game's full-width feedback toggles (Sound/Haptic) instead of a raw checkbox; drop
+      // the internal "extra cognitive flexibility" parenthetical.
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "shuffleYesNoToggle";
+      btn.className = "btn sound-toggle";
+      updateShuffleBtn(btn);
+      btn.addEventListener("click", () => {
+        try{
+          const on = !(typeof CONFIG !== "undefined" && CONFIG && CONFIG.shuffleYesNo);
+          if(typeof CONFIG !== "undefined" && CONFIG) CONFIG.shuffleYesNo = on;
+          persist(on);
+          if(!on) resetYesNoOrder();
+          updateShuffleBtn(btn);
+        }catch(_){ }
+      });
+      if(haptic && haptic.parentNode){ haptic.parentNode.insertBefore(btn, haptic.nextSibling); }
+      else if(panel){ panel.appendChild(btn); }
+    }catch(_){ }
+  }
+  try{
+    if(typeof document !== "undefined"){
+      if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", injectToggle);
+      else injectToggle();
+      if(typeof setTimeout === "function"){ setTimeout(injectToggle, 300); setTimeout(injectToggle, 1500); }
+    }
+  }catch(_){ }
+  try{ window.EUCA_V6874_SHUFFLE_YESNO = {patch:"v6.8.74-shuffle-yesno", enabled:()=>!!(typeof CONFIG!=="undefined"&&CONFIG&&CONFIG.shuffleYesNo), apply:applyYesNoShuffle, reset:resetYesNoOrder}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.74 — question FORMAT audit. Scans the fixed (template-free) question strings registered across
+// the catalogs and flags long SINGLE-LINE prompts that would read better split across lines. Advisory
+// only (returns PASS); the value is the candidate list in details. Exposed on window for inspection.
+(function questionFormatAuditV6874(){
+  "use strict";
+  function auditV6874QuestionFormat(opts){
+    opts = opts || {};
+    const THRESH = Number(opts.minLen || 95);
+    const seen = new Set(), candidates = [];
+    let scanned = 0;
+    function consider(text, source){
+      const t = String(text == null ? "" : text).trim();
+      if(!t || t.length < 8) return;
+      const key = source + "::" + t;
+      if(seen.has(key)) return; seen.add(key);
+      scanned++;
+      let polished = t;
+      try{ if(typeof readabilityPolishText === "function") polished = String(readabilityPolishText(t)); }catch(_){ }
+      const hasBreak = /\n/.test(polished) || /\n/.test(t);
+      if(!hasBreak && polished.length >= THRESH){
+        candidates.push({len:polished.length, sentences:(polished.match(/[.?!](\s|$)/g)||[]).length, source, text:polished.slice(0,220)});
+      }
+    }
+    try{ for(const c of (typeof POSNER_CATS!=="undefined"?POSNER_CATS:[])){ if(!c) continue; const src="L0:"+(c.id||c.family||"?");
+      if(Array.isArray(c.variants)) for(const v of c.variants) consider(v && v.q, src);
+      consider(c.question, src);
+    } }catch(_){ }
+    try{ if(typeof SPEC_REGISTRY==="object" && SPEC_REGISTRY){ for(const id in SPEC_REGISTRY){ const s=SPEC_REGISTRY[id]; if(!s) continue;
+      if(Array.isArray(s.prompts)) for(const p of s.prompts) consider(p && p.q, "spec:"+id);
+    } } }catch(_){ }
+    try{ for(const o of (typeof L1_OPS!=="undefined"?L1_OPS:[])){ if(!o) continue; const src="L1:"+(o.id||o.family||"?");
+      if(Array.isArray(o.variants)) for(const v of o.variants) consider(v && (v.q || v.question), src);
+      consider(o.question || o.q, src);
+    } }catch(_){ }
+    try{ for(const c of (typeof L2_CATS!=="undefined"?L2_CATS:[])){ if(!c) continue; if(Array.isArray(c.variants)) for(const v of c.variants) consider(v && v.q, "L2:"+(c.id||"?")); } }catch(_){ }
+    candidates.sort((a,b)=>b.len-a.len);
+    return {status:"pass", appVersion:(typeof currentAppVersion==="function"?currentAppVersion():null), scanned, flagged:candidates.length, threshold:THRESH, candidates:candidates.slice(0, Number(opts.top || 60))};
+  }
+  try{ window.auditV6874QuestionFormat = auditV6874QuestionFormat; globalThis.auditV6874QuestionFormat = auditV6874QuestionFormat; }catch(_){ }
 })();
 </script>
 
