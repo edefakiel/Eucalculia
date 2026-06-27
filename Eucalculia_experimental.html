@@ -3349,7 +3349,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.75";
+const APP_VERSION = "v6.8.80";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -3790,6 +3790,11 @@ const CONFIG = {
   // of the answer's CATEGORY and (b) for add_k/subtract_k answers ≥1 distractor on the SAME direction
   // axis — when a genuinely-wrong (produced≠RIGHT) such op is viable. Grading/correct op untouched.
   inverseOperationDistractorPreferSameCategory: true,
+  // v6.8.80: for add_k/subtract_k answers, replace 2 of the 3 distractors with OPPOSITE-direction confusers
+  // (the role-swap of the same magnitude + a near one), so the answer's DIRECTION (add vs subtract) is no
+  // longer given away by all-same-direction options. Target = correct + 1 same-direction near-miss + 2
+  // opposite (a 2/2 split) → forces the player to know which value was LEFT vs RIGHT. false = old distractors.
+  inverseOperationDirectionConfusers: true,
   // v6.5.6: didactic target for the Auto tutorial. Phase 1A keeps
   // running until levelByMode.A has reached this level (max value =
   // CONFIG.levels[3] = 7). This forces the user to actually progress
@@ -8687,8 +8692,50 @@ function relRefReferenceGlyphSVG(g){
     return `<svg viewBox="0 0 ${SIZE} ${SIZE}" width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg" class="rel-ref-glyph"><image href="${url}" x="0" y="0" width="${SIZE}" height="${SIZE}"/></svg>`;
   }catch(_){ return ""; }
 }
+// v6.8.79: render N (≤4) numbered candidate glyphs in a row for the generative
+// relational-choice family (the player picks among 4 visual glyphs, not text).
+// Generalises relRefReferenceGlyphSVG: each candidate {rep,value,spec?} is rasterised
+// via makeStim onto its own canvas, then composed into one SVG with a 1..N number above
+// each cell so it maps onto the ordinal 1..4 answer tray.
+function relChoiceCandidateGlyphsSVG(glyphs){
+  try{
+    if(!Array.isArray(glyphs) || !glyphs.length || typeof makeStim !== "function") return "";
+    const G = glyphs.slice(0,4);
+    const n = G.length;
+    const CELL = 108, GAP = 16, LBL = 26, PAD = 6;
+    const W = PAD*2 + n*CELL + (n-1)*GAP;
+    const H = PAD*2 + LBL + CELL;
+    const dpr = (typeof window !== "undefined" && Number(window.devicePixelRatio) > 0) ? Math.min(2, Number(window.devicePixelRatio)) : 1;
+    let parts = "";
+    for(let i=0;i<n;i++){
+      const g = G[i] || {};
+      const value = Number(g.value), rep = String(g.rep || "");
+      if(!Number.isFinite(value) || !rep) return "";
+      const cv = document.createElement("canvas");
+      cv.width = Math.max(1, Math.floor(CELL*dpr));
+      cv.height = Math.max(1, Math.floor(CELL*dpr));
+      const c = cv.getContext("2d");
+      if(!c) return "";
+      c.setTransform(dpr,0,0,dpr,0,0);
+      c.fillStyle = "#000"; c.fillRect(0,0,CELL,CELL);
+      const stimOpts = g.spec ? {cardSpec:g.spec} : {};
+      const stim = makeStim(value, rep, stimOpts);
+      if(!stim || typeof stim.draw !== "function") return "";
+      stim.draw(c, 0, 0, CELL, CELL);
+      const url = cv.toDataURL ? cv.toDataURL("image/png") : "";
+      if(!url || /NaN|undefined/.test(url)) return "";
+      const x = PAD + i*(CELL+GAP);
+      const yImg = PAD + LBL;
+      parts += `<text x="${x + CELL/2}" y="${PAD + LBL - 8}" text-anchor="middle" font-size="20" font-weight="700" fill="#cfe3ff" font-family="system-ui,-apple-system,sans-serif">${i+1}</text>`;
+      parts += `<rect x="${x-2}" y="${yImg-2}" width="${CELL+4}" height="${CELL+4}" rx="10" fill="none" stroke="#2b3a52" stroke-width="2"/>`;
+      parts += `<image href="${url}" x="${x}" y="${yImg}" width="${CELL}" height="${CELL}"/>`;
+    }
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg" class="rel-choice-glyphs">${parts}</svg>`;
+  }catch(_){ return ""; }
+}
 function metaStimulusSVGForTrialInfo(info){
   if(!info) return "";
+  if(info.payload && Array.isArray(info.payload.candidateGlyphs)) return relChoiceCandidateGlyphsSVG(info.payload.candidateGlyphs);
   if(info.payload && info.payload.relRefReferenceGlyph) return relRefReferenceGlyphSVG(info.payload.relRefReferenceGlyph);
   if(info.balanceSpec && info.balanceSpec.svg) return info.balanceSpec.svg;
   if(info.paperFolding && Array.isArray(info.paperFolding.ops)){
@@ -11159,9 +11206,9 @@ function readabilityPolishText(text){
     .replace(/^Apply this transformation:\s*remove lower bead\.\s*What value do you get\??$/i,
       "Remove one lower abacus bead. What value would the abacus show?")
     .replace(/^Use the missing fingers needed to make 5 on the shown hand\.\s*What value is missing\??$/i,
-      "How many more fingers are needed to make 5 on this hand?")
+      "How many more fingers would fill this hand?")
     .replace(/^Use the missing fingers needed to make 10 across both hands\.\s*What value is missing\??$/i,
-      "How many more fingers are needed to make 10 across both hands?")
+      "How many more fingers would fill both hands?")
     .replace(/Use the missing fingers needed/gi, "Use the extra fingers needed")
     .replace(/What value is missing\?/gi, "What value is needed?")
     .replace(/Do the values straddle 5\?/gi, "Is one value below 5 and the other above 5?")
@@ -17769,7 +17816,7 @@ function l0CrossRepProjectionCatalog(){
   return [
     {id:"cross_rep_project_coins_min_coin_count", cueRep:"coins", label:"fewest coin count", short:"coins · fewest coins", ruleText:"using the fewest coins needed to make that value", apply:v=>minCoins(v), canProject:v=>Number.isInteger(v)&&v>=1&&v<=40},
     {id:"cross_rep_project_ten_complement_10", cueRep:"ten", label:"empty cells in a ten-frame", short:"ten-frame · fill to 10", coreRuleId:"pair_fill_to_10", ruleText:"counting the empty cells needed to complete a ten-frame", apply:v=>10-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=9},
-    {id:"cross_rep_project_ten_complement_5", cueRep:"ten", label:"empty cells needed to complete the first five-frame", short:"ten-frame · fill to 5", coreRuleId:"pair_fill_to_5", ruleText:"counting how many more cells are needed to complete 5", apply:v=>5-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=4},
+    {id:"cross_rep_project_ten_complement_5", cueRep:"ten", label:"empty cells needed to make the frame half full", short:"ten-frame · fill to half", coreRuleId:"pair_fill_to_5", ruleText:"counting how many more cells are needed to make the frame half full", apply:v=>5-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=4},
     {id:"cross_rep_project_grid_complement_9", cueRep:"grid", label:"empty cells in a grid", short:"grid · fill to 9", coreRuleId:"pair_fill_to_9", ruleText:"counting the empty cells needed to complete a grid", apply:v=>9-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=8},
     {id:"cross_rep_project_tally_complete_groups_5", cueRep:"tally", label:"complete groups of five", short:"tally · complete groups", ruleText:"counting complete groups of five tally marks", apply:v=>Math.floor(v/5), canProject:v=>Number.isInteger(v)&&v>=5&&v<=40},
     {id:"cross_rep_project_tally_remainder_after_groups", cueRep:"tally", label:"loose marks after groups of five", short:"tally · loose remainder", ruleText:"counting the loose tally marks after complete groups of five", apply:v=>v%5, canProject:v=>Number.isInteger(v)&&v>=6&&v<=40&&(v%5)>0},
@@ -17780,8 +17827,8 @@ function l0CrossRepProjectionCatalog(){
     {id:"cross_rep_project_clock_back_1", cueRep:"clock", label:"hour after moving 1 hour counterclockwise", short:"clock · counter 1", coreRuleId:"pair_clock_back_1", ruleText:"moving 1 hour counterclockwise on a 12-clock", apply:v=>rotateClockHour(v,-1), canProject:v=>clockBackwardWraps(v,1)},
     {id:"cross_rep_project_clock_back_2", cueRep:"clock", label:"hour after moving 2 hours counterclockwise", short:"clock · counter 2", coreRuleId:"pair_clock_back_2", ruleText:"moving 2 hours counterclockwise on a 12-clock", apply:v=>rotateClockHour(v,-2), canProject:v=>clockBackwardWraps(v,2)},
     {id:"cross_rep_project_clock_back_3", cueRep:"clock", label:"hour after moving 3 hours counterclockwise", short:"clock · counter 3", coreRuleId:"pair_clock_back_3", ruleText:"moving 3 hours counterclockwise on a 12-clock", apply:v=>rotateClockHour(v,-3), canProject:v=>clockBackwardWraps(v,3)},
-    {id:"cross_rep_project_finger_complement_5", cueRep:"finger", label:"more fingers needed to make 5", short:"fingers · fill to 5", coreRuleId:"pair_fill_to_5", ruleText:"counting the fingers still needed to make 5", apply:v=>5-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=4},
-    {id:"cross_rep_project_finger_complement_10", cueRep:"finger", label:"more fingers needed to make 10", short:"fingers · fill to 10", coreRuleId:"pair_fill_to_10", ruleText:"counting the fingers still needed to make 10", apply:v=>10-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=9},
+    {id:"cross_rep_project_finger_complement_5", cueRep:"finger", label:"more fingers needed to fill the hand", short:"fingers · fill to 5", coreRuleId:"pair_fill_to_5", ruleText:"counting the fingers still needed to fill the hand", apply:v=>5-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=4},
+    {id:"cross_rep_project_finger_complement_10", cueRep:"finger", label:"more fingers needed to fill both hands", short:"fingers · fill to 10", coreRuleId:"pair_fill_to_10", ruleText:"counting the fingers still needed to fill both hands", apply:v=>10-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=9},
     {id:"cross_rep_project_abacus_upper_row_value", cueRep:"abacus", label:"upper-row value on an abacus", short:"abacus · upper-row value", ruleText:"using only the upper abacus row", apply:v=>5*Math.floor(v/5), canProject:v=>Number.isInteger(v)&&v>=5&&v<=24&&(v%5)>0},
     {id:"cross_rep_project_abacus_lower_row_value", cueRep:"abacus", label:"lower-row value on an abacus", short:"abacus · lower-row value", ruleText:"using only the lower abacus row", apply:v=>v%5, canProject:v=>Number.isInteger(v)&&v>=1&&v<=24&&(v%5)>0},
     {id:"cross_rep_project_die_opposite_face", cueRep:"dice", label:"hidden opposite face of a die", short:"die · opposite face", coreRuleId:"pair_fill_to_7", ruleText:"using the hidden face opposite the shown die face", apply:v=>7-v, canProject:v=>Number.isInteger(v)&&v>=1&&v<=6},
@@ -19088,7 +19135,7 @@ function l0ShepardConditionalCats(){
     variants:[
       { q:`Compare the cube figures first. If RIGHT is a rotation of LEFT, test: ${op.rotatedDesc}. If RIGHT is a mirror image of LEFT, test: ${op.mirroredDesc}. Is the active rule true?` },
       { q:`First decide whether RIGHT preserves handedness by rotation or reverses handedness by mirror. Rotation rule: ${op.rotatedDesc}. Mirror rule: ${op.mirroredDesc}. Is the selected rule true?` },
-      { q:`Use the cube relation as the rule selector: ROTATION → ${op.rotatedDesc}; MIRROR → ${op.mirroredDesc}. Is that selected rule true of LEFT and RIGHT?` }
+      { q:`ROTATION → ${op.rotatedDesc}; MIRROR → ${op.mirroredDesc}. Is that selected rule true of LEFT and RIGHT?` }
     ],
     gen(m, t){
       // Choose a (a, b) pair where the rotated and mirrored predicates disagree
@@ -20133,7 +20180,7 @@ function l0VennGateCats(){
     },
     variants:[
       { q:`First decide: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.` },
-      { q:`Use the set diagram as the rule selector. ${vennUcFirst(cond.desc)}?\nIf yes, the rule is: ${op.sameDesc}. If no, the rule is: ${op.differentDesc}.\nIs the active rule true of the two remembered values?` }
+      { q:`${vennUcFirst(cond.desc)}?\nIf yes, the rule is: ${op.sameDesc}. If no, the rule is: ${op.differentDesc}.\nIs the active rule true of the two remembered values?` }
     ],
     gen(m, t){
       const maxAB = Math.max(2, Math.min(m + 1, 12));
@@ -20224,8 +20271,7 @@ function l0GraphConditionalCats(){
       { q:`Decide the graph relation: SAME STRUCTURE or DIFFERENT STRUCTURE.
 If SAME: answer YES when ${op.sameDesc}.
 If DIFFERENT: answer YES when ${op.differentDesc}.` },
-      { q:`Use the graph pair as the rule selector.
-Same structure: ${op.sameDesc}.
+      { q:`Same structure: ${op.sameDesc}.
 Different structure: ${op.differentDesc}.
 Is the active rule true?` },
       { q:`Compare the graphs first. If their directed structure MATCHES, test: ${op.sameDesc}. If one graph has a structural edit, test: ${op.differentDesc}. Is the active rule true?` }
@@ -20293,7 +20339,7 @@ function l0GraphRelationGateCats(){
     },
     variants:[
       { q:`First decide: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.` },
-      { q:`Use the graph as the rule selector. ${graphRelationUcFirst(cond.desc)}?\nIf yes, the rule is: ${op.sameDesc}. If no, the rule is: ${op.differentDesc}.\nIs the active rule true of the two remembered values?` }
+      { q:`${graphRelationUcFirst(cond.desc)}?\nIf yes, the rule is: ${op.sameDesc}. If no, the rule is: ${op.differentDesc}.\nIs the active rule true of the two remembered values?` }
     ],
     gen(m, t){
       const maxAB = Math.max(2, Math.min(m + 1, 12));
@@ -23555,9 +23601,51 @@ function inverseOperationCleanPairs(m=null){
 function chooseInverseOperationDistractors(correctOp, v, w, m){
   return selectInverseOperationDistractors(correctOp, v, w, m);
 }
+function inverseOperationRawApply(op, v){
+  // Raw op output (no [1,max] gating) — used for the producedValue shown in review, so an out-of-range
+  // OPPOSITE-direction confuser (e.g. "add 5" applied to 10 → 15) still displays its result.
+  if(!op || typeof op.apply !== "function") return null;
+  try{ const w = op.apply(Number(v)); return Number.isFinite(w) ? w : null; }catch(_){ return null; }
+}
+function inverseOperationLinearConfusers(correctOp, v, w){
+  // v6.8.80: for a LINEAR correct op (add_k / subtract_k) build a DIRECTION-BALANCED distractor set:
+  //   [ 1 same-direction magnitude near-miss, role-swap opposite (magnitude k), 1 near opposite ]
+  // → the four options become 2 add / 2 subtract, so the DIRECTION no longer leaks the answer. The role-swap
+  // (opposite direction, same magnitude) is the strongest confuser: a player who mixed up which value was
+  // LEFT vs RIGHT picks it. Never 3-1 (which would re-reveal the direction). Returns null → keep the standard
+  // distractors when the catalog can't supply 2 distinct opposites + a same-direction near-miss.
+  const sig = inverseOperationStepSignature(correctOp);
+  if(sig.axis !== "linear_add" && sig.axis !== "linear_sub") return null;
+  const k = Number(sig.n);
+  if(!(k >= 1)) return null;
+  const oppPrefix  = sig.axis === "linear_add" ? "subtract_" : "add_";
+  const samePrefix = sig.axis === "linear_add" ? "add_" : "subtract_";
+  const byId = id => INVERSE_OPERATION_CATALOG.find(o => o && o.id === id && !o.__t_dead);
+  const wrong = op => op && op.id !== correctOp.id && inverseOperationRawApply(op, v) !== Number(w); // never re-produce the answer
+  const opp = [];
+  for(const n of [k, k+1, k-1, k+2, k-2, k+3, k-3]){ // role-swap (magnitude k) first, then nearest magnitudes
+    if(n < 1 || n > 5) continue;
+    const op = byId(oppPrefix + n);
+    if(wrong(op) && !opp.some(o => o.id === op.id)){ opp.push(op); if(opp.length >= 2) break; }
+  }
+  let same = null;
+  for(const n of [k+1, k-1, k+2, k-2, k+3]){ // a DIFFERENT-magnitude same-direction near-miss (magnitude still matters)
+    if(n < 1 || n > 5 || n === k) continue;
+    const op = byId(samePrefix + n);
+    if(wrong(op)){ same = op; break; }
+  }
+  if(opp.length < 2 || !same) return null;
+  return [same, opp[0], opp[1]];
+}
 function buildInverseOperationChoicePayload(v, w, correctOp, m, targetDisplayIndex=null, direction="ltr"){
-  const distractors = chooseInverseOperationDistractors(correctOp, v, w, m);
+  let distractors = chooseInverseOperationDistractors(correctOp, v, w, m);
   if(!distractors) return null;
+  // v6.8.80: for linear answers, swap in OPPOSITE-direction confusers so the answer's direction (add vs
+  // subtract) is no longer revealed by all-same-direction options (see inverseOperationLinearConfusers).
+  if(CONFIG.inverseOperationDirectionConfusers !== false){
+    const confusers = inverseOperationLinearConfusers(correctOp, v, w);
+    if(confusers) distractors = confusers;
+  }
   const sourceSide = direction === "rtl" ? "RIGHT" : "LEFT";
   const targetSide = direction === "rtl" ? "LEFT" : "RIGHT";
   const question = `Which operation, applied to ${sourceSide}, produces ${targetSide}?`;
@@ -23565,7 +23653,7 @@ function buildInverseOperationChoicePayload(v, w, correctOp, m, targetDisplayInd
     text:op.label,
     opId:op.id,
     opCategory:op.category,
-    producedValue:inverseOperationApply(op, v, m),
+    producedValue:inverseOperationRawApply(op, v),
     correct:op.id === correctOp.id,
     distractorType:op.id === correctOp.id ? "correct" : `inverse_op_${op.category}`,
     tag:op.id
@@ -26705,7 +26793,7 @@ function makeAdditionalL0PosnerCats(){
       canUse:(m)=> (State.reps||[]).includes("ten") && m>=6,
       variants:[
         {q:"Count the empty cells in RIGHT's ten-frame. Is that number LEFT?"},
-        {q:"Does RIGHT's ten-frame need exactly LEFT more cells to make 10?"},
+        {q:"Does RIGHT's ten-frame need exactly LEFT more cells to be full?"},
         {q:"Count the empty cells in RIGHT's ten-frame. Is that number different from LEFT?", negate:true, linguisticFrame:"negation_scope"},
       ],
       gen(m,t){ const max=Math.min(9,m); if(t){ const b=randInt(1,max+1); return [10-b,b]; } return genPairByPredicate(Math.min(m,10),false,(a,b)=>b<10 && a===10-b,{valid:(a,b)=>b<10}) || [1,1]; },
@@ -30291,8 +30379,11 @@ const REPRESENTATION_TRANSFORMS = {
         const next5 = Math.ceil(n / 5) * 5;
         return next5 - n;
       },
-      // Exclude v=5 and v=10: both produce a trivial 0.
-      canApply: (v, m) => Number.isInteger(v) && v >= 6 && v <= 9,
+      // v6.8.78: the ten-frame fills RANDOMLY, so "the next group of 5" / "the current row" is not a
+      // real visual region. Re-scope this to BELOW half (1..4), where next5 = 5 and the transform is
+      // 5−v = "how many more cells to make the frame HALF full" — a fill-LEVEL question that holds for
+      // any arrangement. (For v 6..9 it was just 10−v, a duplicate of frame_complement_10.)
+      canApply: (v, m) => Number.isInteger(v) && v >= 1 && v <= 4,
     },
   },
 
@@ -31366,13 +31457,13 @@ const L0_TRANSFORM_DESCRIPTORS = {
     short: "domino half-gap",
   },
   fingers_complement_5: {
-    left:  "how many more fingers A needs to make 5",
-    right: "how many more fingers B needs to make 5",
+    left:  "how many more fingers A needs to fill a hand",
+    right: "how many more fingers B needs to fill a hand",
     short: "complement to 5",
   },
   fingers_complement_10: {
-    left:  "how many more fingers A needs to make 10 across both hands",
-    right: "how many more fingers B needs to make 10 across both hands",
+    left:  "how many more fingers A needs to fill both hands",
+    right: "how many more fingers B needs to fill both hands",
     short: "complement to 10",
   },
   clock_opposite_hour: {
@@ -31431,14 +31522,14 @@ const L0_TRANSFORM_DESCRIPTORS = {
     short: "ten-frame complement",
   },
   frame_extra_after_5: {
-    left:  "the extra cells in A's ten-frame after the first five",
-    right: "the extra cells in B's ten-frame after the first five",
-    short: "extra after first five",
+    left:  "the cells filling A's frame beyond half",
+    right: "the cells filling B's frame beyond half",
+    short: "cells beyond half",
   },
   frame_complement_to_next_5: {
-    left:  "the cells A needs to complete the next group of five",
-    right: "the cells B needs to complete the next group of five",
-    short: "to next frame-five",
+    left:  "the cells A needs to make its frame half full",
+    right: "the cells B needs to make its frame half full",
+    short: "to half full",
   },
   tally_complement_to_next_5: {
     left:  "A's distance to the next group of 5",
@@ -43793,10 +43884,10 @@ registerAtomic({
     const v = _atomicGetFingerCount(stim);
     return v === null ? null : 5 - v;
   },
-  phrase: () => "the number of fingers needed to reach 5",
+  phrase: () => "the number of fingers needed to fill the hand",
   reviewLine: (stim) => {
     const v = _atomicGetFingerCount(stim);
-    return v === null ? "" : `Shown ${v}; ${5-v} more needed to reach 5.`;
+    return v === null ? "" : `Shown ${v}; ${5-v} more needed to fill the hand.`;
   },
   minLevel:1
 });
@@ -43806,10 +43897,10 @@ registerAtomic({
     const v = _atomicGetFingerCount(stim);
     return v === null ? null : 10 - v;
   },
-  phrase: () => "the number of fingers needed to reach 10",
+  phrase: () => "the number of fingers needed to fill both hands",
   reviewLine: (stim) => {
     const v = _atomicGetFingerCount(stim);
-    return v === null ? "" : `Shown ${v}; ${10-v} more needed to reach 10.`;
+    return v === null ? "" : `Shown ${v}; ${10-v} more needed to fill both hands.`;
   },
   minLevel:2
 });
@@ -44179,7 +44270,7 @@ _registryVisualReadoutSpec({
   id: "reg_l0s_finger_complement_5",
   atomicId: "vr_finger_complement_5",
   prompts: [
-    {q:"How many more fingers are needed to reach 5?"},
+    {q:"How many more fingers would fill this hand?"},
     {q:"Shown fingers + ? = 5. What is ?"},
     {q:"What is the complement to 5 of the shown fingers?"},
   ]
@@ -44188,7 +44279,7 @@ _registryVisualReadoutSpec({
   id: "reg_l0s_finger_complement_10",
   atomicId: "vr_finger_complement_10",
   prompts: [
-    {q:"How many more fingers are needed to reach 10?"},
+    {q:"How many more fingers would fill both hands?"},
     {q:"Shown fingers + ? = 10. What is ?"},
     {q:"What is the complement to 10 of the shown fingers?"},
   ]
@@ -56146,8 +56237,8 @@ function explicitTransformInstruction(rep, transformId, cell=null){
     abacus_add_lower_bead:"Add one lower abacus bead. What value would the abacus show?",
     abacus_remove_lower_bead:"Remove one lower abacus bead. What value would the abacus show?",
     abacus_upper_to_lower:"After replacing one upper bead with one lower bead, what value would the abacus show?",
-    fingers_complement_5:"How many more fingers are needed to make 5 on this hand?",
-    fingers_complement_10:"How many more fingers are needed to make 10 across both hands?",
+    fingers_complement_5:"How many more fingers would fill this hand?",
+    fingers_complement_10:"How many more fingers would fill both hands?",
     clock_opposite_hour:"On a 12-hour clock, move to the opposite hour. What hour is it?",
     clock_advance_3:"On the clock, move 3 hours clockwise. What hour is it?",
     clock_retreat_3:"On the clock, move 3 hours counterclockwise. What hour is it?",
@@ -56177,10 +56268,10 @@ function explicitTransformInstruction(rep, transformId, cell=null){
     cluster_subgroup_count:"How many separate subgroups are shown?",
     cluster_without_smallest_group:"Remove one smallest subgroup. What total remains?",
     cluster_gap_largest_smallest:"What is the difference between one largest subgroup and one smallest subgroup?",
-    frame_complement_10:"How many cells are still empty in the ten-frame?",
-    frame_extra_after_5:"How many filled cells are there after the first group of five?",
-    frame_complement_to_next_5:"How many more cells would complete the next group of five?",
-    tally_complement_to_next_5:"How many more tally marks would reach the next group of 5?",
+    frame_complement_10:"How many cells are still empty in the frame?",
+    frame_extra_after_5:"By how many cells is the frame more than half full?",
+    frame_complement_to_next_5:"How many more cells would make the frame half full?",
+    tally_complement_to_next_5:"How many more tally marks would complete the current group?",
     tally_complete_bundles:"How many complete bundles of five tally marks are shown?",
     tally_remainder_after_bundles:"How many loose tally marks remain after the complete bundles of five?",
     grid_complement_3x3:"How many empty cells are in the grid?",
@@ -56235,8 +56326,8 @@ function propaedeuticQuestion(rep, transformId, cell){
     domino_smaller_half:"Look at the domino halves. What is the smallest half-value shown?",
     domino_is_double:"Are the two halves of the domino equal?",
     domino_gap_between_halves:"What is the absolute difference between the two halves of the domino?",
-    fingers_complement_5:"How many more fingers are needed to make 5 on this hand?",
-    fingers_complement_10:"How many more fingers are needed to make 10 across both hands?",
+    fingers_complement_5:"How many more fingers would fill this hand?",
+    fingers_complement_10:"How many more fingers would fill both hands?",
     clock_opposite_hour:"On a 12-hour clock, move to the opposite hour. What hour is it?",
     clock_advance_3:"On the clock, move 3 hours clockwise. What hour is it?",
     clock_retreat_3:"On the clock, move 3 hours counterclockwise. What hour is it?",
@@ -56247,10 +56338,10 @@ function propaedeuticQuestion(rep, transformId, cell){
     clock_rotate_90:"Mentally rotate the clock hand 90° clockwise. What hour does it point to?",
     clock_rotate_270:"Mentally rotate the clock hand 270° clockwise. What hour does it point to?",
     clock_advance_6:"On the clock, what is the opposite hour?",
-    frame_complement_10:"How many cells are still empty in the ten-frame?",
-    frame_extra_after_5:"How many filled cells are there after the first group of five?",
-    frame_complement_to_next_5:"How many more cells would complete the next group of five?",
-    tally_complement_to_next_5:"How many more tally marks would reach the next group of 5?",
+    frame_complement_10:"How many cells are still empty in the frame?",
+    frame_extra_after_5:"By how many cells is the frame more than half full?",
+    frame_complement_to_next_5:"How many more cells would make the frame half full?",
+    tally_complement_to_next_5:"How many more tally marks would complete the current group?",
     tally_complete_bundles:"How many complete bundles of five tally marks are shown?",
     tally_remainder_after_bundles:"How many loose tally marks remain after the complete bundles of five?",
     grid_complement_3x3:"How many empty cells are in the grid?",
@@ -84456,7 +84547,9 @@ try{
         generativeInline:{sourceCatId:sourceCat.id, sourceFamily, q:row.q, targetTruth, phaseTargets:Array.isArray(phaseTargets) ? phaseTargets.slice() : [targetTruth], dualWitness:!!dual, cap, m, tier, requiresDistinctPair:!!distinctHint}
       };
       resetGenPairPanel(cap);
-      showMetaQuestion(0, prompt, `${dual ? "Two pairs. " : ""}Target: ${targetTruth ? "YES" : "NO"}. Tap LEFT, then RIGHT. Values: 1 to ${cap}.${distinctHint}`);
+      // v6.8.76: drop "Two pairs / Target: YES/NO / Tap LEFT, then RIGHT / Values: 1 to N" (all stated
+      // by the question + the visible panel/keypad). Keep only the genuine distinctness constraint.
+      showMetaQuestion(0, prompt, `${distinctHint ? distinctHint.trim() : ""}`);
       setPrompt("CONSTRUCT");
       setGameAriaLabel(`Constructive relational trial. ${dual ? "Pair 1 of 2. " : ""}Make the claim answer ${targetTruth ? "YES" : "NO"}. Choose LEFT and RIGHT. ${row.q}`);
       inline.blockCount++;
@@ -84510,7 +84603,7 @@ try{
           info.constructiveInvalidPair = {a, b, reason:"invalid_pair", message:inlineInvalidPairMessage(cat), at:Date.now()};
           resetGenPairPanel(cap);
           try{ if(typeof pulse === "function") pulse("bad"); }catch(_){ }
-          showMetaQuestion(0, info.question || info.delayedPrompt || "Build a pair.", `${inlineInvalidPairMessage(cat)} Tap LEFT, then RIGHT. Values: 1 to ${cap}.`);
+          showMetaQuestion(0, info.question || info.delayedPrompt || "Build a pair.", `${inlineInvalidPairMessage(cat)}`);
           setPrompt("CONSTRUCT");
           return true;
         }
@@ -84548,7 +84641,7 @@ try{
         // v6.8.4: make pair-1 acceptance unmistakable. Previously the slots
         // were silently wiped and only a small hint line changed, so the
         // accepted entry read as an erased/rejected one.
-        showMetaQuestion(0, nextPrompt, `Pair ${phaseIndex} saved: LEFT ${a} · RIGHT ${b}. Now build Pair ${nextPhase} of ${phaseCount}. Target: ${nextTarget ? "YES" : "NO"}. Tap LEFT, then RIGHT.${info.requiresDistinctPair ? " Distinct values required." : ""}`);
+        showMetaQuestion(0, nextPrompt, `Pair ${phaseIndex} saved: LEFT ${a} · RIGHT ${b}. Now build Pair ${nextPhase} of ${phaseCount}.${info.requiresDistinctPair ? " Distinct values required." : ""}`);
         try{ if(typeof pulse === "function") pulse("fast"); }catch(_){ }
         setPrompt("CONSTRUCT");
         setGameAriaLabel(`Constructive relational trial. Pair ${nextPhase} of ${phaseCount}. Make the claim answer ${nextTarget ? "YES" : "NO"}. Choose LEFT and RIGHT. ${info.sourceQuestion || ""}`);
@@ -85383,7 +85476,7 @@ try{
     if(taskId === "l1_prime_then_composite_exactly_one") return exactlyOne(pairValues(p1), isPrimeSmall) && exactlyOne(pairValues(p2), isCompositeSmall);
     if(taskId === "l1_divisibility_switch_plus1") return samePair(p2, shiftedPair(p1, 1)) && !oneDividesOtherPair(p1) && oneDividesOtherPair(p2);
     if(taskId === "l1_divisibility_preserve_double_no") return samePair(p2, doubledPair(p1)) && !oneDividesOtherPair(p1) && !oneDividesOtherPair(p2);
-    if(taskId === "l1_epistemic_left_witness_odd") return p1.a === p2.a && p1.b !== p2.b && isOdd(p1.a) && (isOdd(p1.a) || isOdd(p1.b)) && (isOdd(p2.a) || isOdd(p2.b));
+    if(taskId === "l1_epistemic_left_witness_odd") return p1.a === p2.a && p1.b !== p2.b && isEven(p1.a) && (isOdd(p1.a) || isOdd(p1.b)) && (isOdd(p2.a) || isOdd(p2.b)); // v6.8.80: EVEN left ⇒ each RIGHT must be odd (non-trivial)
     if(taskId === "l1_epistemic_left_ambiguous_both_even") return p1.a === p2.a && p1.b !== p2.b && isEven(p1.a) && (both(pairValues(p1), isEven) !== both(pairValues(p2), isEven));
     if(taskId === "l1_same_left_opposite_greater") return p1.a === p2.a && p1.b !== p2.b && ((p1.a > p1.b) !== (p2.a > p2.b));
     if(taskId === "l1_range_totals_single_composite"){
@@ -85495,9 +85588,14 @@ try{
       },
       {
         id:"l1_epistemic_left_witness_odd",
-        title:"LEFT alone is a YES witness",
-        question:"Build two possible pairs with the same odd LEFT value and different RIGHT values. In both pairs, 'at least one value is odd' must be YES.",
-        verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && isOdd(p1.a) && (isOdd(p1.a) || isOdd(p1.b)) && (isOdd(p2.a) || isOdd(p2.b)),
+        title:"Even LEFT — each RIGHT must carry the odd",
+        // v6.8.80: the old version forced an ODD left, which made "at least one odd" YES no matter the RIGHT
+        // (trivial — the constraint never engaged the player; any RIGHT worked). Now the shared LEFT is EVEN,
+        // so the LEFT can never be the odd value: to make "at least one odd" YES in BOTH pairs the player must
+        // put an ODD value on EACH (different) RIGHT — a non-trivial construction that forces reasoning about
+        // where the odd value lives.
+        question:"Build two possible pairs with the same EVEN LEFT value and different RIGHT values. In both pairs, 'at least one value is odd' must be YES.",
+        verify:(p1,p2)=> p1.a === p2.a && p1.b !== p2.b && isEven(p1.a) && (isOdd(p1.a) || isOdd(p1.b)) && (isOdd(p2.a) || isOdd(p2.b)),
         atomics:["generative_l1", "epistemic_sufficiency", "witness", "parity"]
       },
       {
@@ -85517,14 +85615,14 @@ try{
       {
         id:"l1_range_totals_single_composite",
         title:"Totals define a range with one composite",
-        question:"Build two pairs. List every whole number from one pair's total to the other's (both ends included): that run must be 3–6 numbers long and contain exactly ONE composite.",
+        question:"Build two pairs whose totals are 2 to 5 apart. Among the whole numbers from one total to the other (both totals included), exactly one must be composite.",
         verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 3 && r.length <= 6 && countBy(r, isCompositeSmall) === 1; },
         atomics:["generative_l1", "range_witness", "composite", "interval_scan"]
       },
       {
         id:"l1_range_totals_two_primes_with_composite",
         title:"Totals define a range with two primes and a composite",
-        question:"Build two pairs. List every whole number from one pair's total to the other's (both ends included): that run must be 4–7 numbers long with exactly TWO primes and at least ONE composite.",
+        question:"Build two pairs whose totals are 3 to 6 apart. Among the whole numbers from one total to the other (both totals included), there must be exactly two primes and at least one composite.",
         verify:(p1,p2)=>{ const r = rangeInts(sum(p1), sum(p2)); return sum(p1) !== sum(p2) && r.length >= 4 && r.length <= 7 && countBy(r, isPrimeSmall) === 2 && countBy(r, isCompositeSmall) >= 1; },
         atomics:["generative_l1", "range_witness", "prime", "composite", "interval_scan"]
       }
@@ -85573,13 +85671,13 @@ try{
     if(id === "l1_prime_then_composite_exactly_one") return `${base} Pair 1 prime count ${countBy(pairValues(p1), isPrimeSmall)}; Pair 2 composite count ${countBy(pairValues(p2), isCompositeSmall)}.`;
     if(id === "l1_divisibility_switch_plus1") return `${base} Pair 2 should be Pair 1 + 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
     if(id === "l1_divisibility_preserve_double_no") return `${base} Pair 2 should double Pair 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
-    if(id === "l1_epistemic_left_witness_odd") return `${base} Same odd LEFT; both possible RIGHT cases still make 'at least one odd' YES.`;
+    if(id === "l1_epistemic_left_witness_odd") return `${base} Same EVEN LEFT, so the LEFT is never the odd one — each RIGHT must be odd to make 'at least one odd' YES.`;
     if(id === "l1_epistemic_left_ambiguous_both_even") return `${base} Same LEFT; changing RIGHT changes whether BOTH values are even.`;
     if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT; changing RIGHT flips whether LEFT > RIGHT.`;
     if(id === "l1_range_totals_single_composite" || id === "l1_range_totals_two_primes_with_composite"){
       const r = rangeInts(sum(p1), sum(p2));
-      const need = id === "l1_range_totals_single_composite" ? "counting from one total to the other (both ends included) lands on 3 to 6 numbers, with exactly 1 composite among them" : "counting from one total to the other (both ends included) lands on 4 to 7 numbers, with exactly 2 primes and at least 1 composite among them";
-      return `${base} Totals ${sum(p1)} and ${sum(p2)} → run ${r[0]}–${r[r.length-1]} is ${r.length} number${r.length===1?"":"s"} long; primes ${countBy(r, isPrimeSmall)}, composites ${countBy(r, isCompositeSmall)}. Needed: ${need}.`;
+      const need = id === "l1_range_totals_single_composite" ? "the totals are 2 to 5 apart, with exactly 1 composite among the whole numbers from one total to the other (both included)" : "the totals are 3 to 6 apart, with exactly 2 primes and at least 1 composite among the whole numbers from one total to the other (both included)";
+      return `${base} Totals ${sum(p1)} and ${sum(p2)} (${Math.abs(sum(p1)-sum(p2))} apart) → numbers ${r[0]}–${r[r.length-1]}; primes ${countBy(r, isPrimeSmall)}, composites ${countBy(r, isCompositeSmall)}. Needed: ${need}.`;
     }
     return base;
   }
@@ -85657,7 +85755,7 @@ try{
         memoryEligible:false
       };
       resetL1PairPanel(payload.cap);
-      showMetaQuestion(1, payload.prompt, `Pair 1 of 2. Choose LEFT, then RIGHT. Values: 1 to ${payload.cap}.`);
+      showMetaQuestion(1, payload.prompt, ``);
       setPrompt("CONSTRUCT");
       setGameAriaLabel(`Constructive META trial. Build Pair 1, then Pair 2. ${payload.prompt}`);
       const mon = State.productionMonitor || (State.productionMonitor = {});
@@ -85701,7 +85799,7 @@ try{
         resetL1PairPanel(cap);
         // v6.8.4: make pair-1 acceptance unmistakable and reset cognitive
         // timing so pair-2 RT is measured from its own input window.
-        showMetaQuestion(1, info.question, `Pair 1 saved: LEFT ${a} · RIGHT ${b}. Now build Pair 2 of 2. Choose LEFT, then RIGHT. Values: 1 to ${cap}.`);
+        showMetaQuestion(1, info.question, `Pair 1 saved: LEFT ${a} · RIGHT ${b}. Now build Pair 2 of 2.`);
         setPrompt("CONSTRUCT");
         setGameAriaLabel(`Constructive META trial. Pair 1 saved. Build Pair 2. ${info.question}`);
         try{ if(typeof pulse === "function") pulse("fast"); }catch(_){ }
@@ -92301,7 +92399,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           mode:"single_witness",
           title:`Single ${yn(target)} witness`,
           question:`Build ONE pair that makes this claim answer ${yn(target)}: ${rel.label}.`,
-          sub:`One clean witness. Values: 1 to ${cap}.`,
+          sub:``,
           params:{relationId:rel.id, target},
           phaseCount:1,
           klauer:{process:"foundational_witness", object:rel.object, coverage:false},
@@ -92347,13 +92445,15 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function makeMinimalFlipTasks(cap){
     const pairs = allPairs(cap), out=[];
     for(const rel of RELATIONS){
+      // v6.8.80: shuffle the base order and take the FIRST flippable base → a uniform-random "Start pair"
+      // (the old code broke at the first base in allPairs() order = always (1,1), so it never varied). The
+      // early break keeps the per-call cost ~unchanged (this maker runs on every inductive payload build).
       let found = null;
-      outer: for(const base of pairs){
+      for(const base of shuffle(pairs.slice())){
         const baseTruth = !!rel.pred(base);
-        const cands = [pair(base.a+1,base.b), pair(base.a-1,base.b), pair(base.a,base.b+1), pair(base.a,base.b-1)].filter(p => withinCap(p, cap));
-        for(const cand of cands){
-          if(!!rel.pred(cand) !== baseTruth){ found = {base, cand, baseTruth}; break outer; }
-        }
+        const cands = [pair(base.a+1,base.b), pair(base.a-1,base.b), pair(base.a,base.b+1), pair(base.a,base.b-1)]
+          .filter(p => withinCap(p, cap) && (!!rel.pred(p) !== baseTruth));
+        if(cands.length){ found = {base, cand:choice(cands), baseTruth}; break; }
       }
       if(!found) continue;
       out.push(packTask({
@@ -93217,7 +93317,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       };
       resetPanel(payload.cap);
       const lvl = task.phaseCount > 1 ? 1 : 0;
-      showMetaQuestion(lvl, task.question, `${task.phaseCount > 1 ? "Pair 1 of " + task.phaseCount + ". " : "One pair. "}${task.sub || "Choose LEFT, then RIGHT."}`);
+      // v6.8.76: drop the procedural filler ("One pair." / "Pair 1 of N." prefix + the "Choose LEFT,
+      // then RIGHT." default) — the construct panel + the task's own constraint sub carry the meaning.
+      showMetaQuestion(lvl, task.question, `${task.sub || ""}`);
       setPrompt(task.mode === "hidden_rule_induction" ? "INDUCE" : "CONSTRUCT");
       setGameAriaLabel(`Inductive constructive trial. ${task.question}`);
       Induct.blockCount = (Induct.blockCount || 0) + 1;
@@ -93253,7 +93355,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         const next = phase + 1;
         info.phaseIndex = next;
         resetPanel(cap);
-        showMetaQuestion(1, info.question, `Pair ${phase} saved: LEFT ${a} · RIGHT ${b}. Now build Pair ${next} of ${phaseCount}. ${info.inductiveConstructive?.sub || "Choose LEFT, then RIGHT."}`);
+        showMetaQuestion(1, info.question, `Pair ${phase} saved: LEFT ${a} · RIGHT ${b}. Now build Pair ${next} of ${phaseCount}.${info.inductiveConstructive?.sub ? " " + info.inductiveConstructive.sub : ""}`);
         setPrompt(info.inductiveConstructive?.mode === "hidden_rule_induction" ? "INDUCE" : "CONSTRUCT");
         setGameAriaLabel(`Inductive constructive trial. Pair ${next}. ${info.question}`);
         try{ if(typeof pulse === "function") pulse("fast"); }catch(_){ }
@@ -93934,7 +94036,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         }catch(_){ return false; }
       },
       variants:[
-        {q:`Use the Venn diagram as the rule selector.\nDoes it show: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.\nIs the active rule true of LEFT and RIGHT?`},
+        {q:`Does it show: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.\nIs the active rule true of LEFT and RIGHT?`},
         {q:`Read the set relation first: ${cond.desc}.\nYES branch: ${op.sameDesc}. NO branch: ${op.differentDesc}.\nApply the selected branch to LEFT and RIGHT.`}
       ],
       gen(m,t){
@@ -101464,9 +101566,12 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function relRefQuestion(spec, lN, rN, refN, C){
     // v6.8.62: the reference C is shown ONLY as a glyph (clock/card/frame) in the stimulus slot above —
     // it is deliberately NOT printed as a numeral, so reading the visual is genuinely necessary (rep-native).
-    if(spec.framing === "time")  return `Arrival times (all AM): ${lN} = LEFT, ${rN} = RIGHT. ${refN}'s arrival time is shown on the clock above. Who arrived ${spec.relWord} ${refN}?`;
-    if(spec.framing === "score") return `Scores: ${lN} = LEFT, ${rN} = RIGHT. ${refN}'s score is shown on the card above. Who scored ${spec.relWord} ${refN}?`;
-    return `Values: ${lN} = LEFT, ${rN} = RIGHT. ${refN}'s value is shown in the frame above. Whose value is ${spec.relWord} ${refN}'s?`;
+    // v6.8.79: randomise whether the pair clause lists LEFT-first or RIGHT-first, so the player must READ the
+    // LEFT/RIGHT labels rather than assume the first-named role is LEFT (the labels carry the role binding).
+    const pairText = (typeof randInt === "function" && randInt(0,2) === 0) ? `${rN} = RIGHT, ${lN} = LEFT` : `${lN} = LEFT, ${rN} = RIGHT`;
+    if(spec.framing === "time")  return `Arrival times (all AM): ${pairText}. ${refN}'s arrival time is shown on the clock above. Who arrived ${spec.relWord} ${refN}?`;
+    if(spec.framing === "score") return `Scores: ${pairText}. ${refN}'s score is shown on the card above. Who scored ${spec.relWord} ${refN}?`;
+    return `Values: ${pairText}. ${refN}'s value is shown in the frame above. Whose value is ${spec.relWord} ${refN}'s?`;
   }
   function buildRelRefQuantifierChoice(cat, m){
     const spec = cat && cat.relRefSpec; if(!spec) return null;
@@ -101866,24 +101971,45 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function uniqLocal(xs){ return Array.from(new Set((xs||[]).filter(x=>x!=null).map(String))); }
   function buildTransitiveChoice(cat, m){
     const maxV = Math.max(4, Math.min(Number(m) || 9, 9));
-    const target = randInt(0, 3); // 0 = Z>RIGHT, 1 = Z<RIGHT, 2 = cannot be determined
-    for(let tries=0; tries<240; tries++){
-      const L = randInt(1, maxV+1), R = randInt(1, maxV+1);
-      if(L === R) continue; // strict order is the transitive bridge
+    // v6.8.79: "equal" is a REAL outcome via an EQUAL clue, AND the clue's ANCHOR side is randomized so the
+    // player can't lean on "the clue is always about LEFT, the question always about RIGHT" (the same positional
+    // crutch removed from relational_reference). Z is pinned to the ANCHOR value (the side the clue names);
+    // the question asks Z vs the OTHER side. anchor===other ⇒ equal; else greater/less, or (order clue) cannot.
+    // ★Anti-shortcut: the equal clue ALSO yields greater/less (anchor≠other), so "equal clue" never predicts
+    // "equal answer"; the player must recall+compare both values. Neither the clue word nor the anchor side fixes it.
+    const target = randInt(0, 4);          // 0 = Z>other · 1 = Z<other · 2 = cannot · 3 = Z=other
+    const anchorLeft = randInt(0,2) === 0; // which displayed side the CLUE references (the question asks the OTHER)
+    const anchorSide = anchorLeft ? "LEFT" : "RIGHT";
+    const otherSide  = anchorLeft ? "RIGHT" : "LEFT";
+    for(let tries=0; tries<300; tries++){
+      const aVal = randInt(1, maxV+1), oVal = randInt(1, maxV+1); // anchor value (clue side) · other value (question side)
       let clue, outcome;
-      if(target === 0){ if(!(R < L)) continue; clue = "gt"; outcome = 0; }      // Z>L, R<L ⇒ Z>R
-      else if(target === 1){ if(!(R > L)) continue; clue = "lt"; outcome = 1; }  // Z<L, R>L ⇒ Z<R
-      else { clue = (R > L) ? "gt" : "lt"; outcome = 2; }                         // Z and R on the same side of L ⇒ undetermined
-      const clueWord = clue === "gt" ? "greater than" : "less than";
-      const question = `A third value Z is ${clueWord} the LEFT value. Compared with the RIGHT value, is Z greater, is Z less, or can you not tell?`;
+      if(target === 3){
+        if(aVal !== oVal) continue;            // equal needs anchor === other
+        clue = "eq"; outcome = 3;
+      } else if(target === 2){
+        if(aVal === oVal) continue;
+        clue = (oVal > aVal) ? "gt" : "lt"; outcome = 2;   // Z & other on the same side of anchor ⇒ undetermined
+      } else if(target === 0){                 // greater — MIX a gt clue and an eq clue
+        if(aVal === oVal) continue;
+        if(randInt(0,2) === 0){ if(!(oVal < aVal)) continue; clue = "gt"; } else { if(!(aVal > oVal)) continue; clue = "eq"; }
+        outcome = 0;
+      } else {                                 // less — mix lt and eq clues
+        if(aVal === oVal) continue;
+        if(randInt(0,2) === 0){ if(!(oVal > aVal)) continue; clue = "lt"; } else { if(!(aVal < oVal)) continue; clue = "eq"; }
+        outcome = 1;
+      }
+      const L = anchorLeft ? aVal : oVal, R = anchorLeft ? oVal : aVal; // place anchor/other onto the displayed sides
+      const clueWord = clue === "gt" ? "greater than" : (clue === "lt" ? "less than" : "equal to");
+      const question = `A third value Z is ${clueWord} the ${anchorSide} value. Compared with the ${otherSide} value, is Z greater, less, equal, or can you not tell?`;
       const options = [
-        l0ChoiceOption("Z is greater than the RIGHT value", outcome === 0, "transitive_order"),
-        l0ChoiceOption("Z is less than the RIGHT value",    outcome === 1, "transitive_order"),
-        l0ChoiceOption("Cannot be determined",              outcome === 2, "transitive_indeterminate"),
-        l0ChoiceOption("Z is equal to the RIGHT value",     false,         "transitive_equal_lure")
+        l0ChoiceOption(`Z is greater than the ${otherSide} value`, outcome === 0, "transitive_order"),
+        l0ChoiceOption(`Z is less than the ${otherSide} value`,    outcome === 1, "transitive_order"),
+        l0ChoiceOption("Cannot be determined",                     outcome === 2, "transitive_indeterminate"),
+        l0ChoiceOption(`Z is equal to the ${otherSide} value`,     outcome === 3, "transitive_equal")
       ];
       const trial = buildL0ChoiceTrialFromOptions(cat, m, L, R, question, options, outcome, {
-        transitiveInference:{ left:L, right:R, clue, outcome },
+        transitiveInference:{ left:L, right:R, anchorSide, otherSide, anchorVal:aVal, otherVal:oVal, clue, outcome },
         mechanismTags:["transitive_inference","relation_composition","determinacy_judgment","retained_pair_order"]
       });
       if(trial){
@@ -101901,7 +102027,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       responseFormat:"choice", noL0Transform:true,
       atomicsUsed:["transitive_inference","relation_composition","determinacy_judgment"],
       frameTags:["transitive_inference","seriation","comparison","determinacy","choice_readout"],
-      variants:[{q:"A third value Z relates to LEFT; compared with RIGHT, is Z greater, less, or undetermined?"}],
+      variants:[{q:"A third value Z relates to one shown value; compared with the other, is Z greater, less, equal, or undetermined?"}],
       canUse:m=>Number(m) >= 6,
       buildChoiceTrial:buildTransitiveChoice,
       gen(m){ const v = Math.max(4, Math.min(Number(m)||9, 9)); return [randInt(1,v+1), randInt(1,v+1)]; },
@@ -101916,28 +102042,37 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       const cat = POSNER_CATS.find(c => c && c.id === "decl_transitive_inference_choice");
       if(!cat){ blockers.push("missing transitive cat"); }
       else{
-        const outcomes={0:0,1:0,2:0}; let built=0, mism=0, badStruct=0;
-        for(let i=0;i<240;i++){
+        const outcomes={0:0,1:0,2:0,3:0}, sideDist={LEFT:0,RIGHT:0}; let built=0, mism=0, badStruct=0;
+        for(let i=0;i<320;i++){
           const t = cat.buildChoiceTrial(cat, 9); if(!t){ continue; } built++;
           const ti = t.payload && t.payload.transitiveInference;
           if(!ti){ badStruct++; continue; }
+          // INDEPENDENT recompute — Z is pinned to the ANCHOR value (the side the clue names); question asks Z vs OTHER:
+          const aV = Number(ti.anchorVal), oV = Number(ti.otherVal);
+          sideDist[ti.anchorSide] = (sideDist[ti.anchorSide]||0)+1;
           let exp;
-          if(ti.clue === "gt") exp = (ti.right < ti.left) ? 0 : 2;
-          else exp = (ti.right > ti.left) ? 1 : 2;
+          if(ti.clue === "eq")      exp = (aV === oV) ? 3 : (aV > oV ? 0 : 1);
+          else if(ti.clue === "gt") exp = (oV < aV) ? 0 : 2;
+          else                      exp = (oV > aV) ? 1 : 2; // lt
           outcomes[exp] = (outcomes[exp]||0)+1;
           if(Number(t.semanticCorrectIndex) !== exp) mism++;
           if(!Array.isArray(t.options) || t.options.length !== 4) badStruct++;
-          if(ti.left === ti.right) badStruct++;
-          // the equal-lure (option text) must never be the correct answer
+          // anchor===other is malformed ONLY for order clues (the eq clue allows it → that IS the equal outcome)
+          if(ti.clue !== "eq" && aV === oV) badStruct++;
+          // placement integrity: {anchorVal, otherVal} must be exactly the two displayed values, sides distinct
+          if(!((ti.left === aV && ti.right === oV) || (ti.left === oV && ti.right === aV))) badStruct++;
+          if(ti.anchorSide === ti.otherSide) badStruct++;
+          // "equal" correct IFF the recomputed outcome is equal; the option now names the OTHER side (LEFT or RIGHT)
           const correctText = Array.isArray(t.options) ? (t.options.find(o=>o&&o.correct)||{}).text : "";
-          if(/equal to the RIGHT/i.test(String(correctText))) badStruct++;
+          if((/Z is equal to the (LEFT|RIGHT) value/i.test(String(correctText))) !== (exp === 3)) badStruct++;
         }
-        details.outcomes = outcomes; details.built = built; details.mismatch = mism; details.badStruct = badStruct;
+        details.outcomes = outcomes; details.sideDist = sideDist; details.built = built; details.mismatch = mism; details.badStruct = badStruct;
         if(built < 60) warnings.push(`low build ${built}`);
         if(mism > 0) blockers.push(`${mism} answer/structure mismatches`);
         if(badStruct > 0) blockers.push(`${badStruct} malformed trials`);
         const zeros = Object.values(outcomes).filter(v=>v===0).length;
         if(zeros > 0) warnings.push(`${zeros} outcomes never occurred ${JSON.stringify(outcomes)}`);
+        if(sideDist.LEFT === 0 || sideDist.RIGHT === 0) warnings.push(`anchor side not randomized ${JSON.stringify(sideDist)}`);
       }
     }catch(e){ blockers.push("transitive audit exception: "+(e&&e.message||e)); }
     return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
@@ -102969,6 +103104,274 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     return {status:"pass", appVersion:(typeof currentAppVersion==="function"?currentAppVersion():null), scanned, flagged:candidates.length, threshold:THRESH, candidates:candidates.slice(0, Number(opts.top || 60))};
   }
   try{ window.auditV6874QuestionFormat = auditV6874QuestionFormat; globalThis.auditV6874QuestionFormat = auditV6874QuestionFormat; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.79 — GENERATIVE RELATIONAL CHOICE (the constructive dual of relational_reference).
+// Flash two retained "players" (L, R) as rep-native glyphs → mask → the player picks among FOUR
+// candidate glyphs the one(s) satisfying a QUANTIFIER over {L,R}: beats neither / exactly-one (we don't
+// say which — forces ordering the two from memory) / both; or earlier/between/later; or smaller/between/
+// greater. Sometimes ONE glyph qualifies (single-select), sometimes TWO (requiredSelections:2, the
+// already-shipped multi-select contract). The 4 candidate glyphs render numbered 1..4 via
+// relChoiceCandidateGlyphsSVG; the answer tray stays ordinal 1..4. Glyphs and options are built from one
+// shared `entries` array (NO post-build reshuffle), so candidate i ALWAYS maps to option i / tray i.
+(function relationalChoiceGenerativeV6879(){
+  "use strict";
+  if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return;
+  if(typeof randInt !== "function" || typeof l0ChoiceOption !== "function" || typeof makeVisualInstance !== "function") return;
+  const PATCH_ID = "v6.8.79-relational-choice-generative";
+  try{ if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6879RelationalChoiceGenerative === undefined) CONFIG.v6879RelationalChoiceGenerative = true; }catch(_){ }
+  const uniqLocal = (typeof uniq === "function") ? uniq : (xs)=>Array.from(new Set(xs));
+
+  // framing → { rep, value range, nouns, lead, phrasing per quantifier }.
+  // phrases index: 0 = beats/contains NEITHER, 1 = EXACTLY ONE (unspecified which), 2 = BOTH.
+  const SPECS = [
+    { id:"rel_choice_score_generative", kind:"order", framing:"score", rep:"card", maxV:9, singular:"card", plural:"cards", itemNoun:"Card",
+      lead:"Two players' scores were shown, then hidden.",
+      phrases:["beats neither player","beats exactly one of the two players","beats both players"],
+      phrasesPlural:["beat neither player","beat exactly one of the two players","beat both players"] },
+    { id:"rel_choice_time_generative", kind:"order", framing:"time", rep:"clock", maxV:12, singular:"clock", plural:"clocks", itemNoun:"Clock",
+      lead:"Two arrival times were shown, then hidden.",
+      phrases:["shows a time earlier than both","shows a time between the two","shows a time later than both"],
+      phrasesPlural:["show a time earlier than both","show a time between the two","show a time later than both"] },
+    { id:"rel_choice_value_generative", kind:"order", framing:"value", rep:"ten", maxV:9, singular:"frame", plural:"frames", itemNoun:"Frame",
+      lead:"Two values were shown, then hidden.",
+      phrases:["is smaller than both","is between the two values","is greater than both"],
+      phrasesPlural:["are smaller than both","are between the two values","are greater than both"] },
+    // DISTINCTION on a NON-numeric attribute — pick by SUIT, forcing the player to read the suit, not the rank
+    // (rank is decorative here). suit is already a load-bearing visual property in the engine (cards_share_suit).
+    { id:"rel_choice_suit_generative", kind:"suit", framing:"suit", rep:"card", maxV:9, singular:"card", plural:"cards", itemNoun:"Card",
+      lead:"Two cards were shown, then hidden.",
+      phrases:["is a different suit from both","matches the suit of exactly one of the two","matches the suit of both"],
+      phrasesPlural:["are a different suit from both","match the suit of exactly one of the two","match the suit of both"] },
+    // COORDINATION + role-binding — pick the candidate equal to the value that was on the LEFT
+    // (a candidate equal to the RIGHT is the lure, so the player must recall WHICH side held which value).
+    { id:"rel_choice_equal_left_generative", kind:"equalleft", framing:"equality", rep:"ten", maxV:9, singular:"frame", plural:"frames", itemNoun:"Frame",
+      lead:"Two values were shown — one on the LEFT, one on the RIGHT — then hidden.",
+      phrases:["matches the value shown on the LEFT"] }
+  ];
+
+  function sampleDistinct(arr, k){
+    if(!Array.isArray(arr) || arr.length < k) return null;
+    const pool = arr.slice(), out = [];
+    for(let i=0;i<k;i++){ const j = randInt(0, pool.length); out.push(pool.splice(j,1)[0]); }
+    return out;
+  }
+  function shuffleInPlace(a){ for(let i=a.length-1;i>0;i--){ const j=randInt(0,i+1); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function relChoiceQuestion(spec, Q, need){
+    const noun = need>1 ? `the two ${spec.plural}` : `the ${spec.singular}`;
+    if(spec.kind === "equalleft") return `${spec.lead} Pick ${noun} that ${spec.phrases[0]}.`;
+    const phr = need>1 ? (spec.phrasesPlural || spec.phrases)[Q] : spec.phrases[Q];
+    return `${spec.lead} Pick ${noun} that ${phr}.`;
+  }
+
+  // ---- per-kind samplers → {flash:[{value,suit?},{value,suit?}], Q, need, entries:[{value,suit?,correct}×4]} | null
+  function sampleOrder(spec, maxV){
+    for(let t=0;t<400;t++){
+      const Q = randInt(0,3), need = (randInt(0,2)===0) ? 2 : 1;
+      const L = randInt(1,maxV+1), R = randInt(1,maxV+1); if(L===R) continue; // distinct; "exactly one" needs lo<hi
+      const lo = Math.min(L,R), hi = Math.max(L,R);
+      const buckets = {0:[],1:[],2:[]};
+      for(let v=1;v<=maxV;v++){ buckets[v<=lo?0:(v<=hi?1:2)].push(v); }
+      if(buckets[Q].length < need) continue;
+      const others = []; for(const k of [0,1,2]){ if(k!==Q) others.push(...buckets[k]); }
+      if(others.length < 4-need) continue;
+      const cv = sampleDistinct(buckets[Q], need), dv = sampleDistinct(others, 4-need);
+      if(!cv || !dv) continue;
+      const entries = cv.map(v=>({value:v, correct:true})).concat(dv.map(v=>({value:v, correct:false})));
+      if(new Set(entries.map(e=>e.value)).size !== 4) continue;
+      return {flash:[{value:L},{value:R}], Q, need, entries};
+    }
+    return null;
+  }
+  function suitMatchCount(cs, sL, sR){ return (cs===sL?1:0) + (cs===sR?1:0); }
+  function sampleSuit(spec, maxV){
+    for(let t=0;t<400;t++){
+      const Q = randInt(0,3), need = (randInt(0,2)===0) ? 2 : 1;
+      let sL = randInt(0,4), sR;
+      if(Q===2){ sR = sL; } else { do{ sR = randInt(0,4); }while(sR===sL); } // "matches both" needs the two shown suits equal
+      const shown = new Set([sL,sR]);
+      let correctSuits, distractSuits;
+      if(Q===0){ correctSuits = [0,1,2,3].filter(s=>!shown.has(s)); distractSuits = Array.from(shown); }        // different from both
+      else if(Q===1){ correctSuits = Array.from(shown); distractSuits = [0,1,2,3].filter(s=>!shown.has(s)); }    // matches exactly one
+      else { correctSuits = [sL]; distractSuits = [0,1,2,3].filter(s=>s!==sL); }                                 // matches both (sL===sR)
+      if(!correctSuits.length || !distractSuits.length) continue;
+      const ranks = sampleDistinct([1,2,3,4,5,6,7,8,9].filter(r=>r<=maxV), 4); // decorative, distinct so cards look different
+      if(!ranks) continue;
+      const entries = [];
+      for(let i=0;i<need;i++) entries.push({value:ranks[i], suit:correctSuits[randInt(0,correctSuits.length)], correct:true});
+      for(let i=0;i<4-need;i++) entries.push({value:ranks[need+i], suit:distractSuits[randInt(0,distractSuits.length)], correct:false});
+      // independent guard: every correct entry satisfies Q by suit, every distractor does not
+      const ok = entries.every(e=>{ const mc = suitMatchCount(e.suit, sL, sR); const bk = mc===0?0:(mc===1?1:2); return (bk===Q)===e.correct; });
+      if(!ok) continue;
+      return {flash:[{value:randInt(1,maxV+1), suit:sL},{value:randInt(1,maxV+1), suit:sR}], Q, need, entries};
+    }
+    return null;
+  }
+  function sampleEqualLeft(spec, maxV){
+    for(let t=0;t<400;t++){
+      const L = randInt(1,maxV+1), R = randInt(1,maxV+1); if(L===R) continue;
+      const others = []; for(let v=1;v<=maxV;v++){ if(v!==L && v!==R) others.push(v); }
+      if(others.length < 2) continue;
+      const dd = sampleDistinct(others, 2); if(!dd) continue;
+      const entries = [{value:L, correct:true},{value:R, correct:false},{value:dd[0], correct:false},{value:dd[1], correct:false}]; // L correct, R is the role-binding lure
+      if(new Set(entries.map(e=>e.value)).size !== 4) continue;
+      return {flash:[{value:L},{value:R}], Q:0, need:1, entries};
+    }
+    return null;
+  }
+
+  function visForItem(spec, it){
+    // suit kind: force a SINGLE card of the chosen suit (makeVisualInstance takes an OPTS OBJECT — cardSpec,
+    // not a bare array — or Card falls back to a seed-derived suit and the suit question becomes unanswerable).
+    return (it.suit!=null) ? makeVisualInstance(it.value, spec.rep, {cardSpec:[{val:it.value, suit:it.suit}]}) : makeVisualInstance(it.value, spec.rep);
+  }
+  function assembleRelChoiceTrial(cat, spec, flash, Q, need, entries){
+    shuffleInPlace(entries); // glyphs + options share this ONE order → glyph i ≡ option i ≡ tray i (no later reshuffle)
+    const options = entries.map((e,i)=> l0ChoiceOption(`${spec.itemNoun} ${i+1}`, e.correct, e.correct ? "relchoice_correct" : "relchoice_distractor"));
+    const candidateGlyphs = entries.map(e=> (e.suit!=null) ? {rep:spec.rep, value:e.value, spec:[{val:e.value, suit:e.suit}]} : {rep:spec.rep, value:e.value});
+    const correctIndices = entries.map((e,i)=> e.correct ? i : null).filter(n=>n!=null);
+    if(correctIndices.length !== need) return null;
+    const q = relChoiceQuestion(spec, Q, need);
+    const vA = visForItem(spec, flash[0]), vB = visForItem(spec, flash[1]);
+    const kindTag = spec.kind==="suit" ? "distinction" : (spec.kind==="equalleft" ? "coordination" : "comparison");
+    const trial = {
+      a:flash[0].value, b:flash[1].value,
+      repA:vA.rep, repB:vB.rep,
+      stimSeedA:Number.isFinite(vA.seed) ? Number(vA.seed) : null,
+      stimSeedB:Number.isFinite(vB.seed) ? Number(vB.seed) : null,
+      stimSpecA:(typeof cloneStimReplaySpec === "function") ? cloneStimReplaySpec(vA.rep, vA.spec) : null,
+      stimSpecB:(typeof cloneStimReplaySpec === "function") ? cloneStimReplaySpec(vB.rep, vB.spec) : null,
+      question:q, delayedPrompt:q,
+      responseFormat:"choice",
+      options, isTrue:null,
+      catId:cat.id, family:"relational_choice_generative", noL0Transform:true,
+      frameTags:uniqLocal([...(cat.frameTags||[]), "relational_choice", "generative_choice", kindTag, spec.framing==="time"?"temporal_relation":"metric_relation", "rep_native", "choice_readout"]),
+      mechanismTags:["relational_choice_construct","retained_pair_comparison","quantifier_target","rep_native", spec.kind],
+      payload:{ candidateGlyphs, relChoice:{ spec:spec.id, kind:spec.kind, framing:spec.framing, Q, need,
+        left:{value:flash[0].value, suit:(flash[0].suit!=null?flash[0].suit:null)},
+        right:{value:flash[1].value, suit:(flash[1].suit!=null?flash[1].suit:null)},
+        candidates:entries.map(e=>({value:e.value, suit:(e.suit!=null?e.suit:null)})),
+        correctIndices:correctIndices.slice() } },
+      countsForMetaHistory:true
+    };
+    if(need > 1){
+      trial.requiredSelections = need;
+      trial.correctIndices = correctIndices.slice();
+      trial.correctIndex = null;
+      trial.semanticCorrectIndex = null;
+      trial.answer = (typeof choiceCanonicalSelection === "function") ? choiceCanonicalSelection(correctIndices) : correctIndices.join(",");
+      trial.answerLabel = correctIndices.map(i=>options[i]?.text || `Option ${i+1}`).join(" + ");
+      trial.targetOutcome = trial.answer;
+    } else {
+      trial.requiredSelections = 1;
+      trial.correctIndex = correctIndices[0];
+      trial.semanticCorrectIndex = correctIndices[0];
+      trial.answer = correctIndices[0];
+      trial.answerLabel = options[correctIndices[0]]?.text || null;
+      trial.targetOutcome = correctIndices[0];
+    }
+    return trial;
+  }
+
+  function buildRelChoiceGenerative(cat, m){
+    const spec = cat && cat.relChoiceSpec; if(!spec) return null;
+    if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6879RelationalChoiceGenerative === false) return null;
+    const maxV = Math.max(4, Math.min(Number(m) || 9, spec.maxV));
+    const s = spec.kind === "suit" ? sampleSuit(spec, maxV) : (spec.kind === "equalleft" ? sampleEqualLeft(spec, maxV) : sampleOrder(spec, maxV));
+    if(!s) return null;
+    return assembleRelChoiceTrial(cat, spec, s.flash, s.Q, s.need, s.entries);
+  }
+
+  let added = 0; const ids = [];
+  for(const spec of SPECS){
+    if(POSNER_CATS.some(c => c && c.id === spec.id)) continue;
+    POSNER_CATS.push({
+      id:spec.id, tier:4, stage:4, minM:6, minLevel:4, family:"relational_choice_generative",
+      responseFormat:"choice", relChoiceSpec:spec, noL0Transform:true,
+      atomicsUsed:["relational_choice_construct","retained_pair_comparison","quantifier_target"],
+      frameTags:["relational_choice","generative_choice", spec.framing==="time"?"temporal_relation":"metric_relation","comparison","quantifier_relation","rep_native","choice_readout"],
+      variants:[{q:`Pick the ${spec.singular} that ${spec.phrases[spec.phrases.length>1?1:0]}.`}],
+      canUse:(mm)=> Number(mm) >= 6 && !(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6879RelationalChoiceGenerative === false),
+      buildChoiceTrial:buildRelChoiceGenerative,
+      gen(mm){ const v = Math.max(4, Math.min(Number(mm)||9, 9)); return [randInt(1,v+1), randInt(1,v+1)]; },
+      verify(){ return typeof INAPPLICABLE !== "undefined" ? INAPPLICABLE : null; }
+    });
+    added++; ids.push(spec.id);
+  }
+
+  // Reachability: migrate the new cats into the SPEC_REGISTRY runtime index, else the sampler never serves them.
+  try{
+    if(typeof migrateLegacyCatalogueEntryToSpec === "function"){
+      for(const id of ids){ const c = POSNER_CATS.find(x=>x&&x.id===id); if(c && !c._registrySpec && !c.registrySpecId){ try{ migrateLegacyCatalogueEntryToSpec("L0", c); }catch(_){ } } }
+    }
+  }catch(_){ }
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+  try{ if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex(); }catch(_){ }
+  try{ if(typeof _availablePosnerCatsCache !== "undefined" && _availablePosnerCatsCache && _availablePosnerCatsCache.clear) _availablePosnerCatsCache.clear(); }catch(_){ }
+
+  function auditV6879RelationalChoice(opts={}){
+    const blockers=[], warnings=[], details={patch:PATCH_ID, added, ids, byCat:{}};
+    try{
+      for(const spec of SPECS){
+        const cat = POSNER_CATS.find(c => c && c.id === spec.id);
+        if(!cat){ blockers.push(`missing cat ${spec.id}`); continue; }
+        const rec = details.byCat[spec.id] = {built:0, mismatch:0, badCount:0, equalLR:0, glyphBad:0, single:0, multi:0, qDist:{0:0,1:0,2:0}};
+        for(let i=0;i<180;i++){
+          const t = buildRelChoiceGenerative(cat, spec.maxV);
+          if(!t){ continue; }
+          rec.built++;
+          const rc = t.payload && t.payload.relChoice;
+          const cg = t.payload && t.payload.candidateGlyphs;
+          if(!rc || !Array.isArray(cg) || cg.length !== 4 || !Array.isArray(t.options) || t.options.length !== 4){ rec.glyphBad++; continue; }
+          const Lv = rc.left.value, Rv = rc.right.value;
+          if(rc.kind !== "suit" && Lv === Rv) rec.equalLR++; // suit allows equal RANKS (suit is the relation, rank decorative)
+          rec.qDist[rc.Q] = (rec.qDist[rc.Q]||0)+1;
+          // INDEPENDENT recompute of which candidate satisfies the asked relation, vs the option's correct flag
+          let should;
+          if(rc.kind === "suit"){
+            const sL = rc.left.suit, sR = rc.right.suit;
+            should = cg.map(g => { const cs = (g.spec && g.spec[0]) ? g.spec[0].suit : null; const mc = (cs===sL?1:0)+(cs===sR?1:0); return (mc===0?0:(mc===1?1:2)) === rc.Q; });
+          } else if(rc.kind === "equalleft"){
+            should = cg.map(g => g.value === Lv);
+          } else {
+            const lo = Math.min(Lv, Rv), hi = Math.max(Lv, Rv);
+            should = cg.map(g => (g.value<=lo ? 0 : (g.value<=hi ? 1 : 2)) === rc.Q);
+          }
+          const got = t.options.map(o => !!o.correct);
+          for(let k=0;k<4;k++){ if(should[k] !== got[k]){ rec.mismatch++; break; } }
+          const need = Number(t.requiredSelections) || 1;
+          if(need > 1) rec.multi++; else rec.single++;
+          if(got.filter(Boolean).length !== need) rec.badCount++;
+        }
+        if(rec.built < 30) warnings.push(`${spec.id}: low build count ${rec.built}`);
+        if(rec.equalLR) blockers.push(`${spec.id}: ${rec.equalLR} trials with L===R (degenerate)`);
+        if(rec.glyphBad) blockers.push(`${spec.id}: ${rec.glyphBad} trials missing 4 candidate glyphs / 4 options`);
+        if(rec.mismatch) blockers.push(`${spec.id}: ${rec.mismatch} correctness mismatches vs independent bucket recompute`);
+        if(rec.badCount) blockers.push(`${spec.id}: ${rec.badCount} trials where #correct != requiredSelections`);
+        if(spec.kind !== "equalleft" && (rec.single === 0 || rec.multi === 0)) warnings.push(`${spec.id}: single/multi not both produced (single=${rec.single}, multi=${rec.multi})`);
+        if((spec.kind === "order" || spec.kind === "suit") && (rec.qDist[0]===0 || rec.qDist[1]===0 || rec.qDist[2]===0)) warnings.push(`${spec.id}: a quantifier bucket never targeted (${JSON.stringify(rec.qDist)})`);
+      }
+      // reachability: the new family must be in the L0 runtime index and survive the sampler filter
+      if(typeof registryLayerEntries === "function"){
+        const idx = registryLayerEntries("L0", POSNER_CATS);
+        const idxIds = new Set(idx.map(c => String(c && c.id)));
+        for(const id of ids){ details["idx_"+id] = idxIds.has(id); if(!idxIds.has(id)) blockers.push(`${id} missing from L0 registry index → never sampled`); }
+      }
+      if(typeof availablePosnerCatsForTier === "function"){
+        const av = new Set(availablePosnerCatsForTier(9,5).map(c => String(c && c.id)));
+        for(const id of ids){ details["avail_"+id] = av.has(id); if(!av.has(id)) warnings.push(`${id} not in availablePosnerCatsForTier(9,5)`); }
+      }
+    }catch(e){ blockers.push("relational-choice audit exception: "+(e&&e.message||e)); }
+    return {status: blockers.length ? "block" : warnings.length ? "warn" : "pass", blockers, warnings, details};
+  }
+  try{ window.auditV6879RelationalChoice = auditV6879RelationalChoice; globalThis.auditV6879RelationalChoice = auditV6879RelationalChoice; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6879_relational_choice","relational_choice_generative","generative_choice"], auditV6879RelationalChoice, "auditV6879RelationalChoice");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6879RelationalChoice", auditV6879RelationalChoice);
+  }catch(_){ }
+  try{ window.EUCA_V6879_RELATIONAL_CHOICE = {patch:PATCH_ID, added, ids, build:buildRelChoiceGenerative, audit:auditV6879RelationalChoice, specs:SPECS}; }catch(_){ }
 })();
 </script>
 
