@@ -3349,7 +3349,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.80";
+const APP_VERSION = "v6.8.82";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -8718,7 +8718,9 @@ function relChoiceCandidateGlyphsSVG(glyphs){
       if(!c) return "";
       c.setTransform(dpr,0,0,dpr,0,0);
       c.fillStyle = "#000"; c.fillRect(0,0,CELL,CELL);
-      const stimOpts = g.spec ? {cardSpec:g.spec} : {};
+      // v6.8.80: rep-aware forced spec — card candidates force suits via cardSpec, domino candidates force
+      // exact halves via dominoSpec (the connect kind needs both halves controlled, not a random split).
+      const stimOpts = g.spec ? (rep === "domino" ? {dominoSpec:g.spec} : {cardSpec:g.spec}) : {};
       const stim = makeStim(value, rep, stimOpts);
       if(!stim || typeof stim.draw !== "function") return "";
       stim.draw(c, 0, 0, CELL, CELL);
@@ -8737,6 +8739,7 @@ function metaStimulusSVGForTrialInfo(info){
   if(!info) return "";
   if(info.payload && Array.isArray(info.payload.candidateGlyphs)) return relChoiceCandidateGlyphsSVG(info.payload.candidateGlyphs);
   if(info.payload && info.payload.relRefReferenceGlyph) return relRefReferenceGlyphSVG(info.payload.relRefReferenceGlyph);
+  if(info.numberLineGate && Number.isFinite(Number(info.numberLineGate.t)) && typeof window !== "undefined" && typeof window.numberLineGateRenderSVG === "function") return window.numberLineGateRenderSVG(info.numberLineGate);
   if(info.balanceSpec && info.balanceSpec.svg) return info.balanceSpec.svg;
   if(info.paperFolding && Array.isArray(info.paperFolding.ops)){
     return paperFoldingRenderSequence(info.paperFolding.ops);
@@ -19133,8 +19136,10 @@ function l0ShepardConditionalCats(){
       return (!CONFIG.l0ShepardConditionalRequireGate || requireHarnessPass("l0_shepard_conditional"));
     },
     variants:[
-      { q:`Compare the cube figures first. If RIGHT is a rotation of LEFT, test: ${op.rotatedDesc}. If RIGHT is a mirror image of LEFT, test: ${op.mirroredDesc}. Is the active rule true?` },
-      { q:`First decide whether RIGHT preserves handedness by rotation or reverses handedness by mirror. Rotation rule: ${op.rotatedDesc}. Mirror rule: ${op.mirroredDesc}. Is the selected rule true?` },
+      // v6.8.81: migrated to the gate branch format (like l0_graph_conditional in v6.8.33) — was the
+      // last gate family on single-line legacy prose; also drops the "handedness" jargon.
+      { q:`Is one figure a ROTATION of the other (not a mirror)?\nIf YES: answer YES when ${op.rotatedDesc}.\nIf NO (it is a mirror): answer YES when ${op.mirroredDesc}.` },
+      { q:`First decide: rotation or mirror?\nRotation → answer YES when ${op.rotatedDesc}.\nMirror → answer YES when ${op.mirroredDesc}.` },
       { q:`ROTATION → ${op.rotatedDesc}; MIRROR → ${op.mirroredDesc}. Is that selected rule true of LEFT and RIGHT?` }
     ],
     gen(m, t){
@@ -20180,7 +20185,7 @@ function l0VennGateCats(){
     },
     variants:[
       { q:`First decide: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.` },
-      { q:`${vennUcFirst(cond.desc)}?\nIf yes, the rule is: ${op.sameDesc}. If no, the rule is: ${op.differentDesc}.\nIs the active rule true of the two remembered values?` }
+      { q:`${vennUcFirst(cond.desc)}?\nIf yes: answer YES when ${op.sameDesc}.\nIf no: answer YES when ${op.differentDesc}.` }
     ],
     gen(m, t){
       const maxAB = Math.max(2, Math.min(m + 1, 12));
@@ -20339,7 +20344,7 @@ function l0GraphRelationGateCats(){
     },
     variants:[
       { q:`First decide: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.` },
-      { q:`${graphRelationUcFirst(cond.desc)}?\nIf yes, the rule is: ${op.sameDesc}. If no, the rule is: ${op.differentDesc}.\nIs the active rule true of the two remembered values?` }
+      { q:`${graphRelationUcFirst(cond.desc)}?\nIf yes: answer YES when ${op.sameDesc}.\nIf no: answer YES when ${op.differentDesc}.` }
     ],
     gen(m, t){
       const maxAB = Math.max(2, Math.min(m + 1, 12));
@@ -21478,11 +21483,14 @@ function _l0ConstructiveVisualReadoutCandidates(predicateId, m, wantTrue, opts={
   }
   if(predicateId === "right_abacus_lower_beads_equal_left"){
     if(!allows("abacus")) return out;
-    const leftVals = _vpbValueRange(Math.min(max,4), "abacus", 4);
+    // v6.8.80: the cat's visualVerify is now EXISTENTIAL/side-neutral ("one abacus's lower row matches the
+    // other's value", either direction) — this candidate truth must mirror it or want-false pairs could
+    // satisfy the reverse direction and fail the constructive-generation audit.
+    const leftVals = _vpbValueRange(max, "abacus", max);
     const rightVals = _vpbValueRange(max, "abacus", max);
     for(const a of leftVals){
       for(const b of rightVals){
-        const truth = (Number(b) % 5) === Number(a);
+        const truth = ((Number(b) % 5) === Number(a)) || ((Number(a) % 5) === Number(b));
         if(truth === want){
           // Avoid a literal duplicate when an alternative exists; the exact
           // visual-match guard will still protect the rare low-range edge.
@@ -22228,9 +22236,12 @@ const _availablePosnerCatsCache = new Map();
 function _availablePosnerCatsCacheKey(m, maxTier){
   let repsSig = "";
   try { repsSig = _samplerActiveRepsSignature ? _samplerActiveRepsSignature() : ""; } catch(_) {}
-  const snap = (typeof registryRuntimeSnapshot === "function") ? registryRuntimeSnapshot() : null;
-  const n = snap?.counts?.L0 || POSNER_CATS.length;
-  return `${m}|${maxTier}|${n}|${repsSig}|${snap?.version || "legacy"}`;
+  // v6.8.81 perf: key on the registry index VERSION (builtAt bumps on every rebuild) + catalog length
+  // instead of registryRuntimeSnapshot(), which allocated Object.keys over the ~800-spec registry plus
+  // two slice(0,80) copies on EVERY call — including cache hits (this key runs once per trial build).
+  let idxV = 0;
+  try { idxV = (typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) ? (Number(REGISTRY_RUNTIME_INDEX.builtAt) || 0) : 0; } catch(_) {}
+  return `${m}|${maxTier}|${POSNER_CATS.length}|${idxV}|${repsSig}`;
 }
 function availablePosnerCatsForTier(m, maxTier){
   const key = _availablePosnerCatsCacheKey(m, maxTier);
@@ -26093,8 +26104,8 @@ const POSNER_CATS = [
   { id:"left_plus_gap_eq_10", tier:4, stage:4, minM:8, family:"role", relationMode:"metric",
     variants:[
       { q:"Does LEFT plus the gap between LEFT and RIGHT equal 10?" },
-      { q:"Does LEFT plus the gap between LEFT and RIGHT equal 10?" },
-      { q:"Does LEFT plus the gap between LEFT and RIGHT equal 10?" },
+      { q:"Add the gap between the two values to LEFT — do you reach exactly 10?" },
+      { q:"Is 10 what you get from LEFT plus the two values' gap?" },
       { q:"Is LEFT plus the gap between LEFT and RIGHT not equal to 10?", negate:true },
       { q:"Compute the gap between LEFT and RIGHT. If you add that gap to LEFT, is the result 10?", linguisticFrame:"restrictive_quantifier" },
     ],
@@ -26707,13 +26718,16 @@ function makeAdditionalL0PosnerCats(){
     ),
     makeSimpleValuePosnerCat("right_minus_two_prime",3,4,"counterfactual",
       [
-        {q:"If RIGHT decreased by 2, would it be prime?"},
-        {q:"Would RIGHT − 2 be a prime number?"},
-        {q:"If RIGHT decreased by 2, would it not be prime?", negate:true, linguisticFrame:"negation_scope"},
+        // v6.8.81: was "If RIGHT decreased by 2…" — the predicate read ONE side only, so the LEFT
+        // stimulus was decorative (trains ignoring a display). Anchoring on "the larger value" forces
+        // comparing both before the counterfactual step.
+        {q:"If the larger value decreased by 2, would it be prime?"},
+        {q:"Would the larger value minus 2 be a prime number?"},
+        {q:"If the larger value decreased by 2, would it not be prime?", negate:true, linguisticFrame:"negation_scope"},
       ],
-      (a,b)=>b>2 && isPrime(b-2),
-      ["counterfactual_relation","transformation_relation","class_inclusion","source_relation"],
-      {valid:(a,b)=>b>2}
+      (a,b)=>{ const mx=Math.max(a,b); return mx>2 && isPrime(mx-2); },
+      ["counterfactual_relation","transformation_relation","class_inclusion","role_binding"],
+      {allowEqual:false, valid:(a,b)=>Math.max(a,b)>2}
     ),
     makeSimpleValuePosnerCat("sum_one_more_than_10",3,6,"metric",
       [
@@ -26779,10 +26793,13 @@ function makeAdditionalL0PosnerCats(){
     { id:"dice_opposite_face_equals_other", tier:3, minM:6, family:"visual_transform", checkRep:true, checkVisual:true, requiredRep:"dice",
       frameTags:["visual_manipulation","representation_transform","metric_relation","coordination"],
       canUse:(m)=> (State.reps||[]).includes("dice") && m>=6,
+      // v6.8.80: side-neutral rewording (user: naming LEFT/RIGHT lets the player compute from remembered
+      // numerals without visual integration). The predicate a === 7−b is SYMMETRIC, so "opposite faces"
+      // needs no side reference and the truth function is unchanged.
       variants:[
-        {q:"On RIGHT's die, take the hidden face opposite its shown top face. Is that number LEFT?"},
-        {q:"Would the hidden opposite face of RIGHT's die show LEFT?"},
-        {q:"On RIGHT's die, is the hidden opposite face different from LEFT?", negate:true, linguisticFrame:"negation_scope"},
+        {q:"Do the two dice show opposite faces of a die?"},
+        {q:"Would one die's hidden opposite face match the other die's shown face?"},
+        {q:"Do the two dice show faces that are not opposite faces of a die?", negate:true, linguisticFrame:"negation_scope"},
       ],
       gen(m,t){ const vals=[1,2,3,4,5,6].filter(v=>v<=m); if(t){ const b=choice(vals); return [7-b,b]; } const a=choice(vals), b=choice(vals.filter(v=>7-v!==a) || vals); return [a,b]; },
       visualVerify(rawA, rawB, visA, visB){ if(visA?.rep!=="dice"||visB?.rep!=="dice") return INAPPLICABLE; if(rawA<1||rawA>6||rawB<1||rawB>6) return INAPPLICABLE; return Number(rawA) === 7-Number(rawB); },
@@ -26791,10 +26808,12 @@ function makeAdditionalL0PosnerCats(){
     { id:"ten_frame_missing_to_10_equals_left", tier:3, minM:6, family:"visual_transform", checkRep:true, checkVisual:true, requiredRep:"ten",
       frameTags:["visual_manipulation","representation_transform","metric_relation","threshold_relation"],
       canUse:(m)=> (State.reps||[]).includes("ten") && m>=6,
+      // v6.8.80: side-neutral rewording — a === 10−b is SYMMETRIC ("together they fill one frame"),
+      // so no side needs naming and the truth function is unchanged.
       variants:[
-        {q:"Count the empty cells in RIGHT's ten-frame. Is that number LEFT?"},
-        {q:"Does RIGHT's ten-frame need exactly LEFT more cells to be full?"},
-        {q:"Count the empty cells in RIGHT's ten-frame. Is that number different from LEFT?", negate:true, linguisticFrame:"negation_scope"},
+        {q:"Would the filled cells of one ten-frame exactly fill the empty cells of the other?"},
+        {q:"Together, do the two ten-frames make exactly one full frame?"},
+        {q:"Together, do the two ten-frames make something other than one full frame?", negate:true, linguisticFrame:"negation_scope"},
       ],
       gen(m,t){ const max=Math.min(9,m); if(t){ const b=randInt(1,max+1); return [10-b,b]; } return genPairByPredicate(Math.min(m,10),false,(a,b)=>b<10 && a===10-b,{valid:(a,b)=>b<10}) || [1,1]; },
       visualVerify(rawA, rawB, visA, visB){ if(visA?.rep!=="ten"||visB?.rep!=="ten") return INAPPLICABLE; if(rawB>=10) return INAPPLICABLE; return Number(rawA) === 10-Number(rawB); },
@@ -26837,13 +26856,21 @@ function makeAdditionalL0PosnerCats(){
     { id:"right_abacus_lower_beads_equal_left", tier:3, minM:4, family:"visual_readout", checkRep:true, checkVisual:true, requiredRep:"abacus",
       frameTags:["source_relation","visual_feature_readout","representation_transform","metric_relation"],
       canUse:(m)=> (State.reps||[]).includes("abacus") && m>=4,
+      // v6.8.80: side-neutral EXISTENTIAL rewording ("one … the other", either direction counts). The old
+      // directional (b%5)===a named RIGHT/LEFT; the existential version forces checking BOTH abacuses'
+      // lower rows against the other's value. The directed candidate builder's truth fn is updated in step.
       variants:[
-        {q:"Is the number of lower beads in RIGHT the same as LEFT?"},
-        {q:"Does RIGHT have exactly LEFT lower-row beads?"},
-        {q:"Is RIGHT's lower-bead count different from LEFT?", negate:true, linguisticFrame:"negation_scope"},
+        {q:"Is one abacus's lower-row bead count exactly the other's value?"},
+        {q:"Does the lower row of one abacus match the other's total value?"},
+        {q:"Does neither abacus's lower row match the other's value?", negate:true, linguisticFrame:"negation_scope"},
       ],
       gen(m,t){ if(t) return [randInt(1,Math.min(4,m)+1), randInt(1,m+1)]; return [randInt(1,m+1), randInt(1,m+1)]; },
-      visualVerify(rawA, rawB, visA, visB){ if(visA?.rep!=="abacus"||visB?.rep!=="abacus") return INAPPLICABLE; const ones=Number(visB.stim?.ones); return Number.isFinite(ones) && ones === Number(rawA); },
+      visualVerify(rawA, rawB, visA, visB){
+        if(visA?.rep!=="abacus"||visB?.rep!=="abacus") return INAPPLICABLE;
+        const onesA=Number(visA.stim?.ones), onesB=Number(visB.stim?.ones);
+        if(!Number.isFinite(onesA)||!Number.isFinite(onesB)) return INAPPLICABLE;
+        return onesB === Number(rawA) || onesA === Number(rawB);
+      },
       verify(){return false;} }
   );
 
@@ -27088,51 +27115,51 @@ Object.assign(FRIENDLY_POSNER_VARIANTS, {
   ],
   // Two-property joint status: parity × multiple-of-3
   two_property_even_multiple3_SS:[
-    {q:"Do LEFT and RIGHT have the same parity and the same multiple-of-3 status?"},
-    {q:"Are LEFT and RIGHT matched on parity and also matched on divisibility by 3?"},
+    {q:"Do the two numbers have the same parity and the same multiple-of-3 status?"},
+    {q:"Are the two numbers matched on parity and also matched on divisibility by 3?"},
     {q:"Do the two numbers agree on parity and agree on whether each is a multiple of 3?"},
     {q:"Same parity for both, and the same multiple-of-3 status for both — does the pair meet both?"},
   ],
   two_property_even_multiple3_DS:[
-    {q:"Do LEFT and RIGHT have different parity but the same multiple-of-3 status?"},
-    {q:"Are LEFT and RIGHT mismatched on parity yet matched on divisibility by 3?"},
+    {q:"Do the two numbers have different parity but the same multiple-of-3 status?"},
+    {q:"Are the two numbers mismatched on parity yet matched on divisibility by 3?"},
     {q:"Do the two numbers disagree on parity but agree on multiple-of-3 status?"},
     {q:"Different parity, but the same multiple-of-3 status — does the pair fit that?"},
   ],
   two_property_even_multiple3_SD:[
-    {q:"Do LEFT and RIGHT have the same parity but different multiple-of-3 status?"},
-    {q:"Are LEFT and RIGHT matched on parity yet mismatched on divisibility by 3?"},
+    {q:"Do the two numbers have the same parity but different multiple-of-3 status?"},
+    {q:"Are the two numbers matched on parity yet mismatched on divisibility by 3?"},
     {q:"Do the two numbers agree on parity but disagree on multiple-of-3 status?"},
     {q:"Same parity, but different multiple-of-3 status — does the pair fit that?"},
   ],
   two_property_even_multiple3_DD:[
-    {q:"Do LEFT and RIGHT have different parity and different multiple-of-3 status?"},
-    {q:"Are LEFT and RIGHT mismatched on parity and also mismatched on divisibility by 3?"},
+    {q:"Do the two numbers have different parity and different multiple-of-3 status?"},
+    {q:"Are the two numbers mismatched on parity and also mismatched on divisibility by 3?"},
     {q:"Do the two numbers disagree on parity and disagree on multiple-of-3 status?"},
     {q:"Different parity for both, and different multiple-of-3 status — does the pair meet both?"},
   ],
   // Two-property joint status: square × multiple-of-3
   two_property_square_multiple3_SS:[
-    {q:"Do LEFT and RIGHT have the same square-number status and the same multiple-of-3 status?"},
-    {q:"Are LEFT and RIGHT matched on being a square and matched on divisibility by 3?"},
+    {q:"Do the two numbers have the same square-number status and the same multiple-of-3 status?"},
+    {q:"Are the two numbers matched on being a square and matched on divisibility by 3?"},
     {q:"Do the two numbers agree on square-number status and agree on multiple-of-3 status?"},
     {q:"Same square status for both, and the same multiple-of-3 status — does the pair meet both?"},
   ],
   two_property_square_multiple3_DS:[
-    {q:"Do LEFT and RIGHT have different square-number status but the same multiple-of-3 status?"},
-    {q:"Are LEFT and RIGHT mismatched on being a square yet matched on divisibility by 3?"},
+    {q:"Do the two numbers have different square-number status but the same multiple-of-3 status?"},
+    {q:"Are the two numbers mismatched on being a square yet matched on divisibility by 3?"},
     {q:"Do the two numbers disagree on square-number status but agree on multiple-of-3 status?"},
     {q:"Different square status, but the same multiple-of-3 status — does the pair fit that?"},
   ],
   two_property_square_multiple3_SD:[
-    {q:"Do LEFT and RIGHT have the same square-number status but different multiple-of-3 status?"},
-    {q:"Are LEFT and RIGHT matched on being a square yet mismatched on divisibility by 3?"},
+    {q:"Do the two numbers have the same square-number status but different multiple-of-3 status?"},
+    {q:"Are the two numbers matched on being a square yet mismatched on divisibility by 3?"},
     {q:"Do the two numbers agree on square-number status but disagree on multiple-of-3 status?"},
     {q:"Same square status, but different multiple-of-3 status — does the pair fit that?"},
   ],
   two_property_square_multiple3_DD:[
-    {q:"Do LEFT and RIGHT have different square-number status and different multiple-of-3 status?"},
-    {q:"Are LEFT and RIGHT mismatched on being a square and also mismatched on divisibility by 3?"},
+    {q:"Do the two numbers have different square-number status and different multiple-of-3 status?"},
+    {q:"Are the two numbers mismatched on being a square and also mismatched on divisibility by 3?"},
     {q:"Do the two numbers disagree on square-number status and disagree on multiple-of-3 status?"},
     {q:"Different square status for both, and different multiple-of-3 status — does the pair meet both?"},
   ],
@@ -31856,7 +31883,7 @@ function maybeApplyL0Transform(probe, ctx){
   // question object and a custom verifier. A post-hoc representation transform
   // would change the flashed LEFT/RIGHT values without rebuilding that object,
   // so these families are deliberately transform-terminal.
-  if(probe.paperFolding || probe.shepardConditional || probe.graphConditional || probe.graphRelationGate || probe.vennGate) return { probe, applied: false };
+  if(probe.paperFolding || probe.shepardConditional || probe.graphConditional || probe.graphRelationGate || probe.vennGate || probe.numberLineGate) return { probe, applied: false };
   if(probe.isFrameBurst || probe.isStateChain) return { probe, applied: false };
   if(typeof State !== "undefined" && State.mode !== "D") return { probe, applied: false };
 
@@ -34850,7 +34877,18 @@ function setupPosnerCore(){
     const mon = State.productionMonitor?.vennGate;
     if(mon){ mon.buildFailures = (mon.buildFailures || 0) + 1; }
   }
-  const graphConditionalData = (!graphRelationGateData && !vennGateData && generated._graphConditionalId) ? {
+  // v6.8.80: number-line (fraction benchmark) gate — a marked 0–1 line selects the active numeric
+  // branch by a CONTINUOUS proportion judgment (more/less than half, quarter, three-quarters, exactly
+  // half). Same contract as the Venn gate: gen() packs _nlg* extras, this glue lifts them onto the trial.
+  const numberLineGateData = (generated && generated._nlgConditionId != null) ? {
+    conditionId: generated._nlgConditionId,
+    conditionDesc: generated._nlgConditionDesc || null,
+    t: Number(generated._nlgT),
+    holds: !!generated._nlgHolds,
+    activeBranch: generated._graphActiveBranch,
+    predicateId: generated._graphConditionalId || (cat && cat.graphConditionalId) || null
+  } : null;
+  const graphConditionalData = (!graphRelationGateData && !vennGateData && !numberLineGateData && generated._graphConditionalId) ? {
     catId: generated._graphConditionalId,
     graphId: generated._graphId,
     graphLeft: generated._graphLeft,
@@ -34893,6 +34931,12 @@ function setupPosnerCore(){
     const condOp = l0GraphConditionalById(cat.graphConditionalId);
     if(!condOp) return fallbackPosnerTrial(m, wantTrue, {cat:cat.id, reason:"unknown Venn gate predicate id"});
     const pred = vennGateData.activeBranch === "same" ? condOp.same : condOp.different;
+    baseCheck = !!pred(rawA, rawB);
+  } else if(cat.nlConditionId && numberLineGateData){
+    // v6.8.80: number-line gate — isTrue from the branch the mark's proportion judgment selects.
+    const condOp = l0GraphConditionalById(cat.graphConditionalId);
+    if(!condOp) return fallbackPosnerTrial(m, wantTrue, {cat:cat.id, reason:"unknown number-line gate predicate id"});
+    const pred = numberLineGateData.activeBranch === "same" ? condOp.same : condOp.different;
     baseCheck = !!pred(rawA, rawB);
   } else if(cat.graphConditionalId && graphConditionalData){
     // Compute isTrue from the active graph branch's predicate applied to the L0 pair.
@@ -34981,6 +35025,14 @@ function setupPosnerCore(){
              opacityFallbacks: vennGateData.opacityFallbacks,
              rc2Fallbacks: vennGateData.rc2Fallbacks,
              markRegion: vennGateData.markRegion
+           } : null,
+           numberLineGate: numberLineGateData ? {
+             conditionId: numberLineGateData.conditionId,
+             conditionDesc: numberLineGateData.conditionDesc,
+             t: numberLineGateData.t,
+             holds: numberLineGateData.holds,
+             activeBranch: numberLineGateData.activeBranch,
+             predicateId: numberLineGateData.predicateId
            } : null,
            ...l0RecursiveTracePayloadForCat(cat.id, rawA, rawB),
            ...linguisticFramePayload(vnt) };
@@ -46802,7 +46854,7 @@ function makeL2CompoundCats(){
     variants:[
       { q:`Was it true that ${spec.label}?` },
       { q:`Did the previous two answers satisfy: ${spec.label}?` },
-      { q:`Was the conjunction "${spec.label}" satisfied?`,
+      { q:`Were both parts of "${spec.label}" true?`,
         linguisticFrame:"restrictive_quantifier" },
       { q:`Was the property "${spec.label}" NOT satisfied?`,
         negate:true, linguisticFrame:"negation_scope" },
@@ -46975,7 +47027,7 @@ function twoPropertyQuestionText(pair, target="previous answers"){
   return `Do ${subject} have the same or different ${twoPropertyDimensionLabel(pair?.a)} and ${twoPropertyDimensionLabel(pair?.b)}?`;
 }
 function twoPropertyL0Question(pair, pattern){
-  return `Do LEFT and RIGHT ${twoPropertyPairClause(pattern, pair)}?`;
+  return `Do the two numbers ${twoPropertyPairClause(pattern, pair)}?`; // v6.8.81: symmetric predicate — no side naming needed
 }
 function twoPropertyPairRegionsAvailable(pair, m=currentMax()){
   const seen = new Set();
@@ -47563,7 +47615,7 @@ function makeL0PredicateIdentificationChoiceCats(){
     family:"predicate_identification", responseFormat:"choice", choiceSpec:spec,
     frameTags:["relation_processing","class_inclusion","quantifier_relation","choice_readout"],
     canUse:m => Number(m) >= 7,
-    variants:[{q:"Which joint predicate is true for the pair?"}],
+    variants:[{q:"Which combined statement is true for the pair?"}],
     buildChoiceTrial:buildL0PredicateOrSetChoice,
     gen(m,t){ return [randInt(1,m+1), randInt(1,m+1)]; }, verify(){ return INAPPLICABLE; }
   }));
@@ -47575,7 +47627,7 @@ function makeL0SetMembershipIdentificationChoiceCats(){
     family:"set_membership_identification", responseFormat:"choice", choiceSpec:spec, setOnly:true,
     frameTags:["relation_processing","class_inclusion","quantifier_relation","choice_readout"],
     canUse:m => Number(m) >= 7,
-    variants:[{q:"Which set matches the fixed quantifier for this pair?"}],
+    variants:[{q:"Which set fits the stated rule (all / exactly one / none) for this pair?"}],
     buildChoiceTrial:buildL0PredicateOrSetChoice,
     gen(m,t){ return [randInt(1,m+1), randInt(1,m+1)]; }, verify(){ return INAPPLICABLE; }
   }));
@@ -47796,7 +47848,7 @@ function makeL0OperationInvarianceChoiceCats(){
     family:"operation_invariance", responseFormat:"choice", predicateId:pred,
     frameTags:["transformation_relation","virtual_transform","invariance_relation","choice_readout"],
     canUse:m => Number(m) >= 8,
-    variants:[{q:"Which operation preserves this property?"},{q:"Applied to both values, which operation keeps the property's truth value unchanged?"},{q:"Which operation leaves the property's truth unchanged?"}],
+    variants:[{q:"Which operation preserves this property?"},{q:"Applied to both values, which operation leaves the property's YES/NO answer unchanged?"},{q:"Which operation leaves the property's answer unchanged?"}],
     buildChoiceTrial:buildL0OperationInvarianceChoice,
     gen(m,t){ return [randInt(1,m+1), randInt(1,m+1)]; }, verify(){ return INAPPLICABLE; }
   }));
@@ -48518,7 +48570,7 @@ try { registerV6545ExpandedL0Families(); } catch(e){ if(typeof console !== "unde
       {id:"rec_collatz_within5", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"terminates_within_k", k:5, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:9, q:"Collatz rule from LEFT: even → halve; odd → 3n+1. Does it reach 1 within five steps?"},
       {id:"rec_collatz_max_gt20", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"max_reached", threshold:20, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:5, q:"Run Collatz from LEFT. Does the trace ever exceed 20?"},
       {id:"rec_collatz_triple_twice", opId:"collatz_canonical", seedSource:"LEFT", tier:5, minM:12, predicate:"branch_usage_count", branchId:"triple_plus_one", threshold:2, seedWhitelist:[2,3,4,5,6,8,10,12], maxTraceDepth:9, q:"Run Collatz from LEFT. Is the 3v+1 branch used at least twice?"},
-      {id:"rec_fa_parity_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"parity"}, maxTraceDepth:4, q:"Feed the LEFT digit first, then the RIGHT digit, to the parity automaton. Does it finish in the even state?"},
+      {id:"rec_fa_parity_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"parity"}, maxTraceDepth:4, q:"Feed the LEFT digit first, then the RIGHT digit, to the even/odd machine. Does it finish in the even state?"},
       {id:"rec_fa_div3_accept", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:0, params:{automaton:"div3"}, maxTraceDepth:4, q:"Feed the LEFT digit first, then the RIGHT digit, to the division-by-3 machine. Does it finish in remainder state 0?"},
       {id:"rec_fa_div3_final_remainder1", opId:"finite_automaton", seedSource:"LEFT_RIGHT_DIGITS", tier:5, minM:8, predicate:"final_eq", value:1, params:{automaton:"div3"}, maxTraceDepth:4, q:"Feed the LEFT digit first, then the RIGHT digit, to the division-by-3 machine. Does it finish in remainder state 1?"},
       {id:"rec_counted_halving_count_eq2", opId:"counted_iteration", seedSource:"LEFT", tier:5, minM:8, predicate:"final_eq", value:2, params:{innerOpId:"halving_to_odd"}, maxTraceDepth:5, atomicsUsed:["multi_variable_state"], q:"Run counted halving on LEFT. Is the final step-count exactly 2?"},
@@ -57300,6 +57352,7 @@ function l0PlainTrialInfoFromPos(pos, displayA, displayB, autoPhase){
     graphConditional:pos.graphConditional || null,
     graphRelationGate:pos.graphRelationGate || null,
     vennGate:pos.vennGate || null,
+    numberLineGate:pos.numberLineGate || null,
     balanceSpec:pos.balanceSpec || null,
     programCard:pos.programCard || null,
     inverseRuleProbe:pos.inverseRuleProbe || null,
@@ -60719,6 +60772,92 @@ function l0MissingDatumChoiceReviewLines(info){
   return [`Values: left ${a}, right ${b}.`, `Correct missing value: ${ans}.`];
 }
 
+function l0ErrorDiagnosisLine(info){
+  // v6.8.80: one-line error DIAGNOSIS for wrong choice answers. Trials already record WHY each distractor
+  // is wrong (family payloads + distractorType tags) but never surfaced it to the player. Emit ONLY when
+  // the answer was wrong AND the failure mode is unambiguous; a single short line so drawReviewCard's
+  // caps/shrinking always absorb it (learn-by-erring: name the confusion, not just the right answer).
+  try{
+    const correct = choiceReviewCorrectIndices(info);
+    const selected = choiceReviewSelectedIndices(info);
+    if(!correct.length || !selected.length) return "";
+    if(correct.length === selected.length && selected.every(i => correct.includes(i))) return ""; // answered right
+    const wrongSel = selected.find(i => !correct.includes(i));
+    const sel = Number.isInteger(wrongSel) ? wrongSel : selected[0];
+    const opt = Array.isArray(info.options) ? info.options[sel] : null;
+    const p = info.payload || {};
+    // txr: the classic error is judging the RAW pair (skipping the transform). Options are reordered AND
+    // their distractorType tags are normalized away by the builder, so identify the chosen side by its
+    // TEXT (every txr spec's labels start "LEFT …" / "RIGHT …" / a tie phrase), never by index or tag.
+    const txr = p.transformThenRelate || info.transformThenRelate;
+    if(txr && txr.flipped){
+      const txtT = String(opt && opt.text || "");
+      const chosenSem = /^LEFT\b/.test(txtT) ? 0 : (/^RIGHT\b/.test(txtT) ? 1 : 2);
+      if(chosenSem === Number(txr.rawOutcome)){
+        const sideName = txr.side === "L" ? "LEFT" : "RIGHT";
+        const orig = txr.side === "L" ? txr.left : txr.right;
+        const fin  = txr.side === "L" ? txr.leftFinal : txr.rightFinal;
+        return `Why: you judged the pair BEFORE the move — ${sideName}'s move turns ${orig} into ${fin}, which flips the verdict.`;
+      }
+      return "";
+    }
+    const ti = p.transitiveInference || info.transitiveInference;
+    if(ti){
+      const txt = String(opt && opt.text || "");
+      const anchor = ti.anchorSide || "LEFT", other = ti.otherSide || "RIGHT";
+      const outcome = Number(ti.outcome);
+      const choseCannot = /cannot/i.test(txt), choseEqual = /equal/i.test(txt);
+      const choseGreater = /greater/i.test(txt), choseLess = /\bless\b/i.test(txt);
+      if(choseCannot && outcome !== 2) return ti.clue === "eq"
+        ? `Why: the clue pins Z exactly (Z = the ${anchor} value), so Z vs ${other} IS settled.`
+        : `Why: Z and the ${other} value sit on opposite sides of ${anchor}, so the order IS settled.`;
+      if(!choseCannot && outcome === 2) return `Why: Z and the ${other} value are on the SAME side of ${anchor} — nothing fixes their order.`;
+      if(choseEqual && ti.clue === "eq" && outcome !== 3) return `Why: Z equals the ${anchor} value, but ${anchor} and ${other} differ — so Z cannot equal ${other}.`;
+      if((choseGreater && outcome === 1) || (choseLess && outcome === 0)) return `Why: direction reversed — re-check which of the two remembered values was larger.`;
+      return "";
+    }
+    // relational_choice_generative: glyph i ≡ option i (no reshuffle), so sel indexes the candidate directly.
+    const rc = p.relChoice;
+    if(rc && Array.isArray(rc.candidates) && rc.candidates[sel]){
+      const cand = rc.candidates[sel];
+      if(rc.kind === "equalleft"){
+        return cand.value === (rc.right && rc.right.value)
+          ? `Why: your pick equals the RIGHT value — the question asked for the LEFT one.`
+          : `Why: your pick shows ${cand.value}, but the LEFT value was ${rc.left && rc.left.value}.`;
+      }
+      if(rc.kind === "suit"){
+        const mc = (cand.suit === (rc.left && rc.left.suit) ? 1 : 0) + (cand.suit === (rc.right && rc.right.suit) ? 1 : 0);
+        const where = mc === 0 ? "matches NEITHER shown suit" : (mc === 1 ? "matches exactly ONE shown suit" : "matches BOTH shown suits");
+        return `Why: your pick ${where} — not what was asked.`;
+      }
+      if(rc.kind === "connect" && Array.isArray(cand.halves) && Array.isArray(rc.left && rc.left.halves) && Array.isArray(rc.right && rc.right.halves)){
+        const Lh = rc.left.halves, Rh = rc.right.halves, c = cand.halves;
+        const touches = d => c[0]===d[0]||c[0]===d[1]||c[1]===d[0]||c[1]===d[1];
+        const inL = h => h===Lh[0]||h===Lh[1], inR = h => h===Rh[0]||h===Rh[1];
+        const bridges = (inL(c[0])&&inR(c[1])) || (inL(c[1])&&inR(c[0]));
+        const cl = touches(Lh), cr = touches(Rh);
+        if(!cl && !cr) return "Why: your piece shares no number with either domino — it connects to neither.";
+        if(cl !== cr) return "Why: your piece connects to only ONE of the two dominoes.";
+        return bridges
+          ? "Why: your piece can JOIN the two into one chain — one end matches each."
+          : "Why: your piece touches both dominoes through the SAME end, so it cannot join them into one chain.";
+      }
+      const lv = Number(rc.left && rc.left.value), rv = Number(rc.right && rc.right.value);
+      const lo = Math.min(lv, rv), hi = Math.max(lv, rv);
+      const v = Number(cand.value);
+      const where = v <= lo ? "does not pass either of them" : (v <= hi ? "passes exactly one of them" : "passes both of them");
+      return `Why: your pick is ${v} — it ${where} — not the asked target.`;
+    }
+    const rr = p.relationalReference || info.relationalReference;
+    if(rr && rr.leftName && rr.rightName){
+      const yn = x => x ? "yes" : "no";
+      return `Why: check each against the reference — ${rr.leftName}: ${yn(rr.aRel)}; ${rr.rightName}: ${yn(rr.bRel)}.`;
+    }
+    const dt = String(opt && opt.distractorType || "");
+    if(/converse|role_inversion/i.test(dt)) return "Why: that option is the CONVERSE — the same relation read in the opposite direction.";
+    return "";
+  }catch(_){ return ""; }
+}
 function l0GenericChoiceReviewDetails(info){
   const lines = [];
   const cyclic = l0CyclicDistanceReviewLines(info);
@@ -60735,6 +60874,8 @@ function l0GenericChoiceReviewDetails(info){
   const selected = choiceReviewSelectedIndices(info);
   if(correct.length) lines.push(`Correct option${correct.length > 1 ? "s" : ""}: ${correct.map(i => choiceReviewOptionText(info, i)).join(" + ")}.`);
   lines.push(`You selected: ${selected.length ? selected.map(i => choiceReviewOptionText(info, i)).join(" + ") : "—"}.`);
+  const diag = l0ErrorDiagnosisLine(info);
+  if(diag) lines.push(diag);
   return lines.join("\n");
 }
 function l0GenericChoiceReviewAnswer(info){
@@ -61532,6 +61673,40 @@ function l0ReviewExplanationLines(info){
       add(graphConditionalExplain(op, gc.activeBranch, a, b));
     } else {
       add(`Compare graph structure first, then apply the selected rule to LEFT=${a}, RIGHT=${b}.`);
+    }
+  }
+  // v6.8.81: number-line gate — walk the three steps (mark position → branch → rule verdict).
+  else if(String(id || "").startsWith("nl_gate_") && typeof l0GraphConditionalById === "function"){
+    const gate = info?.numberLineGate;
+    const op = l0GraphConditionalById(gate?.predicateId || info?.graphConditionalId || "");
+    if(gate && op && Number.isFinite(Number(gate.t))){
+      const pct = Math.round(Number(gate.t) * 100);
+      add(`Line gate: the mark sits at ≈${pct}% of the line → it is ${gate.holds ? "" : "NOT "}${gate.conditionDesc || "past the judged point"} → ${gate.holds ? "YES" : "NO"} branch.`);
+      const pred = gate.holds ? op.same : op.different;
+      add(`Active rule: ${gate.holds ? op.sameDesc : op.differentDesc}. LEFT=${a}, RIGHT=${b} → ${(typeof pred === "function" && pred(a,b)) ? "YES" : "NO"}.`);
+    } else {
+      add(`Read the mark's position on the line first, then apply the selected rule to LEFT=${a}, RIGHT=${b}.`);
+    }
+  }
+  // v6.8.81: anchored reference — name the RESOLVED referent, then show the relational check, so a
+  // referent-resolution error and a relation error stop looking identical in review.
+  else if(String(id || "").startsWith("anchor_ref_") && typeof window !== "undefined" && window.EUCA_V6880_ANCHORS && window.EUCA_V6880_ANCHORS.anchors){
+    const AH = window.EUCA_V6880_ANCHORS;
+    const rest = String(id).slice("anchor_ref_".length);
+    const us = rest.indexOf("_");
+    const aid = rest.slice(0, us), pid = rest.slice(us + 1);
+    const anchor = AH.anchors[aid];
+    if(anchor && typeof anchor.pick === "function"){
+      const r = anchor.pick(Number(a), Number(b));
+      if(r == null){
+        add(`No unique referent for "${anchor.noun}" on this pair (left ${a}, right ${b}).`);
+      } else {
+        const o = (r === Number(a)) ? Number(b) : Number(a);
+        const side = (r === Number(a)) ? "LEFT" : "RIGHT";
+        add(`Referent: ${anchor.noun} here is ${r} (the ${side} value); the other is ${o}.`);
+        const CHECKS = {is_larger:`is ${r} larger than ${o}?`, same_parity_other:`do ${r} and ${o} share the same even/odd type?`, divides_other:`does ${r} divide ${o} exactly?`, closer5_other:`is ${r} closer to 5 than ${o}?`};
+        add(`Check: ${CHECKS[pid] || "apply the asked relation"} → ${info.isTrue ? "YES" : "NO"}.`);
+      }
     }
   }
 
@@ -78013,8 +78188,9 @@ try{
     if(obj?.paperFolding || c.paperFoldingAnalogyId || fam === "l0_paper_folding_analogy" || /^paper_/.test(id)) return "paperFolding";
     if(obj?.shepardConditional || c.shepardConditionalId || fam === "l0_shepard_conditional" || /^shepard_/.test(id)) return "shepardConditional";
     if(obj?.vennGate || c.vennConditionId || fam === "l0_venn_gate" || /^venn_gate_/.test(id)) return "vennGate";
+    if(obj?.numberLineGate || c.nlConditionId || fam === "l0_number_line_gate" || /^nl_gate_/.test(id)) return "numberLineGate";
     if(obj?.graphRelationGate || c.graphRelationConditionId || fam === "l0_graph_relation_gate" || /^graph_rel_/.test(id)) return "graphRelationGate";
-    if(obj?.graphConditional || (c.graphConditionalId && !c.graphRelationConditionId && !c.vennConditionId) || fam === "l0_graph_conditional" || /^graph_cond_/.test(id)) return "graphConditional";
+    if(obj?.graphConditional || (c.graphConditionalId && !c.graphRelationConditionId && !c.vennConditionId && !c.nlConditionId) || fam === "l0_graph_conditional" || /^graph_cond_/.test(id)) return "graphConditional";
     if(obj?.balanceSpec || fam.includes("balance") || /^balance_/.test(id)) return "balanceSpec";
     return null;
   }
@@ -78025,6 +78201,7 @@ try{
       graphConditional:"graph-pair source",
       graphRelationGate:"marked-graph source",
       vennGate:"set-diagram source",
+      numberLineGate:"number-line source",
       balanceSpec:"balance-card source"
     })[kind] || "visual question source";
   }
@@ -78083,6 +78260,17 @@ try{
       }
       return null;
     }
+    if(kind === "numberLineGate"){
+      const nl = payload;
+      if(!nl) return "number_line_gate_payload_missing";
+      const tt = Number(nl.t);
+      if(!Number.isFinite(tt) || tt < 0 || tt > 1) return "number_line_gate_mark_invalid";
+      if(!nl.activeBranch) return "number_line_gate_branch_missing";
+      if(typeof window !== "undefined" && typeof window.numberLineGateRenderSVG === "function"){
+        if(!vgRenderedSvgOK(()=>window.numberLineGateRenderSVG(nl))) return "number_line_gate_visual_payload_invalid";
+      }
+      return null;
+    }
     if(kind === "balanceSpec"){
       const bs = payload;
       if(!bs) return "balance_payload_missing";
@@ -78102,6 +78290,9 @@ try{
     }
     if(cat.vennConditionId){
       return {catId:cat.id, family:cat.family || "l0_venn_gate", vennGate:{conditionId:gen._vennConditionId, config:gen._vennConfig, geom:gen._vennGeom, activeBranch:gen._graphActiveBranch, predicateId:gen._graphConditionalId || cat.graphConditionalId}};
+    }
+    if(cat.nlConditionId){
+      return {catId:cat.id, family:cat.family || "l0_number_line_gate", numberLineGate:{conditionId:gen._nlgConditionId, conditionDesc:gen._nlgConditionDesc || null, t:Number(gen._nlgT), holds:!!gen._nlgHolds, activeBranch:gen._graphActiveBranch, predicateId:gen._graphConditionalId || cat.graphConditionalId}};
     }
     if(cat.graphRelationConditionId){
       return {catId:cat.id, family:cat.family || "l0_graph_relation_gate", graphRelationGate:{conditionId:gen._graphRelationConditionId, graph:gen._graphRelationGraph, markA:gen._graphRelationMarkA, markB:gen._graphRelationMarkB, activeBranch:gen._graphActiveBranch, predicateId:gen._graphConditionalId || cat.graphConditionalId}};
@@ -79002,7 +79193,7 @@ try{
     rec_digit_sum_net_change_large: "Use LEFT as the tens digit and RIGHT as the ones digit, then repeatedly sum digits until one digit remains. Did the value change by at least 10 overall?",
     rec_term_digit_not_within1: "Use LEFT as the tens digit and RIGHT as the ones digit. Is one digit-sum step insufficient to reach the final one-digit value?",
     rec_choice_first_mult3_digit: "Use LEFT as the tens digit and RIGHT as the ones digit. In the repeated digit-sum trace, which value is the first multiple of 3?",
-    rec_fa_parity_accept: "Feed the LEFT digit first, then the RIGHT digit, to the parity automaton. Does it finish in the even state?",
+    rec_fa_parity_accept: "Feed the LEFT digit first, then the RIGHT digit, to the even/odd machine. Does it finish in the even state?",
     rec_fa_div3_accept: "Feed the LEFT digit first, then the RIGHT digit, to the division-by-3 machine. Does it finish in remainder state 0?",
     rec_fa_div3_final_remainder1: "Feed the LEFT digit first, then the RIGHT digit, to the division-by-3 machine. Does it finish in remainder state 1?"
   };
@@ -82769,7 +82960,7 @@ try{
       if(/keeps?\s+(?:the\s+)?(?:property|relation|[\w ><=]+)\s+true/i.test(text)){
         block.push("operation-invariance variants still imply the property must remain true rather than truth-value-preserved");
       }
-      if(!/truth value unchanged|truth unchanged|property's truth unchanged/i.test(text)){
+      if(!/truth value unchanged|truth unchanged|property's truth unchanged|YES\/NO answer unchanged/i.test(text)){ // v6.8.81: the accessible "YES/NO answer unchanged" phrasing states the same preservation contract without the "truth value" jargon
         warnings.push("operation-invariance variants may not explicitly say truth value is preserved");
       }
     }catch(e){ block.push("operation-invariance audit threw: " + (e && e.message || e)); }
@@ -92497,7 +92688,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           params:{relationId:rel.id, featureId:feat?.id || null, target1:true, target2:false},
           phaseCount:2,
           klauer:{process:feat ? "same_and_different" : "different", object:rel.object},
-          reviewHint:`Pair 1 should be a YES witness; Pair 2 should be a NO counterexample.`,
+          reviewHint:`Pair 1 should make YES; Pair 2 should make NO.`,
           example:found
         }));
       }
@@ -92729,12 +92920,16 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         id:`threshold_${sp.id}_${sp.k}`,
         mode:"threshold_bracket_induction",
         title:"Induce the boundary",
-        question:`Find the boundary from the examples. Build TWO new pairs that match the two example sides.`,
+        // v6.8.82: the old question ("Find the boundary… match the two example sides") never named the
+        // measure and read as abstract; the review then repeated the same facts three times (target +
+        // analysis + hint) and truncated. Question now names the metric; the hint keeps ONLY the one
+        // idea no other line states (adjacency) — the ✗ lines + example readouts carry the numbers.
+        question:`Read the ${sp.label} of the NO and YES examples, then build Pair 1 with the NO example's ${sp.label} and Pair 2 with the YES example's ${sp.label}.`,
         sub:`Pair 1: match the NO example's ${sp.label}. Pair 2: match the YES example's ${sp.label}. Do not copy the examples.`,
         params:{metricId:sp.metricId, metricLabel:sp.label, threshold:sp.k, noExample:noEx, yesExample:yesEx},
         phaseCount:2,
         klauer:{process:"same_and_different", object:sp.object},
-        reviewHint:`The examples sit on adjacent ${sp.label} values: NO has ${sp.label} ${sp.k}; YES has ${sp.label} ${sp.k+1}. Pair 1 should be a new NO-side case with ${sp.label} ${sp.k}; Pair 2 should be a new YES-side case with ${sp.label} ${sp.k+1}.`,
+        reviewHint:`The two examples sit on adjacent ${sp.label} values — the boundary lies between them.`,
         example:{p1,p2}
       }));
     }
@@ -92823,39 +93018,57 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     return out;
   }
 
+  // v6.8.49 share rationale: re-weighted toward CONSTRUCTION / active discrimination and away from
+  // the two reveal-the-candidates modes (Chuderski 2022 / Jastrzębski 2020: rule *discovery* is
+  // dispensable for Gf — the value is constructing/validating the relation).
+  const INDUCTIVE_MODE_MAKERS = [
+    {mode:"single_witness", share:0.18, make:makeSingleWitnessTasks},
+    {mode:"counterexample", share:0.15, make:makeCounterexampleTasks},
+    {mode:"dual_contrast", share:0.12, make:makeDualContrastTasks},
+    {mode:"minimal_flip", share:0.14, make:makeMinimalFlipTasks},
+    {mode:"progressive_alignment", share:0.12, make:makeProgressiveAlignmentTasks},
+    {mode:"system_construction", share:0.08, make:makeSystemConstructionTasks},
+    {mode:"hidden_rule_induction", share:0.04, make:makeHiddenRuleTasks},
+    {mode:"discriminator_construction", share:0.12, make:makeDiscriminatorTasks},
+    {mode:"threshold_bracket_induction", share:0.04, make:makeThresholdInductionTasks},
+    {mode:"composition_induction", share:0.02, make:makeCompositionInductionTasks}
+  ];
+  // v6.8.81 perf: the old path eagerly built ALL 10 mode catalogs per payload (one O(pairs²), one
+  // O(rules²·pairs)) and then used exactly ONE task. Now: bucket-level avg-weight ESTIMATES are cached
+  // and refreshed every 8 builds (bucket averages move slowly), while the PICKED bucket's catalog is
+  // rebuilt FRESH every call — so per-task adaptive weights, the recent-tasks filter and minimal_flip's
+  // randomized start pair all keep their exact semantics; only the bucket-level share weighting uses
+  // (mildly) stale averages between refreshes.
+  const _inductiveBucketEst = {cap:null, builds:0, est:null};
+  function inductiveBucketEstimates(cap){
+    const c = _inductiveBucketEst;
+    if(c.cap === cap && c.est && c.builds < 8){ c.builds++; return c.est; }
+    const est = {};
+    for(const mk of INDUCTIVE_MODE_MAKERS){
+      let items = []; try{ items = mk.make(cap) || []; }catch(_){ items = []; }
+      est[mk.mode] = {count:items.length, balance:items.length ? bucketBalanceWeight(items) : 0};
+    }
+    c.cap = cap; c.builds = 0; c.est = est;
+    return est;
+  }
   function buildInductivePayload(opts={}){
     const cap = Math.max(6, Math.min(12, Math.floor(Number(opts.cap || capNow()) || 8)));
-    const modeBuckets = [
-      {mode:"single_witness", share:0.18, items:makeSingleWitnessTasks(cap)},
-      {mode:"counterexample", share:0.15, items:makeCounterexampleTasks(cap)},
-      {mode:"dual_contrast", share:0.12, items:makeDualContrastTasks(cap)},
-      {mode:"minimal_flip", share:0.14, items:makeMinimalFlipTasks(cap)},
-      {mode:"progressive_alignment", share:0.12, items:makeProgressiveAlignmentTasks(cap)},
-      {mode:"system_construction", share:0.08, items:makeSystemConstructionTasks(cap)},
-      // v6.8.49: re-weighted toward CONSTRUCTION / active discrimination and away from the two
-      // reveal-the-candidates modes. Chuderski 2022 / Jastrzębski 2020: rule *discovery* is
-      // dispensable for Gf — the value is constructing/validating the relation. hidden_rule and
-      // composition reveal the candidate space and engineer examples to a version-space of 1, so
-      // they are solvable by ELIMINATION on the identification; discriminator_construction (build
-      // a pair that separates two hypotheses) is non-eliminable active induction → promoted.
-      // The construction itself is already the scored action in verifyInductiveTask for every mode.
-      {mode:"hidden_rule_induction", share:0.04, items:makeHiddenRuleTasks(cap)},
-      {mode:"discriminator_construction", share:0.12, items:makeDiscriminatorTasks(cap)},
-      {mode:"threshold_bracket_induction", share:0.04, items:makeThresholdInductionTasks(cap)},
-      {mode:"composition_induction", share:0.02, items:makeCompositionInductionTasks(cap)}
-    ].filter(b => b.items && b.items.length);
-    if(!modeBuckets.length) return null;
-    try{
-      const recent = State?.productionMonitor?.inductiveConstructive?.recentTasks || [];
-      for(const b of modeBuckets){
-        const fresh = b.items.filter(t => !recent.includes(t.id));
-        if(fresh.length) b.items = fresh;
-      }
-    }catch(_){ }
-    const bucket = weightedPick(modeBuckets.map(b => ({...b, weight:b.share * (b.items.length ? bucketBalanceWeight(b.items) : 0)})));
-    if(!bucket) return null;
-    const task = weightedPick(bucket.items);
-    return task ? {task, cap} : null;
+    const est = inductiveBucketEstimates(cap);
+    const candidates = INDUCTIVE_MODE_MAKERS
+      .map(mk => ({mk, weight:mk.share * ((est[mk.mode] && est[mk.mode].count) ? est[mk.mode].balance : 0)}))
+      .filter(x => x.weight > 0);
+    if(!candidates.length) return null;
+    const recent = (State?.productionMonitor?.inductiveConstructive?.recentTasks) || [];
+    for(let attempt=0; attempt<3; attempt++){
+      const pickRow = weightedPick(candidates);
+      if(!pickRow) return null;
+      let items = []; try{ items = pickRow.mk.make(cap) || []; }catch(_){ items = []; }
+      if(!items.length){ if(est[pickRow.mk.mode]) est[pickRow.mk.mode].count = 0; continue; }
+      try{ const fresh = items.filter(t => !recent.includes(t.id)); if(fresh.length) items = fresh; }catch(_){ }
+      const task = weightedPick(items);
+      if(task) return {task, cap};
+    }
+    return null;
   }
 
   function verifySystemById(id, p1, p2){
@@ -92927,15 +93140,15 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(ic?.mode === "single_witness") return `Target: one pair making ${yn(p.target)}.`;
     if(ic?.mode === "counterexample") return `Target: keep the named cue and flip the answer from ${yn(p.baseTruth)} to ${yn(!p.baseTruth)}.`;
     if(ic?.mode === "minimal_flip") return `Target: change exactly one side by 1 and flip the answer to ${yn(!p.baseTruth)}.`;
-    if(ic?.mode === "dual_contrast") return `Target: Pair 1 YES; Pair 2 NO${p.featureId ? "; preserve the named cue" : ""}.`;
+    if(ic?.mode === "dual_contrast") return `Target: Pair 1 YES; Pair 2 NO${p.featureId ? "; keep the same cue in both pairs" : ""}.`;
     if(ic?.mode === "progressive_alignment"){
       if(p.alignment === "same_relation_different_surface" || p.alignment === "same_relation_structural_shift") return `Target: both pairs ${yn(p.target)} and ${surfaceDiversityRequirementText(p)}.`;
-      if(p.alignment === "same_surface_different_relation") return "Target: preserve the named cue, but make the two answers opposite.";
+      if(p.alignment === "same_surface_different_relation") return "Target: keep the same cue in both pairs, but make the two answers opposite.";
     }
     if(ic?.mode === "system_construction") return "Target: satisfy the stated same/different system.";
     if(ic?.mode === "hidden_rule_induction") return `Target: infer the visible candidate rule and build a new ${yn(p.target)} example.`;
     if(ic?.mode === "discriminator_construction") return "Target: make the two rules disagree — one YES, one NO (either way).";
-    if(ic?.mode === "threshold_bracket_induction") return `Target: Pair 1 matches the NO example's measure; Pair 2 matches the YES example's measure.`;
+    if(ic?.mode === "threshold_bracket_induction") return `Target: Pair 1 = the NO example's ${p.metricLabel || "measure"}; Pair 2 = the YES example's ${p.metricLabel || "measure"} (new pairs, not copies).`;
     if(ic?.mode === "composition_induction") return `Target: infer the connective and build a new ${yn(p.target)} example.`;
     return "Target: build a construction satisfying the stated constraints.";
   }
@@ -92952,7 +93165,16 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(p1 && ic.mode === "single_witness") analysis = `Your pair made ${yn(rel.pred(p1))}; target was ${yn(params.target)}.`;
     if(p1 && ic.mode === "counterexample") analysis = `Anchor made ${yn(params.baseTruth)}. Your pair kept ${feat.label}: ${yn(feat.same(params.base,p1))}; relation became ${yn(rel.pred(p1))}.`;
     if(p1 && ic.mode === "minimal_flip") analysis = `One-step change: ${yn(oneStepChange(params.base,p1))}. Start was ${yn(params.baseTruth)}; your pair made ${yn(rel.pred(p1))}.`;
-    if(p1 && p2 && ic.mode === "dual_contrast") analysis = `Pair 1 made ${yn(rel.pred(p1))}; Pair 2 made ${yn(rel.pred(p2))}.${params.featureId ? ` Shared cue (${feat.label}): ${yn(feat.same(p1,p2))}.` : ""}`;
+    if(p1 && p2 && ic.mode === "dual_contrast"){
+      // v6.8.81: LEAD with the failed constraint(s) — the verdicts were computed but buried mid-paragraph.
+      const r1 = !!rel.pred(p1), r2 = !!rel.pred(p2);
+      const cueOk = params.featureId ? !!feat.same(p1,p2) : null;
+      const fails = [];
+      if(!r1) fails.push(`✗ Failed: Pair 1 must make YES — yours makes NO.`);
+      if(r2) fails.push(`✗ Failed: Pair 2 must make NO — yours makes YES.`);
+      if(cueOk === false) fails.push(`✗ Failed: both pairs must keep the same cue (${feat.label}) — yours differ.`);
+      analysis = `${fails.join("\n")}${fails.length ? "\n" : ""}Pair 1 made ${yn(r1)}; Pair 2 made ${yn(r2)}.${params.featureId ? ` Shared cue (${feat.label}): ${yn(cueOk)}.` : ""}`;
+    }
     if(p1 && p2 && ic.mode === "progressive_alignment"){
       if(params.alignment === "same_relation_different_surface" || params.alignment === "same_relation_structural_shift"){
         analysis = `Both should make ${yn(params.target)}; yours made ${yn(rel.pred(p1))} and ${yn(rel.pred(p2))}. Changed cues: ${surfaceCueText(p1,p2)} (${surfaceDistance(p1,p2)}). Requirement: ${surfaceDiversityRequirementText(params)}.`;
@@ -92977,7 +93199,11 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       const noEx = params.noExample || null, yesEx = params.yesExample || null;
       const noText = noEx ? `NO example L${noEx.a} R${noEx.b} → ${metricLabel} ${metric(noEx)}` : "NO-side example";
       const yesText = yesEx ? `YES example L${yesEx.a} R${yesEx.b} → ${metricLabel} ${metric(yesEx)}` : "YES-side example";
-      analysis = `${noText}; ${yesText}. Your Pair 1 ${metricLabel} ${metric(p1)}; Pair 2 ${metricLabel} ${metric(p2)}. Needed: Pair 1 ${metricLabel} ${params.threshold}; Pair 2 ${metricLabel} ${Number(params.threshold)+1}.`;
+      // v6.8.81: same lead-with-failure shape as dual_contrast (identical buried-delta problem).
+      const thFails = [];
+      if(metric(p1) !== Number(params.threshold)) thFails.push(`✗ Failed: Pair 1 ${metricLabel} must be ${params.threshold} — yours is ${metric(p1)}.`);
+      if(metric(p2) !== Number(params.threshold)+1) thFails.push(`✗ Failed: Pair 2 ${metricLabel} must be ${Number(params.threshold)+1} — yours is ${metric(p2)}.`);
+      analysis = `${thFails.join("\n")}${thFails.length ? "\n" : ""}${noText}; ${yesText}.`;
     }
     if(p1 && ic.mode === "composition_induction"){
       const cueA = cueById(params.cueAId), cueB = cueById(params.cueBId), op = compOpById(params.opId);
@@ -92985,7 +93211,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }
     const ex = ic.example;
     const example = ex && ex.p1 ? ` Example: Pair 1 LEFT ${ex.p1.a}, RIGHT ${ex.p1.b}${ex.p2 ? `; Pair 2 LEFT ${ex.p2.a}, RIGHT ${ex.p2.b}` : ""}.` : "";
-    return `${pText}. ${inductiveTargetSummary(ic)} ${analysis} ${ic.reviewHint || ""}${example}`.replace(/\s+/g, " ").trim();
+    // v6.8.81: keep \n line breaks (drawReviewCard renders multiline details, cap 12) and collapse only
+    // spaces — the old \s+ collapse produced the buried one-paragraph review the author flagged.
+    return `${pText}. ${inductiveTargetSummary(ic)} ${analysis} ${ic.reviewHint || ""}${example}`.replace(/[ \t]+/g, " ").trim();
   }
 
   function klauerCoverageRecord(task, correct){
@@ -94036,7 +94264,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         }catch(_){ return false; }
       },
       variants:[
-        {q:`Does it show: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.\nIs the active rule true of LEFT and RIGHT?`},
+        {q:`Does it show: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.`},
         {q:`Read the set relation first: ${cond.desc}.\nYES branch: ${op.sameDesc}. NO branch: ${op.differentDesc}.\nApply the selected branch to LEFT and RIGHT.`}
       ],
       gen(m,t){
@@ -94517,7 +94745,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   // ---------------------------------------------------------------------------
   function v6833GraphBranchVariants(op){
     return [
-      { q:`Compare the two directed graphs first.\nIf their directed structure MATCHES, use: ${op.sameDesc}.\nIf one graph has a structural edit, use: ${op.differentDesc}.\nIs the active rule true for LEFT and RIGHT?` },
+      { q:`Do the two directed graphs MATCH in structure?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.` },
       { q:`Graph branch first. Matching structure → ${op.sameDesc}. Structural edit → ${op.differentDesc}. Then answer the active numerical rule.` }
     ];
   }
@@ -94713,7 +94941,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           return (!CONFIG.l0GraphRoleMatchingRequireGate || requireHarnessPass("l0_graph_role_matching"));
         },
         variants:[
-          { q:`Match the marked graph roles.\nIf the RIGHT square/ring marks correspond to the LEFT square/ring roles, use: ${op.sameDesc}.\nIf they do not correspond, use: ${op.differentDesc}.\nIs the active rule true for LEFT and RIGHT?` },
+          { q:`Do the RIGHT square/ring marks correspond to the LEFT square/ring roles?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.` },
           { q:`Use structural correspondence as the gate. Valid right-hand match → ${op.sameDesc}. Invalid match → ${op.differentDesc}. Then answer the active numerical rule.` }
         ],
         gen(m, t){
@@ -95059,7 +95287,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         if(!/rotation/i.test(text) || !/mirror/i.test(text)) block.push(`${c.id}: Shepard prompt must name rotation and mirror`);
         if(/enantiomer|chirality|chiral|automorphism|isomorphism/i.test(text)) block.push(`${c.id}: Shepard prompt leaks technical vocabulary`);
       }
-      if(c && c.graphConditionalId && !c.graphRelationConditionId && !c.vennConditionId && c.family !== "l0_graph_role_matching"){
+      if(c && c.graphConditionalId && !c.graphRelationConditionId && !c.vennConditionId && !c.nlConditionId && c.family !== "l0_graph_role_matching"){
         // v6.8.49: v6.8.33 introduced legitimate role-matching cats that keep
         // graphConditionalId but use family "l0_graph_role_matching"; exclude them
         // from the global-graph family requirement (they are a distinct family,
@@ -102537,7 +102765,12 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     const spec = cat && cat.txrSpec; if(!spec) return null;
     const maxV = Math.max(2, Math.min(Number(m) || 9, spec.cap));
     const target = randInt(0, 3); // 0 = LEFT-more, 1 = RIGHT-more, 2 = tie
-    const mustFlip = target !== 2 && randInt(0, 2) === 0; // ~half of non-tie trials must be transform-flips
+    // v6.8.80: raise the forced flip-rate ~50% → 80%. When the transform does NOT change the verdict the
+    // player can ignore it and win on raw magnitude (a number-filtered escape inside the flagship family).
+    // Keep a forced ~20% NON-flip minority so "answer = opposite of raw" never becomes a meta-shortcut.
+    const flipRoll = randInt(0, 10);
+    const mustFlip = target !== 2 && flipRoll < 8;  // ~80% of non-tie trials must be transform-flips
+    const mustKeep = target !== 2 && flipRoll >= 8; // ~20% must NOT flip (anti meta-inversion)
     for(let tries=0; tries<320; tries++){
       const side = randInt(0, 2) === 0 ? "L" : "R"; // which operand the player must transform
       const L = randInt(1, maxV+1), R = randInt(1, maxV+1);
@@ -102548,6 +102781,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       if(outcome !== target) continue;
       const rawOutcome = L > R ? 0 : (L < R ? 1 : 2);
       if(mustFlip && rawOutcome === outcome) continue; // require the transform to actually change the verdict
+      if(mustKeep && rawOutcome !== outcome) continue; // ...or require it NOT to (the controlled minority)
       const sideName = side === "L" ? "LEFT" : "RIGHT";
       const question = `${spec.lead} ${sideName} ${spec.phrase}. After that move, who ${spec.more} — LEFT, RIGHT, or are they the same?`;
       const options = [
@@ -103149,7 +103383,16 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     // (a candidate equal to the RIGHT is the lure, so the player must recall WHICH side held which value).
     { id:"rel_choice_equal_left_generative", kind:"equalleft", framing:"equality", rep:"ten", maxV:9, singular:"frame", plural:"frames", itemNoun:"Frame",
       lead:"Two values were shown — one on the LEFT, one on the RIGHT — then hidden.",
-      phrases:["matches the value shown on the LEFT"] }
+      phrases:["matches the value shown on the LEFT"] },
+    // v6.8.80 CONNECTION (user idea): the domino-native relation is CONNECTING pieces, far richer than
+    // magnitude. Four connection classes over the two flashed dominoes: 0 = connects to NEITHER,
+    // 1 = connects to EXACTLY ONE (unspecified which), 2 = can JOIN the two into one chain (bridge:
+    // one end matches each), 3 = connects to BOTH but CANNOT join them (its matching number is the
+    // same end for both — requires the flashed pair to share a number). Halves are forced (dominoSpec).
+    { id:"rel_choice_domino_connect_generative", kind:"connect", framing:"connection", rep:"domino", maxV:12, singular:"domino", plural:"dominoes", itemNoun:"Domino",
+      lead:"Two dominoes were shown, then hidden. Dominoes connect when two halves show the same number.",
+      phrases:["connects to neither of them","connects to exactly one of the two","can join the two into one chain (one end matching each)","connects to both, but cannot join them into one chain"],
+      phrasesPlural:["connect to neither of them","connect to exactly one of the two","can join the two into one chain","connect to both, but cannot join them into one chain"] }
   ];
 
   function sampleDistinct(arr, k){
@@ -103173,7 +103416,10 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       const L = randInt(1,maxV+1), R = randInt(1,maxV+1); if(L===R) continue; // distinct; "exactly one" needs lo<hi
       const lo = Math.min(L,R), hi = Math.max(L,R);
       const buckets = {0:[],1:[],2:[]};
-      for(let v=1;v<=maxV;v++){ buckets[v<=lo?0:(v<=hi?1:2)].push(v); }
+      // v6.8.81: exclude candidates EQUAL to a flashed value — ties mis-key the time/value phrasings
+      // ("between the two" is false at v==hi; "earlier than both" is false at v==lo). Strict buckets
+      // keep every framing's wording literally true of its bucket.
+      for(let v=1;v<=maxV;v++){ if(v===lo||v===hi) continue; buckets[v<lo?0:(v<hi?1:2)].push(v); }
       if(buckets[Q].length < need) continue;
       const others = []; for(const k of [0,1,2]){ if(k!==Q) others.push(...buckets[k]); }
       if(others.length < 4-need) continue;
@@ -103221,21 +103467,59 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     }
     return null;
   }
+  // ---- connect kind: domino connection classes (halves 1..6; blanks excluded to keep "match" unambiguous)
+  const DOMINO_PIECES = (function(){ const out=[]; for(let a=1;a<=6;a++) for(let b=a;b<=6;b++) out.push([a,b]); return out; })(); // 21 pieces
+  function dominoSamePiece(x, y){ return (x[0]===y[0]&&x[1]===y[1]) || (x[0]===y[1]&&x[1]===y[0]); }
+  function dominoConnects(c, d){ return c[0]===d[0]||c[0]===d[1]||c[1]===d[0]||c[1]===d[1]; }
+  function dominoBridges(c, L, R){
+    const inL = h => h===L[0]||h===L[1], inR = h => h===R[0]||h===R[1];
+    return (inL(c[0])&&inR(c[1])) || (inL(c[1])&&inR(c[0]));
+  }
+  function dominoConnBucket(c, L, R){
+    const cl = dominoConnects(c,L), cr = dominoConnects(c,R);
+    if(!cl && !cr) return 0;
+    if(cl !== cr) return 1;
+    return dominoBridges(c,L,R) ? 2 : 3;
+  }
+  function sampleConnect(spec, maxV){
+    for(let t=0;t<500;t++){
+      const Q = randInt(0,4);
+      const L = DOMINO_PIECES[randInt(0,DOMINO_PIECES.length)];
+      const R = DOMINO_PIECES[randInt(0,DOMINO_PIECES.length)];
+      if(dominoSamePiece(L,R)) continue;
+      const pool = DOMINO_PIECES.filter(c => !dominoSamePiece(c,L) && !dominoSamePiece(c,R));
+      const buckets = {0:[],1:[],2:[],3:[]};
+      for(const c of pool) buckets[dominoConnBucket(c,L,R)].push(c);
+      const need = (randInt(0,2)===0 && buckets[Q].length >= 2) ? 2 : 1;
+      if(buckets[Q].length < need) continue;
+      const others = []; for(const k of [0,1,2,3]){ if(k!==Q) others.push(...buckets[k]); }
+      if(others.length < 4-need) continue;
+      const cv = sampleDistinct(buckets[Q], need), dv = sampleDistinct(others, 4-need);
+      if(!cv || !dv) continue;
+      const entries = cv.map(h=>({value:h[0]+h[1], halves:h.slice(), correct:true}))
+        .concat(dv.map(h=>({value:h[0]+h[1], halves:h.slice(), correct:false})));
+      return {flash:[{value:L[0]+L[1], halves:L.slice()},{value:R[0]+R[1], halves:R.slice()}], Q, need, entries};
+    }
+    return null;
+  }
 
   function visForItem(spec, it){
     // suit kind: force a SINGLE card of the chosen suit (makeVisualInstance takes an OPTS OBJECT — cardSpec,
     // not a bare array — or Card falls back to a seed-derived suit and the suit question becomes unanswerable).
+    // connect kind: force EXACT domino halves via dominoSpec (a random split would break connection truth).
+    if(Array.isArray(it.halves)) return makeVisualInstance(it.value, spec.rep, {dominoSpec:it.halves.slice()});
     return (it.suit!=null) ? makeVisualInstance(it.value, spec.rep, {cardSpec:[{val:it.value, suit:it.suit}]}) : makeVisualInstance(it.value, spec.rep);
   }
   function assembleRelChoiceTrial(cat, spec, flash, Q, need, entries){
     shuffleInPlace(entries); // glyphs + options share this ONE order → glyph i ≡ option i ≡ tray i (no later reshuffle)
     const options = entries.map((e,i)=> l0ChoiceOption(`${spec.itemNoun} ${i+1}`, e.correct, e.correct ? "relchoice_correct" : "relchoice_distractor"));
-    const candidateGlyphs = entries.map(e=> (e.suit!=null) ? {rep:spec.rep, value:e.value, spec:[{val:e.value, suit:e.suit}]} : {rep:spec.rep, value:e.value});
+    const candidateGlyphs = entries.map(e=> Array.isArray(e.halves) ? {rep:spec.rep, value:e.value, spec:e.halves.slice()}
+      : (e.suit!=null) ? {rep:spec.rep, value:e.value, spec:[{val:e.value, suit:e.suit}]} : {rep:spec.rep, value:e.value});
     const correctIndices = entries.map((e,i)=> e.correct ? i : null).filter(n=>n!=null);
     if(correctIndices.length !== need) return null;
     const q = relChoiceQuestion(spec, Q, need);
     const vA = visForItem(spec, flash[0]), vB = visForItem(spec, flash[1]);
-    const kindTag = spec.kind==="suit" ? "distinction" : (spec.kind==="equalleft" ? "coordination" : "comparison");
+    const kindTag = spec.kind==="suit" ? "distinction" : (spec.kind==="equalleft" ? "coordination" : (spec.kind==="connect" ? "relation_composition" : "comparison"));
     const trial = {
       a:flash[0].value, b:flash[1].value,
       repA:vA.rep, repB:vB.rep,
@@ -103250,9 +103534,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       frameTags:uniqLocal([...(cat.frameTags||[]), "relational_choice", "generative_choice", kindTag, spec.framing==="time"?"temporal_relation":"metric_relation", "rep_native", "choice_readout"]),
       mechanismTags:["relational_choice_construct","retained_pair_comparison","quantifier_target","rep_native", spec.kind],
       payload:{ candidateGlyphs, relChoice:{ spec:spec.id, kind:spec.kind, framing:spec.framing, Q, need,
-        left:{value:flash[0].value, suit:(flash[0].suit!=null?flash[0].suit:null)},
-        right:{value:flash[1].value, suit:(flash[1].suit!=null?flash[1].suit:null)},
-        candidates:entries.map(e=>({value:e.value, suit:(e.suit!=null?e.suit:null)})),
+        left:{value:flash[0].value, suit:(flash[0].suit!=null?flash[0].suit:null), halves:(Array.isArray(flash[0].halves)?flash[0].halves.slice():null)},
+        right:{value:flash[1].value, suit:(flash[1].suit!=null?flash[1].suit:null), halves:(Array.isArray(flash[1].halves)?flash[1].halves.slice():null)},
+        candidates:entries.map(e=>({value:e.value, suit:(e.suit!=null?e.suit:null), halves:(Array.isArray(e.halves)?e.halves.slice():null)})),
         correctIndices:correctIndices.slice() } },
       countsForMetaHistory:true
     };
@@ -103279,7 +103563,9 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     const spec = cat && cat.relChoiceSpec; if(!spec) return null;
     if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6879RelationalChoiceGenerative === false) return null;
     const maxV = Math.max(4, Math.min(Number(m) || 9, spec.maxV));
-    const s = spec.kind === "suit" ? sampleSuit(spec, maxV) : (spec.kind === "equalleft" ? sampleEqualLeft(spec, maxV) : sampleOrder(spec, maxV));
+    const s = spec.kind === "suit" ? sampleSuit(spec, maxV)
+      : (spec.kind === "equalleft" ? sampleEqualLeft(spec, maxV)
+      : (spec.kind === "connect" ? sampleConnect(spec, maxV) : sampleOrder(spec, maxV)));
     if(!s) return null;
     return assembleRelChoiceTrial(cat, spec, s.flash, s.Q, s.need, s.entries);
   }
@@ -103326,13 +103612,18 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           const cg = t.payload && t.payload.candidateGlyphs;
           if(!rc || !Array.isArray(cg) || cg.length !== 4 || !Array.isArray(t.options) || t.options.length !== 4){ rec.glyphBad++; continue; }
           const Lv = rc.left.value, Rv = rc.right.value;
-          if(rc.kind !== "suit" && Lv === Rv) rec.equalLR++; // suit allows equal RANKS (suit is the relation, rank decorative)
+          if(rc.kind === "connect"){
+            // connect: equal SUMS are legitimate (different pieces can share a total); identical PIECES are not
+            if(rc.left.halves && rc.right.halves && dominoSamePiece(rc.left.halves, rc.right.halves)) rec.equalLR++;
+          } else if(rc.kind !== "suit" && Lv === Rv) rec.equalLR++; // suit allows equal RANKS (suit is the relation, rank decorative)
           rec.qDist[rc.Q] = (rec.qDist[rc.Q]||0)+1;
           // INDEPENDENT recompute of which candidate satisfies the asked relation, vs the option's correct flag
           let should;
           if(rc.kind === "suit"){
             const sL = rc.left.suit, sR = rc.right.suit;
             should = cg.map(g => { const cs = (g.spec && g.spec[0]) ? g.spec[0].suit : null; const mc = (cs===sL?1:0)+(cs===sR?1:0); return (mc===0?0:(mc===1?1:2)) === rc.Q; });
+          } else if(rc.kind === "connect"){
+            should = cg.map(g => Array.isArray(g.spec) ? (dominoConnBucket(g.spec, rc.left.halves, rc.right.halves) === rc.Q) : false);
           } else if(rc.kind === "equalleft"){
             should = cg.map(g => g.value === Lv);
           } else {
@@ -103352,6 +103643,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         if(rec.badCount) blockers.push(`${spec.id}: ${rec.badCount} trials where #correct != requiredSelections`);
         if(spec.kind !== "equalleft" && (rec.single === 0 || rec.multi === 0)) warnings.push(`${spec.id}: single/multi not both produced (single=${rec.single}, multi=${rec.multi})`);
         if((spec.kind === "order" || spec.kind === "suit") && (rec.qDist[0]===0 || rec.qDist[1]===0 || rec.qDist[2]===0)) warnings.push(`${spec.id}: a quantifier bucket never targeted (${JSON.stringify(rec.qDist)})`);
+        if(spec.kind === "connect" && (rec.qDist[0]===0 || rec.qDist[1]===0 || rec.qDist[2]===0 || !rec.qDist[3])) warnings.push(`${spec.id}: a connection class never targeted (${JSON.stringify(rec.qDist)})`);
       }
       // reachability: the new family must be in the L0 runtime index and survive the sampler filter
       if(typeof registryLayerEntries === "function"){
@@ -103372,6 +103664,347 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6879RelationalChoice", auditV6879RelationalChoice);
   }catch(_){ }
   try{ window.EUCA_V6879_RELATIONAL_CHOICE = {patch:PATCH_ID, added, ids, build:buildRelChoiceGenerative, audit:auditV6879RelationalChoice, specs:SPECS}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.80 — NUMBER-LINE (fraction benchmark) GATE. User-locked design: fractions ONLY as a GATE (a rule
+// selector like Venn/paper-folding), never a value representation. A 0–1 line with a marked point (no
+// numerals beyond the 0/1 anchors, NO intermediate ticks — a genuine proportion ESTIMATION, the
+// Siegler magnitude judgment) selects the active numeric branch via CONTINUOUS benchmarks: more/less
+// than half, exactly half, more/less than a quarter, past three quarters. One gate stimulus only.
+// Perceptual guard: the mark is always ≥ MARGIN away from the judged threshold, except exact-half
+// (dead-on). Screen fit: compact SVG (≤64px tall, inherits the venn-gate-svg height caps) + the
+// 3-block trimmed question format (condition? / If YES / If NO).
+(function numberLineGateV6880(){
+  "use strict";
+  if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return;
+  if(typeof randInt !== "function") return;
+  const PATCH_ID = "v6.8.80-number-line-gate";
+  try{ if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6880NumberLineGate === undefined) CONFIG.v6880NumberLineGate = true; }catch(_){ }
+  const MARGIN = 0.12, EDGE = 0.05;
+  const CONDS = [
+    {id:"nl_more_than_half",     phrase:"past the halfway point of the line",        t0:0.50, dir:"more"},
+    {id:"nl_less_than_half",     phrase:"before the halfway point of the line",      t0:0.50, dir:"less"},
+    {id:"nl_exactly_half",       phrase:"exactly at the halfway point of the line",  t0:0.50, dir:"exact"},
+    {id:"nl_more_than_quarter",  phrase:"past the quarter point of the line",        t0:0.25, dir:"more"},
+    {id:"nl_less_than_quarter",  phrase:"before the quarter point of the line",      t0:0.25, dir:"less"},
+    {id:"nl_more_than_3quarters",phrase:"past the three-quarter point of the line",  t0:0.75, dir:"more"}
+  ];
+  function condTruth(cond, t){
+    if(cond.dir === "exact") return t === 0.5;
+    return cond.dir === "more" ? t > cond.t0 : t < cond.t0;
+  }
+  function rnd(lo, hi){ return lo + (randInt(0, 1001)/1000) * (hi - lo); }
+  function sampleT(cond, wantHolds){
+    if(cond.dir === "exact") return wantHolds ? 0.5 : (randInt(0,2)===0 ? rnd(EDGE, 0.5-MARGIN) : rnd(0.5+MARGIN, 1-EDGE));
+    const above = () => rnd(Math.min(cond.t0+MARGIN, 1-EDGE), 1-EDGE);
+    const below = () => rnd(EDGE, Math.max(cond.t0-MARGIN, EDGE));
+    if(cond.dir === "more") return wantHolds ? above() : below();
+    return wantHolds ? below() : above();
+  }
+  function renderNL(gate){
+    const t = Math.max(0, Math.min(1, Number(gate && gate.t)));
+    const W = 360, H = 64, x0 = 26, x1 = 334, y = 42;
+    const mx = x0 + t * (x1 - x0);
+    let s = `<svg class="graph-svg venn-gate-svg nl-gate-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:min(100%,420px);height:auto;" aria-label="Number line rule selector">`;
+    s += `<text x="${W/2}" y="12" font-size="10" fill="#999" text-anchor="middle" font-weight="800">LINE RULE SELECTOR</text>`;
+    s += `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#8f82ff" stroke-width="3" stroke-linecap="round"/>`;
+    s += `<line x1="${x0}" y1="${y-9}" x2="${x0}" y2="${y+9}" stroke="#8f82ff" stroke-width="3"/>`;
+    s += `<line x1="${x1}" y1="${y-9}" x2="${x1}" y2="${y+9}" stroke="#8f82ff" stroke-width="3"/>`;
+    s += `<text x="${x0}" y="${y+24}" font-size="12" fill="#c9c3ff" text-anchor="middle" font-weight="900">0</text>`;
+    s += `<text x="${x1}" y="${y+24}" font-size="12" fill="#c9c3ff" text-anchor="middle" font-weight="900">1</text>`;
+    s += `<path d="M ${mx.toFixed(1)} ${y-16} l 7 -11 l -14 0 Z" fill="#ffc107"/>`;
+    s += `<circle cx="${mx.toFixed(1)}" cy="${y}" r="5.2" fill="#ffc107" stroke="#050508" stroke-width="1.4"/>`;
+    s += `</svg>`;
+    return s;
+  }
+  try{ window.numberLineGateRenderSVG = renderNL; }catch(_){ }
+  function opsCatalog(){ return (typeof l0GraphConditionalCatalog === "function") ? l0GraphConditionalCatalog() : []; }
+  function makeCats(){
+    const ops = opsCatalog();
+    if(!ops.length) return [];
+    return CONDS.map((cond, i) => {
+      const op = ops[(i + 3) % ops.length]; // offset so the pairing differs from the venn gate's
+      return {
+        id:`nl_gate_${cond.id}__${op.id}`, tier:4, stage:5, minM:6, family:"l0_number_line_gate",
+        checkVisual:true, questionVisualGate:true, noL0Transform:true,
+        nlConditionId:cond.id, graphConditionalId:op.id,
+        frameTags:["relation_processing","proportion_estimation","magnitude_estimation","conditional_relation","local_relation_gate","fraction_benchmark"],
+        atomicsUsed:["number_line_gate","proportion_benchmark_judgment","conditional_branch_selection"],
+        canUse:(m)=>{
+          try{
+            if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6880NumberLineGate === false) return false;
+            const lvl = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : 0;
+            return lvl >= (CONFIG.l0NumberLineGateMinLevel || 6) && Number(m) >= 6;
+          }catch(_){ return false; }
+        },
+        variants:[
+          {q:`Is the mark ${cond.phrase}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.`}
+        ],
+        gen(m,t){
+          const maxAB = Math.max(2, Math.min(Number(m || 8) + 1, 12));
+          function pack(a,b,ext){ const arr=[a,b]; Object.assign(arr, ext); return arr; }
+          for(let attempt=0; attempt<70; attempt++){
+            const a = randInt(1, maxAB), b = randInt(1, maxAB);
+            const trueBranch = !!op.same(a,b), falseBranch = !!op.different(a,b);
+            if(trueBranch === falseBranch) continue;
+            let wantHolds;
+            if(trueBranch === !!t) wantHolds = true;
+            else if(falseBranch === !!t) wantHolds = false;
+            else continue;
+            const tPos = sampleT(cond, wantHolds);
+            if(condTruth(cond, tPos) !== wantHolds) continue;
+            return pack(a,b,{
+              _nlgConditionId:cond.id, _nlgConditionDesc:cond.phrase, _nlgT:tPos, _nlgHolds:wantHolds,
+              _graphConditionalId:op.id, _graphActiveBranch:wantHolds ? "same" : "different"
+            });
+          }
+          return null;
+        },
+        verify(a,b,info){
+          const gate = info && info.numberLineGate;
+          if(!gate || typeof gate.holds !== "boolean") return (typeof INAPPLICABLE !== "undefined" ? INAPPLICABLE : null);
+          const pred = gate.holds ? op.same : op.different;
+          return !!pred(a,b);
+        }
+      };
+    });
+  }
+  let added = 0; const ids = [];
+  const fresh = makeCats();
+  for(const c of fresh){
+    if(POSNER_CATS.some(x => x && x.id === c.id)) continue;
+    POSNER_CATS.push(c);
+    try{ if(typeof migrateLegacyCatalogueEntryToSpec === "function") migrateLegacyCatalogueEntryToSpec("L0", c); }catch(_){ }
+    added++; ids.push(c.id);
+  }
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+  try{ if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex(); }catch(_){ }
+  try{ if(typeof _availablePosnerCatsCache !== "undefined" && _availablePosnerCatsCache && _availablePosnerCatsCache.clear) _availablePosnerCatsCache.clear(); }catch(_){ }
+  function auditV6880NumberLineGate(opts={}){
+    const blockers=[], warnings=[], details={patch:PATCH_ID, added, ids, byCond:{}};
+    try{
+      const cats = POSNER_CATS.filter(c => c && c.nlConditionId);
+      if(cats.length !== CONDS.length) blockers.push(`nl gate cat count ${cats.length}; expected ${CONDS.length}`);
+      for(const cat of cats){
+        const cond = CONDS.find(c => c.id === cat.nlConditionId);
+        const rec = details.byCond[cat.nlConditionId] = {built:0, marginBad:0, truthBad:0, verifyBad:0, renderBad:0, holdsSeen:{true:0,false:0}};
+        for(const t of [true,false]) for(let i=0;i<12;i++){
+          const gen = cat.gen(9, t);
+          if(!gen){ continue; }
+          rec.built++;
+          const tp = Number(gen._nlgT), holds = !!gen._nlgHolds;
+          rec.holdsSeen[holds]++;
+          // margin: off-threshold placements ≥ 0.10 away; exact-holds dead-on 0.5
+          if(cond.dir === "exact" && holds){ if(tp !== 0.5) rec.marginBad++; }
+          else if(Math.abs(tp - cond.t0) < 0.10) rec.marginBad++;
+          if(condTruth(cond, tp) !== holds) rec.truthBad++;
+          // verify consistency against a fake trial payload
+          const info = {numberLineGate:{conditionId:gen._nlgConditionId, t:tp, holds}};
+          const v = cat.verify(gen[0], gen[1], info);
+          const ops = opsCatalog(); const op = ops.find(o => o.id === cat.graphConditionalId);
+          const expect = !!(holds ? op.same(gen[0],gen[1]) : op.different(gen[0],gen[1]));
+          if(!!v !== expect) rec.verifyBad++;
+          const svg = renderNL({t:tp});
+          if(!(typeof svg === "string" && svg.indexOf("<svg") === 0 && /LINE RULE SELECTOR/.test(svg) && !/NaN/.test(svg))) rec.renderBad++;
+        }
+        if(rec.built < 12) warnings.push(`${cat.id}: low build ${rec.built}`);
+        if(rec.marginBad) blockers.push(`${cat.id}: ${rec.marginBad} marks inside the perceptual margin`);
+        if(rec.truthBad) blockers.push(`${cat.id}: ${rec.truthBad} mark placements contradict the condition`);
+        if(rec.verifyBad) blockers.push(`${cat.id}: ${rec.verifyBad} verify/branch mismatches`);
+        if(rec.renderBad) blockers.push(`${cat.id}: ${rec.renderBad} bad renders`);
+        if(!rec.holdsSeen.true || !rec.holdsSeen.false) warnings.push(`${cat.id}: only one polarity built (${JSON.stringify(rec.holdsSeen)})`);
+      }
+      if(typeof registryLayerEntries === "function"){
+        const idx = new Set(registryLayerEntries("L0", POSNER_CATS).map(c => String(c && c.id)));
+        for(const id of ids){ if(!idx.has(id)) blockers.push(`${id} missing from L0 registry index → never sampled`); }
+      }
+      // v6.8.81: the trial-info MAPPING seam — l0PlainTrialInfoFromPos must carry numberLineGate through
+      // (it silently dropped it once: the gate built fine but the line never rendered in live play).
+      try{
+        if(typeof l0PlainTrialInfoFromPos === "function"){
+          const fake = {a:1, b:2, repA:"ten", repB:"ten", question:"q", isTrue:true, catId:"nl_gate_probe", family:"l0_number_line_gate",
+            numberLineGate:{conditionId:"nl_more_than_half", conditionDesc:"past the halfway point of the line", t:0.7, holds:true, activeBranch:"same", predicateId:"graph_cond_left_greater"}};
+          const mapped = l0PlainTrialInfoFromPos(fake, 1, 2, "L0");
+          if(!mapped || !mapped.numberLineGate || !Number.isFinite(Number(mapped.numberLineGate.t))) blockers.push("l0PlainTrialInfoFromPos DROPS numberLineGate (trial-info mapping seam)");
+        }
+      }catch(e){ warnings.push("mapping-seam check failed: "+(e&&e.message||e)); }
+    }catch(e){ blockers.push("nl gate audit exception: "+(e&&e.message||e)); }
+    return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
+  }
+  try{ window.auditV6880NumberLineGate = auditV6880NumberLineGate; globalThis.auditV6880NumberLineGate = auditV6880NumberLineGate; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6880_number_line_gate","number_line_gate","fraction_gate"], auditV6880NumberLineGate, "auditV6880NumberLineGate");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6880NumberLineGate", auditV6880NumberLineGate);
+  }catch(_){ }
+  try{ window.EUCA_V6880_NLGATE = {patch:PATCH_ID, added, ids, conds:CONDS, render:renderNL, audit:auditV6880NumberLineGate}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.80 — PROPERTY-ANCHORED REFERENCE family (user: "casi siempre usamos LEFT and RIGHT en lugar de
+// 'el número mayor', 'el número impar', 'el primo'… obligar a operar sobre la relación en sí").
+// The question's SUBJECT is a definite description the player must RESOLVE by computing a property
+// over both operands ("the odd number", "the prime", "the value closer to 5"), and the asked predicate
+// is RELATIONAL against the other operand — two composed relations where "Is LEFT greater?" asked one.
+// Every combo below was EMPIRICALLY VETTED (probe80r matrix over all pairs 1..m): referent UNIQUE by
+// construction (a≠b guaranteed by every anchor), both YES/NO achievable with ≥5 pairs and minority
+// share ≥0.15 at m=9; per-combo minM from the matrix. The matrix also killed hidden tautologies
+// (larger|divides 0% YES, prime|is_prime 100% YES, odd|complement10 impossible) and complement10
+// entirely (symmetric ⇒ the anchor would be decorative). Anti-positional: a,b sampled independently,
+// so the referent's side is ~50/50. verify() is a pure recompute (side-symmetric ⇒ swap-safe).
+(function anchoredReferenceV6880(){
+  "use strict";
+  if(typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return;
+  if(typeof randInt !== "function") return;
+  const PATCH_ID = "v6.8.80-anchored-reference";
+  try{ if(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6880AnchoredReference === undefined) CONFIG.v6880AnchoredReference = true; }catch(_){ }
+  const isPrimeL = n => { if(n<2) return false; for(let i=2;i*i<=n;i++) if(n%i===0) return false; return true; };
+  const isSquareL = n => Number.isInteger(Math.sqrt(n));
+  const ANCHORS = {
+    larger:  {noun:"the larger value",      pick:(a,b)=> a>b ? a : (b>a ? b : null)},
+    smaller: {noun:"the smaller value",     pick:(a,b)=> a<b ? a : (b<a ? b : null)},
+    odd:     {noun:"the odd number",        pick:(a,b)=>{ const oa=a%2===1, ob=b%2===1; return oa!==ob ? (oa?a:b) : null; }},
+    even:    {noun:"the even number",       pick:(a,b)=>{ const ea=a%2===0, eb=b%2===0; return ea!==eb ? (ea?a:b) : null; }},
+    prime:   {noun:"the prime number",      pick:(a,b)=>{ const pa=isPrimeL(a), pb=isPrimeL(b); return pa!==pb ? (pa?a:b) : null; }},
+    square:  {noun:"the square number",     pick:(a,b)=>{ const sa=isSquareL(a), sb=isSquareL(b); return sa!==sb ? (sa?a:b) : null; }},
+    mult3:   {noun:"the multiple of 3",     pick:(a,b)=>{ const ma=a%3===0, mb=b%3===0; return ma!==mb ? (ma?a:b) : null; }},
+    closer5: {noun:"the value closer to 5", pick:(a,b)=>{ const da=Math.abs(a-5), db=Math.abs(b-5); return da<db ? a : (db<da ? b : null); }}
+  };
+  const PREDS = {
+    is_larger:         {eval:(r,o)=> r>o,                          qs:n=>[`Is ${n} the larger of the two?`, `Is ${n} greater than the other value?`]},
+    same_parity_other: {eval:(r,o)=> (r%2)===(o%2),                qs:n=>[`Does ${n} have the same even/odd type as the other value?`, `Are ${n} and the other value both even, or both odd?`]},
+    divides_other:     {eval:(r,o)=> r>0 && o%r===0,               qs:n=>[`Does ${n} divide the other value exactly?`, `Is the other value an exact multiple of ${n}?`]},
+    closer5_other:     {eval:(r,o)=> Math.abs(r-5)<Math.abs(o-5),  qs:n=>[`Is ${n} closer to 5 than the other value?`]}
+  };
+  // vetted combos (probe80r): [anchor, predicate, minM]
+  const COMBOS = [
+    ["larger","same_parity_other",6], ["larger","closer5_other",7],
+    ["smaller","same_parity_other",6], ["smaller","divides_other",6], ["smaller","closer5_other",7],
+    ["odd","is_larger",6], ["odd","divides_other",6], ["odd","closer5_other",6],
+    ["even","is_larger",6], ["even","closer5_other",6],
+    ["prime","is_larger",6], ["prime","same_parity_other",6], ["prime","divides_other",6], ["prime","closer5_other",6],
+    ["square","is_larger",9], ["square","same_parity_other",6], ["square","divides_other",6], ["square","closer5_other",7],
+    ["mult3","is_larger",7], ["mult3","same_parity_other",6], ["mult3","closer5_other",6],
+    ["closer5","is_larger",7], ["closer5","same_parity_other",6]
+  ];
+  function comboEval(aid, pid, a, b){
+    const r = ANCHORS[aid].pick(a,b);
+    if(r == null) return null;
+    return !!PREDS[pid].eval(r, r===a ? b : a);
+  }
+  let added = 0; const ids = [];
+  for(const [aid, pid, minM] of COMBOS){
+    const anchor = ANCHORS[aid], pred = PREDS[pid];
+    const id = `anchor_ref_${aid}_${pid}`;
+    if(POSNER_CATS.some(c => c && c.id === id)) continue;
+    POSNER_CATS.push({
+      id, tier:4, stage:4, minM, family:"anchored_reference",
+      anchorRefAnchor:aid, anchorRefPred:pid,
+      frameTags:["role_binding","referent_building_relative","relation_composition","anchored_reference","comparison"],
+      atomicsUsed:["anchored_reference_resolution","referent_binding","relation_composition"],
+      canUse:(m)=> Number(m) >= minM && !(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6880AnchoredReference === false),
+      variants:pred.qs(anchor.noun).map(q => ({q, linguisticFrame:"referent_building_relative"})),
+      gen(m,t){
+        const cap = Math.max(4, Math.min(Number(m)||9, 12));
+        for(let i=0;i<90;i++){
+          const a = randInt(1, cap+1), b = randInt(1, cap+1);
+          const v = comboEval(aid, pid, a, b);
+          if(v === null) continue;
+          if(v === !!t) return [a,b];
+        }
+        return null;
+      },
+      verify(a,b){
+        const v = comboEval(aid, pid, Number(a), Number(b));
+        return v === null ? (typeof INAPPLICABLE !== "undefined" ? INAPPLICABLE : false) : v;
+      }
+    });
+    added++; ids.push(id);
+  }
+  try{
+    if(typeof migrateLegacyCatalogueEntryToSpec === "function"){
+      for(const id of ids){ const c = POSNER_CATS.find(x=>x&&x.id===id); if(c && !c._registrySpec && !c.registrySpecId){ try{ migrateLegacyCatalogueEntryToSpec("L0", c); }catch(_){ } } }
+    }
+  }catch(_){ }
+  try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+  try{ if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex(); }catch(_){ }
+  try{ if(typeof _availablePosnerCatsCache !== "undefined" && _availablePosnerCatsCache && _availablePosnerCatsCache.clear) _availablePosnerCatsCache.clear(); }catch(_){ }
+  function auditV6880AnchoredReference(opts={}){
+    const blockers=[], warnings=[], details={patch:PATCH_ID, added, byCombo:{}};
+    try{
+      if(added !== COMBOS.length && POSNER_CATS.filter(c=>c&&c.anchorRefAnchor).length !== COMBOS.length) blockers.push(`anchored-reference cat count mismatch (${added} added; expected ${COMBOS.length})`);
+      for(const [aid,pid,minM] of COMBOS){
+        const cat = POSNER_CATS.find(c => c && c.id === `anchor_ref_${aid}_${pid}`);
+        if(!cat){ blockers.push(`missing cat anchor_ref_${aid}_${pid}`); continue; }
+        const rec = details.byCombo[cat.id] = {built:{true:0,false:0}, nonUnique:0, truthBad:0, verifyBad:0};
+        for(const t of [true,false]) for(let i=0;i<20;i++){
+          const gen = cat.gen(Math.max(9,minM), t);
+          if(!gen) continue;
+          rec.built[t]++;
+          const [a,b] = gen;
+          if(ANCHORS[aid].pick(a,b) == null) rec.nonUnique++;
+          const v = comboEval(aid,pid,a,b);
+          if(v !== !!t) rec.truthBad++;
+          if(cat.verify(a,b) !== v) rec.verifyBad++;
+        }
+        // matrix re-check at m=9 (or the combo's own minM if higher): both classes ≥5 among unique-referent pairs
+        const mm = Math.max(9, minM); let yes=0,no=0;
+        for(let a=1;a<=mm;a++) for(let b=1;b<=mm;b++){ const v=comboEval(aid,pid,a,b); if(v===true)yes++; else if(v===false)no++; }
+        if(yes<5 || no<5) blockers.push(`${cat.id}: unbalanced truth table at m=${mm} (yes ${yes}, no ${no})`);
+        if(!rec.built.true || !rec.built.false) warnings.push(`${cat.id}: a polarity never built (${JSON.stringify(rec.built)})`);
+        if(rec.nonUnique) blockers.push(`${cat.id}: ${rec.nonUnique} served pairs without a unique referent`);
+        if(rec.truthBad) blockers.push(`${cat.id}: ${rec.truthBad} gen/truth mismatches`);
+        if(rec.verifyBad) blockers.push(`${cat.id}: ${rec.verifyBad} verify/eval mismatches`);
+      }
+      if(typeof registryLayerEntries === "function"){
+        const idx = new Set(registryLayerEntries("L0", POSNER_CATS).map(c => String(c && c.id)));
+        for(const id of ids){ if(!idx.has(id)) blockers.push(`${id} missing from L0 registry index → never sampled`); }
+      }
+    }catch(e){ blockers.push("anchored-reference audit exception: "+(e&&e.message||e)); }
+    return {status:blockers.length?"block":warnings.length?"warn":"pass", blockers, warnings, details};
+  }
+  try{ window.auditV6880AnchoredReference = auditV6880AnchoredReference; globalThis.auditV6880AnchoredReference = auditV6880AnchoredReference; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6880_anchored_reference","anchored_reference","referent_binding"], auditV6880AnchoredReference, "auditV6880AnchoredReference");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6880AnchoredReference", auditV6880AnchoredReference);
+  }catch(_){ }
+  try{ window.EUCA_V6880_ANCHORS = {patch:PATCH_ID, added, ids, combos:COMBOS, eval:comboEval, anchors:ANCHORS, audit:auditV6880AnchoredReference}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.81 — COMPOSITION-BUDGET GUARD on the transform overlay. Root cause of the intermittent
+// composition_budget BLOCK (over:1, ~1 trial in ~5000; caught empirically: level 8, cap 6, load 7 —
+// e.g. set_multiple3_right / quant_square_at_least_one receiving a representation transform on a
+// cube_3d rep while already carrying quantifier + semantic_scope + role_binding axes): the
+// maybeApplyL0Transform overlay modulated its PROBABILITY by composition density but never enforced
+// the per-level load CAP, so rare axis stacks composed past the working-memory ceiling the budget
+// audit asserts. This wrapper recomputes the transformed trial's profile and, if load exceeds the cap,
+// serves the ORIGINAL untransformed trial instead — the design contract is now enforced at build time,
+// and the audit becomes its regression guard.
+(function compositionBudgetGuardV6881(){
+  "use strict";
+  if(typeof maybeApplyL0Transform !== "function" || typeof compositionProfileForInfo !== "function") return;
+  const orig = maybeApplyL0Transform;
+  if(orig.__v6881BudgetGuard) return;
+  const wrapped = function maybeApplyL0TransformBudgetGuard(probe, ctx){
+    const res = orig.apply(this, arguments);
+    try{
+      if(res && res.applied && res.probe){
+        const lvl = (typeof State !== "undefined" && State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : null;
+        const prof = compositionProfileForInfo(res.probe, lvl);
+        const cap = Math.min(Number(prof && prof.maxLoad || 99), Number((typeof CONFIG !== "undefined" && CONFIG && CONFIG.compositionMaxTransformLoadL0) || 99));
+        if(prof && Number(prof.load) > cap) return { probe, applied:false };
+      }
+    }catch(_){ }
+    return res;
+  };
+  wrapped.__v6881BudgetGuard = true;
+  for(const k of Object.getOwnPropertyNames(orig)){ if(k.slice(0,2) === "__" && !(k in wrapped)){ try{ wrapped[k] = orig[k]; }catch(_){ } } }
+  maybeApplyL0Transform = wrapped;
+  try{ window.maybeApplyL0Transform = wrapped; globalThis.maybeApplyL0Transform = wrapped; }catch(_){ }
 })();
 </script>
 
