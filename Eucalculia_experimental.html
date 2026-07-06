@@ -104008,5 +104008,434 @@ ${res.agents.map(a=>a.line).join(" ")}`;
 })();
 </script>
 
+<script>
+// v6.8.83 - targeted regression fixes from 2026-07-03 user screenshots:
+// 1) property-anchored referents may transform only if the transformed pair still has a unique referent;
+// 2) constructive anti-reuse must not block reusing Pair 1 digits when the public rule allows it;
+// 3) number-line gate cards need a compact mobile layout;
+// 4) native ten/grid complement prompts must not expose the arithmetic shortcut.
+(function v6883UserReportedRegressionFixes(){
+  "use strict";
+  const PATCH_ID = "v6.8.83-user-regression-fixes";
+  function arr(x){ return Array.isArray(x) ? x : []; }
+  function str(x){ return x == null ? "" : String(x); }
+  function cats(){ try{ return (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS : []; }catch(_){ return []; } }
+  function uniqLocal(xs){ const out = []; for(const x of arr(xs)){ if(x == null || out.includes(x)) continue; out.push(x); } return out; }
+  function isAnchoredCat(c){ return !!(c && (c.family === "anchored_reference" || c.anchorRefAnchor || /^anchor_ref_/.test(str(c.id)))); }
+  function isAnchoredShape(x){ return !!(x && (x.family === "anchored_reference" || x.anchorRefAnchor || /^anchor_ref_/.test(str(x.catId || x.id)))); }
+  function anchoredCatForProbe(probe){
+    const id = str(probe && (probe.catId || probe.id));
+    const c = cats().find(cat => cat && str(cat.id) === id) || null;
+    return c && isAnchoredCat(c) ? c : null;
+  }
+  function isAnchoredProbe(probe){ return isAnchoredShape(probe) || !!anchoredCatForProbe(probe); }
+  function refreshRegistry(){
+    try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+    try{ if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex(); }catch(_){ }
+    try{ if(typeof _availablePosnerCatsCache !== "undefined" && _availablePosnerCatsCache && _availablePosnerCatsCache.clear) _availablePosnerCatsCache.clear(); }catch(_){ }
+  }
+  function patchConfig(){
+    try{
+      if(typeof CONFIG === "object" && CONFIG){
+        CONFIG.v6872BetweenPairReuseDisable = false;
+        CONFIG.v6883BetweenPairReuseDisableReason = "between-pair digit greying can make semantic constructive tasks unanswerable; within-pair duplicate greying remains active";
+      }
+    }catch(_){ }
+  }
+  function enableAnchoredReferenceTransformLogic(){
+    let touched = 0;
+    try{
+      for(const c of cats()){
+        if(!isAnchoredCat(c)) continue;
+        if(Object.prototype.hasOwnProperty.call(c, "noL0Transform")) delete c.noL0Transform;
+        if(Object.prototype.hasOwnProperty.call(c, "v6883NoRepresentationTransform")) delete c.v6883NoRepresentationTransform;
+        c.v6883TransformLogic = "validate_after_transform";
+        touched++;
+      }
+      refreshRegistry();
+      try{ window.__v6883AnchoredTransformMode = {mode:"validate_after_transform", touched}; }catch(_){ }
+    }catch(_){ }
+  }
+  function anchoredTransformVerdict(probe){
+    const cat = anchoredCatForProbe(probe);
+    if(!cat || typeof cat.verify !== "function") return {valid:false, reason:"missing_anchored_cat"};
+    const a = Number(probe && probe.a), b = Number(probe && probe.b);
+    if(!Number.isFinite(a) || !Number.isFinite(b)) return {valid:false, reason:"non_numeric_pair", catId:cat.id};
+    let raw;
+    try{ raw = cat.verify(a, b, probe); }
+    catch(e){ return {valid:false, reason:"verify_exception", catId:cat.id, error:str(e && e.message || e)}; }
+    try{ if(typeof INAPPLICABLE !== "undefined" && raw === INAPPLICABLE) return {valid:false, reason:"inapplicable", catId:cat.id, a, b}; }catch(_){ }
+    if(raw === null || raw === undefined || typeof raw !== "boolean") return {valid:false, reason:"non_boolean_verify", catId:cat.id, a, b, value:str(raw)};
+    return {valid:true, truth:!!raw, catId:cat.id, a, b};
+  }
+  function applyAnchoredVerdict(probe, verdict){
+    if(!probe || !verdict || !verdict.valid) return probe;
+    probe.isTrue = !!verdict.truth;
+    if(typeof probe.targetOutcome !== "boolean") probe.targetOutcome = !!verdict.truth;
+    probe.v6883AnchoredTransformValidated = true;
+    probe.v6883AnchoredTransformCat = verdict.catId || null;
+    probe.frameTags = uniqLocal([...(probe.frameTags || []), "anchored_reference", "referent_building_relative"]);
+    probe.mechanismTags = uniqLocal([...(probe.mechanismTags || []), "anchored_reference_resolution_after_transform"]);
+    if(probe.transformThenRelate && typeof probe.transformThenRelate === "object") probe.transformThenRelate.truth = !!verdict.truth;
+    return probe;
+  }
+  function recordAnchoredRejection(verdict){
+    try{
+      window.__v6883AnchoredTransformRejections = (Number(window.__v6883AnchoredTransformRejections) || 0) + 1;
+      window.__v6883LastAnchoredTransformRejection = verdict || null;
+    }catch(_){ }
+  }
+  function installAnchoredTransformLogic(){
+    try{
+      if(typeof maybeApplyL0Transform !== "function" || maybeApplyL0Transform.__v6883AnchoredLogic) return;
+      const prev = maybeApplyL0Transform;
+      const wrapped = function maybeApplyL0TransformV6883AnchoredLogic(probe, ctx){
+        const out = prev.apply(this, arguments);
+        try{
+          const p = out && out.probe;
+          if(out && out.applied && isAnchoredProbe(p)){
+            const verdict = anchoredTransformVerdict(p);
+            if(!verdict.valid){
+              recordAnchoredRejection(verdict);
+              return {probe, applied:false, v6883RejectedAnchoredTransform:true, reason:verdict.reason};
+            }
+            applyAnchoredVerdict(p, verdict);
+          }
+        }catch(e){
+          recordAnchoredRejection({valid:false, reason:"validator_exception", error:str(e && e.message || e)});
+          return {probe, applied:false, v6883RejectedAnchoredTransform:true, reason:"validator_exception"};
+        }
+        return out;
+      };
+      wrapped.__v6883AnchoredLogic = true;
+      for(const k of Object.getOwnPropertyNames(prev)){
+        if(k.slice(0,2) === "__" && !(k in wrapped)){ try{ wrapped[k] = prev[k]; }catch(_){ } }
+      }
+      maybeApplyL0Transform = wrapped;
+      try{ window.maybeApplyL0Transform = wrapped; globalThis.maybeApplyL0Transform = wrapped; }catch(_){ }
+    }catch(_){ }
+  }
+  function patchTransformThenRelateShortcutText(){
+    try{
+      const edits = {
+        txr_ten_complement_fuller:{
+          phrase:"is replaced by its empty cells",
+          variant:"Two ten-frames were shown. One side is replaced by its empty cells; then judge who is fuller."
+        },
+        txr_grid_complement_fuller:{
+          phrase:"has its filled and empty cells swapped",
+          variant:"Two grids were shown. One side has its filled and empty cells swapped; then judge who is fuller."
+        }
+      };
+      for(const c of cats()){
+        const e = edits[str(c && c.id)];
+        if(!e || !c.txrSpec) continue;
+        c.txrSpec.phrase = e.phrase;
+        c.variants = [{q:e.variant}];
+        c.v6883ShortcutTextRemoved = true;
+      }
+    }catch(_){ }
+  }
+  function installNumberLineLayoutFix(){
+    try{
+      if(typeof document === "undefined" || document.getElementById("v6883NumberLineGateLayoutStyle")) return;
+      const style = document.createElement("style");
+      style.id = "v6883NumberLineGateLayoutStyle";
+      style.textContent = `
+#metaQuestion.nl-gate-question .meta-q,
+#metaQuestion .meta-q:has(.nl-gate-svg){
+  font-size:clamp(0.72rem, 2.35svh, 1.02rem);
+  line-height:1.10;
+  max-width:min(96%, 620px);
+}
+#metaQuestion.nl-gate-question .meta-label{ margin-bottom:2px; }
+#metaQuestion.nl-gate-question .nl-gate-svg,
+#metaQuestion .meta-q:has(.nl-gate-svg) .nl-gate-svg{
+  width:min(86%, 360px) !important;
+  max-height:54px !important;
+  margin:0 auto clamp(4px, 0.7svh, 6px);
+}
+#metaQuestion.nl-gate-question .meta-question-card,
+#metaQuestion .meta-q:has(.nl-gate-svg) .meta-question-card{
+  gap:clamp(4px, 0.75svh, 6px);
+  width:min(100%, 520px);
+}
+#metaQuestion.nl-gate-question .meta-question-card .qstep,
+#metaQuestion .meta-q:has(.nl-gate-svg) .meta-question-card .qstep{
+  padding:clamp(5px, 0.85svh, 7px) clamp(7px, 1.15svh, 10px);
+  border-radius:10px;
+  line-height:1.14;
+}
+@media (max-height:760px), (max-width:430px){
+  #app.choice-mode #metaQuestion.nl-gate-question .meta-q,
+  #app.choice-mode #metaQuestion .meta-q:has(.nl-gate-svg){ font-size:clamp(0.66rem, 2.15svh, 0.92rem); }
+  #app.choice-mode #metaQuestion.nl-gate-question .nl-gate-svg,
+  #app.choice-mode #metaQuestion .meta-q:has(.nl-gate-svg) .nl-gate-svg{ max-height:48px !important; }
+}
+`;
+      document.head.appendChild(style);
+    }catch(_){ }
+  }
+  function tagNumberLineQuestion(){
+    try{
+      const q = typeof document !== "undefined" ? document.getElementById("metaQuestion") : null;
+      if(!q) return false;
+      const on = !!(q.querySelector && q.querySelector(".nl-gate-svg")) || !!(typeof State !== "undefined" && State && State.trialInfo && State.trialInfo.numberLineGate);
+      q.classList.toggle("nl-gate-question", on);
+      const app = document.getElementById("app");
+      if(app) app.classList.toggle("nl-gate-question", on);
+      return on;
+    }catch(_){ return false; }
+  }
+  function installNumberLineQuestionTagger(){
+    try{
+      if(typeof showMetaQuestion !== "function" || showMetaQuestion.__v6883NLTagger) return;
+      const prev = showMetaQuestion;
+      const wrapped = function showMetaQuestionV6883NLTagger(){
+        const out = prev.apply(this, arguments);
+        try{ tagNumberLineQuestion(); setTimeout(tagNumberLineQuestion, 0); }catch(_){ }
+        return out;
+      };
+      wrapped.__v6883NLTagger = true;
+      showMetaQuestion = wrapped;
+      try{ window.showMetaQuestion = wrapped; globalThis.showMetaQuestion = wrapped; }catch(_){ }
+    }catch(_){ }
+  }
+  function auditV6883UserReportedRegressionFixes(){
+    const blockers = [], warnings = [], details = {patch:PATCH_ID};
+    try{
+      const anchored = cats().filter(isAnchoredCat);
+      details.anchoredCount = anchored.length;
+      details.anchoredHardBlockers = anchored.filter(c => c.noL0Transform === true || c.v6883NoRepresentationTransform === true).map(c => c.id);
+      if(details.anchoredHardBlockers.length) blockers.push("anchored-reference cats still hard-block transforms: " + details.anchoredHardBlockers.join(", "));
+      details.anchoredTransformLogic = !!(typeof maybeApplyL0Transform === "function" && maybeApplyL0Transform.__v6883AnchoredLogic);
+      if(!details.anchoredTransformLogic) blockers.push("anchored-reference post-transform validator is not installed");
+      const invalid = anchoredTransformVerdict({catId:"anchor_ref_mult3_is_larger", a:4, b:5});
+      const valid = anchoredTransformVerdict({catId:"anchor_ref_mult3_is_larger", a:3, b:5});
+      details.anchoredVerdictSamples = {invalid, valid};
+      if(invalid.valid) blockers.push("undefined transformed anchored pair is accepted as valid");
+      if(!valid.valid || valid.truth !== false) blockers.push("valid transformed anchored pair does not recompute to NO correctly");
+      details.anchoredRejectedTransforms = Number((typeof window !== "undefined" && window.__v6883AnchoredTransformRejections) || 0);
+      details.betweenPairReuseDisable = !!(typeof CONFIG !== "undefined" && CONFIG && CONFIG.v6872BetweenPairReuseDisable !== false);
+      if(details.betweenPairReuseDisable) blockers.push("between-pair reuse greying is still enabled");
+      const txr = cats().filter(c => /^txr_(ten|grid)_complement_fuller$/.test(str(c && c.id)));
+      details.txrText = txr.map(c => ({id:c.id, phrase:c.txrSpec && c.txrSpec.phrase, variant:arr(c.variants).map(v=>v && v.q).join(" ")}));
+      if(details.txrText.some(x => /complement/i.test(str(x.phrase) + " " + str(x.variant)))) blockers.push("transform-then-relate prompt still exposes complement wording");
+      details.nlStyle = !!(typeof document !== "undefined" && document.getElementById("v6883NumberLineGateLayoutStyle"));
+      if(!details.nlStyle) warnings.push("number-line compact layout style not installed");
+    }catch(e){ blockers.push("v6883 audit exception: " + (e && e.message || e)); }
+    return {status:blockers.length ? "block" : (warnings.length ? "warn" : "pass"), blockers, warnings, details};
+  }
+  patchConfig();
+  enableAnchoredReferenceTransformLogic();
+  patchTransformThenRelateShortcutText();
+  installAnchoredTransformLogic();
+  installNumberLineLayoutFix();
+  installNumberLineQuestionTagger();
+  try{ tagNumberLineQuestion(); }catch(_){ }
+  try{ window.auditV6883UserReportedRegressionFixes = auditV6883UserReportedRegressionFixes; globalThis.auditV6883UserReportedRegressionFixes = auditV6883UserReportedRegressionFixes; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6883","v6_8_83","user_reported_regressions"], auditV6883UserReportedRegressionFixes, "auditV6883UserReportedRegressionFixes");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6883UserReportedRegressionFixes", auditV6883UserReportedRegressionFixes);
+  }catch(_){ }
+  try{ window.EUCA_V6883_USER_FIXES = {patch:PATCH_ID, mode:"validate_after_transform", audit:auditV6883UserReportedRegressionFixes, retag:tagNumberLineQuestion, anchoredVerdict:anchoredTransformVerdict}; }catch(_){ }
+})();
+</script>
+
+<script>
+// v6.8.84 - User-reported wording/glyph repair.
+// 1) Inverse-operation choices are side-aware: if the operation is applied to RIGHT,
+//    option labels must describe the rule relative to RIGHT, not stale LEFT wording.
+// 2) Relational-reference questions keep their post-mask reference glyph after probe -> trialInfo conversion.
+(function(){
+  const PATCH_ID = "v6.8.84-side-aware-inverse-options-and-relref-glyph";
+  const str = x => x == null ? "" : String(x);
+  const arr = x => Array.isArray(x) ? x : [];
+
+  function inverseOperationLabelForSourceSide(op, sourceSide){
+    const side = sourceSide === "RIGHT" ? "RIGHT" : "LEFT";
+    let label = str(op && (op.labelForSource ? op.labelForSource(side) : op.label));
+    if(!label) label = str(op && op.id) || "operation";
+    // Existing catalog labels were authored from the LEFT -> RIGHT contract. When the source
+    // side is RIGHT, the same operation is still applied to the source value, so every side word
+    // in the option text must name the source, not the old canonical LEFT.
+    return label.replace(/\bLEFT\b/g, side).replace(/\bRIGHT\b/g, side);
+  }
+
+  function installInverseOperationSideAwareOptions(){
+    try{
+      if(typeof buildInverseOperationChoicePayload !== "function" || buildInverseOperationChoicePayload.__v6884SideAwareOptions) return;
+      const prev = buildInverseOperationChoicePayload;
+      const wrapped = function buildInverseOperationChoicePayloadV6884(v, w, correctOp, m, targetDisplayIndex, direction){
+        const out = prev.apply(this, arguments);
+        try{
+          if(!out || !Array.isArray(out.options)) return out;
+          const inv = out.inverseOperation || {};
+          const sourceSide = inv.sourceSide || (direction === "rtl" ? "RIGHT" : "LEFT");
+          const catalog = (typeof INVERSE_OPERATION_CATALOG !== "undefined" && Array.isArray(INVERSE_OPERATION_CATALOG)) ? INVERSE_OPERATION_CATALOG : [];
+          const byId = id => catalog.find(op => op && op.id === id);
+          out.options = out.options.map(o => {
+            const op = byId(o && o.opId) || (o && o.opId === correctOp?.id ? correctOp : null);
+            const text = op ? inverseOperationLabelForSourceSide(op, sourceSide) : str(o && o.text).replace(/\bLEFT\b/g, sourceSide).replace(/\bRIGHT\b/g, sourceSide);
+            return Object.assign({}, o, {text});
+          });
+          if(Number.isInteger(out.correctIndex) && out.options[out.correctIndex]) out.answerLabel = out.options[out.correctIndex].text;
+          if(out.inverseOperation){
+            out.inverseOperation.optionLabels = out.options.map(o => o.text);
+            out.inverseOperation.sideAwareOptionLabels = true;
+          }
+        }catch(_){ }
+        return out;
+      };
+      wrapped.__v6884SideAwareOptions = true;
+      for(const k of Object.getOwnPropertyNames(prev)){
+        if(k.slice(0,2) === "__" && !(k in wrapped)){ try{ wrapped[k] = prev[k]; }catch(_){ } }
+      }
+      buildInverseOperationChoicePayload = wrapped;
+      try{ window.buildInverseOperationChoicePayload = wrapped; globalThis.buildInverseOperationChoicePayload = wrapped; }catch(_){ }
+    }catch(_){ }
+  }
+
+  function sameProbeIdentity(info, probe){
+    try{
+      if(!info || !probe) return false;
+      const catOk = !probe.catId || !info.catId || str(info.catId) === str(probe.catId);
+      const q = str(probe.question || probe.delayedPrompt);
+      const qOk = !q || str(info.question) === q || str(info.delayedPrompt) === q;
+      return catOk && qOk;
+    }catch(_){ return false; }
+  }
+  function promoteRelRefPayload(info, source){
+    try{
+      if(!info || !source) return info;
+      const payload = source.payload && typeof source.payload === "object" ? source.payload : null;
+      if(!payload) return info;
+      if(!info.payload || typeof info.payload !== "object") info.payload = payload;
+      else {
+        if(payload.relationalReference && !info.payload.relationalReference) info.payload.relationalReference = payload.relationalReference;
+        if(payload.relRefReferenceGlyph && !info.payload.relRefReferenceGlyph) info.payload.relRefReferenceGlyph = payload.relRefReferenceGlyph;
+        if(payload.candidateGlyphs && !info.payload.candidateGlyphs) info.payload.candidateGlyphs = payload.candidateGlyphs;
+      }
+      if(payload.relationalReference && !info.relationalReference) info.relationalReference = payload.relationalReference;
+      if(payload.relRefReferenceGlyph && !info.relRefReferenceGlyph) info.relRefReferenceGlyph = payload.relRefReferenceGlyph;
+      if(payload.candidateGlyphs && !info.candidateGlyphs) info.candidateGlyphs = payload.candidateGlyphs;
+    }catch(_){ }
+    return info;
+  }
+  function installRelRefPayloadPropagation(){
+    try{
+      if(typeof makeL0TrialInfoFromProbe === "function" && !makeL0TrialInfoFromProbe.__v6884RelRefPayload){
+        const prev = makeL0TrialInfoFromProbe;
+        const wrapped = function makeL0TrialInfoFromProbeV6884(probe, burst){
+          const info = prev.apply(this, arguments);
+          if(sameProbeIdentity(info, probe)) promoteRelRefPayload(info, probe);
+          return info;
+        };
+        wrapped.__v6884RelRefPayload = true;
+        for(const k of Object.getOwnPropertyNames(prev)){
+          if(k.slice(0,2) === "__" && !(k in wrapped)){ try{ wrapped[k] = prev[k]; }catch(_){ } }
+        }
+        makeL0TrialInfoFromProbe = wrapped;
+        try{ window.makeL0TrialInfoFromProbe = wrapped; globalThis.makeL0TrialInfoFromProbe = wrapped; }catch(_){ }
+      }
+    }catch(_){ }
+    try{
+      if(typeof l0PlainTrialInfoFromPos === "function" && !l0PlainTrialInfoFromPos.__v6884RelRefPayload){
+        const prevPlain = l0PlainTrialInfoFromPos;
+        const wrappedPlain = function l0PlainTrialInfoFromPosV6884(pos, displayA, displayB, autoPhase){
+          const info = prevPlain.apply(this, arguments);
+          promoteRelRefPayload(info, pos);
+          return info;
+        };
+        wrappedPlain.__v6884RelRefPayload = true;
+        l0PlainTrialInfoFromPos = wrappedPlain;
+        try{ window.l0PlainTrialInfoFromPos = wrappedPlain; globalThis.l0PlainTrialInfoFromPos = wrappedPlain; }catch(_){ }
+      }
+    }catch(_){ }
+  }
+  function installRelRefMetaStimulusFallback(){
+    try{
+      if(typeof metaStimulusSVGForTrialInfo !== "function" || metaStimulusSVGForTrialInfo.__v6884RelRefFallback) return;
+      const prev = metaStimulusSVGForTrialInfo;
+      const wrapped = function metaStimulusSVGForTrialInfoV6884(info){
+        const svg = prev.apply(this, arguments);
+        if(svg) return svg;
+        try{
+          const glyph = info?.relRefReferenceGlyph || info?.payload?.relRefReferenceGlyph;
+          if(glyph && typeof relRefReferenceGlyphSVG === "function") return relRefReferenceGlyphSVG(glyph);
+          const candidateGlyphs = info?.candidateGlyphs || info?.payload?.candidateGlyphs;
+          if(Array.isArray(candidateGlyphs) && typeof relChoiceCandidateGlyphsSVG === "function") return relChoiceCandidateGlyphsSVG(candidateGlyphs);
+        }catch(_){ }
+        return svg;
+      };
+      wrapped.__v6884RelRefFallback = true;
+      metaStimulusSVGForTrialInfo = wrapped;
+      try{ window.metaStimulusSVGForTrialInfo = wrapped; globalThis.metaStimulusSVGForTrialInfo = wrapped; }catch(_){ }
+    }catch(_){ }
+  }
+
+  function auditV6884UserProblemFixes(){
+    const blockers = [], warnings = [], details = {patch:PATCH_ID};
+    try{
+      details.inverseWrapper = !!(typeof buildInverseOperationChoicePayload === "function" && buildInverseOperationChoicePayload.__v6884SideAwareOptions);
+      if(!details.inverseWrapper) blockers.push("inverse-operation side-aware option wrapper is not installed");
+      const m = 12;
+      const clean = (typeof inverseOperationCleanPairs === "function") ? inverseOperationCleanPairs(m) : [];
+      const calibrated = clean.filter(row => row && row.op && (typeof inverseOperationHasCalibratedDistractors !== "function" || inverseOperationHasCalibratedDistractors(row, m)));
+      const sideRow = calibrated.find(row => /\bLEFT\b|\bRIGHT\b/.test(str(row.op && row.op.label))) || calibrated.find(row => /^(next|previous)_/.test(str(row.op && row.op.id))) || calibrated[0];
+      details.inverseSampleOp = sideRow && sideRow.op ? {id:sideRow.op.id, label:sideRow.op.label, v:sideRow.v, w:sideRow.w} : null;
+      if(!sideRow) blockers.push("no calibrated inverse-operation row available for audit");
+      else if(typeof buildInverseOperationChoicePayload === "function"){
+        details.inverseDirections = [];
+        for(const dir of ["ltr", "rtl"]){
+          const payload = buildInverseOperationChoicePayload(sideRow.v, sideRow.w, sideRow.op, m, null, dir);
+          if(!payload){ blockers.push(`inverse-operation payload failed for ${dir}`); continue; }
+          const inv = payload.inverseOperation || {};
+          const sourceSide = inv.sourceSide || (dir === "rtl" ? "RIGHT" : "LEFT");
+          const staleSide = sourceSide === "RIGHT" ? "LEFT" : "RIGHT";
+          const stale = arr(payload.options).filter(o => new RegExp("\\b" + staleSide + "\\b").test(str(o.text))).map(o => o.text);
+          const correct = arr(payload.options)[payload.correctIndex];
+          const correctProduced = Number(correct && correct.producedValue);
+          details.inverseDirections.push({dir, question:payload.question, sourceSide, targetSide:inv.targetSide, labels:arr(payload.options).map(o=>o.text), correctProduced});
+          if(stale.length) blockers.push(`inverse-operation ${dir} option labels still mention stale ${staleSide}: ${stale.join(" | ")}`);
+          if(Number(correctProduced) !== Number(sideRow.w)) blockers.push(`inverse-operation ${dir} correct option produces ${correctProduced}, expected ${sideRow.w}`);
+        }
+      }
+    }catch(e){ blockers.push("inverse audit exception: " + (e && e.message || e)); }
+    try{
+      details.relRefMakeInfoWrapper = !!(typeof makeL0TrialInfoFromProbe === "function" && makeL0TrialInfoFromProbe.__v6884RelRefPayload);
+      details.relRefPlainWrapper = !!(typeof l0PlainTrialInfoFromPos === "function" && l0PlainTrialInfoFromPos.__v6884RelRefPayload);
+      details.relRefStimulusFallback = !!(typeof metaStimulusSVGForTrialInfo === "function" && metaStimulusSVGForTrialInfo.__v6884RelRefFallback);
+      const cat = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS.find(c => c && c.id === "rel_ref_score_higher") : null;
+      const probe = cat && typeof cat.buildChoiceTrial === "function" ? cat.buildChoiceTrial(cat, 9) : null;
+      let info = null;
+      if(probe && typeof l0PlainTrialInfoFromPos === "function") info = l0PlainTrialInfoFromPos(probe, probe.displayA || probe.a, probe.displayB || probe.b, "L0");
+      if(!info && probe && typeof makeL0TrialInfoFromProbe === "function") info = makeL0TrialInfoFromProbe(probe, null);
+      const glyph = info?.payload?.relRefReferenceGlyph || info?.relRefReferenceGlyph || null;
+      const rr = info?.payload?.relationalReference || info?.relationalReference || null;
+      const svg = info && typeof metaStimulusSVGForTrialInfo === "function" ? metaStimulusSVGForTrialInfo(info) : "";
+      details.relRefSample = {built:!!probe, infoBuilt:!!info, catId:info?.catId || null, glyph, reference:rr && rr.reference, svgClass:/rel-ref-glyph/.test(str(svg)), svgLength:str(svg).length};
+      if(!probe) warnings.push("could not build relational-reference sample trial");
+      else {
+        if(!glyph) blockers.push("relational-reference glyph was not propagated into trialInfo");
+        if(rr && glyph && Number(glyph.value) !== Number(rr.reference)) blockers.push("relational-reference glyph value does not match reference value");
+        if(!/rel-ref-glyph/.test(str(svg))) blockers.push("relational-reference glyph does not render through metaStimulusSVGForTrialInfo");
+      }
+    }catch(e){ blockers.push("rel-ref glyph audit exception: " + (e && e.message || e)); }
+    return {status:blockers.length ? "block" : (warnings.length ? "warn" : "pass"), blockers, warnings, details};
+  }
+
+  installInverseOperationSideAwareOptions();
+  installRelRefPayloadPropagation();
+  installRelRefMetaStimulusFallback();
+  try{ window.inverseOperationLabelForSourceSideV6884 = inverseOperationLabelForSourceSide; }catch(_){ }
+  try{ window.auditV6884UserProblemFixes = auditV6884UserProblemFixes; globalThis.auditV6884UserProblemFixes = auditV6884UserProblemFixes; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6884","inverse_operation_side_labels","rel_ref_glyph_render"], auditV6884UserProblemFixes, "auditV6884UserProblemFixes");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6884UserProblemFixes", auditV6884UserProblemFixes);
+  }catch(_){ }
+  try{ window.EUCA_V6884_USER_PROBLEM_FIXES = {patch:PATCH_ID, audit:auditV6884UserProblemFixes, labelForSource:inverseOperationLabelForSourceSide}; }catch(_){ }
+})();
+</script>
 </body>
 </html>
