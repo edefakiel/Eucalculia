@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<title>Eucalculia v6.8.66</title>
+<title>Eucalculia v6.8.88</title>
 <meta name="description" content="Number sense training: numerical sense, relational reasoning, active numerical manipulation and semantic conclusion synthesis."/>
 <meta name="theme-color" content="#050508"/>
 <meta name="color-scheme" content="dark"/>
@@ -3349,7 +3349,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.82";
+const APP_VERSION = "v6.8.88";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -25808,7 +25808,7 @@ const POSNER_CATS = [
       { q:"Do both values have matching integer remainders after division by 3?", linguisticFrame:"universal_scope" },
     ],
     gen(m,t){ return genPairByPredicate(m,t,(a,b)=> a!==b && a%3===b%3, {allowEqual:false}); },
-    verify(a,b){ return a!==b && a%3===b%3; } },
+    verify(a,b){ return a%3===b%3; } },
 
   { id:"same_distance_center", tier:3, minM:5, family:"joint",
     variants:[
@@ -104435,6 +104435,594 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6884UserProblemFixes", auditV6884UserProblemFixes);
   }catch(_){ }
   try{ window.EUCA_V6884_USER_PROBLEM_FIXES = {patch:PATCH_ID, audit:auditV6884UserProblemFixes, labelForSource:inverseOperationLabelForSourceSide}; }catch(_){ }
+})();
+</script>
+<script>
+// v6.8.85 - Graph-gate structural audit + cyclic-distance wrap pressure.
+// Adds a strict audit for graph structural edits/relation gates, and makes cycle-distance
+// choice items prefer genuine boundary-crossing cases instead of ordinary line-distance cases.
+(function(){
+  const PATCH_ID = "v6.8.85-graph-gate-structural-audit-and-cyclic-wrap";
+  const arr = x => Array.isArray(x) ? x : [];
+  const str = x => x == null ? "" : String(x);
+  function localAuditResult(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {status, ok:status === "PASS" || status === "pass", details};
+  }
+
+  function cyclicPathStats(kind, mod, a, b){
+    mod = Math.floor(Number(mod) || 0);
+    a = Number(a); b = Number(b);
+    if(!(mod >= 3) || !Number.isFinite(a) || !Number.isFinite(b)) return null;
+    const linear = Math.abs(a - b);
+    const cw = typeof cyclicClockwiseDistance === "function" ? cyclicClockwiseDistance(a, b, mod) : (((b - a) % mod) + mod) % mod;
+    const ccw = (mod - cw) % mod;
+    const shortest = Math.min(cw, ccw);
+    const complement = (mod - linear) % mod;
+    const k = str(kind || "shortest");
+    let answer = shortest;
+    let wraps = false;
+    let ambiguous = false;
+    if(k === "clockwise"){
+      answer = cw;
+      wraps = b < a;
+    } else if(k === "counterclockwise"){
+      answer = ccw;
+      wraps = b > a;
+    } else if(k === "complement"){
+      answer = complement;
+      wraps = linear > 0;
+      ambiguous = (mod % 2 === 0 && linear === mod / 2);
+    } else {
+      answer = shortest;
+      wraps = linear > mod / 2;
+      ambiguous = (mod % 2 === 0 && linear === mod / 2);
+    }
+    return {kind:k, mod, a, b, linear, cw, ccw, answer, wraps, ambiguous};
+  }
+  function cyclicDistanceChoiceRequiresWrap(spec, trial){
+    const cyc = trial?.cyclicDistance || trial?.payload?.cyclicDistance || {};
+    const kind = cyc.kind || spec?.kind || "shortest";
+    const mod = Number(cyc.modulus || cyc.mod || spec?.mod);
+    const stats = cyclicPathStats(kind, mod, trial?.a, trial?.b);
+    if(!stats) return false;
+    if(stats.ambiguous) return false;
+    if(kind === "complement") return stats.wraps && stats.answer > 0;
+    return stats.wraps && stats.answer > 0;
+  }
+  function markCyclicWrapPayload(trial, spec){
+    try{
+      const cyc = trial?.cyclicDistance || trial?.payload?.cyclicDistance;
+      if(!cyc) return trial;
+      const stats = cyclicPathStats(cyc.kind || spec?.kind, cyc.modulus || spec?.mod, trial.a, trial.b);
+      if(stats){
+        cyc.wrapRequired = true;
+        cyc.wrapsBoundary = !!stats.wraps;
+        cyc.linearGap = stats.linear;
+        cyc.clockwise = stats.cw;
+        cyc.counterclockwise = stats.ccw;
+        cyc.ambiguousHalfCycle = !!stats.ambiguous;
+      }
+    }catch(_){ }
+    return trial;
+  }
+  function installCyclicDistanceWrapPressure(){
+    try{
+      if(typeof buildL0CyclicDistanceChoice !== "function" || buildL0CyclicDistanceChoice.__v6885WrapPressure) return;
+      const prev = buildL0CyclicDistanceChoice;
+      const wrapped = function buildL0CyclicDistanceChoiceV6885(cat, m){
+        const spec = cat && cat.choiceSpec;
+        let fallback = null;
+        for(let i=0; i<180; i++){
+          const trial = prev.apply(this, arguments);
+          if(!trial) continue;
+          if(!fallback) fallback = trial;
+          if(cyclicDistanceChoiceRequiresWrap(spec, trial)) return markCyclicWrapPayload(trial, spec);
+        }
+        const out = fallback || prev.apply(this, arguments);
+        if(out){
+          markCyclicWrapPayload(out, spec);
+          const cyc = out.cyclicDistance || out.payload?.cyclicDistance;
+          if(cyc) cyc.wrapFallback = true;
+        }
+        return out;
+      };
+      wrapped.__v6885WrapPressure = true;
+      for(const k of Object.getOwnPropertyNames(prev)){
+        if(k.slice(0,2) === "__" && !(k in wrapped)){ try{ wrapped[k] = prev[k]; }catch(_){ } }
+      }
+      buildL0CyclicDistanceChoice = wrapped;
+      try{ window.buildL0CyclicDistanceChoice = wrapped; globalThis.buildL0CyclicDistanceChoice = wrapped; }catch(_){ }
+      try{
+        for(const c of arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+          if(c && c.family === "cyclic_distance_choice") c.buildChoiceTrial = wrapped;
+        }
+      }catch(_){ }
+    }catch(_){ }
+  }
+
+  function edgeCount(g){ try{ return graphNormalizeEdges(g.edges, g.n).length; }catch(_){ return -1; } }
+  function graphConditionalEditDelta(gA, gB){
+    try{
+      if(!gA || !gB || gA.n !== gB.n) return null;
+      const n = gA.n;
+      const aSet = new Set(graphNormalizeEdges(gA.edges, n).map(graphEdgeKey));
+      let best = Infinity;
+      for(const perm of graphPermutations(n)){
+        const mapped = graphNormalizeEdges(gB.edges, n).map(([u,v]) => [perm[u], perm[v]]);
+        const bSet = new Set(mapped.map(graphEdgeKey));
+        let d = 0;
+        for(const k of aSet) if(!bSet.has(k)) d++;
+        for(const k of bSet) if(!aSet.has(k)) d++;
+        if(d < best) best = d;
+      }
+      return Number.isFinite(best) ? best : null;
+    }catch(_){ return null; }
+  }
+  function auditGraphConditionalStructuralEditsV6885(opts={}){
+    const block = [], warnings = [], rows = [];
+    const branchUse = {same:0, different:0};
+    const editTypes = {};
+    const graphIds = {};
+    try{
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])
+        .filter(c => c && c.family === "l0_graph_conditional" && c.graphConditionalId && !/^graph_cond_match__/.test(str(c.id)));
+      if(!cats.length) block.push("no l0_graph_conditional cats found");
+      const oldGate = typeof CONFIG !== "undefined" ? CONFIG.l0GraphConditionalRequireGate : undefined;
+      const oldLevels = (typeof State !== "undefined" && State.levelByMode) ? Object.assign({}, State.levelByMode) : null;
+      try{
+        if(typeof CONFIG !== "undefined") CONFIG.l0GraphConditionalRequireGate = false;
+        if(typeof State !== "undefined"){
+          if(!State.levelByMode) State.levelByMode = {};
+          State.levelByMode.D = Math.max(Number(State.levelByMode.D)||0, 9);
+        }
+      }catch(_){ }
+      const samples = Math.max(8, Math.floor(Number(opts.samplesPerPolarity) || 24));
+      for(const cat of cats){
+        const op = typeof l0GraphConditionalById === "function" ? l0GraphConditionalById(cat.graphConditionalId) : null;
+        if(!op){ block.push(`${cat.id}: predicate missing`); continue; }
+        const counts = {true:0, false:0};
+        for(const want of [true, false]){
+          for(let i=0;i<samples;i++){
+            const gen = typeof cat.gen === "function" ? cat.gen(12, want) : null;
+            if(!gen){ warnings.push(`${cat.id}: gen failed want=${want}`); continue; }
+            const G = gen._graphLeft, H = gen._graphRight;
+            if(!G || !H){ block.push(`${cat.id}: missing graph payload`); continue; }
+            const relation = str(gen._graphRelation);
+            const branch = str(gen._graphActiveBranch);
+            const iso = !!graphIsDirectedIsomorphic(G, H);
+            const delta = graphConditionalEditDelta(G, H);
+            if(relation === "same" && !iso) block.push(`${cat.id}: SAME declared but graphs are not directed-isomorphic`);
+            if(relation === "different" && iso) block.push(`${cat.id}: DIFFERENT declared but graphs are directed-isomorphic`);
+            if(branch !== relation) block.push(`${cat.id}: active branch ${branch} does not match graph relation ${relation}`);
+            if(G.n !== H.n) block.push(`${cat.id}: node-count mismatch`);
+            if(edgeCount(G) !== edgeCount(H)) block.push(`${cat.id}: edge-count mismatch`);
+            if(!graphUnderlyingConnected(G) || !graphUnderlyingConnected(H)) block.push(`${cat.id}: disconnected generated graph`);
+            if(relation === "different"){
+              const et = str(gen._graphEditType || "");
+              if(!/^(edge_reversal|endpoint_rewire|degree_preserving_swap|near_isomorphic_edit)$/.test(et)) block.push(`${cat.id}: unexpected edit type ${et || "missing"}`);
+              if(!(Number(delta) > 0)) block.push(`${cat.id}: structural edit has zero best edge delta`);
+              if(et === "degree_preserving_swap" && graphDegreeMultiset(G) !== graphDegreeMultiset(H)) block.push(`${cat.id}: degree_preserving_swap changed degree multiset`);
+            }
+            const pred = branch === "same" ? op.same : op.different;
+            const got = typeof pred === "function" ? !!pred(Number(gen[0]), Number(gen[1])) : null;
+            if(got !== !!want) block.push(`${cat.id}: polarity drift want=${want} got=${got} branch=${branch}`);
+            counts[want ? "true" : "false"]++;
+            branchUse[branch] = (branchUse[branch] || 0) + 1;
+            editTypes[str(gen._graphEditType || "none")] = (editTypes[str(gen._graphEditType || "none")] || 0) + 1;
+            graphIds[str(gen._graphId || "unknown")] = (graphIds[str(gen._graphId || "unknown")] || 0) + 1;
+            if(rows.length < 80) rows.push({id:cat.id, want:!!want, relation, branch, graphId:gen._graphId || null, editType:gen._graphEditType || null, delta});
+          }
+        }
+        if(!counts.true) block.push(`${cat.id}: no YES samples`);
+        if(!counts.false) block.push(`${cat.id}: no NO samples`);
+      }
+      if(!branchUse.same || !branchUse.different) block.push("graph conditional branch coverage failed");
+      const nonNoneEditTypes = Object.keys(editTypes).filter(k => k !== "none");
+      if(nonNoneEditTypes.length < 2) warnings.push(`low structural-edit variety: ${nonNoneEditTypes.join(",")}`);
+      try{
+        if(typeof CONFIG !== "undefined") CONFIG.l0GraphConditionalRequireGate = oldGate;
+        if(oldLevels && typeof State !== "undefined") State.levelByMode = oldLevels;
+      }catch(_){ }
+    }catch(e){ block.push("graph conditional structural audit exception: " + (e && e.message || e)); }
+    return {block, warnings, rows, branchUse, editTypes, graphIds};
+  }
+  function auditGraphRelationGateStrictV6885(opts={}){
+    const block = [], warnings = [], rows = [];
+    const branchUse = {holds:0, fails:0};
+    const condUse = {};
+    try{
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).filter(c => c && c.graphRelationConditionId);
+      if(!cats.length) warnings.push("no graph relation gate cats found");
+      const oldGate = typeof CONFIG !== "undefined" ? CONFIG.l0GraphRelationGateRequireGate : undefined;
+      const oldLevels = (typeof State !== "undefined" && State.levelByMode) ? Object.assign({}, State.levelByMode) : null;
+      try{
+        if(typeof CONFIG !== "undefined") CONFIG.l0GraphRelationGateRequireGate = false;
+        if(typeof State !== "undefined"){
+          if(!State.levelByMode) State.levelByMode = {};
+          State.levelByMode.D = Math.max(Number(State.levelByMode.D)||0, 9);
+        }
+      }catch(_){ }
+      const samples = Math.max(6, Math.floor(Number(opts.samplesPerPolarity) || 14));
+      for(const cat of cats){
+        const cond = typeof graphRelationConditionById === "function" ? graphRelationConditionById(cat.graphRelationConditionId) : null;
+        const op = typeof l0GraphConditionalById === "function" ? l0GraphConditionalById(cat.graphConditionalId) : null;
+        if(!cond || !op){ block.push(`${cat.id}: condition or predicate missing`); continue; }
+        const counts = {true:0, false:0};
+        for(const want of [true,false]){
+          for(let i=0;i<samples;i++){
+            const gen = typeof cat.gen === "function" ? cat.gen(12, want) : null;
+            if(!gen){ warnings.push(`${cat.id}: gen failed want=${want}`); continue; }
+            const g = gen._graphRelationGraph;
+            const A = gen._graphRelationMarkA, B = gen._graphRelationMarkB;
+            if(!g){ block.push(`${cat.id}: missing graph payload`); continue; }
+            if(!Number.isInteger(A) || !Number.isInteger(B) || A === B || A < 0 || B < 0 || A >= g.n || B >= g.n) block.push(`${cat.id}: invalid marked nodes`);
+            if(!graphUnderlyingConnected(g)) block.push(`${cat.id}: generated graph disconnected`);
+            const holds = !!cond.holds(g, A, B);
+            if(holds !== !!gen._graphRelationHolds) block.push(`${cat.id}: condition truth mismatch`);
+            const expectedBranch = holds ? "same" : "different";
+            if(str(gen._graphActiveBranch) !== expectedBranch) block.push(`${cat.id}: active branch does not match condition outcome`);
+            if(typeof graphRelationGateOpacityGuard === "function" && !graphRelationGateOpacityGuard({graph:g, markA:A, markB:B, conditionId:cond.id, holds, rc:cond.rc})) block.push(`${cat.id}: opacity guard rejects generated graph`);
+            if(holds && cond.rc >= 3 && typeof graphRelationWitnessNodes === "function" && !arr(graphRelationWitnessNodes(g, cond, A, B)).length) block.push(`${cat.id}: RC3 holds without witness node`);
+            const pred = expectedBranch === "same" ? op.same : op.different;
+            const got = typeof pred === "function" ? !!pred(Number(gen[0]), Number(gen[1])) : null;
+            if(got !== !!want) block.push(`${cat.id}: polarity drift want=${want} got=${got}`);
+            counts[want ? "true" : "false"]++;
+            branchUse[holds ? "holds" : "fails"]++;
+            condUse[cond.id] = (condUse[cond.id] || 0) + 1;
+            if(rows.length < 80) rows.push({id:cat.id, want:!!want, condition:cond.id, holds, branch:gen._graphActiveBranch, rc:cond.rc, graphId:g.id || null});
+          }
+        }
+        if(!counts.true) block.push(`${cat.id}: no YES samples`);
+        if(!counts.false) block.push(`${cat.id}: no NO samples`);
+      }
+      if(cats.length && (!branchUse.holds || !branchUse.fails)) block.push("graph relation gate branch coverage failed");
+      try{
+        if(typeof CONFIG !== "undefined") CONFIG.l0GraphRelationGateRequireGate = oldGate;
+        if(oldLevels && typeof State !== "undefined") State.levelByMode = oldLevels;
+      }catch(_){ }
+    }catch(e){ block.push("graph relation strict audit exception: " + (e && e.message || e)); }
+    return {block, warnings, rows, branchUse, condUse};
+  }
+  function auditCyclicDistanceWrapPressureV6885(opts={}){
+    const block = [], warnings = [], rows = [];
+    try{
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).filter(c => c && c.family === "cyclic_distance_choice" && typeof c.buildChoiceTrial === "function");
+      if(!cats.length) warnings.push("no cyclic_distance_choice cats found");
+      const samples = Math.max(8, Math.floor(Number(opts.samplesPerCat) || 30));
+      for(const cat of cats){
+        let built = 0, bad = 0, fallback = 0;
+        for(let i=0;i<samples;i++){
+          const t = cat.buildChoiceTrial(cat, Math.max(12, Number(cat.choiceSpec?.minM)||12));
+          if(!t) continue;
+          built++;
+          const cyc = t.cyclicDistance || t.payload?.cyclicDistance || {};
+          const stats = cyclicPathStats(cyc.kind || cat.choiceSpec?.kind, cyc.modulus || cat.choiceSpec?.mod, t.a, t.b);
+          const ok = stats && !stats.ambiguous && stats.wraps && stats.answer > 0;
+          if(!ok) bad++;
+          if(cyc.wrapFallback) fallback++;
+          if(rows.length < 80) rows.push({id:cat.id, a:t.a, b:t.b, kind:cyc.kind || cat.choiceSpec?.kind, mod:cyc.modulus || cat.choiceSpec?.mod, wraps:stats?.wraps, ambiguous:stats?.ambiguous, answer:stats?.answer});
+        }
+        if(!built) block.push(`${cat.id}: no cyclic samples built`);
+        if(bad) block.push(`${cat.id}: ${bad}/${built} samples did not force a non-ambiguous boundary-crossing path`);
+        if(fallback) warnings.push(`${cat.id}: ${fallback} wrap fallback samples`);
+      }
+    }catch(e){ block.push("cyclic wrap audit exception: " + (e && e.message || e)); }
+    return {block, warnings, rows};
+  }
+  function auditV6885GraphGateAndCyclicWrap(opts={}){
+    const graph = auditGraphConditionalStructuralEditsV6885(opts || {});
+    const relation = auditGraphRelationGateStrictV6885(opts || {});
+    const cyclic = auditCyclicDistanceWrapPressureV6885(opts || {});
+    const block = [].concat(graph.block || [], relation.block || [], cyclic.block || []);
+    const warnings = [].concat(graph.warnings || [], relation.warnings || [], cyclic.warnings || []);
+    return localAuditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, graphStructural:graph, graphRelationStrict:relation, cyclicWrap:cyclic, warnings, block});
+  }
+
+  installCyclicDistanceWrapPressure();
+  try{ window.cyclicPathStatsV6885 = cyclicPathStats; }catch(_){ }
+  try{ window.auditGraphConditionalStructuralEditsV6885 = auditGraphConditionalStructuralEditsV6885; globalThis.auditGraphConditionalStructuralEditsV6885 = auditGraphConditionalStructuralEditsV6885; }catch(_){ }
+  try{ window.auditGraphRelationGateStrictV6885 = auditGraphRelationGateStrictV6885; globalThis.auditGraphRelationGateStrictV6885 = auditGraphRelationGateStrictV6885; }catch(_){ }
+  try{ window.auditCyclicDistanceWrapPressureV6885 = auditCyclicDistanceWrapPressureV6885; globalThis.auditCyclicDistanceWrapPressureV6885 = auditCyclicDistanceWrapPressureV6885; }catch(_){ }
+  try{ window.auditV6885GraphGateAndCyclicWrap = auditV6885GraphGateAndCyclicWrap; globalThis.auditV6885GraphGateAndCyclicWrap = auditV6885GraphGateAndCyclicWrap; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6885","graph_gate_structural_edits","cyclic_distance_wrap","graph_relation_gate_strict"], auditV6885GraphGateAndCyclicWrap, "auditV6885GraphGateAndCyclicWrap");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6885GraphGateAndCyclicWrap", auditV6885GraphGateAndCyclicWrap);
+  }catch(_){ }
+  try{ window.EUCA_V6885_GRAPH_CYCLE = {patch:PATCH_ID, audit:auditV6885GraphGateAndCyclicWrap}; }catch(_){ }
+})();
+</script>
+<script>
+// v6.8.86 - Constructive cyclic-distance wrap sampler.
+// Supersedes the v6.8.85 rejection loop: enumerate the valid boundary-crossing pair-space,
+// then sample generatively inside it. This preserves variety without paying 180 failed builds.
+(function(){
+  const PATCH_ID = "v6.8.86-cyclic-distance-constructive-wrap-sampler";
+  const cache = new Map();
+  const arr = x => Array.isArray(x) ? x : [];
+  const str = x => x == null ? "" : String(x);
+  function localAuditResult(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {status, ok:status === "PASS" || status === "pass", details};
+  }
+  function statsFor(kind, mod, a, b){
+    mod = Math.floor(Number(mod) || 0);
+    a = Number(a); b = Number(b);
+    if(!(mod >= 3) || !Number.isFinite(a) || !Number.isFinite(b) || a === b) return null;
+    const linear = Math.abs(a - b);
+    const cw = typeof cyclicClockwiseDistance === "function" ? cyclicClockwiseDistance(a, b, mod) : (((b - a) % mod) + mod) % mod;
+    const ccw = (mod - cw) % mod;
+    const k = str(kind || "shortest");
+    const ambiguous = (mod % 2 === 0 && linear === mod / 2);
+    let answer = Math.min(cw, ccw), ok = false;
+    if(k === "clockwise"){
+      answer = cw;
+      ok = b < a && answer > 0;
+    } else if(k === "counterclockwise"){
+      answer = ccw;
+      ok = b > a && answer > 0;
+    } else if(k === "complement"){
+      answer = (mod - linear) % mod;
+      ok = answer > 0 && !ambiguous;
+    } else {
+      answer = Math.min(cw, ccw);
+      ok = linear > mod / 2 && answer > 0 && !ambiguous;
+    }
+    if(!ok || !Number.isInteger(answer) || answer < 0 || answer >= mod) return null;
+    return {a, b, mod, kind:k, linear, cw, ccw, answer, ambiguous, wrapsBoundary:true};
+  }
+  function candidateKey(spec, m){
+    return [spec?.kind || "shortest", Number(spec?.mod)||0, Math.floor(Number(m)||0)].join("|");
+  }
+  function cyclicConstructiveCandidates(spec, m){
+    if(!spec) return [];
+    const key = candidateKey(spec, m);
+    if(cache.has(key)) return cache.get(key).slice();
+    const mod = Math.floor(Number(spec.mod) || 0);
+    const max = Math.min(mod, Math.floor(Number(m) || mod));
+    const out = [];
+    if(mod >= 3 && max >= mod){
+      for(let a=1; a<=mod; a++){
+        for(let b=1; b<=mod; b++){
+          const s = statsFor(spec.kind, mod, a, b);
+          if(s) out.push(s);
+        }
+      }
+    }
+    cache.set(key, out.slice());
+    if(cache.size > 48){
+      const first = cache.keys().next().value;
+      if(first) cache.delete(first);
+    }
+    return out;
+  }
+  function randomPick(list){ return list && list.length ? list[Math.floor(Math.random() * list.length)] : null; }
+  function pickBalancedCandidate(candidates){
+    const byAnswer = Object.create(null);
+    for(const c of arr(candidates)){
+      const k = String(c.answer);
+      if(!byAnswer[k]) byAnswer[k] = [];
+      byAnswer[k].push(c);
+    }
+    const buckets = Object.keys(byAnswer);
+    const bucket = randomPick(buckets);
+    return bucket == null ? null : randomPick(byAnswer[bucket]);
+  }
+  function buildCyclicOptions(ans, mod){
+    const vals = [ans, (ans + 1) % mod, (ans + 2) % mod, Math.max(0, ans - 1)];
+    const uniqVals = Array.from(new Set(vals)).filter(v => Number.isInteger(v) && v >= 0 && v < mod);
+    while(uniqVals.length < 4){
+      const v = typeof randInt === "function" ? randInt(0, mod) : Math.floor(Math.random() * mod);
+      if(!uniqVals.includes(v)) uniqVals.push(v);
+    }
+    const raw = uniqVals.slice(0,4).map(v => l0ChoiceOption(String(v), v === ans, v === ans ? "correct" : "near_numeric", {value:v}));
+    return typeof shuffle === "function" ? shuffle(raw) : raw.sort(() => Math.random() - 0.5);
+  }
+  function installConstructiveCyclicSampler(){
+    try{
+      if(typeof buildL0CyclicDistanceChoice !== "function" || buildL0CyclicDistanceChoice.__v6886ConstructiveWrap) return;
+      const prev = buildL0CyclicDistanceChoice;
+      const wrapped = function buildL0CyclicDistanceChoiceV6886(cat, m){
+        try{
+          const spec = cat && cat.choiceSpec;
+          if(!spec || Number(m) < Number(spec.minM || 0)) return prev.apply(this, arguments);
+          const candidates = cyclicConstructiveCandidates(spec, m);
+          const picked = pickBalancedCandidate(candidates);
+          if(!picked) return prev.apply(this, arguments);
+          const options = buildCyclicOptions(picked.answer, picked.mod);
+          const correctIndex = options.findIndex(o => o && o.correct);
+          if(correctIndex < 0) return prev.apply(this, arguments);
+          const question = typeof cyclicDistancePromptText === "function" ? cyclicDistancePromptText(spec) : "Choose the cycle distance.";
+          const trial = buildL0ChoiceTrialFromOptions(cat, m, picked.a, picked.b, question, options, correctIndex, {
+            cyclicDistance:{
+              specId:spec.id, modulus:picked.mod, kind:spec.kind, answer:picked.answer,
+              wrapRequired:true, wrapsBoundary:true, constructiveSampler:true,
+              linearGap:picked.linear, clockwise:picked.cw, counterclockwise:picked.ccw
+            },
+            mechanismTags:["cyclic_distance", "cyclic_wrap", "constructive_sampling"]
+          });
+          return trial || prev.apply(this, arguments);
+        }catch(_){
+          return prev.apply(this, arguments);
+        }
+      };
+      wrapped.__v6886ConstructiveWrap = true;
+      for(const k of Object.getOwnPropertyNames(prev)){
+        if(k.slice(0,2) === "__" && !(k in wrapped)){ try{ wrapped[k] = prev[k]; }catch(_){ } }
+      }
+      buildL0CyclicDistanceChoice = wrapped;
+      try{ window.buildL0CyclicDistanceChoice = wrapped; globalThis.buildL0CyclicDistanceChoice = wrapped; }catch(_){ }
+      try{
+        for(const c of arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : [])){
+          if(c && c.family === "cyclic_distance_choice") c.buildChoiceTrial = wrapped;
+        }
+      }catch(_){ }
+    }catch(_){ }
+  }
+  function auditV6886CyclicConstructiveSampler(opts={}){
+    const block = [], warnings = [], rows = [];
+    try{
+      if(!(typeof buildL0CyclicDistanceChoice === "function" && buildL0CyclicDistanceChoice.__v6886ConstructiveWrap)) block.push("constructive cyclic sampler wrapper is not installed");
+      const specs = typeof cyclicDistanceChoiceSpecs === "function" ? cyclicDistanceChoiceSpecs() : [];
+      for(const spec of specs){
+        const candidates = cyclicConstructiveCandidates(spec, Math.max(Number(spec.mod)||12, Number(spec.minM)||12));
+        const answerSet = new Set(candidates.map(c => c.answer));
+        if(candidates.length < 2) block.push(`${spec.id}: too few constructive candidates (${candidates.length})`);
+        if(answerSet.size < 2) warnings.push(`${spec.id}: low answer variety (${answerSet.size})`);
+        if(candidates.some(c => !c.wrapsBoundary || c.ambiguous || c.answer <= 0)) block.push(`${spec.id}: invalid candidate in constructive pool`);
+        if(rows.length < 80) rows.push({id:spec.id, candidates:candidates.length, answers:Array.from(answerSet).sort((a,b)=>a-b).slice(0,10), sample:candidates.slice(0,4).map(c=>({a:c.a,b:c.b,answer:c.answer,linear:c.linear,cw:c.cw,ccw:c.ccw}))});
+      }
+      const cats = arr(typeof POSNER_CATS !== "undefined" ? POSNER_CATS : []).filter(c => c && c.family === "cyclic_distance_choice" && typeof c.buildChoiceTrial === "function");
+      const n = Math.max(6, Math.floor(Number(opts.samplesPerCat) || 12));
+      for(const cat of cats){
+        let built = 0, nonConstructive = 0;
+        for(let i=0;i<n;i++){
+          const t = cat.buildChoiceTrial(cat, Math.max(Number(cat.choiceSpec?.mod)||12, Number(cat.choiceSpec?.minM)||12));
+          if(!t) continue;
+          built++;
+          const cyc = t.cyclicDistance || t.payload?.cyclicDistance || {};
+          if(!cyc.constructiveSampler || !cyc.wrapsBoundary) nonConstructive++;
+        }
+        if(!built) block.push(`${cat.id}: no samples built`);
+        if(nonConstructive) block.push(`${cat.id}: ${nonConstructive}/${built} samples bypassed constructive wrap sampler`);
+      }
+    }catch(e){ block.push("v6886 audit exception: " + (e && e.message || e)); }
+    return localAuditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, cacheSize:cache.size, rows, warnings, block});
+  }
+  installConstructiveCyclicSampler();
+  try{ window.cyclicConstructiveCandidatesV6886 = cyclicConstructiveCandidates; }catch(_){ }
+  try{ window.auditV6886CyclicConstructiveSampler = auditV6886CyclicConstructiveSampler; globalThis.auditV6886CyclicConstructiveSampler = auditV6886CyclicConstructiveSampler; }catch(_){ }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6886", "cyclic_constructive_sampler", "cyclic_distance_constructive_wrap"], auditV6886CyclicConstructiveSampler, "auditV6886CyclicConstructiveSampler");
+    if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV6886CyclicConstructiveSampler", auditV6886CyclicConstructiveSampler);
+  }catch(_){ }
+  try{ window.EUCA_V6886_CYCLIC_CONSTRUCTIVE = {patch:PATCH_ID, audit:auditV6886CyclicConstructiveSampler, candidates:cyclicConstructiveCandidates}; }catch(_){ }
+})();
+</script>
+<script>
+// v6.8.87 - Audit performance governance.
+// Heavy generative audits remain available through explicit feature keys, but are hidden
+// from runFeatureAudit("all") auto-discovery so global QA does not become a gameplay perf hazard.
+(function(){
+  const PATCH_ID = "v6.8.87-audit-performance-governance";
+  const HEAVY_AUTO_KEYS = new Set(["auditV6885GraphGateAndCyclicWrap", "auditV6886CyclicConstructiveSampler"]);
+  function localAuditResult(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {status, ok:status === "PASS" || status === "pass", details};
+  }
+  function trimExtraAuditRegistry(){
+    let removed = 0;
+    try{
+      if(Array.isArray(EUCA_EXTRA_FEATURE_AUDITS)){
+        for(let i = EUCA_EXTRA_FEATURE_AUDITS.length - 1; i >= 0; i--){
+          const key = String(EUCA_EXTRA_FEATURE_AUDITS[i] && EUCA_EXTRA_FEATURE_AUDITS[i].key || "");
+          if(HEAVY_AUTO_KEYS.has(key)){ EUCA_EXTRA_FEATURE_AUDITS.splice(i, 1); removed++; }
+        }
+      }
+    }catch(_){ }
+    return removed;
+  }
+  function moveGlobalAuditFunction(name, alias){
+    try{
+      const scope = (typeof globalThis !== "undefined") ? globalThis : (typeof window !== "undefined" ? window : null);
+      if(!scope || typeof scope[name] !== "function") return false;
+      if(typeof scope[alias] !== "function") scope[alias] = scope[name];
+      try{ delete scope[name]; }catch(_){ try{ scope[name] = undefined; }catch(__){ } }
+      if(typeof scope[name] === "function") scope[name] = undefined;
+      return true;
+    }catch(_){ return false; }
+  }
+  const removedExtra = trimExtraAuditRegistry();
+  const moved = {
+    v6885: moveGlobalAuditFunction("auditV6885GraphGateAndCyclicWrap", "eucaAuditV6885GraphGateAndCyclicWrap"),
+    v6886: moveGlobalAuditFunction("auditV6886CyclicConstructiveSampler", "eucaAuditV6886CyclicConstructiveSampler")
+  };
+  try{
+    if(typeof window !== "undefined" && window.EUCA_V6885_GRAPH_CYCLE && typeof window.eucaAuditV6885GraphGateAndCyclicWrap === "function") window.EUCA_V6885_GRAPH_CYCLE.audit = window.eucaAuditV6885GraphGateAndCyclicWrap;
+    if(typeof window !== "undefined" && window.EUCA_V6886_CYCLIC_CONSTRUCTIVE && typeof window.eucaAuditV6886CyclicConstructiveSampler === "function") window.EUCA_V6886_CYCLIC_CONSTRUCTIVE.audit = window.eucaAuditV6886CyclicConstructiveSampler;
+  }catch(_){ }
+  function eucaAuditGovernanceV6887(){
+    const block = [], warnings = [], details = {patch:PATCH_ID, removedExtra, moved};
+    try{
+      const scope = (typeof globalThis !== "undefined") ? globalThis : (typeof window !== "undefined" ? window : null);
+      details.heavyGlobalFunctions = [];
+      if(scope){
+        for(const key of HEAVY_AUTO_KEYS){
+          if(typeof scope[key] === "function") details.heavyGlobalFunctions.push(key);
+        }
+      }
+      if(details.heavyGlobalFunctions.length) block.push("heavy audits are still exposed to auditV6 auto-discovery: " + details.heavyGlobalFunctions.join(", "));
+    }catch(e){ warnings.push("global audit scan failed: " + (e && e.message || e)); }
+    try{
+      details.extraKeys = Array.isArray(EUCA_EXTRA_FEATURE_AUDITS) ? EUCA_EXTRA_FEATURE_AUDITS.map(e => e && e.key).filter(Boolean) : [];
+      const leaked = details.extraKeys.filter(k => HEAVY_AUTO_KEYS.has(String(k)));
+      if(leaked.length) block.push("heavy audits still registered as extra audits: " + leaked.join(", "));
+    }catch(e){ warnings.push("extra registry scan failed: " + (e && e.message || e)); }
+    try{
+      details.explicitHandlers = (typeof EUCA_FEATURE_AUDIT_HANDLERS === "object" && EUCA_FEATURE_AUDIT_HANDLERS) ? Object.keys(EUCA_FEATURE_AUDIT_HANDLERS).filter(k => /v6885|v6886|graph_gate_structural|cyclic_constructive/.test(k)).sort() : [];
+      if(!details.explicitHandlers.some(k => /v6885/.test(k))) warnings.push("v6885 explicit audit handler not visible");
+      if(!details.explicitHandlers.some(k => /v6886|cyclic_constructive/.test(k))) warnings.push("v6886 explicit audit handler not visible");
+    }catch(e){ warnings.push("feature handler scan failed: " + (e && e.message || e)); }
+    return localAuditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, details, warnings, block});
+  }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6887", "audit_governance", "audit_performance_governance"], eucaAuditGovernanceV6887, "eucaAuditGovernanceV6887");
+  }catch(_){ }
+  try{ window.EUCA_V6887_AUDIT_GOVERNANCE = {patch:PATCH_ID, audit:eucaAuditGovernanceV6887}; }catch(_){ }
+})();
+</script>
+<script>
+// v6.8.88 - Remainder negation semantic fix.
+// Truth for SAME remainder must not include the distinct-value sampling preference.
+(function(){
+  const PATCH_ID = "v6.8.88-remainder-negation-semantic-fix";
+  function sameRemainder3(a,b){
+    const x = Number(a), y = Number(b);
+    if(!Number.isInteger(x) || !Number.isInteger(y)) return false;
+    return ((x % 3) + 3) % 3 === ((y % 3) + 3) % 3;
+  }
+  function findCat(){
+    try{ return (Array.isArray(POSNER_CATS) ? POSNER_CATS : []).find(c => c && c.id === "same_remainder_3") || null; }catch(_){ return null; }
+  }
+  const cat = findCat();
+  if(cat){
+    cat.verify = sameRemainder3;
+    cat._v6888TruthIgnoresDistinctSampling = true;
+  }
+  function localAuditResult(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {status, ok:status === "PASS" || status === "pass", details};
+  }
+  function eucaAuditV6888RemainderNegationSemantics(){
+    const block = [], warnings = [], details = {patch:PATCH_ID};
+    const c = findCat();
+    if(!c){ block.push("same_remainder_3 cat missing"); return localAuditResult("BLOCK", {patch:PATCH_ID, details, warnings, block}); }
+    details.verify22 = !!c.verify(2,2);
+    details.verify25 = !!c.verify(2,5);
+    details.verify23 = !!c.verify(2,3);
+    if(c.verify(2,2) !== true) block.push("same values must count as same remainder");
+    if(c.verify(2,5) !== true) block.push("distinct values with same remainder must count as same remainder");
+    if(c.verify(2,3) !== false) block.push("different remainders must not count as same remainder");
+    const diffVariant = (c.variants || []).find(v => v && v.negate && /different/i.test(String(v.q || "")));
+    details.hasDifferentNegatedVariant = !!diffVariant;
+    if(diffVariant){
+      const finalOnRepeat = diffVariant.negate ? !c.verify(2,2) : c.verify(2,2);
+      details.differentVariantOnRepeat = !!finalOnRepeat;
+      if(finalOnRepeat !== false) block.push("negated DIFFERENT remainder variant still accepts exact repeats");
+    } else warnings.push("different-remainder negated variant not found");
+    try{
+      if(typeof c.gen === "function"){
+        const pos = c.gen(10, true), neg = c.gen(10, false);
+        details.samplePositive = Array.isArray(pos) ? pos.slice(0,2) : pos;
+        details.sampleNegative = Array.isArray(neg) ? neg.slice(0,2) : neg;
+      }
+    }catch(e){ warnings.push("sampling check skipped: " + (e && e.message || e)); }
+    return localAuditResult(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {patch:PATCH_ID, details, warnings, block});
+  }
+  try{
+    if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6888", "same_remainder_negation", "remainder_negation_semantics"], eucaAuditV6888RemainderNegationSemantics, "eucaAuditV6888RemainderNegationSemantics");
+  }catch(_){ }
+  try{ window.EUCA_V6888_REMAINDER_NEGATION = {patch:PATCH_ID, audit:eucaAuditV6888RemainderNegationSemantics}; }catch(_){ }
 })();
 </script>
 </body>
