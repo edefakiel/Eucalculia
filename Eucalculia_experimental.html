@@ -4240,6 +4240,22 @@ const CONFIG = {
   adaptiveBaselineWindowShort: 30,
   adaptiveBaselineWindowLong: 200,
   adaptiveBaselineMinRealForLevelUp: 16,
+
+  // v7 · las "forthcoming percentile-based progression rules" que anuncia el
+  // comentario de arriba: se terminan aqui. El gate de META comparaba el RT
+  // contra constantes absolutas (D_AUTO.l1RT 2100 / l2RT 4700 / l3RT 7600)
+  // mientras el resto del modo D dice usar linea de base INTRAINDIVIDUAL.
+  // Medido en el perfil del autor: acierto 1,00, 13 familias, 82 categorias
+  // practicadas y META bloqueado UNICAMENTE por RT (6224 ms contra 2100).
+  // Y el RT crece con el nivel por construccion -- baseline real del autor:
+  // nivel 0 2433 ms, 2 3047, 3 3944, 4 6583 -- asi que una referencia fija se
+  // aprieta sola segun el jugador avanza: mejorar el contenido, que es el
+  // objetivo del producto, empeoraba la metrica que decide si progresas.
+  // La referencia pasa a ser un percentil de la propia ventana `short` del
+  // jugador A ESE NIVEL, contando SOLO ensayos reales.
+  v7MetaRTSelfReference: true,
+  v7MetaRTPercentileActive: 0.75,
+  v7MetaRTPercentilePreview: 0.90,
   adaptiveBaselineMinRealForLevelDown: 30,
   // Fast-track path for users who are already clearly competent at the current
   // relational tier. This prevents the within-individual baseline from forcing
@@ -28554,18 +28570,40 @@ function l0FamilyExperientialCooldownWeight(group){
   // keep the family available.
   return Math.max(0.18, vals.reduce((a,b)=>a+b,0) / vals.length);
 }
-function l0QuantifierRecencyBoostForFamily(fam){
-  if(fam !== "quantifier") return 1;
+// v7 · GENERALIZADO. Esto era `l0QuantifierRecencyBoostForFamily` y empezaba con
+// `if(fam !== "quantifier") return 1;`: un rescate por ausencia de hasta 3,4x que
+// SOLO podia recibir una familia, mientras cualquier otra que se quedara sin
+// salir no tenia rescate ninguno. El mecanismo era generico; la restriccion, no.
+// Ahora se aplica a todas, comparando la presencia reciente de la familia contra
+// SU PROPIA cuota esperada en vez de contra umbrales absolutos. Los cortes salen
+// de los originales: para `quantifier`, cuya cuota es 0,11, los 0,045 y 0,075 de
+// antes equivalen a 0,41 y 0,68 de su cuota -- de ahi los factores 0,35 y 0,60,
+// que reproducen el comportamiento anterior para esa familia y lo extienden al
+// resto. Reversible: CONFIG.v7FamilyAbsenceBoost = false.
+function l0FamilyAbsenceBoost(fam, expectedShare){
+  if(!fam) return 1;
+  if(typeof CONFIG !== "undefined" && CONFIG.v7FamilyAbsenceBoost === false){
+    if(fam !== "quantifier") return 1;
+  }
   const recent = Array.isArray(State?.dL0Window) ? State.dL0Window.slice(-42) : [];
   const l0 = recent.filter(x => x && (x.levelAtTrial === undefined || Number(x.levelAtTrial) >= 0));
   if(l0.length < 18) return 1;
-  const isQ = x => x && (x.family === "quantifier" || /^quant_/.test(String(x.catId || "")) || /^(both|neither|exactly_one|at_least_one)_/.test(String(x.catId || "")));
-  const q = l0.filter(isQ).length;
+  // `quantifier` conserva su deteccion por patron de id, que existia porque sus
+  // ensayos no siempre llevan la familia puesta en la ventana.
+  const pertenece = fam === "quantifier"
+    ? (x => x && (x.family === "quantifier" || /^quant_/.test(String(x.catId || "")) || /^(both|neither|exactly_one|at_least_one)_/.test(String(x.catId || ""))))
+    : (x => x && x.family === fam);
+  const q = l0.filter(pertenece).length;
   const share = q / Math.max(1, l0.length);
+  const esperada = Number(expectedShare) > 0 ? Number(expectedShare) : 0.11;
   if(q === 0 && l0.length >= 24) return 3.4;
-  if(share < 0.045 && l0.length >= 24) return 2.2;
-  if(share < 0.075 && l0.length >= 36) return 1.45;
+  if(share < esperada * 0.35 && l0.length >= 24) return 2.2;
+  if(share < esperada * 0.60 && l0.length >= 36) return 1.45;
   return 1;
+}
+function l0QuantifierRecencyBoostForFamily(fam){
+  // Compatibilidad: el nombre viejo sigue existiendo por si algun parche lo usa.
+  return l0FamilyAbsenceBoost(fam, 0.11);
 }
 function recordL0ExperienceAxis(info){
   if(!info || info.kind !== "posner") return;
@@ -28585,6 +28623,160 @@ function statSummaryFromBucket(bucket){
 function recentCorrectRT(entries){
   const rts = (entries || []).filter(e => e.correct && typeof e.rt === "number").map(e => e.rt);
   return rts.length ? rts.reduce((a,b)=>a+b,0)/rts.length : 0;
+}
+// v7 · MEDIANA en vez de media. recentCorrectRT (justo arriba) promedia, y la
+// media es sensible a la cola: en la ventana real del autor daba 6224 ms con
+// mediana 5131, p75 9674 y un maximo de 14071 -- un solo item generativo de 14
+// segundos inflaba la media un 21%. Para una PUERTA eso es ruido decisivo.
+function medianCorrectRT(entries){
+  const rts = (entries || [])
+    .filter(e => e && e.correct && typeof e.rt === "number" && e.rt > 0)
+    .map(e => e.rt)
+    .sort((a,b) => a-b);
+  if(!rts.length) return 0;
+  return rts[Math.floor(rts.length / 2)];
+}
+// v7 · la referencia intraindividual, contando SOLO ensayos reales.
+// El cold-start sintetico (adaptiveBaselineSyntheticTrial, rt fijo de 1800 y
+// bandera `synthetic:true`) se diseno como SEMILLA de arranque, no como patron
+// de medida. Medido en el perfil del autor: la ventana `long` del nivel 4 tenia
+// 167 de 200 entradas sinteticas a 1800 ms (media contaminada 2585 frente a
+// 6583 reales), y niveles 2 y 3 igual; comparado contra eso, un jugador de 6500
+// ms no es "mas lento que su propia linea de base", es mas lento que un valor
+// de fabrica -- y esa comparacion alimenta DESCENSOS de nivel, no solo puertas.
+// La ventana `short` de los niveles 2, 3 y 4 es 100% real: es la buena.
+function dRealBaselineRTs(level){
+  try{
+    const bucket = ensureAdaptiveBaselineForLevel("D", level);
+    if(!bucket) return [];
+    return (bucket.short || [])
+      .filter(t => t && !t.synthetic && t.correct && Number(t.rt) > 0)
+      .map(t => Number(t.rt))
+      .sort((a,b) => a-b);
+  }catch(_){ return []; }
+}
+// v7 · cuanto le crece el RT a ESTE jugador al subir un nivel, medido sobre las
+// medianas reales de su propia baseline. Es el factor que permite tener
+// referencia en un nivel recien estrenado sin inventarse nada.
+function dLevelGrowthFactor(){
+  const medianas = [];
+  const maxLv = (() => { try{ return maxLevelIndexForMode("D"); }catch(_){ return 13; } })();
+  for(let lv=0; lv<=maxLv; lv++){
+    const r = dRealBaselineRTs(lv);
+    if(r.length >= 8) medianas.push({lv, med:r[Math.floor(r.length/2)]});
+  }
+  if(medianas.length < 2) return null;
+  let suma = 0, n = 0;
+  for(let i=1;i<medianas.length;i++){
+    const a = medianas[i-1], b = medianas[i];
+    const saltos = Math.max(1, b.lv - a.lv);
+    if(!(a.med > 0) || !(b.med > 0)) continue;
+    suma += Math.log(b.med / a.med) / saltos;
+    n++;
+  }
+  if(!n) return null;
+  // media geometrica, acotada: el RT no decrece al subir de nivel (el nivel ES
+  // dificultad) y un factor desbocado convertiria el techo en un cheque en blanco.
+  return clamp(Math.exp(suma / n), 1.0, 2.0);
+}
+function dAdaptiveRTCeiling(level, percentile){
+  const p = clamp(Number(percentile) || 0.75, 0.5, 0.95);
+  const minReal = Number(CONFIG.adaptiveBaselineMinRealForLevelUp) || 16;
+  const pct = arr => arr[Math.min(arr.length - 1, Math.floor(arr.length * p))];
+
+  const rts = dRealBaselineRTs(level);
+  if(rts.length >= minReal) return pct(rts);
+
+  // ⚠️TRAMPA QUE ESTO CIERRA: la referencia es POR NIVEL, y al estrenar nivel su
+  // bucket nace lleno de sinteticos (que se excluyen), asi que quedaban 0 reales
+  // y el gate volvia a la CONSTANTE ABSOLUTA justo en el nivel mas dificil que el
+  // jugador ha visto -- una regresion de META garantizada en CADA subida, y con
+  // el umbral que precisamente acabamos de quitar. Medido en la baseline real del
+  // autor: niveles 2 y 3 con 20 reales dan techo 3016 y 4433; el nivel 4, recien
+  // estrenado, daba 0 reales y caia a 2100.
+  // Se deriva del ultimo nivel con datos propios, escalado por SU PROPIO
+  // crecimiento por nivel. Misma idea que el escalado entre capas META.
+  if(typeof CONFIG === "undefined" || CONFIG.v7LevelCeilingCarryOver !== false){
+    const lvNum = Number(level);
+    if(Number.isFinite(lvNum)){
+      const growth = dLevelGrowthFactor();
+      if(growth){
+        for(let lv = Math.floor(lvNum) - 1; lv >= 0; lv--){
+          const prev = dRealBaselineRTs(lv);
+          if(prev.length >= minReal){
+            return pct(prev) * Math.pow(growth, lvNum - lv);
+          }
+        }
+      }
+    }
+  }
+  // Sin ningun nivel con historial propio: arranque en frio de verdad, cae a la
+  // constante de siempre.
+  return null;
+}
+// Devuelve si el RT deja pasar la puerta, y CON QUE referencia lo decidio, para
+// que el motivo que se le ensena al jugador sea honesto.
+// Misma idea para L1->L2 y L2->L3, donde no hay baseline por nivel: la
+// referencia es la ventana META COMPLETA del jugador y la medida es su tramo
+// reciente. No es tautologico porque la ventana completa (hasta 120) es mucho
+// mas larga que el tramo que mira la puerta (8 o 4). Si no hay historial
+// suficiente cae a la constante, igual que en L0.
+// ⚠️Un jugador que ACABA de desbloquear una capa tiene cero historial en ella,
+// que es justo la condicion en la que la clausula de "historial insuficiente"
+// cae a la constante absoluta: el arreglo se saltaba a si mismo precisamente en
+// la capa recien abierta. Con la ventana L1 real del autor (7382, 4333, 3911,
+// 16439: media 8016, mediana 5858) contra el `l2RT` de 4700, el muro siguiente
+// era identico al que acabamos de tirar.
+// Escalon intermedio: la razon entre las constantes de capa ya codifica COMO
+// cambia la escala al subir de capa aunque sus valores absolutos esten mal
+// calibrados -- l2RT/l1RT = 4700/2100 = 2,24. Asi que cuando falta historial
+// propio DE LA CAPA se deriva el techo escalando la referencia de L0 (que si es
+// del jugador) por esa razon, en vez de caer a un numero de fabrica. La
+// constante queda solo como ultimo recurso, cuando no hay ni baseline L0 real.
+function dMetaWindowRTGate(win, referencia, constante, percentile, opts){
+  const o = opts || {};
+  const usarPropia = (typeof CONFIG === "undefined" || CONFIG.v7MetaRTSelfReference !== false);
+  const rts = (usarPropia ? (referencia || []) : [])
+    .filter(e => e && e.correct && Number(e.rt) > 0)
+    .map(e => Number(e.rt))
+    .sort((a,b) => a-b);
+  const p = clamp(Number(percentile) || 0.75, 0.5, 0.95);
+  const med = medianCorrectRT(win);
+  // La muestra minima de una capa META es la que la propia capa ya exige para
+  // abrirse (l2MinTrials / l3MinTrials): no se inventa un numero nuevo.
+  const minMuestras = Math.max(4, Number(o.minMuestras) || Number(CONFIG.adaptiveBaselineMinRealForLevelUp) || 16);
+  // ⚠️La referencia tiene que ser ESTRICTAMENTE MAS ANCHA que la ventana que
+  // mira la puerta. Si coinciden -- y coinciden justo al abrirse la capa, cuando
+  // el jugador tiene exactamente los `minTrials` ensayos que la puerta exige --
+  // comparar la mediana contra el p75 DE ESOS MISMOS DATOS pasa siempre, y el
+  // gate deja de gatear sin que se note. Se exige el doble de muestras para
+  // usar la referencia propia; por debajo se escala desde L0, que es lo que hace
+  // el trabajo justo en la capa recien abierta.
+  const minParaSerReferencia = minMuestras * 2;
+
+  if(usarPropia && rts.length >= minParaSerReferencia){
+    const techo = rts[Math.min(rts.length - 1, Math.floor(rts.length * p))];
+    return {pasa: !med || med <= techo, valor:Math.round(med || 0), umbral:Math.round(techo), referencia:"percentil_propio"};
+  }
+  if(usarPropia && Number(o.escalaDesdeL0) > 0){
+    const baseL0 = dAdaptiveRTCeiling(State.levelByMode?.D, p);
+    if(baseL0 !== null && baseL0 !== undefined){
+      const techo = baseL0 * Number(o.escalaDesdeL0);
+      return {pasa: !med || med <= techo, valor:Math.round(med || 0), umbral:Math.round(techo), referencia:"escalado_desde_L0"};
+    }
+  }
+  const avg = recentCorrectRT(win);
+  return {pasa: !avg || avg <= constante, valor:Math.round(avg || 0), umbral:Math.round(constante), referencia:"constante"};
+}
+function dMetaRTGate(win, constante, percentile){
+  const usarPropia = (typeof CONFIG === "undefined" || CONFIG.v7MetaRTSelfReference !== false);
+  const techo = usarPropia ? dAdaptiveRTCeiling(State.levelByMode?.D, percentile) : null;
+  if(techo === null || techo === undefined){
+    const avg = recentCorrectRT(win);
+    return {pasa: !avg || avg <= constante, valor:Math.round(avg || 0), umbral:Math.round(constante), referencia:"constante"};
+  }
+  const med = medianCorrectRT(win);
+  return {pasa: !med || med <= techo, valor:Math.round(med || 0), umbral:Math.round(techo), referencia:"percentil_propio"};
 }
 function dCurrentL0Window(windowSize=null){
   const lv = State.levelByMode.D;
@@ -28818,13 +29010,19 @@ function dL0Readiness(){
   const valueMinPreview = 4;  // need to have practiced through value 4
   const baseCapActive = dPyramidMetaCap("active") >= 1;   // base+1 ≥ 1 → always satisfied for L1
   const baseCapPreview = dPyramidMetaCap("preview") >= 1; // base+2 ≥ 1 → always satisfied
-  const active = a.t >= D_AUTO.l1MinTrials && a.acc >= D_AUTO.l1Acc && (!a.avgRT || a.avgRT <= D_AUTO.l1RT) && a.families >= D_AUTO.l1Families && breadth >= breadthMinActive && maxV >= valueMinActive && baseCapActive;
+  // v7 · el RT deja de compararse contra una constante absoluta y pasa a
+  // compararse contra el propio percentil del jugador a ESTE nivel (mediana
+  // frente a percentil de su ventana `short` real). Con historial insuficiente
+  // cae solo a la constante de antes, asi que el arranque en frio no cambia.
+  const rtActive = dMetaRTGate(activeWin, D_AUTO.l1RT, CONFIG.v7MetaRTPercentileActive);
   const previewRT = D_AUTO.l1RT * (D_AUTO.l1PreviewRTFactor || 1.25);
-  const preview = !active && p.t >= D_AUTO.l1PreviewMinTrials && p.acc >= D_AUTO.l1PreviewAcc && (!p.avgRT || p.avgRT <= previewRT) && p.families >= D_AUTO.l1PreviewFamilies && breadth >= breadthMinPreview && maxV >= valueMinPreview && baseCapPreview;
+  const rtPreview = dMetaRTGate(previewWin, previewRT, CONFIG.v7MetaRTPercentilePreview);
+  const active = a.t >= D_AUTO.l1MinTrials && a.acc >= D_AUTO.l1Acc && rtActive.pasa && a.families >= D_AUTO.l1Families && breadth >= breadthMinActive && maxV >= valueMinActive && baseCapActive;
+  const preview = !active && p.t >= D_AUTO.l1PreviewMinTrials && p.acc >= D_AUTO.l1PreviewAcc && rtPreview.pasa && p.families >= D_AUTO.l1PreviewFamilies && breadth >= breadthMinPreview && maxV >= valueMinPreview && baseCapPreview;
   const lockedReason =
     p.t < D_AUTO.l1PreviewMinTrials ? `needs ${D_AUTO.l1PreviewMinTrials} L0 trials for preview (current: ${p.t})` :
     p.acc < D_AUTO.l1PreviewAcc ? `needs L0 accuracy ${Math.round(D_AUTO.l1PreviewAcc*100)}% for preview (current: ${Math.round(p.acc*100)}%)` :
-    p.avgRT > previewRT ? `needs L0 RT ≤${Math.round(previewRT)}ms for preview (current: ${Math.round(p.avgRT)}ms)` :
+    !rtPreview.pasa ? `needs L0 RT ≤${rtPreview.umbral}ms for preview (current: ${rtPreview.valor}ms${rtPreview.referencia === "percentil_propio" ? ", vs your own pace at this level" : ""})` :
     p.families < D_AUTO.l1PreviewFamilies ? `needs ${D_AUTO.l1PreviewFamilies} L0 families for preview (current: ${p.families})` :
     breadth < breadthMinPreview ? `needs ${breadthMinPreview} distinct L0 categories practiced (current: ${breadth})` :
     maxV < valueMinPreview ? `needs to have practiced values up to ${valueMinPreview} (current max: ${maxV})` :
@@ -28840,7 +29038,8 @@ function dL0Readiness(){
   return {state:active?"active":preview?"preview":"locked", active, preview, available:active||preview, reason,
     t:a.t, c:a.c, acc:a.acc, avgRT:a.avgRT, families:a.families,
     previewT:p.t, previewAcc:p.acc, previewRT:p.avgRT, previewFamilies:p.families,
-    breadth, maxV};
+    breadth, maxV,
+    rtGate:{activo:rtActive, preview:rtPreview}};
 }
 function dL1Readiness(){
   const activeWin = dCurrentL1Window(D_AUTO.l2MinTrials);
@@ -28866,9 +29065,15 @@ function dL1Readiness(){
   const eligibleFamilies = countL1FamiliesAtCurrentStageCap();
   const familiesActiveNeed = Math.min(8, Math.max(D_AUTO.l2Families || 2, Math.ceil(eligibleFamilies * 0.40)));
   const familiesPreviewNeed = Math.min(6, Math.max((D_AUTO.l2PreviewFamilies ?? D_AUTO.l2Families ?? 2), Math.ceil(eligibleFamilies * 0.25)));
-  const active = a.t >= D_AUTO.l2MinTrials && a.acc >= D_AUTO.l2Acc && (!a.avgRT || a.avgRT <= D_AUTO.l2RT) && a.families >= familiesActiveNeed && baseCapActive;
+  const _refL1 = (State.dL1Window || []);
+  // Escala L0 -> L1: la razon entre las constantes de capa que ya existian.
+  const _escL1 = (Number(D_AUTO.l1RT) > 0) ? (Number(D_AUTO.l2RT) / Number(D_AUTO.l1RT)) : 0;
+  const _optsL1 = {minMuestras:D_AUTO.l2MinTrials, escalaDesdeL0:_escL1};
+  const rtActive = dMetaWindowRTGate(activeWin, _refL1, D_AUTO.l2RT, CONFIG.v7MetaRTPercentileActive, _optsL1);
   const previewRT = CONFIG.rtL1Good * (D_AUTO.l2PreviewRTFactor || 1.30);
-  const preview = !active && p.t >= D_AUTO.l2PreviewMinTrials && p.acc >= D_AUTO.l2PreviewAcc && (!p.avgRT || p.avgRT <= previewRT) && p.families >= familiesPreviewNeed && baseCapPreview;
+  const rtPreview = dMetaWindowRTGate(previewWin, _refL1, previewRT, CONFIG.v7MetaRTPercentilePreview, {minMuestras:D_AUTO.l2PreviewMinTrials || D_AUTO.l2MinTrials, escalaDesdeL0:_escL1});
+  const active = a.t >= D_AUTO.l2MinTrials && a.acc >= D_AUTO.l2Acc && rtActive.pasa && a.families >= familiesActiveNeed && baseCapActive;
+  const preview = !active && p.t >= D_AUTO.l2PreviewMinTrials && p.acc >= D_AUTO.l2PreviewAcc && rtPreview.pasa && p.families >= familiesPreviewNeed && baseCapPreview;
   const lockedReason =
     p.t < D_AUTO.l2PreviewMinTrials ? `needs ${D_AUTO.l2PreviewMinTrials} recent L1 trials for preview (current: ${p.t})` :
     p.families < familiesPreviewNeed ? `needs recent L1 breadth across ${familiesPreviewNeed} families for preview (current: ${p.families} of ${eligibleFamilies} accessible)` :
@@ -28939,9 +29144,15 @@ function dL2Readiness(){
   // practical soft-lock after early META² errors.
   const baseCapActive = dPyramidMetaCap("active") >= 3;   // base+1 ≥ 3 → base ≥ 2
   const baseCapPreview = dPyramidMetaCap("preview") >= 3; // base+2 ≥ 3 → base ≥ 1
-  const active = a.t >= D_AUTO.l3MinTrials && a.acc >= D_AUTO.l3Acc && (!a.avgRT || a.avgRT <= D_AUTO.l3RT) && hasActiveFamilies && baseCapActive;
+  const _refL2 = (State.dL2Window || []);
+  // Escala L0 -> L2: misma idea, dos capas mas arriba.
+  const _escL2 = (Number(D_AUTO.l1RT) > 0) ? (Number(D_AUTO.l3RT) / Number(D_AUTO.l1RT)) : 0;
+  const _optsL2 = {minMuestras:D_AUTO.l3MinTrials, escalaDesdeL0:_escL2};
+  const rtActive = dMetaWindowRTGate(activeWin, _refL2, D_AUTO.l3RT, CONFIG.v7MetaRTPercentileActive, _optsL2);
   const previewRT = CONFIG.rtL2Good * (D_AUTO.l3PreviewRTFactor || 1.30);
-  const preview = !active && p.t >= D_AUTO.l3PreviewMinTrials && p.acc >= D_AUTO.l3PreviewAcc && (!p.avgRT || p.avgRT <= previewRT) && hasPreviewFamilies && baseCapPreview;
+  const rtPreview = dMetaWindowRTGate(previewWin, _refL2, previewRT, CONFIG.v7MetaRTPercentilePreview, {minMuestras:D_AUTO.l3PreviewMinTrials || D_AUTO.l3MinTrials, escalaDesdeL0:_escL2});
+  const active = a.t >= D_AUTO.l3MinTrials && a.acc >= D_AUTO.l3Acc && rtActive.pasa && hasActiveFamilies && baseCapActive;
+  const preview = !active && p.t >= D_AUTO.l3PreviewMinTrials && p.acc >= D_AUTO.l3PreviewAcc && rtPreview.pasa && hasPreviewFamilies && baseCapPreview;
   const lockedReason =
     p.t < D_AUTO.l3PreviewMinTrials ? `needs ${D_AUTO.l3PreviewMinTrials} recent L2 trials for preview (current: ${p.t})` :
     previewFamilies < familiesPreviewNeed ? `needs recent L2 breadth across ${familiesPreviewNeed} families for preview (current: ${previewFamilies} of ${eligibleL2Families} accessible)` :
@@ -34703,9 +34914,81 @@ function chooseFamilyBalancedPosnerCat(cats, maxTier){
   // family has used 2× its quota share, its weight is halved. This
   // makes the family pick converge to the base quota distribution
   // over time instead of letting recency drift compound.
-  const totalTrialsAcrossFams = Object.keys(baseWeights).reduce((sum, fam) => {
-    return sum + (statSummaryFromBucket(dFamilyStatsFromCats(fam)).t || 0);
-  }, 0);
+  // v7 · CABLEADO DE LAS FAMILIAS NO LISTADAS (dos arreglos, dos banderas).
+  //
+  // ARREGLO 1 -- el denominador. Este total se sumaba SOLO sobre
+  // Object.keys(baseWeights), que son 17 familias de las 62 que hay en el pool.
+  // MEDIDO a nivel 13 con 150 ensayos respondidos: contaba 54 y perdia 96, el
+  // 64% de los ensayos. Como observedShare = famStats.t / totalTrialsAcrossFams,
+  // un denominador 2,8x demasiado pequeno inflaba la cuota observada de TODAS
+  // las familias y disparaba la rama de castigo (historicCorrection = 1/ratio)
+  // en vez de la de promocion (ratio < 0.5 -> 1.5x). O sea: apagaba justo el
+  // mecanismo de "promover lo poco visto". Efecto medido del arreglo: las no
+  // listadas castigadas pasan de 16 de 47 a 1, y las que reciben el impulso de
+  // 1,5x de 16 a 31; las listadas castigadas de 6 de 15 a 0.
+  // Reversible: CONFIG.v7FamilyQuotaDenominator = false.
+  // ⚠️COSTE: la version ingenua de este arreglo (recorrer las 62 familias con
+  // dFamilyStatsFromCats@28693, que filtra las 815 categorias en cada llamada)
+  // pasa de ~14.000 a ~50.000 evaluaciones POR ENSAYO y hace la construccion
+  // inviable -- medido: un barrido de 300 ensayos dejo de terminar. Se calcula
+  // el total recorriendo las ENTRADAS DE ESTADISTICAS (decenas, no 815x62) con
+  // un indice id->familia cacheado por longitud del catalogo. Mismo numero,
+  // coste constante.
+  const _v7DenomTodas = (typeof CONFIG === "undefined" || CONFIG.v7FamilyQuotaDenominator !== false);
+  let totalTrialsAcrossFams;
+  if(_v7DenomTodas){
+    const cats815 = (typeof POSNER_CATS !== "undefined" && POSNER_CATS) ? POSNER_CATS : [];
+    if(!chooseFamilyBalancedPosnerCat._v7FamIndex || chooseFamilyBalancedPosnerCat._v7FamIndexLen !== cats815.length){
+      const idx = Object.create(null);
+      for(const c of cats815){ if(c && c.id) idx[c.id] = posnerFamily(c); }
+      chooseFamilyBalancedPosnerCat._v7FamIndex = idx;
+      chooseFamilyBalancedPosnerCat._v7FamIndexLen = cats815.length;
+    }
+    const famOf = chooseFamilyBalancedPosnerCat._v7FamIndex;
+    const consideradas = new Set(Object.keys(groups).concat(Object.keys(baseWeights)));
+    let total = 0;
+    const stats = State.posnerCatStats || {};
+    for(const id in stats){
+      const fam = famOf[id];
+      if(fam !== undefined && consideradas.has(fam)) total += (stats[id]?.t || 0);
+    }
+    totalTrialsAcrossFams = total;
+  } else {
+    totalTrialsAcrossFams = Object.keys(baseWeights).reduce((sum, fam) => {
+      return sum + (statSummaryFromBucket(dFamilyStatsFromCats(fam)).t || 0);
+    }, 0);
+  }
+
+  // ARREGLO 2 -- fin del valor por defecto plano. 47 de las 62 familias del pool
+  // no figuran en baseWeights y caian todas en el mismo 0.04 fijo, tuvieran 1
+  // categoria o 165: `experimental_epistemic_sufficiency` (1 cat) y
+  // `l0_paper_folding_analogy` (165 cats) recibian identica cuota de familia, o
+  // sea 165x de diferencia en exposicion POR CATEGORIA. Y la correccion historica
+  // no puede verlo, porque compara cuota observada por FAMILIA contra cuota
+  // nominal por FAMILIA: iguala familias, y el desequilibrio por categoria le es
+  // invisible por construccion.
+  //
+  // El defecto pasa a depender del tamano, con DOS garantias deliberadas:
+  //   - SUELO en 0.04: n=1 da exactamente 0.04, asi que NINGUNA familia pequena
+  //     pierde terreno respecto de hoy. Es una decision del autor: las familias
+  //     de una sola categoria (7 de ellas experimentales) le interesan y no se
+  //     penalizan; solo SUBEN las grandes, que estaban ahogadas.
+  //   - TECHO en 0.20, por debajo del maximo de la tabla disenada (role 0.195
+  //     redondeado), para que un defecto no supere nunca a una cuota autorizada
+  //     a mano. Sin el, 165 categorias se comerian el juego.
+  // Exponente 0.35 (no lineal ni raiz): lineal haria plegado de papel ~40% del
+  // juego; 0.35 da 1->0.040, 12->0.096, 26->0.124, 72->0.180, 165->0.236 (recorta
+  // a 0.20). Sube ~5x a las familias grandes sin volcar el reparto.
+  // Reversible: CONFIG.v7FamilySizeAwareDefault = false.
+  const _v7TamanoDefecto = (typeof CONFIG === "undefined" || CONFIG.v7FamilySizeAwareDefault !== false);
+  const _v7CuotaBase = (fam) => {
+    const declarada = baseWeights[fam];
+    if(declarada !== undefined) return declarada;
+    if(!_v7TamanoDefecto) return 0.04;
+    const n = Math.max(1, (groups[fam] || []).length);
+    return Math.min(0.20, 0.04 * Math.pow(n, 0.35));
+  };
+  const _v7SumaCuotas = Object.keys(groups).reduce((s, f) => s + _v7CuotaBase(f), 0);
   const familyEntries = Object.entries(groups).map(([fam, group]) => {
     const frameBoost = Math.max(...group.map(cat => frameWeaknessWeight(posnerFrameTags(cat, null))));
     const stageWeight = Math.max(...group.map(cat => dStageSoftWeight(dPosnerStage(cat), stageLimit)));
@@ -34719,14 +35002,18 @@ function chooseFamilyBalancedPosnerCat(cats, maxTier){
     let historicCorrection = 1;
     if(totalTrialsAcrossFams >= 12){
       const observedShare = famStats.t / Math.max(1, totalTrialsAcrossFams);
-      const baseQuota = Math.max(0.02, baseWeights[fam] ?? 0.04);
+      const baseQuota = Math.max(0.02, _v7CuotaBase(fam));
       const ratio = observedShare / baseQuota;
       if(ratio > 1) historicCorrection = Math.max(0.10, 1 / ratio);
       // Strong novelty boost if family has fewer trials than its quota
       // would predict (under-served family).
       else if(ratio < 0.5) historicCorrection = 1.5;
     }
-    return {value:fam, weight:(baseWeights[fam] ?? 0.04) * 100 * frameBoost * stageWeight * sharePenalty * concentrationBias * weaknessBoost * historicCorrection * l0FamilyExperientialCooldownWeight(group) * l0QuantifierRecencyBoostForFamily(fam)};
+    // La cuota esperada de la familia, normalizada sobre el total de cuotas del
+    // pool: es lo que convierte el rescate por ausencia en algo relativo a cada
+    // familia en vez de a unos umbrales fijos pensados para una sola.
+    const _v7Esperada = _v7SumaCuotas > 0 ? (_v7CuotaBase(fam) / _v7SumaCuotas) : 0;
+    return {value:fam, weight:_v7CuotaBase(fam) * 100 * frameBoost * stageWeight * sharePenalty * concentrationBias * weaknessBoost * historicCorrection * l0FamilyExperientialCooldownWeight(group) * l0FamilyAbsenceBoost(fam, _v7Esperada)};
   });
   const fam = dAdaptiveWeightedPick(familyEntries, e => e.weight, {temperature:D_AUTO.adaptiveWeightTemperature, maxRatio:D_AUTO.adaptiveMaxWeightRatio})?.value || Object.keys(groups)[0];
   const group = groups[fam] || cats;
@@ -69719,11 +70006,46 @@ function l0RecentChoiceShare(window=80){
   const choiceN = rows.filter(r => r.responseFormat === "choice").length;
   return {total:rows.length, choice:choiceN, share:choiceN / rows.length};
 }
+// v7 · el tier mas bajo que tiene alguna categoria de formato choice. Medido:
+// las 152 categorias choice del catalogo son TODAS de tier >= 4 (130 de tier 4,
+// 19 de tier 5, 3 de tier 6), asi que por debajo de ese tier no hay NI UNA en el
+// pool. Se cachea por longitud de catalogo.
+function l0MinChoiceTier(){
+  const cats = (typeof POSNER_CATS !== "undefined" && POSNER_CATS) ? POSNER_CATS : [];
+  if(l0MinChoiceTier._len === cats.length && Number.isFinite(l0MinChoiceTier._val)) return l0MinChoiceTier._val;
+  let min = Infinity;
+  for(const c of cats){
+    if(!c) continue;
+    const esChoice = c.responseFormat === "choice" || typeof c.buildChoiceTrial === "function" || c.l0RelationEquivalenceId;
+    if(!esChoice) continue;
+    const t = Number(c.tier);
+    if(Number.isFinite(t) && t < min) min = t;
+  }
+  l0MinChoiceTier._len = cats.length;
+  l0MinChoiceTier._val = Number.isFinite(min) ? min : Infinity;
+  return l0MinChoiceTier._val;
+}
 function l0ChoiceFormatWeight(cat){
   try{
     if(!cat || !CONFIG.l0CategoricalChoiceTargetShare) return 1;
-    const lv = Number(typeof currentLevelForMode === "function" ? currentLevelForMode("D") : State.levelByMode?.D || 0);
-    if(lv < Number(CONFIG.l0CategoricalChoiceMinLevel || 3)) return 1;
+    // v7 · el arranque del gobernador se DERIVA del catalogo en vez de fijarse a
+    // mano. `l0CategoricalChoiceMinLevel` valia 3, y el nivel 3 es justo el
+    // ultimo en el que el pool no contiene NINGUNA categoria choice (la escalera
+    // de tier no pide tier 4 hasta el nivel 4). Efecto medido en el perfil del
+    // autor: el gobernador encendido a nivel 3 con `boostNow:true` y `share:0`
+    // permanentes -- un deficit imposible de corregir, porque el contenido que
+    // dice echar en falta no esta en el pool. Parecia un fallo de muestreo y no
+    // lo era. Ahora la puerta es "el tier que se esta pidiendo alcanza al tier
+    // mas bajo que tiene contenido choice", que se recalcula solo si el catalogo
+    // cambia. Reversible: CONFIG.v7ChoiceGovernorDerivedStart = false.
+    if(typeof CONFIG === "undefined" || CONFIG.v7ChoiceGovernorDerivedStart !== false){
+      let tierPedido = Infinity;
+      try{ tierPedido = getPosnerTier(); }catch(_){ tierPedido = Infinity; }
+      if(Number.isFinite(tierPedido) && tierPedido < l0MinChoiceTier()) return 1;
+    } else {
+      const lv = Number(typeof currentLevelForMode === "function" ? currentLevelForMode("D") : State.levelByMode?.D || 0);
+      if(lv < Number(CONFIG.l0CategoricalChoiceMinLevel || 3)) return 1;
+    }
     const isChoice = cat.responseFormat === "choice" || typeof cat.buildChoiceTrial === "function" || cat.l0RelationEquivalenceId;
     if(!isChoice) return 1;
     const s = l0RecentChoiceShare(64);
@@ -106357,6 +106679,248 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   }catch(e){
     try{ recordRuntimeError(e, {source:PATCH_ID}); }catch(_){ }
   }
+})();
+</script>
+<script>
+/* ============================================================================
+ * v7 · INVARIANTE DE ALCANZABILIDAD
+ * ----------------------------------------------------------------------------
+ * Motivacion: seis arreglos de una misma entrega tenian la MISMA forma, y no era
+ * "codigo incorrecto" sino CODIGO CORRECTO QUE NUNCA SE EJECUTA -- la escalera de
+ * tier topada en 4 (58+6 categorias fuera de rotacion para siempre), dos tablas
+ * indexadas por nivel que se acababan antes del ultimo nivel y cuyas filas se
+ * heredaban en silencio, y una clave de cache a la que le faltaba una entrada de
+ * la que el filtro si dependia. Seis instancias independientes es demasiado para
+ * tratarlas como coincidencias: es una CLASE DE FALLO, y merece un invariante.
+ *
+ * Cada pieza esta FALSIFICADA: se reinyecto el bug que deberia cazar y se
+ * comprobo que se pone en rojo. Un invariante que no se ha falsificado es
+ * decorativo, y este archivo ya tiene precedentes de auditorias que no podian
+ * fallar (auditV6842 comparaba contra un literal de version; el constructor de
+ * contraejemplos se probaba con un typeof siempre falso).
+ *
+ * NO se apoya en muestrear construcciones ni en reimplementar canUse. Esa era la
+ * carga que decidia si la idea era estructural o decorativa: si hubiera que
+ * duplicar la logica del gate, el test derivaria y mentiria. Las tres piezas
+ * exactas leen el filtro REAL o comparan la CAUSA (la clave), nunca una copia.
+ *
+ * Lo que este invariante NO cubre, dicho explicitamente para no dar falsa
+ * cobertura: (a) el codigo muerto por return temprano o por typeof imposible,
+ * que no es alcanzabilidad de CONTENIDO sino de codigo; (b) los desbloqueos
+ * progresivos legitimos (nestedBooleanDepthEvidenceReady exige 12 ensayos del
+ * depth anterior con 75% de acierto, asi que en una partida nueva 11 operaciones
+ * boolean_nested estan cerradas -- correcto, pero invisible para el jugador).
+ * ==========================================================================*/
+(function(){
+  "use strict";
+  var PATCH_ID = "v7.reachability";
+  function auditResultLocal(status, details){
+    try{ if(typeof auditResult === "function") return auditResult(status, details); }catch(_){ }
+    return {status, ok:status === "PASS", details};
+  }
+  function ver(){
+    try{ if(typeof currentAppVersion === "function") return currentAppVersion(); }catch(_){ }
+    try{ return APP_VERSION; }catch(_){ }
+    return PATCH_ID;
+  }
+  function topLevelFor(mode){
+    try{ return maxLevelIndexForMode(mode); }catch(_){ return 13; }
+  }
+
+  /* -- PIEZA 1 -------------------------------------------------------------
+   * El techo de cada dial que gatea contenido debe alcanzar el techo que el
+   * CATALOGO declara. Si el catalogo tiene categorias de tier 6 y la escalera
+   * nunca pide mas de 4, hay contenido inalcanzable por construccion, sin que
+   * haga falta muestrear un solo trial.
+   * FALSIFICADA: con CONFIG.v7TierLadder=false (el tope original en 4) emite
+   * "el catalogo declara hasta 6 y la escalera nunca pide mas de 4".
+   * ---------------------------------------------------------------------- */
+  function piezaTechoDeDiales(){
+    var fallos = [], info = {};
+    var tierCat = 0, minMCat = 0;
+    try{
+      var cats = (typeof POSNER_CATS !== "undefined" && POSNER_CATS) || [];
+      for(var i=0;i<cats.length;i++){
+        var t = Number(cats[i] && cats[i].tier) || 0; if(t > tierCat) tierCat = t;
+        var mm = Number(cats[i] && cats[i].minM) || 0; if(mm > minMCat) minMCat = mm;
+      }
+    }catch(_){ }
+    var saved = {mode:State.mode, lvl:Object.assign({}, State.levelByMode || {})};
+    var tierPedido = 0, mTope = 0, lvTop = 13;
+    try{
+      State.mode = "D"; if(!State.levelByMode) State.levelByMode = {};
+      lvTop = topLevelFor("D");
+      for(var lv=0; lv<=lvTop; lv++){
+        State.levelByMode.D = lv;
+        var t2 = 0; try{ t2 = getPosnerTier(); }catch(_){ }
+        if(t2 > tierPedido) tierPedido = t2;
+      }
+      try{ mTope = maxValueForLevel("D", lvTop) || 0; }catch(_){ }
+    } finally { State.mode = saved.mode; State.levelByMode = saved.lvl; }
+    info = {tierCatalogo:tierCat, tierMaximoPedido:tierPedido, minMCatalogo:minMCat, mNivelTope:mTope, nivelTope:lvTop};
+    if(tierCat > 0 && tierPedido < tierCat){
+      fallos.push("tier: el catalogo declara hasta " + tierCat + " y la escalera de nivel nunca pide mas de " + tierPedido + " (contenido inalcanzable por construccion)");
+    }
+    if(minMCat > 0 && mTope < minMCat){
+      fallos.push("m: hay categorias con minM " + minMCat + " y el nivel maximo solo llega a m=" + mTope);
+    }
+    return {fallos:fallos, info:info};
+  }
+
+  /* -- PIEZA 2 -------------------------------------------------------------
+   * Toda tabla indexada por nivel debe tener fila en el nivel maximo. Si acaba
+   * antes, los niveles restantes heredan la ultima fila EN SILENCIO y la
+   * dificultad se congela sin que nada lo diga.
+   * FALSIFICADA: borrando las filas 9/11/13 de l0TransformLevelCurve emite
+   * "ultima fila en el nivel 7 pero el juego llega al 13".
+   * ---------------------------------------------------------------------- */
+  function piezaTablasPorNivel(){
+    var avisos = [], detalle = [];
+    var lvTop = topLevelFor("D");
+    var tablas = ["l0TransformLevelCurve", "l1TransformLevelCurve", "compositionBudgetByLevel"];
+    for(var i=0;i<tablas.length;i++){
+      var nom = tablas[i], tab = null;
+      try{ tab = CONFIG[nom]; }catch(_){ }
+      if(!tab || typeof tab !== "object"){ detalle.push({tabla:nom, estado:"ausente"}); continue; }
+      var maxK = -1;
+      for(var k in tab){ var kn = Number(k); if(isFinite(kn) && kn > maxK) maxK = kn; }
+      detalle.push({tabla:nom, ultimaFila:maxK, nivelTope:lvTop});
+      if(maxK >= 0 && maxK < lvTop){
+        avisos.push(nom + ": ultima fila en el nivel " + maxK + " pero el juego llega al " + lvTop +
+                    " (los niveles " + (maxK + 1) + "-" + lvTop + " heredan esa fila en silencio)");
+      }
+    }
+    return {avisos:avisos, detalle:detalle};
+  }
+
+  /* -- PIEZA 3 -------------------------------------------------------------
+   * La clave de la cache de disponibilidad debe cambiar cuando cambia CUALQUIER
+   * entrada de la que el filtro depende. Se comprueba la CAUSA, no el efecto:
+   * detectar el efecto exigiria que el catalogo tuviera hoy un canUse que lo
+   * expusiera, y eso convierte el test en dependiente del contenido. Medido: ni
+   * reinyectando la clave rota Y el tope de tier a la vez se observa diferencia
+   * hoy, porque ningun canUse distingue niveles que compartan (m, tier). El
+   * nivel en la clave es correcto y actualmente inerte: debe seguir estando.
+   * FALSIFICADA por partida doble: una clave sin el nivel emite dos fallos
+   * (nivel y modo); una clave sin la version del indice de runtime emite el
+   * suyo -- que es justo el fallo que deja categorias registradas y no servidas.
+   * ---------------------------------------------------------------------- */
+  function piezaClaveDeCache(){
+    var fallos = [], detalle = [];
+    if(typeof _availablePosnerCatsCacheKey !== "function"){
+      return {fallos:["_availablePosnerCatsCacheKey no es accesible: el invariante no puede comprobar la clave"], detalle:detalle};
+    }
+    var saved = {mode:State.mode, lvl:Object.assign({}, State.levelByMode || {})};
+    function clave(m, tier){ try{ return String(_availablePosnerCatsCacheKey(m, tier)); }catch(e){ return "ERR"; } }
+    function fijar(mode, lv){ State.mode = mode; if(!State.levelByMode) State.levelByMode = {}; State.levelByMode[mode] = lv; }
+    try{
+      fijar("D", 3); var kNivelA = clave(12, 5);
+      fijar("D", 9); var kNivelB = clave(12, 5);
+      detalle.push({entrada:"nivel", sensible:(kNivelA !== kNivelB)});
+      if(kNivelA === kNivelB) fallos.push("la clave de cache NO cambia con el nivel: un canUse que gatee por nivel serviria el conjunto del nivel equivocado");
+
+      fijar("D", 9); var kModoA = clave(12, 5);
+      fijar("A", 9); var kModoB = clave(12, 5);
+      detalle.push({entrada:"modo", sensible:(kModoA !== kModoB)});
+      if(kModoA === kModoB) fallos.push("la clave de cache NO cambia con el modo");
+
+      fijar("D", 9);
+      var kM = (clave(9, 5) !== clave(12, 5));
+      detalle.push({entrada:"m", sensible:kM});
+      if(!kM) fallos.push("la clave de cache NO cambia con m");
+
+      var kT = (clave(12, 4) !== clave(12, 6));
+      detalle.push({entrada:"maxTier", sensible:kT});
+      if(!kT) fallos.push("la clave de cache NO cambia con maxTier");
+
+      var kIdxA = clave(12, 5), kIdxB = kIdxA, antes = null;
+      try{
+        antes = REGISTRY_RUNTIME_INDEX.builtAt;
+        REGISTRY_RUNTIME_INDEX.builtAt = (Number(antes) || 0) + 1;
+        kIdxB = clave(12, 5);
+      }catch(_){ }
+      finally{ try{ if(antes !== null) REGISTRY_RUNTIME_INDEX.builtAt = antes; }catch(_){ } }
+      detalle.push({entrada:"indiceRuntime", sensible:(kIdxA !== kIdxB)});
+      if(kIdxA === kIdxB) fallos.push("la clave de cache NO cambia al reconstruirse el indice de runtime: registrar categorias nuevas no las haria visibles nunca");
+    } finally { State.mode = saved.mode; State.levelByMode = saved.lvl; }
+    return {fallos:fallos, detalle:detalle};
+  }
+
+  /* -- PIEZA 4 -------------------------------------------------------------
+   * Si cambian las entradas del filtro, debe cambiar el conjunto servido.
+   * Version CORREGIDA del "nivel n y n+1 no pueden ser identicos": el
+   * estancamiento ES legitimo cuando m y tier ya no cambian (hoy pasa en 7->8 y
+   * de 9 a 13), asi que la version literal viviria en rojo permanente y
+   * acabaria desactivada. Solo es fallo si alguna entrada cambia y el conjunto
+   * no. La meseta se reporta como informacion, no como fallo: es el mapa de
+   * donde deja de crecer el catalogo por nivel.
+   * NO FALSIFICADA: no se pudo reproducir un bug que la dispare con el catalogo
+   * actual. Se envia como AVISO, nunca como bloqueo.
+   * ---------------------------------------------------------------------- */
+  function piezaEntradasContraConjunto(){
+    var avisos = [], meseta = [], filas = [];
+    var saved = {mode:State.mode, lvl:Object.assign({}, State.levelByMode || {})};
+    try{
+      State.mode = "D"; if(!State.levelByMode) State.levelByMode = {};
+      var lvTop = topLevelFor("D"), prev = null;
+      for(var lv=0; lv<=lvTop; lv++){
+        State.levelByMode.D = lv;
+        var m = 12; try{ m = maxValueForLevel("D", lv) || 12; }catch(_){ }
+        var tier = 1; try{ tier = getPosnerTier(); }catch(_){ }
+        var pool = []; try{ pool = availablePosnerCatsForTier(m, tier) || []; }catch(_){ }
+        var ids = [];
+        for(var j=0;j<pool.length;j++){ if(pool[j] && pool[j].id) ids.push(pool[j].id); }
+        ids.sort();
+        var cur = {lv:lv, m:m, tier:tier, n:ids.length, sig:ids.join("|")};
+        filas.push({nivel:lv, m:m, tier:tier, categorias:ids.length});
+        if(prev){
+          var entradasCambian = (prev.m !== cur.m) || (prev.tier !== cur.tier);
+          var conjuntoCambia = (prev.sig !== cur.sig);
+          if(entradasCambian && !conjuntoCambia){
+            avisos.push("nivel " + prev.lv + "->" + cur.lv + ": m " + prev.m + "->" + cur.m +
+                        " y tier " + prev.tier + "->" + cur.tier + " cambian, pero el conjunto servido es IDENTICO (" + cur.n + ")");
+          }
+          if(!entradasCambian && !conjuntoCambia) meseta.push(prev.lv + "->" + cur.lv);
+        }
+        prev = cur;
+      }
+    } finally { State.mode = saved.mode; State.levelByMode = saved.lvl; }
+    return {avisos:avisos, mesetaLegitima:meseta, porNivel:filas};
+  }
+
+  function auditV7Reachability(opts){
+    var block = [], warnings = [];
+    var details = {patch:PATCH_ID, appVersion:ver()};
+    try{
+      var p1 = piezaTechoDeDiales();
+      details.techoDeDiales = p1.info;
+      for(var a=0;a<p1.fallos.length;a++) block.push(p1.fallos[a]);
+
+      var p2 = piezaTablasPorNivel();
+      details.tablasPorNivel = p2.detalle;
+      for(var b=0;b<p2.avisos.length;b++) warnings.push(p2.avisos[b]);
+
+      var p3 = piezaClaveDeCache();
+      details.claveDeCache = p3.detalle;
+      for(var c=0;c<p3.fallos.length;c++) block.push(p3.fallos[c]);
+
+      var p4 = piezaEntradasContraConjunto();
+      details.porNivel = p4.porNivel;
+      details.mesetaLegitima = p4.mesetaLegitima;
+      for(var d=0;d<p4.avisos.length;d++) warnings.push(p4.avisos[d]);
+    }catch(e){
+      block.push("el invariante de alcanzabilidad lanzo: " + String((e && e.message) || e).slice(0, 160));
+      try{ recordRuntimeError(e, {source:PATCH_ID}); }catch(_){ }
+    }
+    details.block = block;
+    details.warnings = warnings;
+    return auditResultLocal(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), details);
+  }
+
+  try{ window.auditV7Reachability = auditV7Reachability; }catch(_){ }
+  try{ if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV7Reachability", auditV7Reachability); }catch(_){ }
+  try{ if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v7_reachability","reachability","alcanzabilidad"], auditV7Reachability, "auditV7Reachability"); }catch(_){ }
+  try{ window.EUCA_V7_REACHABILITY = {patch:PATCH_ID, audit:auditV7Reachability}; }catch(_){ }
 })();
 </script>
 </body>
