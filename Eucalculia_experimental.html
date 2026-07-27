@@ -3349,7 +3349,7 @@ select.cs-native {
 // ============================================================================
 
 
-const APP_VERSION = "v6.8.88";
+const APP_VERSION = "v7.0.0-dev";
 const APP_VERSION_RECORDED_AT = new Date().toISOString();
 function syncVisibleAppVersion(){
   const v = (typeof APP_VERSION !== "undefined" && APP_VERSION) ? APP_VERSION : "v6.5.97-question-review-coverage";
@@ -3638,6 +3638,26 @@ const CONFIG = {
     5: { prob: 0.200, maxTier: 2, bothProb: 0.00 },
     6: { prob: 0.300, maxTier: 3, bothProb: 0.05 },
     7: { prob: 0.400, maxTier: 3, bothProb: 0.12 },
+    // v7: la curva se acababa aqui, asi que del 8 al 13 la probabilidad de
+    // composicion era la misma (0,400) -- ESTE era el dial real, no el tope de
+    // carga: medido, la carga observada nunca se acercaba al techo (mediana 1,
+    // maximo 4-6 con tope 7 o 9 indistintamente), porque lo que decide es cada
+    // cuanto se compone, no cuanto se permite apilar.
+    // El multiplicador de sinergia y los factores de densidad se aplican encima
+    // y el conjunto va acotado a 0,62 en maybeApplyL0Transform@32080, asi que
+    // estos valores se acercan al techo sin pasarse. maxTier 4 admite
+    // transformaciones mas pesadas solo en el tramo alto.
+    // maxTier 4 solo en el tramo alto: es lo que anade REPERTORIO de
+    // transformaciones y no solo frecuencia (el nivel 7 ya estaba en 3, asi que
+    // con 3 estos niveles no tendrian nada nuevo, solo mas de lo mismo).
+    // Lo baje a 3 en su momento por una cola de p95 de 107-123 ms que resulto ser
+    // RUIDO DE MAQUINA: el nivel 8, con configuracion identica en las dos
+    // condiciones, marcaba 108 ms contra 30 ms. Remedido con 100 muestras y
+    // mediana: 17,4 vs 18,1 ms en el nivel 9 y 16,7 vs 16,6 en el 13, con p75
+    // identico. El tier 4 no cuesta nada.
+    9:  { prob: 0.460, maxTier: 4, bothProb: 0.16 },
+    11: { prob: 0.520, maxTier: 4, bothProb: 0.20 },
+    13: { prob: 0.580, maxTier: 4, bothProb: 0.24 },
   },
 
   // L1 visuospatial transformation layer (plan step 5). These are deliberately
@@ -3668,7 +3688,18 @@ const CONFIG = {
     6: { maxLoad: 5, verbalBoost: 0.24, transformSynergy: 0.22 },
     7: { maxLoad: 6, verbalBoost: 0.30, transformSynergy: 0.32 },
     8: { maxLoad: 7, verbalBoost: 0.36, transformSynergy: 0.42 },
+    // v7: la tabla se acababa en el 8, asi que los niveles 9 a 13 heredaban la
+    // MISMA entrada y la dificultad se congelaba. Medido: del 9 al 13 no cambiaba
+    // ni un dial que el jugador pueda notar (m, exposicion, pool de 760/766,
+    // representaciones, tamano de bloque, disponibilidad L1/L2); solo subian los
+    // topes de meta, que estan saturados muy por encima del maximo real de 3.
+    // Dos escalones nuevos, deliberadamente moderados: subir el tope invita al
+    // generador a apilar mas ejes, y esa es justo la via por la que aparecieron
+    // en su dia las llamadas improductivas. Reversible: CONFIG.v7HighLevelBudget.
+    10: { maxLoad: 8, verbalBoost: 0.42, transformSynergy: 0.50 },
+    12: { maxLoad: 9, verbalBoost: 0.48, transformSynergy: 0.58 },
   },
+  v7HighLevelBudget: true,
   compositionTransformCombinationFloorLevel: 5,
   compositionMaxTransformLoadL0: 6,
   compositionMaxTransformLoadL1: 7,
@@ -5686,9 +5717,25 @@ function clearFeedbackTrace(reason="new_trial"){
   dbg.feedbackClearReason = reason;
   dbg.watchdogResumePending = false;
   try{
-    if(_rtHideTimer){ clearTimeout(_rtHideTimer); _rtHideTimer = null; }
-    const el = $("rtDisplay");
-    if(el){ el.classList.remove("visible"); el.textContent = "—"; }
+    // v7 (medido): el chip de RT vivia 16,3 ms de mediana. Tarda ~145 ms en ser
+    // legible (fundido de 0,2 s) y en 19 de 22 trials lo borraba esta misma
+    // funcion con reason="startTrial", muchisimo antes de su propio temporizador
+    // de 1200 ms. La unica recompensa por trial -- tu tiempo, en dorado si fuiste
+    // rapido -- era invisible. Cuando el motivo es el arranque del siguiente
+    // trial se deja que el chip termine su ciclo: el estimulo todavia no esta en
+    // pantalla (viene PREP) y el ocultado forzado ocurre al entrar en FLASH.
+    // Los motivos que significan "empieza el siguiente trial" son cuatro, y hay
+    // que eximirlos todos: exentar solo "startTrial" no sirvio de nada porque en
+    // la practica quien mataba el chip era beginValidatedPrep@5834 con
+    // "prepared_trial_prep". Cualquier otro motivo (parada de entrada, limpieza
+    // de feedback rancio, beginInputPhase) sigue limpiando en el acto.
+    const keepRt = (CONFIG.v7RtChipDwell !== false) &&
+      /^(new_trial|startTrial|startTrial_prep|prepared_trial_prep)$/.test(String(reason == null ? "" : reason));
+    if(!keepRt){
+      if(_rtHideTimer){ clearTimeout(_rtHideTimer); _rtHideTimer = null; }
+      const el = $("rtDisplay");
+      if(el){ el.classList.remove("visible"); el.textContent = "—"; }
+    }
     gameContainer?.classList.remove("pulse-ok","pulse-bad","pulse-fast","pulse-lvl");
   } catch(_){ }
 }
@@ -9157,11 +9204,16 @@ function autoTransformIntroSatisfied(){
   return false;
 }
 function computeAutoCurriculumProgressParts(){
+  // F1 perf (measured): the four evidence computations below used to run BEFORE
+  // this early return, so every auto profile past the relational handoff paid
+  // the full autoTransformEvidence() cube-enumeration cost (~40 ms per call,
+  // twice per HUD paint during BLOCK_INTRO) only to throw the result away.
+  // Return values are unchanged; only the order is.
+  if(autoTutorialRelationalStarted()) return {progress:1, detail:"Relational sampling active"};
   const rec = autoRecognitionProgress();
   const tr = autoTransformProgress();
   const r = autoRecognitionEvidence();
   const te = autoTransformEvidence();
-  if(autoTutorialRelationalStarted()) return {progress:1, detail:"Relational sampling active"};
   if(rec < 1 && !autoRecognitionFastTrackReady()){
     const pct = clamp(rec * 0.86, 0, 0.86);
     const blockers = [];
@@ -13107,6 +13159,14 @@ function spawnParticles(cx,cy,n,color){
     try { State.particles.length = 0; noteParticleCount(0); } catch(_){ }
     return;
   }
+  // v7: prefers-reduced-motion estaba invertido. El bloque CSS de :35 apaga los
+  // brillos y las transiciones del HUD (movimiento pequeno y periferico) pero la
+  // explosion de particulas, que es el movimiento GRANDE y central, se dibuja en
+  // canvas y ninguna regla CSS podia alcanzarla. Quien pide menos movimiento
+  // recibia exactamente el que mas molesta.
+  if(CONFIG.v7ReducedMotionParticles !== false){
+    try{ if(typeof prefersReducedMotion === "function" && prefersReducedMotion()){ State.particles.length = 0; noteParticleCount(0); return; } }catch(_){ }
+  }
   const max = publicParticleCap();
   let requested = Math.max(0, Math.round(Number(n) || 0));
   if(isPublicPerformanceBuild() && recentLongFrameStorm(Number(CONFIG.particleStormFrameMs) || 28, Number(CONFIG.particleStormThreshold) || 3)){
@@ -13728,6 +13788,16 @@ class TenFrame extends Stim {
   draw(c,x,y,w,h){
     c.save(); this.applyRot(c,x+w/2,y+h/2);
     const cols=5, rows=Math.ceil(this.base/cols);
+    // v7 — NO tocar el dimensionado por la rotacion. Se intento maquetar contra
+    // la caja efectiva (como hace Cluster) porque en los cuartos de giro la
+    // huella se sale del hueco y cacheStim destruye lo que sobra: 21,75% de la
+    // tinta del ten-frame a 472x336. Pero medido lo que de verdad importa
+    // -- cuantas MARCAS CONTABLES ve el jugador, con un detector calibrado
+    // contra la rotacion recta -- el resultado es v marcas exactas en los cinco
+    // valores y todas las semillas, tanto rectas como giradas: lo que se pierde
+    // es el armazon y el borde de las celdas, no una marca. El arreglo costaba
+    // un 30% de tamano en la representacion de contraste mas debil (luminancia
+    // maxima 122) a cambio de nada. Revertido a proposito.
     const pad=Math.min(w,h)*0.08;
     const gw=w-2*pad, gh=h-2*pad;
     const cell=Math.min(gw/cols, gh/rows);
@@ -13735,16 +13805,30 @@ class TenFrame extends Stim {
     const gap=cell*0.10, s=cell-gap;
     const filled = new Set(this.filledCells.map(([r,col]) => `${r},${col}`));
     c.lineJoin="round";
+    // v7 — retoque SUTIL de contraste, no normalizacion.
+    // Primer intento (descartado): se subio tambien el relleno a
+    // rgba(190,182,255,0.95) para llevar la representacion al rango del resto
+    // del catalogo (5,16 -> 12,47:1). Medida buena, resultado malo: para ganar
+    // luminancia en un violeta hay que subir el canal verde, y eso lo desatura
+    // hacia un lavanda casi blanco. El autor lo describio como feo, incoherente
+    // con el estilo del juego y jarring, y tiene razon: el brillo se gano a
+    // costa de la identidad visual del estimulo.
+    // Lo que SI era un defecto real y aislado: el marco exterior estaba a 1,27:1,
+    // practicamente invisible. Asi que el relleno vuelve a su violeta original y
+    // solo se suben un poco los dos trazos. El ten-frame sigue siendo la
+    // representacion mas apagada del catalogo: queda declarado a proposito, como
+    // decision estetica, no como descuido. Reversible: CONFIG.v7TenFrameContrast=false.
+    const _v7c = !(typeof CONFIG !== "undefined" && CONFIG.v7TenFrameContrast === false);
     for(let i=0;i<this.base;i++){
       const r=Math.floor(i/cols), col=i%cols;
       const cx=ox+col*cell+gap/2, cy=oy+r*cell+gap/2;
       c.fillStyle = filled.has(`${r},${col}`) ? "rgba(108,92,231,0.85)" : "rgba(20,20,25,0.55)";
-      c.strokeStyle="rgba(220,220,255,0.25)"; c.lineWidth=Math.max(1,s*0.07);
+      c.strokeStyle = _v7c ? "rgba(220,220,255,0.32)" : "rgba(220,220,255,0.25)"; c.lineWidth=Math.max(1,s*0.07);
       c.beginPath();
       if(c.roundRect) c.roundRect(cx,cy,s,s,Math.max(2,s*0.14)); else c.rect(cx,cy,s,s);
       c.fill(); c.stroke();
     }
-    c.strokeStyle="rgba(255,255,255,0.12)"; c.lineWidth=Math.max(1,cell*0.08);
+    c.strokeStyle = _v7c ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.12)"; c.lineWidth=Math.max(1,cell*0.08);
     c.strokeRect(ox-gap*0.15, oy-gap*0.15, cell*cols+gap*0.3, cell*rows+gap*0.3);
     c.restore();
   }
@@ -14312,7 +14396,7 @@ class Domino extends Stim {
 
 class Tally extends Stim {
   encodedValue(){ return Math.max(0, this.val|0); }
-  draw(c,x,y,w,h){ c.save();this.applyRot(c,x+w/2,y+h/2);const n=this.val,groups=Math.ceil(n/5),groupW=(w*0.7)/Math.max(1,groups);const lineH=h*0.5,top=y+h/2-lineH/2,startX=x+w*0.15;c.strokeStyle="#e8e8f0";c.lineWidth=Math.max(2.5,Math.min(w,h)*0.022);c.lineCap="round";let drawn=0;for(let g=0;g<groups&&drawn<n;g++){const gx=startX+g*groupW,step=groupW*0.17,inG=Math.min(5,n-drawn);for(let i=0;i<Math.min(4,inG);i++){c.beginPath();c.moveTo(gx+i*step,top);c.lineTo(gx+i*step,top+lineH);c.stroke();drawn++;}if(inG===5){c.beginPath();c.moveTo(gx-step*0.25,top+lineH*0.85);c.lineTo(gx+step*3.25,top+lineH*0.15);c.stroke();drawn++;}}c.restore(); }
+  draw(c,x,y,w,h){ c.save();this.applyRot(c,x+w/2,y+h/2);/* v7: revertido, ver la nota en TenFrame.draw — tally solo perdia un 2,05% de tinta (esquinas) y ninguna marca */const n=this.val,groups=Math.ceil(n/5),groupW=(w*0.7)/Math.max(1,groups);const lineH=h*0.5,top=y+h/2-lineH/2,startX=x+w*0.15;c.strokeStyle="#e8e8f0";c.lineWidth=Math.max(2.5,Math.min(w,h)*0.022);c.lineCap="round";let drawn=0;for(let g=0;g<groups&&drawn<n;g++){const gx=startX+g*groupW,step=groupW*0.17,inG=Math.min(5,n-drawn);for(let i=0;i<Math.min(4,inG);i++){c.beginPath();c.moveTo(gx+i*step,top);c.lineTo(gx+i*step,top+lineH);c.stroke();drawn++;}if(inG===5){c.beginPath();c.moveTo(gx-step*0.25,top+lineH*0.85);c.lineTo(gx+step*3.25,top+lineH*0.15);c.stroke();drawn++;}}c.restore(); }
 }
 
 class Finger extends Stim {
@@ -15463,6 +15547,8 @@ class Grid extends Stim {
     this.applyRot(c,x+w/2,y+h/2);
     const layout = this.layout || this.makeLayout(Math.max(0,this.val|0));
     const rows=Math.max(1,layout.rows||1), cols=Math.max(1,layout.cols||1);
+    // v7: revertido, ver la nota en TenFrame.draw — grid no perdia NADA de tinta
+    // en los cuartos de giro (0,00% medido), asi que el cambio era coste puro.
     const pad=Math.min(w,h)*0.10;
     const bw=w-2*pad,bh=h-2*pad;
     const cell=Math.min(bw/cols,bh/rows,Math.min(w,h)*0.44);
@@ -20157,11 +20243,72 @@ function vennGateRenderSVG(geom, config, cond){
   svg += `</svg>`;
   return svg;
 }
+// v7 — SELECTOR DE REGLAS DE VERDAD.
+// Las 12 operaciones del catalogo tienen `different === !same` (comprobado sobre
+// los 144 pares de cada una), asi que la puerta decidia una NEGACION, no una
+// regla. Aqui se construyen operaciones COMPUESTAS cuyas dos ramas son dos
+// reglas INDEPENDIENTES: rama SI = regla A, rama NO = regla B (afirmativa, no la
+// negacion de A). No hace falta tocar nada mas: `gen` ya descarta los pares en
+// los que las dos ramas coinciden -- que es exactamente lo que obliga a leer el
+// selector -- y `verify` ya despacha con `holds ? op.same : op.different`.
+// La plantilla de enunciado tambien lo detecta sola y escribe las dos ramas.
+function v7SelectorOpPairs(preds){
+  const by = {};
+  for(const p of (preds || [])) if(p && p.id) by[p.id] = p;
+  const combos = [
+    ["graph_cond_sum_gt_10","graph_cond_parity_match"],
+    ["graph_cond_left_greater","graph_cond_sum_even"],
+    ["graph_cond_both_even","graph_cond_diff_gt_3"],
+    ["graph_cond_one_prime","graph_cond_product_lt_20"],
+    ["graph_cond_gap_eq_1","graph_cond_both_gt_5"],
+    ["graph_cond_sum_eq_10","graph_cond_left_div_right"]
+  ];
+  const out = [];
+  for(const [ai, bi] of combos){
+    const A = by[ai], B = by[bi];
+    if(!A || !B || typeof A.same !== "function" || typeof B.same !== "function") continue;
+    let discrepan = 0, total = 0, esComplemento = true;
+    for(let a=1; a<=12; a++){
+      for(let b=1; b<=12; b++){
+        total++;
+        const r1 = !!A.same(a,b), r2 = !!B.same(a,b);
+        if(r1 !== r2) discrepan++;
+        if(r2 !== !r1) esComplemento = false;
+      }
+    }
+    // Si B fuera el complemento de A volveriamos a tener una negacion disfrazada.
+    if(esComplemento) continue;
+    // Y si discrepan en muy pocos pares, gen no encontraria par servible.
+    if(discrepan < total * 0.20) continue;
+    out.push({
+      id:`sel_${ai.replace(/^graph_cond_/, "")}_x_${bi.replace(/^graph_cond_/, "")}`,
+      sameDesc:A.sameDesc, differentDesc:B.sameDesc,
+      same:A.same, different:B.same,
+      v7Selector:true, v7PctDiscrepancia:+(100*discrepan/total).toFixed(1)
+    });
+  }
+  return out;
+}
 function l0VennGateCats(){
   const conditions = vennGateConditionCatalog();
   const predicates = l0GraphConditionalCatalog();
   const pairs = vennGateConditionPairing(conditions, predicates);
-  return pairs.map(({cond, op}) => ({
+  // Subconjunto con selector real, sin tocar los emparejamientos existentes:
+  // los ids nuevos (`venn_gate_<cond>__sel_<A>_x_<B>`) no chocan con ninguno.
+  // DESACTIVADO POR DEFECTO hasta completar el registro en el indice de runtime.
+  // Medido: las 6 categorias se construyen bien y su enunciado escribe las DOS
+  // reglas, pero `availablePosnerCatsForTier` sirve 26 de las 42 de control y 0
+  // de estas 6: existen en el catalogo y no en el indice, asi que serian
+  // inertes. Falta el paso de migracion + reconstruccion de indice + limpieza de
+  // cache que usan los parches que anaden familias (patron v6880). Ponlo a true
+  // cuando ese paso este hecho y verificado.
+  const selectorPairs = (typeof CONFIG !== "undefined" && CONFIG.v7GateRealSelector === true)
+    ? (function(){
+        const ops = v7SelectorOpPairs(predicates);
+        return (conditions || []).slice(0, ops.length).map((cond, i) => ({cond, op:ops[i]})).filter(x => x.cond && x.op);
+      })()
+    : [];
+  return pairs.concat(selectorPairs).map(({cond, op}) => ({
     id:`venn_gate_${cond.id}__${op.id}`,
     tier:4,
     stage:5,
@@ -20183,10 +20330,30 @@ function l0VennGateCats(){
       if(cond.nSets >= 3 && vennGateRecentVisualLoad() > (CONFIG.l0VennGateVisualCeiling || 9.0)) return false;
       return (!CONFIG.l0VennGateRequireGate || requireHarnessPass("l0_venn_gate"));
     },
-    variants:[
-      { q:`First decide: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.` },
-      { q:`${vennUcFirst(cond.desc)}?\nIf yes: answer YES when ${op.sameDesc}.\nIf no: answer YES when ${op.differentDesc}.` }
-    ],
+    // v7 — plantilla de puerta. Comprobado exhaustivamente (144 pares x 12 ops,
+    // 12 de 12): la rama NO es el complemento exacto de la rama SI. Escribirla
+    // entera era repetir la misma regla negada, y eso era casi la mitad de los
+    // enunciados mas largos del juego. Cuando la rama NO sea una operacion
+    // INDEPENDIENTE (el selector de reglas de verdad), la plantilla la escribe
+    // completa sin necesidad de volver a tocarla. Ademas se nombra el diagrama,
+    // que es lo que pedia auditV6834. CONFIG.v7GateWording=false revierte.
+    variants:(function(){
+      const legacy = (typeof CONFIG !== "undefined" && CONFIG.v7GateWording === false);
+      let comp = false;
+      try{
+        comp = true;
+        for(let a=1; a<=12 && comp; a++){
+          for(let b=1; b<=12; b++){ if(!!op.different(a,b,12) !== !op.same(a,b,12)){ comp = false; break; } }
+        }
+      }catch(_){ comp = false; }
+      const useShort = !legacy && comp;
+      const noUp = useShort ? "If NO: the opposite." : `If NO: answer YES when ${op.differentDesc}.`;
+      const noLo = useShort ? "If no: the opposite." : `If no: answer YES when ${op.differentDesc}.`;
+      return [
+        { q:`Set diagram: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\n${noUp}` },
+        { q:`Set diagram — ${vennUcFirst(cond.desc)}?\nIf yes: answer YES when ${op.sameDesc}.\n${noLo}` }
+      ];
+    })(),
     gen(m, t){
       const maxAB = Math.max(2, Math.min(m + 1, 12));
       const level = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : (CONFIG.l0VennGateMinLevel || 6);
@@ -20342,10 +20509,25 @@ function l0GraphRelationGateCats(){
       if(cond.rc >= 3 && graphRelationGateRecentLoad() > (CONFIG.l0GraphRelationGateRc3LoadCeiling || 8.25)) return false;
       return (!CONFIG.l0GraphRelationGateRequireGate || requireHarnessPass("l0_graph_relation_gate"));
     },
-    variants:[
-      { q:`First decide: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.` },
-      { q:`${graphRelationUcFirst(cond.desc)}?\nIf yes: answer YES when ${op.sameDesc}.\nIf no: answer YES when ${op.differentDesc}.` }
-    ],
+    // v7 — misma plantilla que la puerta de Venn (ver la nota alli). El rotulo
+    // nombra los glifos de rol, que es lo que pedia auditV6834 para esta familia.
+    variants:(function(){
+      const legacy = (typeof CONFIG !== "undefined" && CONFIG.v7GateWording === false);
+      let comp = false;
+      try{
+        comp = true;
+        for(let a=1; a<=12 && comp; a++){
+          for(let b=1; b<=12; b++){ if(!!op.different(a,b,12) !== !op.same(a,b,12)){ comp = false; break; } }
+        }
+      }catch(_){ comp = false; }
+      const useShort = !legacy && comp;
+      const noUp = useShort ? "If NO: the opposite." : `If NO: answer YES when ${op.differentDesc}.`;
+      const noLo = useShort ? "If no: the opposite." : `If no: answer YES when ${op.differentDesc}.`;
+      return [
+        { q:`Graph (square → ring): ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\n${noUp}` },
+        { q:`Graph (square → ring) — ${graphRelationUcFirst(cond.desc)}?\nIf yes: answer YES when ${op.sameDesc}.\n${noLo}` }
+      ];
+    })(),
     gen(m, t){
       const maxAB = Math.max(2, Math.min(m + 1, 12));
       const level = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : (CONFIG.l0GraphRelationGateMinLevel || 6);
@@ -22241,7 +22423,23 @@ function _availablePosnerCatsCacheKey(m, maxTier){
   // two slice(0,80) copies on EVERY call — including cache hits (this key runs once per trial build).
   let idxV = 0;
   try { idxV = (typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) ? (Number(REGISTRY_RUNTIME_INDEX.builtAt) || 0) : 0; } catch(_) {}
-  return `${m}|${maxTier}|${POSNER_CATS.length}|${idxV}|${repsSig}`;
+  // v7 (medido): la clave NO incluia el nivel, y el `canUse` de muchas familias
+  // gatea por nivel. En modo D el valor maximo se queda en 12 desde el nivel 7,
+  // asi que las SEIS subidas siguientes (7->8 ... 12->13) no cambiaban la clave:
+  // el muestreador seguia sirviendo la lista de disponibilidad del nivel
+  // anterior. Medido a m=9: el filtro real da 709 categorias y la consulta
+  // devolvia 417, las mismas del nivel bajo -- 292 categorias que debian
+  // servirse y no se servian, sin ninguna de mas. Forzar una invalidacion del
+  // indice lo corregia al instante, lo que confirma que la lista estaba
+  // disponible y solo la tapaba la clave. Coste: dos lecturas de propiedad en
+  // una funcion que corre una vez por construccion de trial.
+  let lvlSig = "";
+  try {
+    const modo = State.mode || "?";
+    const nivel = (State.levelByMode && State.levelByMode[modo] != null) ? State.levelByMode[modo] : "?";
+    lvlSig = `${modo}:${nivel}`;
+  } catch(_) {}
+  return `${m}|${maxTier}|${POSNER_CATS.length}|${idxV}|${repsSig}|${lvlSig}`;
 }
 function availablePosnerCatsForTier(m, maxTier){
   const key = _availablePosnerCatsCacheKey(m, maxTier);
@@ -28183,6 +28381,17 @@ function l2VariantsForCat(cat){
 
 function getPosnerTier(){
   const lv = currentLevel();
+  // v7: la escalera de tier se detenia en 4 desde el nivel 4, asi que el
+  // muestreador NUNCA pedia tier 5 ni 6 y las 58 categorias de tier 5 y las 6 de
+  // tier 6 quedaban fuera de rotacion de forma permanente -- 64 en total, entre
+  // ellas las familias experimentales y la cadena profunda. Al pasar el producto
+  // de experimental a estable se integran, y ademas se escalonan: es el dial mas
+  // directo para que la variedad siga creciendo por encima del nivel 4, que es
+  // donde se quedaba parada. Reversible: CONFIG.v7TierLadder = false.
+  if(typeof CONFIG === "undefined" || CONFIG.v7TierLadder !== false){
+    if(lv >= 9) return 6;
+    if(lv >= 6) return 5;
+  }
   if(lv >= 4) return 4;
   if(lv >= 2) return 3;
   if(lv >= 1) return 2;
@@ -59795,6 +60004,13 @@ function processInputPostAnswer(ctx){
       const tierLabel = m === "A"
         ? `Range unlocked · up to ${newMax}`
         : `Relational tier ${1 + (levelUpInfo?.to ?? 0)} unlocked`;
+      // v7: subir de nivel era COMPLETAMENTE mudo mientras que bajar de nivel si
+      // suena (showLevelDownBadge conserva su cue de audio a proposito). El juego
+      // solo se pronunciaba cuando el jugador retrocedia. El patron "unlock" ya
+      // existe en el inventario de audio y de haptica y no se usaba en esta rama.
+      if(CONFIG.v7LevelUpCue !== false){
+        try{ playAchievementSound("unlock", {levelUp:true, mode:m, to:levelUpInfo?.to ?? 0}); }catch(_){ }
+      }
       beginUnlockInterstitial(
         {text: tierLabel, durationMs: 1050, progress: 1.0},
         () => finishOrContinueBlock(0, 0, "level_up_unlock_interstitial")
@@ -85860,11 +86076,53 @@ try{
     if(id === "l1_pair1_both_even_pair2_neither_even") return `${base} Pair 1 even count ${countBy(pairValues(p1), isEven)}; Pair 2 even count ${countBy(pairValues(p2), isEven)}.`;
     if(id === "l1_same_total_opposite_parity_patterns") return `${base} Totals: ${sum(p1)} and ${sum(p2)}; parity patterns: Pair 1 ${pairValues(p1).map(v=>isOdd(v)?"odd":"even").join(" + ")}, Pair 2 ${pairValues(p2).map(v=>isOdd(v)?"odd":"even").join(" + ")}.`;
     if(id === "l1_prime_then_composite_exactly_one") return `${base} Pair 1 prime count ${countBy(pairValues(p1), isPrimeSmall)}; Pair 2 composite count ${countBy(pairValues(p2), isCompositeSmall)}.`;
-    if(id === "l1_divisibility_switch_plus1") return `${base} Pair 2 should be Pair 1 + 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
-    if(id === "l1_divisibility_preserve_double_no") return `${base} Pair 2 should double Pair 1. Divisibility: Pair 1 ${oneDividesOtherPair(p1)?"YES":"NO"}; Pair 2 ${oneDividesOtherPair(p2)?"YES":"NO"}.`;
-    if(id === "l1_epistemic_left_witness_odd") return `${base} Same EVEN LEFT, so the LEFT is never the odd one — each RIGHT must be odd to make 'at least one odd' YES.`;
-    if(id === "l1_epistemic_left_ambiguous_both_even") return `${base} Same LEFT; changing RIGHT changes whether BOTH values are even.`;
-    if(id === "l1_same_left_opposite_greater") return `${base} Same LEFT; changing RIGHT flips whether LEFT > RIGHT.`;
+    // v7 — la review dejaba de ser cierta en cuanto el jugador fallaba.
+    // Estas cinco ramas devolvian una frase CONSTANTE que describia la regla como
+    // si fuera un hecho sobre lo construido: con Pair 1 (2,3) y Pair 2 (4,4) la
+    // tarjeta imprimia esos numeros y a continuacion "Same LEFT", contradiciendo
+    // los valores que acababa de mostrar. Y en las dos de divisibilidad los dos
+    // veredictos podian coincidir con el objetivo mientras la clausula que
+    // realmente fallaba (Pair 2 = Pair 1 + 1) no se evaluaba en ningun sitio, con
+    // lo que la tarjeta se leia como un acierto. Ahora se comprueba clausula por
+    // clausula, en el mismo orden y con los mismos predicados que
+    // verifyL1ConstructiveTask, y la frase de regla solo se emite cuando la
+    // construccion es CORRECTA, que es el unico caso en que es cierta.
+    if(id === "l1_divisibility_switch_plus1" || id === "l1_divisibility_preserve_double_no"){
+      const plus1 = id === "l1_divisibility_switch_plus1";
+      const want2 = plus1 ? shiftedPair(p1, 1) : doubledPair(p1);
+      const d1 = oneDividesOtherPair(p1), d2 = oneDividesOtherPair(p2);
+      const f = [];
+      if(!samePair(p2, want2)) f.push(`Pair 2 must be ${plus1 ? "Pair 1 + 1" : "Pair 1 doubled"}, that is LEFT ${want2.a}, RIGHT ${want2.b} — yours is LEFT ${p2.a}, RIGHT ${p2.b}`);
+      if(d1) f.push(`in Pair 1 neither value may divide the other — ${p1.a} and ${p1.b} do`);
+      if(plus1 && !d2) f.push(`in Pair 2 one value must divide the other — ${p2.a} and ${p2.b} do not`);
+      if(!plus1 && d2) f.push(`in Pair 2 neither value may divide the other — ${p2.a} and ${p2.b} do`);
+      const readout = `Divisibility: Pair 1 ${d1?"YES":"NO"}; Pair 2 ${d2?"YES":"NO"}.`;
+      return f.length ? `${base}\n✗ Failed: ${f.join("; ")}.\n${readout}` : `${base} ${plus1 ? "Pair 2 is Pair 1 + 1" : "Pair 2 doubles Pair 1"}. ${readout}`;
+    }
+    if(id === "l1_epistemic_left_witness_odd" || id === "l1_epistemic_left_ambiguous_both_even" || id === "l1_same_left_opposite_greater"){
+      const f = [];
+      if(p1.a !== p2.a) f.push(`both pairs need the SAME LEFT — yours are ${p1.a} and ${p2.a}`);
+      if(p1.b === p2.b) f.push(`the two RIGHT values must differ — both are ${p1.b}`);
+      if(id !== "l1_same_left_opposite_greater" && !isEven(p1.a)) f.push(`the shared LEFT must be EVEN — yours is ${p1.a}`);
+      if(id === "l1_epistemic_left_witness_odd"){
+        if(!(isOdd(p1.a) || isOdd(p1.b))) f.push(`Pair 1 needs at least one odd value — ${p1.a} and ${p1.b} are both even`);
+        if(!(isOdd(p2.a) || isOdd(p2.b))) f.push(`Pair 2 needs at least one odd value — ${p2.a} and ${p2.b} are both even`);
+      }
+      if(id === "l1_epistemic_left_ambiguous_both_even"){
+        const b1 = both(pairValues(p1), isEven), b2 = both(pairValues(p2), isEven);
+        if(b1 === b2) f.push(`'both values are even' must come out differently in the two pairs — it is ${b1 ? "YES" : "NO"} in both`);
+      }
+      if(id === "l1_same_left_opposite_greater"){
+        const g1 = p1.a > p1.b, g2 = p2.a > p2.b;
+        if(g1 === g2) f.push(`'LEFT greater than RIGHT' must come out differently in the two pairs — it is ${g1 ? "YES" : "NO"} in both`);
+      }
+      const rule = id === "l1_epistemic_left_witness_odd"
+        ? "Same EVEN LEFT, so the LEFT is never the odd one — each RIGHT must be odd to make 'at least one odd' YES."
+        : (id === "l1_epistemic_left_ambiguous_both_even"
+          ? "Same LEFT; changing RIGHT changes whether BOTH values are even."
+          : "Same LEFT; changing RIGHT flips whether LEFT > RIGHT.");
+      return f.length ? `${base}\n✗ Failed: ${f.join("; ")}.` : `${base} ${rule}`;
+    }
     if(id === "l1_range_totals_single_composite" || id === "l1_range_totals_two_primes_with_composite"){
       const r = rangeInts(sum(p1), sum(p2));
       const need = id === "l1_range_totals_single_composite" ? "the totals are 2 to 5 apart, with exactly 1 composite among the whole numbers from one total to the other (both included)" : "the totals are 3 to 6 apart, with exactly 2 primes and at least 1 composite among the whole numbers from one total to the other (both included)";
@@ -86044,14 +86302,20 @@ try{
       const pairs = Array.isArray(info.pairs) ? info.pairs : [];
       const pairText = pairs.map(p => `Pair ${p.phase}: LEFT ${p.pair?.a}, RIGHT ${p.pair?.b}`).join(". ") || "No pairs recorded.";
       const diagnostic = (typeof l1ConstructiveTaskReviewText === "function") ? l1ConstructiveTaskReviewText(info) : `Your construction: ${pairText}.`;
+      // v7: mismo cambio que en la review inductiva. El ejemplo valido sube al
+      // slot focal y deja de ir enterrado al final del parrafo gris.
+      const legacyAnswerSlot = (typeof CONFIG !== "undefined" && CONFIG.v7ReviewAnswerSlot === false);
       let example = "";
       const ex = info.l1Constructive?.example;
-      if(ex && ex.p1 && ex.p2) example = ` Example: Pair 1 LEFT ${ex.p1.a}, RIGHT ${ex.p1.b}; Pair 2 LEFT ${ex.p2.a}, RIGHT ${ex.p2.b}.`;
+      if(ex && ex.p1 && ex.p2 && legacyAnswerSlot) example = ` Example: Pair 1 LEFT ${ex.p1.a}, RIGHT ${ex.p1.b}; Pair 2 LEFT ${ex.p2.a}, RIGHT ${ex.p2.b}.`;
+      const validAnswer = (!legacyAnswerSlot && ex && ex.p1 && ex.p2)
+        ? `Valid: (${ex.p1.a},${ex.p1.b}) and (${ex.p2.a},${ex.p2.b})`
+        : "Target: build two pairs that satisfy the stated target.";
       drawReviewCard({
         label:"L1 REVIEW · GENERATIVE CONSTRUCTION",
         question:info.question || "Build a two-pair configuration.",
         details:`${diagnostic}${example}`,
-        answer:info.constructiveVerdict === "matched_target" ? "Correct: your construction satisfies the target." : "Target: build two pairs that satisfy the stated target.",
+        answer:info.constructiveVerdict === "matched_target" ? "Correct" : validAnswer,
         color:"#ff9f43"
       });
       drawInstructionalReviewTip(info);
@@ -86206,6 +86470,13 @@ try{
           return prev.apply(this, arguments);
         };
         wrapped.__v681L1GenerativeWrapped = true;
+        // Propagar los marcadores del envoltorio anterior. Sin esto, si este
+        // instalador se vuelve a invocar cuando otro parche ya ha envuelto por
+        // encima (p.ej. v6.8.51), su guardia no ve su propio marcador, vuelve a
+        // envolver y BORRA los marcadores de los demas: cada corrida de la suite
+        // anadia una capa a processInput/draw y las auditorias v6851/v6853/v6826
+        // avisaban de un marcador "sombreado" que en juego real esta presente.
+        try{ for(const k of Object.getOwnPropertyNames(prev)){ if(k.slice(0,2) === "__" && !(k in wrapped)) wrapped[k] = prev[k]; } }catch(_){ }
         processInput = wrapped;
         try{ window.processInput = processInput; globalThis.processInput = processInput; }catch(_){ }
       }
@@ -86220,6 +86491,7 @@ try{
           return prev.apply(this, arguments);
         };
         wrapped.__v681L1GenerativeWrapped = true;
+        try{ for(const k of Object.getOwnPropertyNames(prev)){ if(k.slice(0,2) === "__" && !(k in wrapped)) wrapped[k] = prev[k]; } }catch(_){ }
         draw = wrapped;
         try{ window.draw = draw; globalThis.draw = draw; }catch(_){ }
       }
@@ -86233,6 +86505,7 @@ try{
           return prev.apply(this, arguments);
         };
         wrapped.__v681L1GenerativeWrapped = true;
+        try{ for(const k of Object.getOwnPropertyNames(prev)){ if(k.slice(0,2) === "__" && !(k in wrapped)) wrapped[k] = prev[k]; } }catch(_){ }
         maybeStartInlineGenerativeTrialAfterReset = wrapped;
         try{ window.maybeStartInlineGenerativeTrialAfterReset = wrapped; globalThis.maybeStartInlineGenerativeTrialAfterReset = wrapped; }catch(_){ }
       }
@@ -93210,7 +93483,12 @@ ${res.agents.map(a=>a.line).join(" ")}`;
       analysis = `Cue A: ${yn(cueA.pred(p1))}. Cue B: ${yn(cueB.pred(p1))}. Connective: ${op.label}. Your pair made ${yn(compTruth(op,cueA,cueB,p1))}; target was ${yn(params.target)}.`;
     }
     const ex = ic.example;
-    const example = ex && ex.p1 ? ` Example: Pair 1 LEFT ${ex.p1.a}, RIGHT ${ex.p1.b}${ex.p2 ? `; Pair 2 LEFT ${ex.p2.a}, RIGHT ${ex.p2.b}` : ""}.` : "";
+    // v7: el ejemplo valido se muda al slot focal de la tarjeta (ver el `answer`
+    // de drawInductiveReview). Aqui quedaba al final de un parrafo gris de 5-9
+    // lineas a 8-12 px, que es donde menos se mira, siendo lo unico que el
+    // jugador necesita para entender que se le pedia.
+    const exampleTail = ex && ex.p1 ? ` Example: Pair 1 LEFT ${ex.p1.a}, RIGHT ${ex.p1.b}${ex.p2 ? `; Pair 2 LEFT ${ex.p2.a}, RIGHT ${ex.p2.b}` : ""}.` : "";
+    const example = (typeof CONFIG !== "undefined" && CONFIG.v7ReviewAnswerSlot === false) ? exampleTail : "";
     // v6.8.81: keep \n line breaks (drawReviewCard renders multiline details, cap 12) and collapse only
     // spaces — the old \s+ collapse produced the buried one-paragraph review the author flagged.
     return `${pText}. ${inductiveTargetSummary(ic)} ${analysis} ${ic.reviewHint || ""}${example}`.replace(/[ \t]+/g, " ").trim();
@@ -93614,7 +93892,18 @@ ${res.agents.map(a=>a.line).join(" ")}`;
         label:`L${ic.phaseCount > 1 ? "1" : "0"} REVIEW · ${ic.mode === "hidden_rule_induction" ? "INDUCTION" : "CONSTRUCTION"}`,
         question:info.question || "Build an inductive construction.",
         details:inductiveReviewText(info),
-        answer:info.inductiveVerdict === "matched_target" ? "Correct: your construction satisfies the target." : "Target: build a construction satisfying the stated constraints.",
+        // v7: el slot `answer` es el elemento focal de la tarjeta (900 de peso,
+        // disenado a 24-46 px) y llevaba una parafrasis del enunciado que el
+        // jugador acaba de leer. Al medir 48-55 caracteres, el bucle de encogido
+        // de drawReviewCard@60632 lo dejaba SIEMPRE en el suelo de 14 px: el
+        // elemento mas destacado de la tarjeta no destacaba ni decia nada. Ahora
+        // lleva una construccion valida, que es lo unico que el jugador necesita
+        // para entender que se le pedia, y es corta.
+        answer:info.inductiveVerdict === "matched_target" ? "Correct" : (function(){
+          const ex = ic && ic.example;
+          if((typeof CONFIG !== "undefined" && CONFIG.v7ReviewAnswerSlot === false) || !ex || !ex.p1) return "Target: build a construction satisfying the stated constraints.";
+          return ex.p2 ? `Valid: (${ex.p1.a},${ex.p1.b}) and (${ex.p2.a},${ex.p2.b})` : `Valid: (${ex.p1.a},${ex.p1.b})`;
+        })(),
         color:"#ffc107"
       });
       drawInstructionalReviewTip(info);
@@ -94190,6 +94479,43 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     const conds = (Array.isArray(conditions) ? conditions : conditionListV6827()).filter(c => c && c.id);
     return conds.map((cond,i) => ({cond, op:livePreds[i % livePreds.length]})).filter(x => x.cond && x.op);
   }
+  // v7 — plantilla de enunciado de puerta.
+  // Comprobado de forma EXHAUSTIVA (144 pares por operacion, 12 de 12): las dos
+  // ramas de cada operacion son una regla y su complemento exacto. Es decir, la
+  // puerta no selecciona entre dos reglas: decide si hay que NEGAR una. Escribir
+  // las dos ramas enteras hacia el jugador es, por tanto, repetir la misma regla
+  // negada -- y era casi la mitad de los enunciados mas largos del juego
+  // (180-213 caracteres). Cuando la rama NO es el complemento, se dice "lo
+  // contrario"; cuando NO lo sea (operaciones independientes por rama, el
+  // selector de verdad), la plantilla la escribe entera sin tener que tocarla.
+  const _v7CompCache = new Map();
+  function v7BranchIsComplement(op){
+    try{
+      if(!op || typeof op.same !== "function" || typeof op.different !== "function") return false;
+      const key = String(op.id || "");
+      if(_v7CompCache.has(key)) return _v7CompCache.get(key);
+      let comp = true;
+      for(let a=1; a<=12 && comp; a++){
+        for(let b=1; b<=12; b++){
+          if(!!op.different(a,b,12) !== !op.same(a,b,12)){ comp = false; break; }
+        }
+      }
+      _v7CompCache.set(key, comp);
+      return comp;
+    }catch(_){ return false; }
+  }
+  function v7GateBranchLines(op, opts){
+    const legacy = (typeof CONFIG !== "undefined" && CONFIG.v7GateWording === false);
+    const yesRule = String((op && op.sameDesc) || "the stated rule");
+    const noRule = String((op && op.differentDesc) || "the other rule");
+    if(legacy) return {yes:`If YES: answer YES when ${yesRule}.`, no:`If NO: answer YES when ${noRule}.`};
+    const comp = v7BranchIsComplement(op);
+    return {
+      yes:`If YES: answer YES when ${yesRule}.`,
+      no: comp ? "If NO: answer YES in the opposite case." : `If NO: answer YES when ${noRule}.`,
+      complementaria: comp
+    };
+  }
   function outcomeTextV6827(cond, holds){
     if(!cond) return holds ? "the set condition holds" : "the set condition does not hold";
     return holds ? cond.desc : `not: ${cond.desc}`;
@@ -94263,10 +94589,13 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           return (!CONFIG.l0VennGateRequireGate || (typeof requireHarnessPass !== "function") || requireHarnessPass("l0_venn_gate"));
         }catch(_){ return false; }
       },
-      variants:[
-        {q:`Does it show: ${cond.desc}?\nIf YES: answer YES when ${op.sameDesc}.\nIf NO: answer YES when ${op.differentDesc}.`},
-        {q:`Read the set relation first: ${cond.desc}.\nYES branch: ${op.sameDesc}. NO branch: ${op.differentDesc}.\nApply the selected branch to LEFT and RIGHT.`}
-      ],
+      variants:(function(){
+        const L = v7GateBranchLines(op);
+        return [
+          {q:`Set diagram: ${cond.desc}?\n${L.yes}\n${L.no}`},
+          {q:`Read the set diagram first: ${cond.desc}.\n${L.yes}\n${L.no}`}
+        ];
+      })(),
       gen(m,t){
         const maxAB = Math.max(2, Math.min(Number(m || 8) + 1, 12));
         const level = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : (cond.minLevel || 7);
@@ -97359,7 +97688,11 @@ ${res.agents.map(a=>a.line).join(" ")}`;
   function auditV6842RecursiveCardsAndOnboarding(opts={}){
     const warnings=[], block=[];
     try{
-      if(typeof currentAppVersion === "function" && !/v6\.8\.42/.test(String(currentAppVersion()))) warnings.push("APP_VERSION does not include v6.8.42");
+      // Desanclado del literal /v6\.8\.42/ — el mismo arreglo que v6.8.61 aplico
+      // a auditV6817: avisaba en TODAS las builds posteriores a la 6.8.42, es
+      // decir siempre, sin informar de nada. Se comprueba que la version este
+      // bien formada, que es lo unico que esta auditoria puede saber.
+      if(typeof currentAppVersion === "function" && !/^v\d+\.\d+\.\d+/.test(String(currentAppVersion()))) warnings.push("APP_VERSION is not a well-formed version string");
     }catch(_){ warnings.push("currentAppVersion unavailable"); }
     try{
       if(typeof eucaHasSeenOnboarding === "function" && eucaHasSeenOnboarding("manipulation", "x", "y") !== false) block.push("core manipulation briefing can still be suppressed by localStorage");
@@ -98924,6 +99257,11 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           return prevStart.apply(this, arguments);
         };
         wrapped.__v6851ScalarWitnessWrapped = true;
+        // Propagar los marcadores de las capas inferiores: este es el ultimo
+        // envoltorio de la cadena, asi que si no lo hace, los marcadores de
+        // v6.7.3 / v6.8.1 / v6.8.26 quedan invisibles y sus auditorias avisan de
+        // hooks "sin envolver" que en realidad SI estan en la cadena.
+        try{ for(const k of Object.getOwnPropertyNames(prevStart)){ if(k.slice(0,2) === "__" && !(k in wrapped)) wrapped[k] = prevStart[k]; } }catch(_){ }
         try{ window.maybeStartInlineGenerativeTrialAfterReset = wrapped; globalThis.maybeStartInlineGenerativeTrialAfterReset = wrapped; }catch(_){ }
         try{ maybeStartInlineGenerativeTrialAfterReset = wrapped; }catch(_){ }
       }
@@ -98965,6 +99303,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           return prevProcessInput.apply(this, arguments);
         };
         wrappedProcessInput.__v6851ScalarWitnessWrapped = true;
+        try{ for(const k of Object.getOwnPropertyNames(prevProcessInput)){ if(k.slice(0,2) === "__" && !(k in wrappedProcessInput)) wrappedProcessInput[k] = prevProcessInput[k]; } }catch(_){ }
         processInput = wrappedProcessInput;
         try{ window.processInput = wrappedProcessInput; globalThis.processInput = wrappedProcessInput; }catch(_){ }
       }
@@ -98980,6 +99319,7 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           return prevDraw.apply(this, arguments);
         };
         wrappedDraw.__v6851ScalarWitnessWrapped = true;
+        try{ for(const k of Object.getOwnPropertyNames(prevDraw)){ if(k.slice(0,2) === "__" && !(k in wrappedDraw)) wrappedDraw[k] = prevDraw[k]; } }catch(_){ }
         draw = wrappedDraw;
         try{ window.draw = wrappedDraw; globalThis.draw = wrappedDraw; }catch(_){ }
       }
@@ -100334,19 +100674,54 @@ ${res.agents.map(a=>a.line).join(" ")}`;
           if(l0ChoiceAnchor5PairValid(defs,4,4) !== true || l0ChoiceAnchor5PairValid(defs,4,6) !== true) blockers.push("anchor-5 validator rejects legal non-anchor pairs");
         }
       }
-      if(typeof buildL0CounterexampleChoice === "function"){
+      // El constructor es una funcion LOCAL de otro IIFE y nunca se exporto, asi
+      // que `typeof buildL0CounterexampleChoice === "function"` era siempre falso
+      // y esta comprobacion no llegaba a ejecutarse nunca: la auditoria avisaba
+      // de que no podia mirar, y nadie leia el aviso. Se resuelve desde el
+      // registro, donde el spec lo publica como cat.buildChoiceTrial.
+      let counterBuilder = (typeof buildL0CounterexampleChoice === "function") ? buildL0CounterexampleChoice : null;
+      if(!counterBuilder){
+        try{
+          const pool = (typeof POSNER_CATS !== "undefined" && Array.isArray(POSNER_CATS)) ? POSNER_CATS : [];
+          // Coincidencia ESTRICTA: familia y nombre del constructor. Un filtro
+          // laxo (p.ej. "counter" en el id del spec) resuelve el constructor de
+          // cyclic_distance_choice ("counterclockwise_mod7"), que con un cat de
+          // counterexample no termina: la auditoria colgaba la suite entera.
+          const host = pool.find(c => c && typeof c.buildChoiceTrial === "function"
+            && c.family === "counterexample_choice"
+            && c.buildChoiceTrial.name === "buildL0CounterexampleChoice");
+          if(host){ counterBuilder = host.buildChoiceTrial; details.counterBuilderFrom = host.id; }
+        }catch(_){ }
+      }
+      if(typeof counterBuilder === "function"){
         const cat = {id:"audit_counter_anchor5", family:"counterexample_choice", responseFormat:"choice", choiceSpec:{id:"counter_parity_set", defs:["same_parity","sum_even","gap_even","same_side_of_5"]}, frameTags:[]};
         const seen = [];
+        // Presupuesto de pared: ninguna auditoria debe poder colgar la suite.
+        const budgetT0 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+        const budgetMs = 1500;
         for(let i=0;i<80;i++){
-          const trial = buildL0CounterexampleChoice(cat, 10);
+          const elapsedBudget = ((typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now()) - budgetT0;
+          if(elapsedBudget > budgetMs){ details.counterSampleTruncatedAt = i; warnings.push(`counterexample sampling stopped at ${i} of 80 builds after ${budgetMs} ms`); break; }
+          const trial = counterBuilder(cat, 10);
           if(!trial) { blockers.push("counterexample anchor-5 trial did not build"); break; }
           seen.push([trial.a, trial.b]);
           if(trial.a === 5 || trial.b === 5) blockers.push(`counterexample anchor-5 trial used boundary value: ${trial.a},${trial.b}`);
           const optionText = arr(trial.options).map(o => String(o && (o.text || o.label || o))).join(" | ");
-          if(/same side of 5/i.test(optionText)) blockers.push("counterexample option text still uses ambiguous same-side wording");
+          // La comprobacion original marcaba cualquier "same side of 5". Hoy la
+          // etiqueta es "...on the same side of 5 (both below it, both above it,
+          // or both equal to it)": desambigua el caso del 5 en el propio texto, y
+          // ademas l0ChoiceAnchor5PairValid impide servir pares con un 5 (lo
+          // verifica esta misma auditoria arriba). Se marca solo la forma DESNUDA,
+          // que es la que era ambigua, para que el aviso vuelva si reaparece.
+          if(/same side of 5/i.test(optionText) && !/(both\s+)?equal to it|both below|both above/i.test(optionText)){
+            if(!details.ambiguousSameSideSeen){
+              details.ambiguousSameSideSeen = true;
+              blockers.push("counterexample option text uses bare ambiguous same-side wording (no disambiguation of the value 5)");
+            }
+          }
         }
         details.sampledCounterPairs = seen.slice(0,12);
-      }else warnings.push("buildL0CounterexampleChoice unavailable during audit");
+      }else warnings.push("counterexample choice builder not reachable from the registry either");
     }catch(e){
       blockers.push("anchor-5 choice clarity audit exception: " + (e && e.message || e));
     }
@@ -105023,6 +105398,965 @@ ${res.agents.map(a=>a.line).join(" ")}`;
     if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v6888", "same_remainder_negation", "remainder_negation_semantics"], eucaAuditV6888RemainderNegationSemantics, "eucaAuditV6888RemainderNegationSemantics");
   }catch(_){ }
   try{ window.EUCA_V6888_REMAINDER_NEGATION = {patch:PATCH_ID, audit:eucaAuditV6888RemainderNegationSemantics}; }catch(_){ }
+})();
+</script>
+
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// F1 perf — autoTransformEvidence() memoisation.
+//
+// MEASURED PROBLEM (headless CDP, 20 auto-mode trials, v6.8.88):
+//   autoTransformEvidence() -> autoTransformCandidateCells() -> ~2.7k
+//   cubeTransformCandidatePayload() calls -> ~262k robust3x3CloneCells() calls,
+//   ~40 ms per evidence call. It was reached from two hot paths:
+//     * BLOCK_INTRO, twice per HUD paint, every frame:
+//         loop > update > maybeUpdateHUDForStaticState > updateHUD >
+//         computeLevelUpProgress | levelProgressLabel > levelProgressDetail >
+//         computeAutoCurriculumProgressParts
+//       -> updateHUD measured 56.8 ms mean / 96.4 ms max in BLOCK_INTRO, vs
+//          0.05 ms in every other state. That is the gameplay jank.
+//     * LOCKED, ~5x per trial, from next-trial preparation:
+//         nextAutoTrialKind > buildPreparedAutoNextTrial, and
+//         autoTransformDoneByEvidence > repairAutoCurriculumFlagsFromStats.
+//
+// FIX: memoise the evidence on a signature of everything its AGGREGATES depend
+// on (phase max, mode, levels, answered-trial counter, representation-transform
+// stats totals), with a TTL as a staleness bound. The signature changes on every
+// answered trial, so the evidence is recomputed at most once per trial instead of
+// ~25x per block intro and ~5x per trial.
+//
+// NOT TOUCHED ON PURPOSE: autoTransformCandidateCells() stays uncached, because
+// makeTransformPropaedeuticTrialInfo() calls it directly to BUILD trials and
+// needs fresh payloads. Only the evidence aggregates are cached; every
+// autoTransformEvidence() consumer reads aggregates (total/seen/ready/t/c/acc/rt),
+// never the payloads.
+//
+// Reversible: CONFIG.v6889AutoTransformEvidenceCache = false restores the old
+// behaviour exactly (the original function is kept and called through).
+// ─────────────────────────────────────────────────────────────────────────────
+(function autoTransformEvidenceCacheV6889(){
+  "use strict";
+  const PATCH_ID = "v6889_auto_transform_evidence_cache";
+  try{
+    if(typeof CONFIG === "undefined" || typeof autoTransformEvidence !== "function") return;
+    if(autoTransformEvidence.__v6889Cached) return;
+    if(CONFIG.v6889AutoTransformEvidenceCache === undefined) CONFIG.v6889AutoTransformEvidenceCache = true;
+    if(CONFIG.v6889AutoTransformEvidenceCacheTtlMs === undefined) CONFIG.v6889AutoTransformEvidenceCacheTtlMs = 3000;
+
+    const orig = autoTransformEvidence;
+    const now = () => (typeof perfNow === "function") ? perfNow() : Date.now();
+    let key = null, val = null, at = 0, hits = 0, misses = 0, lastMs = 0;
+
+    function signature(maxTier){
+      let nKeys = 0, sumT = 0, sumC = 0;
+      try{
+        const stats = (State.meta && State.meta.representationTransformStats) || {};
+        for(const k in stats){
+          const st = stats[k];
+          nKeys++;
+          sumT += (st && Number(st.t)) || 0;
+          sumC += (st && Number(st.c)) || 0;
+        }
+      }catch(_){ }
+      let phaseMax = 0;
+      try{ phaseMax = Number(autoPrimitiveMaxValueForPhase("1B", "A")) || 0; }catch(_){ }
+      const lv = State.levelByMode || {};
+      const p1b = (State.meta && State.meta.autoPhaseStats && State.meta.autoPhaseStats["1B"]) || {};
+      return [
+        maxTier, phaseMax, State.mode, State.modeChoice, lv.A, lv.D,
+        (State.stats && Number(State.stats.trials)) || 0,
+        nKeys, sumT, sumC, Number(p1b.t) || 0
+      ].join("|");
+    }
+
+    const wrapped = function autoTransformEvidenceV6889(maxTier = 1){
+      if(!CONFIG.v6889AutoTransformEvidenceCache) return orig(maxTier);
+      const sig = signature(maxTier);
+      const t = now();
+      const ttl = Math.max(0, Number(CONFIG.v6889AutoTransformEvidenceCacheTtlMs) || 0);
+      if(val && sig === key && (ttl === 0 || (t - at) < ttl)){ hits++; return val; }
+      misses++;
+      const t0 = now();
+      val = orig(maxTier);
+      lastMs = Math.round((now() - t0) * 10) / 10;
+      key = sig;
+      at = t;
+      return val;
+    };
+    wrapped.__v6889Cached = true;
+    try{ for(const k of Object.getOwnPropertyNames(orig)){ if(k.slice(0,2) === "__") wrapped[k] = orig[k]; } }catch(_){ }
+
+    autoTransformEvidence = wrapped;
+    try{ window.autoTransformEvidence = wrapped; }catch(_){ }
+    try{ globalThis.autoTransformEvidence = wrapped; }catch(_){ }
+
+    const api = {
+      patch: PATCH_ID,
+      stats: () => ({hits, misses, lastComputeMs:lastMs, ageMs: at ? Math.round(now() - at) : null, key}),
+      clear: () => { key = null; val = null; at = 0; return true; },
+      uncached: (maxTier = 1) => orig(maxTier)
+    };
+    try{ window.EUCA_V6889_EVIDENCE_CACHE = api; }catch(_){ }
+
+    // ── self-audit: the cache must be a pure speed-up, never a semantic change ──
+    function auditV6889AutoTransformEvidenceCache(){
+      const block = [], warnings = [], details = {patch:PATCH_ID};
+      const AR = (typeof auditResult === "function") ? auditResult : ((status, payload) => Object.assign({status}, payload || {}));
+      try{
+        details.installed = !!(typeof autoTransformEvidence === "function" && autoTransformEvidence.__v6889Cached);
+        if(!details.installed) block.push("autoTransformEvidence wrapper is not installed");
+        if(!CONFIG.v6889AutoTransformEvidenceCache){
+          warnings.push("cache disabled via CONFIG.v6889AutoTransformEvidenceCache");
+          return AR("WARN", {block, warnings, details});
+        }
+        const agg = (e) => JSON.stringify({total:e && e.total, seen:e && e.seen, ready:e && e.ready, t:e && e.t, c:e && e.c});
+        api.clear();
+        const t0 = now();
+        const fresh = orig(1);
+        details.uncachedMs = Math.round((now() - t0) * 10) / 10;
+        const before = api.stats();
+        const a = autoTransformEvidence(1);
+        const b = autoTransformEvidence(1);
+        const after = api.stats();
+        details.cachedMs = after.lastComputeMs;
+        details.hitsGained = after.hits - before.hits;
+        if(details.hitsGained < 1) block.push("a second identical call did not hit the cache");
+        if(a !== b) block.push("identical signature returned two different objects");
+        details.uncachedAgg = agg(fresh);
+        details.cachedAgg = agg(a);
+        if(details.uncachedAgg !== details.cachedAgg){
+          block.push(`cached aggregates differ from an uncached computation: ${details.cachedAgg} vs ${details.uncachedAgg}`);
+        }
+        // an answered trial must invalidate
+        const savedTrials = (State.stats && State.stats.trials);
+        try{
+          if(State.stats) State.stats.trials = (Number(savedTrials) || 0) + 1;
+          const c = autoTransformEvidence(1);
+          details.invalidatedOnNewTrial = (c !== a);
+          if(c === a) block.push("a changed signature did not invalidate the cache");
+        } finally {
+          if(State.stats) State.stats.trials = savedTrials;
+          api.clear();
+        }
+        // The ordering fix in computeAutoCurriculumProgressParts must hold too:
+        // no evidence work may run once the relational handoff has started.
+        // Checked BEHAVIOURALLY, not by reading source — a source scan both
+        // false-blocks when a later patch wraps the function and matches the
+        // function's own comments.
+        try{
+          const savedFlag = (typeof window !== "undefined") ? window.autoTutorialRelationalStarted : null;
+          try{
+            if(typeof window !== "undefined") window.autoTutorialRelationalStarted = () => true;
+            api.clear();
+            const s0 = api.stats();
+            const parts = computeAutoCurriculumProgressParts();
+            const s1 = api.stats();
+            const calls = (s1.hits - s0.hits) + (s1.misses - s0.misses);
+            details.evidenceCallsWhenRelationalStarted = calls;
+            details.relationalShortCircuitProgress = parts && parts.progress;
+            if(calls !== 0) block.push(`computeAutoCurriculumProgressParts still computes transform evidence after the relational handoff (${calls} calls)`);
+            if(!parts || parts.progress !== 1) block.push("relational short-circuit no longer reports progress 1");
+          } finally {
+            if(typeof window !== "undefined" && savedFlag) window.autoTutorialRelationalStarted = savedFlag;
+            api.clear();
+          }
+        }catch(e){ warnings.push(`could not behaviour-check computeAutoCurriculumProgressParts: ${(e && e.message) || e}`); }
+      }catch(e){ block.push(`audit exception: ${(e && e.message) || e}`); }
+      return AR(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {block, warnings, details});
+    }
+    // exposed as auditV6...  so runFeatureAudit("all") auto-discovers it
+    try{ window.auditV6889AutoTransformEvidenceCache = auditV6889AutoTransformEvidenceCache; }catch(_){ }
+    try{ globalThis.auditV6889AutoTransformEvidenceCache = auditV6889AutoTransformEvidenceCache; }catch(_){ }
+    try{
+      if(typeof registerFeatureAudit === "function"){
+        registerFeatureAudit(["v6889", "auto_transform_evidence_cache", "f1_perf_evidence_cache"],
+          auditV6889AutoTransformEvidenceCache, "auditV6889AutoTransformEvidenceCache");
+      }
+    }catch(_){ }
+    try{ api.audit = auditV6889AutoTransformEvidenceCache; }catch(_){ }
+  }catch(e){
+    try{ recordRuntimeError(e, {source:PATCH_ID}); }catch(_){ }
+  }
+})();
+</script>
+
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// v6.8.90 — cuatro arreglos independientes, cada uno con su interruptor:
+//
+//  P1  Bucle de "un latido de pintado" en startTrial. MEDIDO: 159 llamadas a
+//      startTrial para 24 trials, de las que 122 son el `resume` de
+//      shouldDeferUnpreparedStartTrialForPaint reentrando una vez por frame
+//      mientras el estado sigue en FLOW_RESUME. El diferido NO genera trials
+//      (ninguno se descarta: prefetch scheduled 55 / built 49 / consumed 49 /
+//      invalidated 0), pero deja ~5 frames por trial mostrando "Preparing next
+//      trial…" sin preparar nada. Se acota a UN latido, que es lo que decía la
+//      intención original.
+//
+//  P2  A1 del informe de fallos: el ancla del cronómetro en ítems de varios
+//      pasos. Los tres sitios que reabren la entrada del segundo paso
+//      (~84846, ~86004, ~93595) reasignan inputOpenedAt y además llaman a
+//      resetCognitiveTiming(), que reancla también trialWallStartedAt: no queda
+//      ninguna referencia al inicio del ítem. Se conserva un ancla propia por
+//      ítem y se reportan DOS medidas: rtTotal (desde la primera apertura de
+//      entrada del ítem) y rtLastStep (semántica actual). rtTotal es el que se
+//      devuelve, y por tanto el que consume el currículo, según la
+//      recomendación del informe. En ítems de un solo paso ambos coinciden por
+//      construcción, así que no cambia nada allí.
+//
+//  P3  Háptica: 90 llamadas "bloqueadas" con supported:true, enabled:false. No
+//      es un fallo: es el ajuste del usuario. Se separa `disabledByUser` de
+//      `blocked` para que la señal deje de parecer una avería.
+//
+//  P4  Máscara: se simplificó por rendimiento, y el rendimiento no estaba ahí
+//      (draw = 0,05 ms). Dos causas de la sensación de poca fluidez: (a) el
+//      fotograma se elegía con floor(phaseElapsedMs()/24), y con frames de
+//      16,7 ms eso repite imagen en la mitad de los frames — judder; (b) la
+//      capa de motas era ESTÁTICA (posiciones fijas en gen()), así que sobre el
+//      ruido cíclico se veía una imagen quieta con parpadeo. Ahora avanza un
+//      paso por frame dibujado, con 3 juegos de motas y una secuencia de 24
+//      pasos con micro-desplazamiento sub-celda. Coste por frame idéntico:
+//      un drawImage y los mismos fillRect, todo precalculado en gen().
+//      El tamaño de celda NO se toca (sigue clamp(min(W,H)/180, 1, 3)).
+// ─────────────────────────────────────────────────────────────────────────────
+(function eucaV6890Fixes(){
+  "use strict";
+  const PATCH_ID = "v6890_f3_and_reported_fixes";
+  const api = {patch:PATCH_ID};
+  const now = () => (typeof perfNow === "function") ? perfNow() : Date.now();
+  try{
+    if(typeof CONFIG === "undefined") return;
+    if(CONFIG.v6890MaxUnpreparedPaintBeats === undefined) CONFIG.v6890MaxUnpreparedPaintBeats = 1;
+    if(CONFIG.v6890MultiStepRtTotal === undefined) CONFIG.v6890MultiStepRtTotal = true;
+    if(CONFIG.v6890HapticDisabledCounter === undefined) CONFIG.v6890HapticDisabledCounter = true;
+    if(CONFIG.v6890MaskFluid === undefined) CONFIG.v6890MaskFluid = true;
+
+    // ── P1 · acotar el latido de pintado ────────────────────────────────────
+    try{
+      const origDefer = (typeof shouldDeferUnpreparedStartTrialForPaint === "function") ? shouldDeferUnpreparedStartTrialForPaint : null;
+      if(origDefer && !origDefer.__v6890Bounded){
+        let streak = 0;
+        const wrapped = function shouldDeferUnpreparedStartTrialForPaintV6890(attempt, forcedLevel){
+          let want = false;
+          try{ want = !!origDefer(attempt, forcedLevel); }catch(_){ want = false; }
+          if(!want){ streak = 0; return false; }
+          const max = Math.max(0, Number(CONFIG.v6890MaxUnpreparedPaintBeats));
+          if(streak >= max){ streak = 0; return false; }
+          streak++;
+          return true;
+        };
+        wrapped.__v6890Bounded = true;
+        shouldDeferUnpreparedStartTrialForPaint = wrapped;
+        try{ window.shouldDeferUnpreparedStartTrialForPaint = wrapped; }catch(_){ }
+        api.paintBeat = {streak:() => streak, reset:() => { streak = 0; }, uncached:origDefer};
+      }
+    }catch(e){ try{ recordRuntimeError(e, {source:PATCH_ID + ".p1"}); }catch(_){ } }
+
+    // ── P2 · ancla del RT por ítem (rtTotal / rtLastStep) ───────────────────
+    try{
+      const stats = {multiStepItems:0, maxGapMs:0, lastRtTotal:null, lastRtLastStep:null};
+      api.rt = stats;
+      // El ancla vive FUERA de State.timing, que resetCognitiveTiming() reconstruye.
+      // Se identifica el ítem por la referencia del objeto trialInfo: los tres
+      // sitios de reapertura conservan el mismo objeto, un trial nuevo trae otro.
+      const anchorFor = () => {
+        const info = State.trialInfo || null;
+        if(!info) return null;
+        if(State._v6890ItemRef !== info){
+          State._v6890ItemRef = info;
+          const t = State.timing || {};
+          State._v6890ItemOpenedAt = Number(t.inputOpenedAt) || Number(State.trialStartTime) || now();
+        }
+        return Number(State._v6890ItemOpenedAt) || null;
+      };
+      const origBegin = (typeof beginInputPhase === "function") ? beginInputPhase : null;
+      if(origBegin && !origBegin.__v6890Anchored){
+        const wrappedBegin = function beginInputPhaseV6890(){
+          const ret = origBegin.apply(this, arguments);
+          try{ anchorFor(); }catch(_){ }
+          return ret;
+        };
+        wrappedBegin.__v6890Anchored = true;
+        try{ for(const k of Object.getOwnPropertyNames(origBegin)){ if(k.slice(0,2) === "__") wrappedBegin[k] = origBegin[k]; } }catch(_){ }
+        beginInputPhase = wrappedBegin;
+        try{ window.beginInputPhase = wrappedBegin; }catch(_){ }
+      }
+      // resetCognitiveTiming() se llama tanto al empezar un trial como al abrir
+      // el paso 2 de un item, y reconstruye State.timing con frozenTotal a 0.
+      // En el segundo caso eso perderia el tiempo congelado (pestana oculta) del
+      // primer paso y lo contaria como tiempo de respuesta en rtTotal.
+      const origReset = (typeof resetCognitiveTiming === "function") ? resetCognitiveTiming : null;
+      if(origReset && !origReset.__v6890KeepFrozen){
+        const wrappedReset = function resetCognitiveTimingV6890(){
+          const sameItem = !!(State.trialInfo && State._v6890ItemRef === State.trialInfo);
+          const prevFrozen = sameItem ? (Number((State.timing || {}).frozenTotal) || 0) : 0;
+          const ret = origReset.apply(this, arguments);
+          try{ if(sameItem && prevFrozen > 0 && State.timing) State.timing.frozenTotal = prevFrozen; }catch(_){ }
+          return ret;
+        };
+        wrappedReset.__v6890KeepFrozen = true;
+        try{ for(const k of Object.getOwnPropertyNames(origReset)){ if(k.slice(0,2) === "__") wrappedReset[k] = origReset[k]; } }catch(_){ }
+        resetCognitiveTiming = wrappedReset;
+        try{ window.resetCognitiveTiming = wrappedReset; }catch(_){ }
+      }
+      const origFinish = (typeof finishCognitiveTiming === "function") ? finishCognitiveTiming : null;
+      if(origFinish && !origFinish.__v6890DualRt){
+        const wrappedFinish = function finishCognitiveTimingV6890(){
+          const rtLastStep = origFinish.apply(this, arguments);
+          try{
+            if(!CONFIG.v6890MultiStepRtTotal) return rtLastStep;
+            const t = State.timing || {};
+            const anchor = Number(State._v6890ItemOpenedAt);
+            if(!Number.isFinite(rtLastStep) || !Number.isFinite(anchor) || anchor <= 0 || !t.answeredAt) return rtLastStep;
+            const total = Math.round(Math.max(0, t.answeredAt - anchor - (Number(t.frozenTotal) || 0)));
+            const rtTotal = Math.max(Math.round(rtLastStep), total);
+            t.rtLastStep = Math.round(rtLastStep);
+            t.rtTotal = rtTotal;
+            t.cognitiveRT = rtTotal;
+            stats.lastRtTotal = rtTotal;
+            stats.lastRtLastStep = Math.round(rtLastStep);
+            const gap = rtTotal - Math.round(rtLastStep);
+            if(gap > 0){
+              stats.multiStepItems++;
+              if(gap > stats.maxGapMs) stats.maxGapMs = gap;
+            }
+            try{
+              if(State.trialInfo){
+                State.trialInfo.__rtTotal = rtTotal;
+                State.trialInfo.__rtLastStep = Math.round(rtLastStep);
+              }
+            }catch(_){ }
+            return rtTotal;
+          }catch(e){ try{ recordRuntimeError(e, {source:PATCH_ID + ".p2.finish"}); }catch(_){ } }
+          return rtLastStep;
+        };
+        wrappedFinish.__v6890DualRt = true;
+        try{ for(const k of Object.getOwnPropertyNames(origFinish)){ if(k.slice(0,2) === "__") wrappedFinish[k] = origFinish[k]; } }catch(_){ }
+        finishCognitiveTiming = wrappedFinish;
+        try{ window.finishCognitiveTiming = wrappedFinish; }catch(_){ }
+      }
+      // Persistencia: las dos medidas viajan en el buffer de telemetria por trial
+      // (y por tanto en el export y en el guardado), con marca de version del
+      // ancla para poder distinguir los datos anteriores al arreglo.
+      const origPush = (typeof pushTrialTelemetry === "function") ? pushTrialTelemetry : null;
+      if(origPush && !origPush.__v6890RtFields){
+        const wrappedPush = function pushTrialTelemetryV6890(entry){
+          try{
+            const t = State.timing || {};
+            if(entry && typeof entry === "object" && Number.isFinite(Number(t.rtTotal))){
+              entry = Object.assign({}, entry, {rtTotal:t.rtTotal, rtLastStep:t.rtLastStep, rtAnchor:"item_input_opened_v6890"});
+            }
+          }catch(_){ }
+          return origPush.call(this, entry);
+        };
+        wrappedPush.__v6890RtFields = true;
+        pushTrialTelemetry = wrappedPush;
+        try{ window.pushTrialTelemetry = wrappedPush; }catch(_){ }
+      }
+    }catch(e){ try{ recordRuntimeError(e, {source:PATCH_ID + ".p2"}); }catch(_){ } }
+
+    // ── P3 · haptica: distinguir "desactivada por el usuario" de "bloqueada" ─
+    try{
+      const origHaptic = (typeof playHapticFeedback === "function") ? playHapticFeedback : null;
+      if(origHaptic && !origHaptic.__v6890HapticCounter){
+        const wrapped = function playHapticFeedbackV6890(kind, opts){
+          if(!CONFIG.v6890HapticDisabledCounter) return origHaptic.apply(this, arguments);
+          try{
+            const o = opts || {};
+            if(!CONFIG.noEffectsMode && !CONFIG.safeMode && !o.force){
+              if(typeof initHapticSupport === "function") initHapticSupport();
+              const st = State.hapticStats || (State.hapticStats = {calls:0, accepted:0, unavailable:0, blocked:0, lastKind:null, lastAt:0});
+              if(State.hapticSupported && !State.hapticEnabled){
+                // Ajuste del usuario, no una llamada fallida: se cuenta aparte y
+                // no se vuelve a entrar en la funcion original.
+                st.disabledByUser = (Number(st.disabledByUser) || 0) + 1;
+                return false;
+              }
+            }
+          }catch(_){ }
+          return origHaptic.apply(this, arguments);
+        };
+        wrapped.__v6890HapticCounter = true;
+        playHapticFeedback = wrapped;
+        try{ window.playHapticFeedback = wrapped; }catch(_){ }
+      }
+    }catch(e){ try{ recordRuntimeError(e, {source:PATCH_ID + ".p3"}); }catch(_){ } }
+
+    // ── P4 · fluidez de la mascara ──────────────────────────────────────────
+    try{
+      if(typeof Mask === "object" && Mask && typeof Mask.draw === "function" && !Mask.__v6890Fluid){
+        const origDraw = Mask.draw;
+        const origGen = Mask.gen;
+        const SEQ_LEN = 24;
+        const SPECK_SETS = 3;
+        function buildExtras(m){
+          const base = Array.isArray(m.specks) ? m.specks : [];
+          const sets = [];
+          for(let s=0; s<SPECK_SETS; s++){
+            sets.push(base.map((sp, i) => {
+              const j = (i * 2654435761 + s * 40503) >>> 0;
+              const dx = ((j & 255) / 255 - 0.5) * 0.10;
+              const dy = (((j >>> 8) & 255) / 255 - 0.5) * 0.10;
+              const da = (((j >>> 16) & 255) / 255 - 0.5) * 0.05;
+              return {
+                rx: Math.min(0.999, Math.max(0, sp.rx + dx)),
+                ry: Math.min(0.999, Math.max(0, sp.ry + dy)),
+                w: sp.w, h: sp.h,
+                a: Math.min(0.30, Math.max(0.05, sp.a + da))
+              };
+            }));
+          }
+          m._v6890Specks = sets;
+          // Secuencia de 24 pasos: fotograma, juego de motas y desplazamiento
+          // sub-celda. 24 pasos a un paso por frame cubren 400 ms a 60 Hz, mas
+          // que los 150 ms de maskMs, asi que no se ve repeticion dentro de una
+          // misma mascara. Los tres factores son coprimos con 24.
+          const nF = Math.max(1, (m.frames || []).length);
+          const seq = new Array(SEQ_LEN);
+          for(let i=0; i<SEQ_LEN; i++){
+            seq[i] = [
+              (i * 5) % nF,
+              i % SPECK_SETS,
+              (i % 2) ? -1 : 0,
+              (Math.floor(i / 2) % 2) ? -1 : 0
+            ];
+          }
+          m._v6890Seq = seq;
+          m._v6890Step = 0;
+        }
+        if(typeof origGen === "function"){
+          Mask.gen = function maskGenV6890(){
+            const ret = origGen.apply(this, arguments);
+            try{ buildExtras(this); }catch(_){ }
+            return ret;
+          };
+        }
+        Mask.draw = function maskDrawV6890(c){
+          if(!CONFIG.v6890MaskFluid) return origDraw.call(this, c);
+          try{
+            if(!this.frames || !this.frames.length || this.w <= 0 || this.h <= 0) this.gen();
+            if(!this._v6890Seq || !this._v6890Specks) buildExtras(this);
+            // Un paso por frame DIBUJADO: con el bucket temporal de 24 ms la
+            // imagen se repetia en la mitad de los frames a 60 Hz.
+            const step = (this._v6890Step = ((this._v6890Step | 0) + 1) % 100000);
+            const s = this._v6890Seq[step % this._v6890Seq.length];
+            const frame = this.frames[s[0] % this.frames.length] || this.canvas;
+            const sp = this._v6890Specks[s[1] % this._v6890Specks.length] || this.specks || [];
+            const cell = Math.max(1, Number(this.cell) || 1);
+            const ox = s[2] * cell, oy = s[3] * cell;
+            c.save();
+            c.imageSmoothingEnabled = false;
+            c.fillStyle = "#09090d";
+            c.fillRect(0, 0, W, H);
+            c.globalAlpha = 0.82;
+            c.drawImage(frame, ox, oy, W + cell, H + cell);
+            c.fillStyle = "#d8d8e8";
+            for(let i=0; i<sp.length; i++){
+              const p = sp[i];
+              c.globalAlpha = p.a;
+              c.fillRect(p.rx * W, p.ry * H, p.w, p.h);
+            }
+            c.restore();
+            return;
+          }catch(e){
+            try{ recordRuntimeError(e, {source:PATCH_ID + ".p4"}); }catch(_){ }
+            try{ return origDraw.call(this, c); }catch(_){ }
+          }
+        };
+        Mask.__v6890Fluid = true;
+        api.mask = {origDraw, buildExtras, seqLen:SEQ_LEN, speckSets:SPECK_SETS};
+      }
+    }catch(e){ try{ recordRuntimeError(e, {source:PATCH_ID + ".p4.install"}); }catch(_){ } }
+
+    // ── auditoría de comportamiento de los cuatro ───────────────────────────
+    function auditV6890ReportedFixes(){
+      const block = [], warnings = [], details = {patch:PATCH_ID};
+      const AR = (typeof auditResult === "function") ? auditResult : ((status, payload) => Object.assign({status}, payload || {}));
+      // P1
+      try{
+        details.p1Installed = !!(typeof shouldDeferUnpreparedStartTrialForPaint === "function" && shouldDeferUnpreparedStartTrialForPaint.__v6890Bounded);
+        if(!details.p1Installed) block.push("P1: el acotador del latido de pintado no esta instalado");
+        else {
+          const saved = {status:State.status, running:State.running, paused:State.paused,
+            prepared:State.nextTrialPrepared, inFlight:State.nextTrialPrepareInFlight,
+            deferred:State._startTrialDeferredForPaint};
+          try{
+            api.paintBeat.reset();
+            State.status = "FLOW_RESUME"; State.running = true; State.paused = false;
+            State.nextTrialPrepared = null; State.nextTrialPrepareInFlight = false;
+            State._startTrialDeferredForPaint = false;
+            const seq = [
+              shouldDeferUnpreparedStartTrialForPaint(0, null),
+              shouldDeferUnpreparedStartTrialForPaint(0, null),
+              shouldDeferUnpreparedStartTrialForPaint(0, null)
+            ];
+            details.p1Sequence = seq;
+            if(!seq[0]){
+              warnings.push("P1: el diferido no se activa en este entorno (config o build no publica); acotamiento no ejercitado");
+            } else if(seq[1] !== false){
+              block.push("P1: el latido de pintado se repite mas de lo permitido");
+            }
+          } finally {
+            State.status = saved.status; State.running = saved.running; State.paused = saved.paused;
+            State.nextTrialPrepared = saved.prepared; State.nextTrialPrepareInFlight = saved.inFlight;
+            State._startTrialDeferredForPaint = saved.deferred;
+            api.paintBeat.reset();
+          }
+        }
+      }catch(e){ block.push(`P1: excepcion en la auditoria: ${(e && e.message) || e}`); }
+      // P2
+      try{
+        details.p2Installed = !!(typeof finishCognitiveTiming === "function" && finishCognitiveTiming.__v6890DualRt);
+        if(!details.p2Installed) block.push("P2: el ancla doble de RT no esta instalada");
+        else {
+          const savedTiming = State.timing, savedStatus = State.status, savedAnchor = State._v6890ItemOpenedAt, savedRef = State._v6890ItemRef;
+          try{
+            const t0 = now();
+            State.status = "INPUT";
+            State.timing = {inputOpenedAt:t0 - 100, answeredAt:0, cognitiveRT:null,
+              trialWallStartedAt:t0 - 700, wallClockElapsed:null, frozen:false, freezeStartedAt:0, frozenTotal:0};
+            State._v6890ItemOpenedAt = t0 - 600;   // el ítem se abrio 600 ms antes
+            const rt = finishCognitiveTiming();
+            const tt = State.timing || {};
+            details.p2 = {returned:Math.round(rt), rtTotal:tt.rtTotal, rtLastStep:tt.rtLastStep};
+            if(!(tt.rtTotal >= tt.rtLastStep)) block.push(`P2: rtTotal (${tt.rtTotal}) < rtLastStep (${tt.rtLastStep})`);
+            if(!(tt.rtTotal >= 550)) block.push(`P2: rtTotal no cubre el primer paso (${tt.rtTotal} ms, se esperaban ~600)`);
+            if(!(tt.rtLastStep <= 200)) block.push(`P2: rtLastStep deberia medir solo el ultimo paso (${tt.rtLastStep} ms)`);
+            if(Math.round(rt) !== tt.rtTotal) block.push("P2: el valor devuelto no es rtTotal");
+            // un solo paso: las dos medidas deben coincidir
+            State.timing = {inputOpenedAt:t0 - 120, answeredAt:0, cognitiveRT:null,
+              trialWallStartedAt:t0 - 800, wallClockElapsed:null, frozen:false, freezeStartedAt:0, frozenTotal:0};
+            State._v6890ItemOpenedAt = t0 - 120;
+            finishCognitiveTiming();
+            const t2 = State.timing || {};
+            details.p2SingleStep = {rtTotal:t2.rtTotal, rtLastStep:t2.rtLastStep};
+            if(t2.rtTotal !== t2.rtLastStep) block.push(`P2: en un solo paso rtTotal y rtLastStep difieren (${t2.rtTotal} vs ${t2.rtLastStep})`);
+          } finally {
+            State.timing = savedTiming; State.status = savedStatus;
+            State._v6890ItemOpenedAt = savedAnchor; State._v6890ItemRef = savedRef;
+          }
+        }
+      }catch(e){ block.push(`P2: excepcion en la auditoria: ${(e && e.message) || e}`); }
+      // P3
+      try{
+        details.p3Installed = !!(typeof playHapticFeedback === "function" && playHapticFeedback.__v6890HapticCounter);
+        if(!details.p3Installed) block.push("P3: el contador de haptica desactivada no esta instalado");
+        else {
+          const savedStats = State.hapticStats ? Object.assign({}, State.hapticStats) : null;
+          const savedEnabled = State.hapticEnabled, savedSupported = State.hapticSupported;
+          try{
+            State.hapticStats = {calls:0, accepted:0, unavailable:0, blocked:0, disabledByUser:0, lastKind:null, lastAt:0};
+            State.hapticSupported = true; State.hapticEnabled = false;
+            playHapticFeedback("ok");
+            const st = State.hapticStats;
+            details.p3 = {disabledByUser:st.disabledByUser, blocked:st.blocked};
+            if(!(st.disabledByUser >= 1)) block.push("P3: una llamada con la haptica desactivada no se contabilizo como disabledByUser");
+            if(st.blocked !== 0) block.push("P3: una llamada con la haptica desactivada sigue contando como blocked");
+          } finally {
+            if(savedStats) State.hapticStats = savedStats;
+            State.hapticEnabled = savedEnabled; State.hapticSupported = savedSupported;
+          }
+        }
+      }catch(e){ block.push(`P3: excepcion en la auditoria: ${(e && e.message) || e}`); }
+      // P4
+      try{
+        details.p4Installed = !!(typeof Mask === "object" && Mask && Mask.__v6890Fluid);
+        if(!details.p4Installed) block.push("P4: la mascara fluida no esta instalada");
+        else {
+          const cv = document.createElement("canvas");
+          cv.width = 48; cv.height = 48;
+          const cx = cv.getContext("2d");
+          const sum = () => {
+            const d = cx.getImageData(0, 0, 48, 48).data;
+            let h = 0;
+            for(let i=0; i<d.length; i += 4){ h = (h * 31 + d[i] + d[i+1] * 3 + d[i+2] * 7) >>> 0; }
+            return h;
+          };
+          const hashes = [];
+          for(let i=0; i<6; i++){ Mask.draw(cx); hashes.push(sum()); }
+          const distinct = new Set(hashes).size;
+          details.p4 = {frames:hashes.length, distinct, seqLen:(Mask._v6890Seq || []).length, speckSets:(Mask._v6890Specks || []).length};
+          if(distinct < 5) block.push(`P4: seis dibujados consecutivos solo producen ${distinct} imagenes distintas (la mascara se repite)`);
+          const steps = Math.ceil((Number(CONFIG.maskMs) || 150) / 16.7);
+          if((Mask._v6890Seq || []).length < steps) block.push("P4: la secuencia es mas corta que la duracion de la mascara");
+        }
+      }catch(e){ block.push(`P4: excepcion en la auditoria: ${(e && e.message) || e}`); }
+      return AR(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {block, warnings, details});
+    }
+    try{ window.auditV6890ReportedFixes = auditV6890ReportedFixes; }catch(_){ }
+    try{ globalThis.auditV6890ReportedFixes = auditV6890ReportedFixes; }catch(_){ }
+    try{
+      if(typeof registerFeatureAudit === "function"){
+        registerFeatureAudit(["v6890", "reported_fixes", "rt_anchor", "mask_fluidity", "paint_beat"],
+          auditV6890ReportedFixes, "auditV6890ReportedFixes");
+      }
+    }catch(_){ }
+    api.audit = auditV6890ReportedFixes;
+    try{ window.EUCA_V6890 = api; }catch(_){ }
+  }catch(e){
+    try{ recordRuntimeError(e, {source:PATCH_ID}); }catch(_){ }
+  }
+})();
+</script>
+
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// v7 · lote 1 de la campana: percepcion y recompensa.
+// Tres hallazgos de la auditoria, verificados uno a uno antes de tocar nada:
+//   1. El chip de RT vivia 16,3 ms de mediana (min 0,4). MEDIDO sobre 22 trials
+//      con probe_v7_timing.js: tarda ~145 ms en ser legible y en 19 de 22 lo
+//      mataba clearFeedbackTrace("startTrial"), no su temporizador de 1200 ms.
+//      Arreglado en clearFeedbackTrace; aqui va la otra mitad: el chip debe
+//      desaparecer SI O SI cuando aparece el estimulo, para no contaminar la
+//      codificacion.
+//   2. Subir de nivel era mudo y bajar de nivel sonaba (verificado leyendo las
+//      dos ramas). Arreglado en la rama leveledUp.
+//   3. prefers-reduced-motion estaba invertido: el CSS apagaba los brillos del
+//      HUD y dejaba intacta la explosion de particulas, que es el movimiento
+//      grande y central. Arreglado en spawnParticles.
+// Los tres son reversibles por CONFIG.
+// ─────────────────────────────────────────────────────────────────────────────
+(function eucaV7FeedbackBatch1(){
+  "use strict";
+  const PATCH_ID = "v7_feedback_batch1";
+  try{
+    if(typeof CONFIG === "undefined") return;
+    if(CONFIG.v7RtChipDwell === undefined) CONFIG.v7RtChipDwell = true;
+    if(CONFIG.v7LevelUpCue === undefined) CONFIG.v7LevelUpCue = true;
+    if(CONFIG.v7ReducedMotionParticles === undefined) CONFIG.v7ReducedMotionParticles = true;
+
+    // El chip sobrevive al arranque del siguiente trial, pero no al estimulo.
+    const origSetStatus = (typeof setStatus === "function") ? setStatus : null;
+    if(origSetStatus && !origSetStatus.__v7ChipGuard){
+      const wrapped = function setStatusV7(status){
+        const ret = origSetStatus.apply(this, arguments);
+        try{
+          if(CONFIG.v7RtChipDwell && (status === "FLASH" || status === "MASK")){
+            const el = $("rtDisplay");
+            if(el && el.classList.contains("visible")){ el.classList.remove("visible"); el.textContent = "—"; }
+          }
+        }catch(_){ }
+        return ret;
+      };
+      wrapped.__v7ChipGuard = true;
+      try{ for(const k of Object.getOwnPropertyNames(origSetStatus)){ if(k.slice(0,2) === "__" && !(k in wrapped)) wrapped[k] = origSetStatus[k]; } }catch(_){ }
+      setStatus = wrapped;
+      try{ window.setStatus = wrapped; }catch(_){ }
+    }
+
+    function auditV7FeedbackBatch1(){
+      const block = [], warnings = [], details = {patch:PATCH_ID};
+      const AR = (typeof auditResult === "function") ? auditResult : ((status, payload) => Object.assign({status}, payload || {}));
+      // (1) particulas y movimiento reducido: comportamiento, no lectura de fuente
+      try{
+        const savedFn = window.prefersReducedMotion;
+        const savedParticles = State.particles ? State.particles.slice() : [];
+        try{
+          window.prefersReducedMotion = () => true;
+          State.particles.length = 0;
+          spawnParticles(100, 100, 40, "#fff");
+          details.particlesWithReducedMotion = State.particles.length;
+          if(State.particles.length !== 0) block.push(`prefers-reduced-motion no frena las particulas (${State.particles.length} generadas)`);
+          window.prefersReducedMotion = () => false;
+          State.particles.length = 0;
+          spawnParticles(100, 100, 40, "#fff");
+          details.particlesWithoutReducedMotion = State.particles.length;
+          if(State.particles.length === 0) block.push("sin movimiento reducido tampoco se generan particulas: el guardia es demasiado agresivo");
+        } finally {
+          window.prefersReducedMotion = savedFn;
+          try{ State.particles.length = 0; for(const p of savedParticles) State.particles.push(p); }catch(_){ }
+        }
+      }catch(e){ block.push(`particulas: excepcion en la auditoria: ${(e && e.message) || e}`); }
+      // (2) permanencia del chip de RT
+      try{
+        const el = $("rtDisplay");
+        if(!el) warnings.push("no hay #rtDisplay en el DOM; permanencia no ejercitada");
+        else {
+          const savedStatus = State.status;
+          try{
+            showRT(1234, true);
+            const visibleTrasMostrar = el.classList.contains("visible");
+            clearFeedbackTrace("startTrial");
+            const sobreviveAlSiguienteTrial = el.classList.contains("visible");
+            setStatus("FLASH", "audit_v7_chip");
+            const muereConElEstimulo = !el.classList.contains("visible");
+            clearFeedbackTrace("audit_cleanup");
+            details.chip = {visibleTrasMostrar, sobreviveAlSiguienteTrial, muereConElEstimulo};
+            if(!visibleTrasMostrar) block.push("showRT no deja el chip visible");
+            if(!sobreviveAlSiguienteTrial) block.push("el chip sigue muriendo al arrancar el siguiente trial");
+            if(!muereConElEstimulo) block.push("el chip sobrevive a la aparicion del estimulo (contamina la codificacion)");
+          } finally {
+            State.status = savedStatus;
+            try{ clearFeedbackTrace("audit_cleanup_final"); }catch(_){ }
+          }
+        }
+      }catch(e){ block.push(`chip de RT: excepcion en la auditoria: ${(e && e.message) || e}`); }
+      // (3) el inventario de audio tiene la marca que ahora usa la subida de nivel
+      try{
+        const hasKind = (typeof hapticPatternFor === "function") && Array.isArray(hapticPatternFor("unlock"));
+        details.unlockCueKnown = !!hasKind;
+        if(!hasKind) warnings.push("la marca 'unlock' no tiene patron haptico declarado");
+      }catch(_){ }
+      return AR(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {block, warnings, details});
+    }
+    try{ window.auditV7FeedbackBatch1 = auditV7FeedbackBatch1; }catch(_){ }
+    try{ globalThis.auditV7FeedbackBatch1 = auditV7FeedbackBatch1; }catch(_){ }
+    try{
+      if(typeof registerFeatureAudit === "function"){
+        registerFeatureAudit(["v7_feedback", "rt_chip_dwell", "reduced_motion_particles", "level_up_cue"],
+          auditV7FeedbackBatch1, "auditV7FeedbackBatch1");
+      }
+    }catch(_){ }
+    // discoverPatchFeatureAudits() solo auto-descubre nombres /^auditV6\d/, asi que
+    // toda auditoria de la era v7 tiene que registrarse por la via explicita o no
+    // entra en runFeatureAudit("all").
+    try{ if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV7FeedbackBatch1", auditV7FeedbackBatch1); }catch(_){ }
+    try{ window.EUCA_V7_BATCH1 = {patch:PATCH_ID, audit:auditV7FeedbackBatch1}; }catch(_){ }
+  }catch(e){
+    try{ recordRuntimeError(e, {source:PATCH_ID}); }catch(_){ }
+  }
+})();
+</script>
+
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// v7 · IMPLICACION MATERIAL — la logica que el catalogo esquivaba.
+//
+// MEDIDO: de las 2.227 formulaciones, `only if` aparece 0 veces y `unless` 0.
+// Y no era un descuido lexico: TODO condicional del catalogo resulto ser un
+// BICONDICIONAL. Las 12 operaciones de puerta cumplen `different === !same` sin
+// una sola discrepancia en 144 pares, y las reglas de rama tienen predicados
+// "entonces"/"si no" complementarios (gt5/!gt5, odd/even), con lo que
+// "si A entonces B, si no A entonces no B" colapsa en A <-> B.
+// Faltaba por tanto la implicacion material A -> B, con su caso VACIO: cuando el
+// antecedente es falso, la regla se cumple. El autor lo acepto explicitamente
+// como logica necesaria.
+//
+// POLITICA DE BALANCE (lo que impide que la familia se rompa sola):
+// A -> B es verdadera en 3 de sus 4 combinaciones, asi que un generador ingenuo
+// serviria 75% de SI y ensenaria a responder que si. Aqui el objetivo se sortea
+// 50/50 y, dentro de los SI, se reparte a partes iguales entre el caso TESTIGO
+// (A y B ciertos) y el caso VACIO (A falso). Resultado buscado: 50% NO,
+// 25% SI-testigo, 25% SI-vacio -- suficiente vacio para entrenarlo, no tanto
+// como para que sea un atajo.
+// Reversible: CONFIG.v7MaterialImplication = false.
+// ─────────────────────────────────────────────────────────────────────────────
+(function eucaV7MaterialImplication(){
+  "use strict";
+  const PATCH_ID = "v7_material_implication";
+  try{
+    if(typeof CONFIG === "undefined" || typeof POSNER_CATS === "undefined" || !Array.isArray(POSNER_CATS)) return;
+    if(CONFIG.v7MaterialImplication === undefined) CONFIG.v7MaterialImplication = true;
+    if(!CONFIG.v7MaterialImplication) return;
+    if(POSNER_CATS.some(c => c && String(c.id).indexOf("mat_impl_") === 0)) return;
+
+    // predicados unarios propios, para no depender del ambito de otros IIFE
+    const esPar = v => (v % 2) === 0;
+    const esImpar = v => (v % 2) === 1;
+    const esPrimo = v => { v = Math.floor(v); if(v < 2) return false; for(let d=2; d*d<=v; d++) if(v % d === 0) return false; return true; };
+    const ANTECEDENTES = [
+      {id:"left_even", desc:"the LEFT value is even", f:esPar},
+      {id:"left_odd", desc:"the LEFT value is odd", f:esImpar},
+      {id:"left_prime", desc:"the LEFT value is prime", f:esPrimo}
+    ];
+    const CONSECUENTES = [
+      {id:"right_gt5", desc:"the RIGHT value is greater than 5", f:v => v > 5},
+      {id:"right_even", desc:"the RIGHT value is even", f:esPar}
+    ];
+
+    const nuevos = [];
+    for(const A of ANTECEDENTES){
+      for(const B of CONSECUENTES){
+        if(A.id === "left_even" && B.id === "right_even") continue; // demasiado transparente
+        // left_odd -> right_even colapsa en "al menos uno es par": !impar(a) || par(b)
+        // == par(a) || par(b), que es SIMETRICO y por tanto no direccional. Lo caza
+        // la propia auditoria comparando verify(a,b) con verify(b,a) en toda la rejilla.
+        if(A.id === "left_odd" && B.id === "right_even") continue;
+        const holds = (a,b) => !A.f(a) || B.f(b);
+        nuevos.push({
+          id:`mat_impl_${A.id}__${B.id}`,
+          tier:4, stage:5, minM:6,
+          family:"material_implication",
+          frameTags:["relation_processing","conditional_relation","material_implication","vacuous_truth","logical_form"],
+          atomicsUsed:["material_implication","vacuous_truth_case","conditional_surface_form"],
+          v7MaterialImplication:true,
+          v7Antecedente:A.f, v7Consecuente:B.f, v7DescA:A.desc, v7DescB:B.desc,
+          variants:[
+            {q:`Rule: if ${A.desc}, then ${B.desc}.\nDoes this pair follow the rule?`},
+            // "A only if B" equivale a A -> B (no a B -> A). Es la unica forma con
+            // "only if" que es CIERTA aqui, y es justo la que invierte la direccion
+            // que el lector ingenuo espera.
+            {q:`Rule: ${A.desc} only if ${B.desc}.\nDoes this pair follow the rule?`}
+          ],
+          gen(m, t){
+            const max = Math.max(6, Math.min(Number(m) || 9, 12));
+            const quiereVacio = Math.random() < 0.5;   // reparto dentro de los SI
+            for(let intento=0; intento<80; intento++){
+              const a = 1 + Math.floor(Math.random()*max);
+              const b = 1 + Math.floor(Math.random()*max);
+              const ant = A.f(a), con = B.f(b), vale = !ant || con;
+              if(vale !== !!t) continue;
+              if(t){
+                const esVacio = !ant;
+                if(esVacio !== quiereVacio) continue;   // fuerza el 50/50 testigo/vacio
+              }
+              return [a, b];
+            }
+            return null;
+          },
+          verify(a, b){ return !!holds(a, b); },
+          canUse(m){
+            try{
+              if(!CONFIG.v7MaterialImplication) return false;
+              if(Number(m) < 6) return false;
+              const lvl = (State.levelByMode && Number.isFinite(State.levelByMode.D)) ? Number(State.levelByMode.D) : 0;
+              return lvl >= (Number(CONFIG.v7MaterialImplicationMinLevel) || 5);
+            }catch(_){ return false; }
+          }
+        });
+      }
+    }
+    for(const c of nuevos) POSNER_CATS.push(c);
+
+    // ── MIGRACION AL CONTRATO CANONICO ──────────────────────────────────────
+    // Empujar a POSNER_CATS no basta: registryLayerEntries@52020 sirve las filas
+    // del INDICE, que se construye desde SPEC_REGISTRY. Y registerSpec@43640
+    // valida `atomicsUsed` contra ATOMIC_REGISTRY, asi que los atomicos van
+    // PRIMERO o la familia queda fuera del sistema de cobertura y de firmas
+    // efectivas, que es el que gobierna la dieta.
+    try{
+      if(typeof registerAtomic === "function"){
+        const atomicos = [
+          {id:"material_implication", kind:"logical_form",
+           phrase:()=>"if the antecedent holds, the consequent must hold",
+           frameTags:["conditional_relation","logical_form"],
+           reviewLine:()=>"A conditional is broken only by a true antecedent with a false consequent."},
+          {id:"vacuous_truth_case", kind:"logical_form",
+           phrase:()=>"the antecedent fails, so the rule is not put to the test",
+           frameTags:["conditional_relation","vacuous_truth"],
+           reviewLine:()=>"When the antecedent does not hold, the rule cannot be broken: it holds."}
+        ];
+        for(const at of atomicos){
+          try{ if(!(typeof ATOMIC_REGISTRY !== "undefined" && ATOMIC_REGISTRY[at.id])) registerAtomic(Object.assign({evaluate:()=>null}, at)); }catch(_){ }
+        }
+      }
+    }catch(_){ }
+    try{
+      if(typeof registerSpec === "function"){
+        for(const c of nuevos){
+          const A = c.v7Antecedente, B = c.v7Consecuente;
+          const descA = c.v7DescA, descB = c.v7DescB;
+          const qs = (c.variants || []).map(v => v.q);
+          registerSpec({
+            // El id del spec DEBE coincidir con el de la categoria legada: el
+            // reconstructor del indice esta envuelto (v6589@75570) y filtra las
+            // filas a las que existen en el array de respaldo, casando por id.
+            // Con `spec_mat_impl_*` frente a `mat_impl_*` no casaban y la familia
+            // se caia del indice en cada reconstruccion.
+            id:c.id,
+            layer:"L0",
+            responseFormat:"yesno",
+            atomicsUsed:["material_implication","vacuous_truth_case"],
+            minLevel:Number(CONFIG.v7MaterialImplicationMinLevel) || 5,
+            minM:6,
+            frameTags:c.frameTags.slice(),
+            prompts:[{q:qs[0], linguisticFrame:"conditional_material"},
+                     {q:qs[1], linguisticFrame:"conditional_only_if"}],
+            promptBuilder:()=> qs[0],
+            verifier:(state={})=> (!A(Number(state.a)) || B(Number(state.b))),
+            reviewBuilder:(state={}, isTrue)=>{
+              const a = Number(state.a), b = Number(state.b);
+              const ant = !!A(a), con = !!B(b);
+              const L = [`LEFT ${a}, RIGHT ${b}.`, `${descA}? ${ant ? "YES" : "NO"}.`];
+              if(!ant){
+                // el caso VACIO explicado, que es la razon de ser de la familia
+                L.push(`The rule only claims something when ${descA}. Here it does not, so nothing can break it: the rule holds.`);
+              } else {
+                L.push(`${descB}? ${con ? "YES" : "NO"}.`);
+                L.push(con ? "Antecedent and consequent both hold: the rule holds."
+                           : "The antecedent holds but the consequent does not: that is the only way to break the rule.");
+              }
+              return L;
+            },
+            gen:(m, target)=> c.gen(m, target)
+          });
+        }
+      }
+    }catch(e){ try{ recordRuntimeError(e, {source:PATCH_ID + ".spec"}); }catch(_){ } }
+    // Ahora si: invalidar el indice y su cache de capa para que se reconstruya
+    // INCLUYENDO los specs recien registrados.
+    // REGISTRY_RUNTIME_INDEX es `const`@51903: asignarle null LANZA y el catch se
+    // lo traga, que es por lo que mis dos intentos anteriores no movieron nada.
+    // La invalidacion buena es poner builtAt a 0 -- el patron que ya usa
+    // invalidateRegistryAndPrepared@90327 -- y dejar que ensureRegistryRuntimeIndex
+    // reconstruya.
+    try{ if(typeof REGISTRY_RUNTIME_INDEX !== "undefined" && REGISTRY_RUNTIME_INDEX) REGISTRY_RUNTIME_INDEX.builtAt = 0; }catch(_){ }
+    try{ if(typeof REGISTRY_LAYER_ENTRIES_CACHE !== "undefined" && REGISTRY_LAYER_ENTRIES_CACHE){ REGISTRY_LAYER_ENTRIES_CACHE.sig = null; REGISTRY_LAYER_ENTRIES_CACHE.rows = {}; } }catch(_){ }
+    try{ if(typeof _availablePosnerCatsCache !== "undefined" && _availablePosnerCatsCache && _availablePosnerCatsCache.clear) _availablePosnerCatsCache.clear(); }catch(_){ }
+    try{ if(typeof ensureRegistryRuntimeIndex === "function") ensureRegistryRuntimeIndex(); }catch(_){ }
+    // registryLayerEntries("L0", POSNER_CATS)@52020 devuelve las filas del INDICE
+    // de runtime y solo cae al catalogo si el indice esta vacio. Anadir a
+    // POSNER_CATS no basta: hay que forzar la reconstruccion del indice o las
+    // categorias quedan inertes (medido: 0 alcanzables).
+    // (la invalidacion del indice va DESPUES de registrar los specs: hacerla
+    //  antes reconstruia el indice sin ellos y las categorias quedaban inertes)
+
+    function auditV7MaterialImplication(){
+      const block = [], warnings = [], details = {patch:PATCH_ID};
+      const AR = (typeof auditResult === "function") ? auditResult : ((s,p) => Object.assign({status:s}, p || {}));
+      try{
+        const cats = POSNER_CATS.filter(c => c && c.v7MaterialImplication);
+        details.categorias = cats.length;
+        if(!cats.length){ block.push("no se registro ninguna categoria de implicacion material"); return AR("BLOCK", {block, warnings, details}); }
+        let si = 0, no = 0, vacios = 0, testigos = 0, nulos = 0, malVerificados = 0;
+        for(const c of cats){
+          for(let k=0; k<120; k++){
+            const t = k % 2 === 0;
+            const g = c.gen(9, t);
+            if(!g){ nulos++; continue; }
+            const a = g[0], b = g[1];
+            const v = c.verify(a, b);
+            if(v !== t) malVerificados++;
+            if(t){ si++; } else { no++; }
+            if(t){
+              // caso VACIO = el antecedente no se cumple (la regla vale sin testigo)
+              if(!c.v7Antecedente(a)) vacios++; else testigos++;
+            }
+          }
+        }
+        const total = si + no;
+        details.reparto = {si, no, nulos, vacios, testigos, pctSi:+(100*si/Math.max(1,total)).toFixed(1)};
+        if(malVerificados) block.push(`${malVerificados} pares generados no coinciden con su propio verify`);
+        if(nulos > total * 0.15) block.push(`demasiadas generaciones nulas: ${nulos}`);
+        const pctSi = 100*si/Math.max(1,total);
+        if(pctSi < 40 || pctSi > 60) block.push(`la respuesta SI sale en el ${pctSi.toFixed(1)}% de los ensayos; se busca ~50%`);
+        const pctVacio = 100*vacios/Math.max(1,si);
+        details.pctVacioEntreLosSi = +pctVacio.toFixed(1);
+        if(pctVacio < 30 || pctVacio > 70) warnings.push(`el caso vacio es el ${pctVacio.toFixed(1)}% de los SI; se busca ~50%`);
+        // la forma "only if" debe existir y no debe haberse colado un bicondicional
+        const textos = cats.flatMap(c => (c.variants || []).map(v => String(v.q || "")));
+        details.conOnlyIf = textos.filter(t => /only if/i.test(t)).length;
+        if(!details.conOnlyIf) block.push("no hay ninguna variante con 'only if'");
+        // comprobacion semantica: A->B NO puede ser equivalente a B->A en toda la rejilla
+        for(const c of cats){
+          let difiere = false;
+          for(let a=1; a<=12 && !difiere; a++) for(let b=1; b<=12; b++){ if(c.verify(a,b) !== c.verify(b,a)){ difiere = true; break; } }
+          if(!difiere) block.push(`${c.id}: la regla es simetrica, no es una implicacion direccional`);
+        }
+      }catch(e){ block.push(`excepcion en la auditoria: ${(e && e.message) || e}`); }
+      return AR(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {block, warnings, details});
+    }
+    try{ window.auditV7MaterialImplication = auditV7MaterialImplication; }catch(_){ }
+    try{ if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("auditV7MaterialImplication", auditV7MaterialImplication); }catch(_){ }
+    try{ if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v7_material_implication","material_implication","vacuous_truth"], auditV7MaterialImplication, "auditV7MaterialImplication"); }catch(_){ }
+    try{ window.EUCA_V7_MATIMPL = {patch:PATCH_ID, cats:nuevos.map(c => c.id), audit:auditV7MaterialImplication}; }catch(_){ }
+  }catch(e){
+    try{ recordRuntimeError(e, {source:PATCH_ID}); }catch(_){ }
+  }
 })();
 </script>
 </body>
