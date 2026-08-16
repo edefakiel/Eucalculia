@@ -7945,19 +7945,19 @@ function currentVisualSystemContract(){
 }
 
 const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
-  "appVersion": "v7.1.3-candidate.1",
+  "appVersion": "v7.1.2",
   "releaseChannel": "stable",
-  "builtAt": "2026-08-16T20:30:00Z",
-  "artifact": "Eucalculia_v7_1_3_candidate.html",
+  "builtAt": "2026-08-16T15:00:00Z",
+  "artifact": "Eucalculia_v7_1_2.html",
   "artifactFormat": "single-file-html",
-  "milestone": "PH6.C5.R3.18-AUTO-CURRICULUM-INTEGRITY-R1",
-  "profileSchema": 23,
+  "milestone": "PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1",
+  "profileSchema": 22,
   "wrapperSchema": 24,
   "contentManifestVersion": 2,
   "sourceManifestVersion": 1,
   "numericViewVersion": "eucalculia.numeric-view@1",
   "contentPackVersion": "eucalculia.content-pack@1",
-  "sourceLayout": "src/eucalculia/c5_r3_18_auto_curriculum_integrity_r1/source-manifest.json",
+  "sourceLayout": "src/eucalculia/c5_r3_17_persistence_safety_hotfix_r1/source-manifest.json",
   "sourceDomains": ["session-core","content-oracles","adaptation","persistence","interface-components","accessibility","guide-prompts","audits"],
   "reproducibleBuild": true,
   "maskProfileVersion": "eucalculia.mask-profile@M04-native-1"
@@ -9502,7 +9502,6 @@ const State = {
   etByMode: {...CONFIG.startETByMode},
   etByModeAndValue: {A:{}, D:{}},
   adaptiveBaseline: {D:{perLevel:{}}},
-  adaptiveAxes: {schemaVersion:1, spatial:{schemaVersion:1, families:{}, totalPresented:0, totalAnswered:0, recentFamilies:[]}},
   blockSize: 20, blockSizeAuto: true, soundEnabled: true,
   hapticEnabled: false, hapticSupported: false, hapticStats: {calls:0, accepted:0, unavailable:0, blocked:0, lastKind:null, lastAt:0},
   audioDiagnostics: {calls:0, played:0, suppressed:0, delayed:0, recent:[]},
@@ -22216,7 +22215,7 @@ function makeSimpleValuePosnerCat(id, tier, minM, family, q, pred, tags=[], opts
     frameTags:uniq(tags), semanticEquivalentTo:opts.semanticEquivalentTo || null,
     canUse:m => (!opts.canUse || opts.canUse(m)) && hasPairForPredicate(m, (a,b)=>pred(a,b,m), {allowEqual:opts.allowEqual !== false, valid:opts.valid}) && hasPairForPredicate(m, (a,b)=>!pred(a,b,m), {allowEqual:opts.allowEqual !== false, valid:opts.valid}),
     variants,
-    gen(m,t){ return typeof opts.gen==="function" ? opts.gen(m,!!t,(a,b)=>pred(a,b,m)) : genPairByPredicate(m,t,(a,b)=>pred(a,b,m), {allowEqual:opts.allowEqual !== false, valid:opts.valid}); },
+    gen(m,t){ return genPairByPredicate(m,t,(a,b)=>pred(a,b,m), {allowEqual:opts.allowEqual !== false, valid:opts.valid}); },
     verify(a,b){ return pred(a,b,currentMax()); }
   };
 }
@@ -28181,20 +28180,48 @@ function l0FalseCandidatePlausibilityScore(cat, vnt, a, b, m, baseTarget){
 }
 
 function genVerifiedPosnerPair(cat, vnt, m, baseTarget){
-  const genFn=vnt.gen||cat.gen,verifyFn=vnt.verify||cat.verify;
-  const isPaperFolding=cat&&cat.paperFoldingAnalogyId,isShepardConditional=cat&&cat.shepardConditionalId,isGraphConditional=cat&&cat.graphConditionalId;
-  const finalTarget=vnt?.negate?!baseTarget:!!baseTarget,defaultBudget=Math.max(8,Number(CONFIG.l0FalseCandidateBudget||24)),budget=finalTarget===false?publicFalseCandidateBudget(defaultBudget):Math.min(8,publicFalseCandidateBudget(8));
-  for(let guard=0;guard<budget;guard++){
-    if(trialBuildBudgetExceeded("genVerifiedPosnerPair"))break;
-    const generated=genFn(m,baseTarget);if(!Array.isArray(generated)||generated.length<2)continue;
-    const a=Number(generated[0]),b=Number(generated[1]);if(!Number.isInteger(a)||!Number.isInteger(b)||a<1||b<1||a>m||b>m)continue;
-    if(l0RoleTieForcesNo(cat,vnt,a,b)){if(finalTarget===false)return[a,b];continue;}
-    if(!l0PairSemanticallyValidForPosnerProbe(cat,vnt,a,b))continue;
-    if(isPaperFolding||isShepardConditional||isGraphConditional)return generated;
-    if(!!verifyFn(a,b)!==!!baseTarget)continue;
-    return[a,b];
+  const genFn = vnt.gen || cat.gen;
+  const verifyFn = vnt.verify || cat.verify;
+  const isPaperFolding = cat && cat.paperFoldingAnalogyId;
+  const isShepardConditional = cat && cat.shepardConditionalId;
+  const isGraphConditional = cat && cat.graphConditionalId;
+  const finalTarget = vnt?.negate ? !baseTarget : !!baseTarget;
+  const preferPlausibleFalse = finalTarget === false;
+  const defaultFalseBudget = Math.max(8, Number(CONFIG.l0FalseCandidateBudget || 24));
+  const budget = preferPlausibleFalse ? publicFalseCandidateBudget(defaultFalseBudget) : Math.min(8, publicFalseCandidateBudget(8));
+  let best = null;
+  for(let guard = 0; guard < budget; guard++){
+    if(trialBuildBudgetExceeded("genVerifiedPosnerPair")) break;
+    const generated = genFn(m, baseTarget);
+    if(!Array.isArray(generated) || generated.length < 2) continue;
+    const a = Number(generated[0]), b = Number(generated[1]);
+    if(!Number.isInteger(a) || !Number.isInteger(b) || a < 1 || b < 1 || a > m || b > m) continue;
+    if(l0RoleTieForcesNo(cat, vnt, a, b)){
+      if(finalTarget !== false) continue;
+      const score = l0FalseCandidatePlausibilityScore(cat, vnt, a, b, m, baseTarget) + 0.18;
+      if(!best || score > best.score) best = {pair:[a,b], score};
+      continue;
+    }
+    if(!l0PairSemanticallyValidForPosnerProbe(cat, vnt, a, b)) continue;
+    // Paper folding cats verify internally via the engine during gen().
+    // The polarity is enforced when paperGenerateForTargetX selects the
+    // sequence, so we trust the gen result without re-verifying (which would
+    // fail because verify(a,b) without info returns INAPPLICABLE). The
+    // resulting array carries _paperFoldingSeq for downstream pickup.
+    if(isPaperFolding) return generated;
+    // Shepard conditional cats: the gen establishes (a, b, relation, figure)
+    // such that the active branch's predicate yields the requested polarity.
+    // verify(a,b) without info returns INAPPLICABLE, so we trust gen here too.
+    if(isShepardConditional) return generated;
+    // Graph conditional cats establish the graph relation and active branch
+    // during generation. verify(a,b) without info returns INAPPLICABLE.
+    if(isGraphConditional) return generated;
+    if(!!verifyFn(a,b) !== !!baseTarget) continue;
+    if(!preferPlausibleFalse) return [a,b];
+    const score = l0FalseCandidatePlausibilityScore(cat, vnt, a, b, m, baseTarget);
+    if(!best || score > best.score) best = {pair:[a,b], score};
   }
-  return null;
+  return best ? best.pair : null;
 }
 
 // Variant system: each category has multiple surface formulations.
@@ -31165,7 +31192,7 @@ const POSNER_CATS = [
       { q:"Does the sum of the two values exceed 10?", linguisticFrame:"comparative_scope" },
       { q:"Is the sum not at most 10?", linguisticFrame:"negation_scope" },
     ],
-    gen(m,t){ const maximum=2*m,bands=(t?[[11,12],[13,16],[17,maximum]]:[[10,10],[8,9],[2,7]]).map(([lo,hi])=>[Math.max(2,lo),Math.min(maximum,hi)]).filter(([lo,hi])=>lo<=hi),band=bands[randInt(0,bands.length)],sum=randInt(band[0],band[1]+1),minA=Math.max(1,sum-m),maxA=Math.min(m,sum-1),a=randInt(minA,maxA+1);return [a,sum-a]; }, // R3.18: sample near, middle and far threshold strata instead of fixing truth to sum 11
+    gen(m,t){ for(let i=0;i<80;i++){ const a=randInt(1,m+1), b=randInt(1,m+1), s=a+b; if((s>10)!==!!t) continue; if(s>=9 && s<=11) return [a,b]; } return t?[5,6]:[4,5]; }, // v6.8.61 plausibility: keep the sum tight to the 10 boundary (9-11) so the answer isn't obvious (was ~80% trivial)
     verify(a,b){ return a+b>10; } },
 
   { id:"sum_eq_10", tier:2, minM:9,
@@ -32362,12 +32389,7 @@ function makeAdditionalL0PosnerCats(){
       ],
       (a,b)=>{ const mx=Math.max(a,b); return mx>2 && isPrime(mx-2); },
       ["counterfactual_relation","transformation_relation","class_inclusion","role_binding"],
-      {allowEqual:false, valid:(a,b)=>Math.max(a,b)>2, gen:(m,target,predicate)=>{
-        const maxima=[];for(let maximum=3;maximum<=m;maximum++)if(!!isPrime(maximum-2)===!!target)maxima.push(maximum);
-        if(!maxima.length)return genPairByPredicate(m,target,predicate,{allowEqual:false,valid:(a,b)=>Math.max(a,b)>2});
-        const maximum=maxima[randInt(0,maxima.length)],other=randInt(1,maximum);
-        return randInt(0,2)===0?[maximum,other]:[other,maximum];
-      }}
+      {allowEqual:false, valid:(a,b)=>Math.max(a,b)>2}
     ),
     makeSimpleValuePosnerCat("sum_one_more_than_10",3,6,"metric",
       [
@@ -71129,7 +71151,6 @@ function buildLeanLocalStorageProfileBlobForHotSave(){
     dL1Window:Array.isArray(State.dL1Window) ? State.dL1Window.slice(-120) : [],
     dL2Window:Array.isArray(State.dL2Window) ? State.dL2Window.slice(-120) : [],
     adaptiveBaseline:compactAdaptiveBaselineForLocalStorage(State.adaptiveBaseline),
-    adaptiveAxes:globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.compactForSave?.() || State.adaptiveAxes,
     sessionCount:State.sessionCount,
     totalPlaytimeMs:State.totalPlaytimeMs,
     firstSessionAt:State.firstSessionAt,
@@ -71670,18 +71691,11 @@ function migrateProfile21To22(input){
   out.schemaVersion = 22;
   return out;
 }
-function migrateProfile22To23(input){
-  const out = cloneSchemaJson(input);
-  if(!isSchemaRecord(out.adaptiveAxes)) out.adaptiveAxes = {schemaVersion:1, spatial:{schemaVersion:1, families:{}, totalPresented:0, totalAnswered:0, recentFamilies:[]}};
-  out.schemaVersion = 23;
-  return out;
-}
 
 const PROFILE_SCHEMA_MIGRATIONS = deepFreezeSchemaContract({
   19:{from:19, to:20, id:"profile-19-to-20-mode-separation", apply:migrateProfile19To20},
   20:{from:20, to:21, id:"profile-20-to-21-block-size-authority", apply:migrateProfile20To21},
-  21:{from:21, to:22, id:"profile-21-to-22-auto-phase-layout", apply:migrateProfile21To22},
-  22:{from:22, to:23, id:"profile-22-to-23-spatial-adaptive-axis", apply:migrateProfile22To23}
+  21:{from:21, to:22, id:"profile-21-to-22-auto-phase-layout", apply:migrateProfile21To22}
 });
 
 function migrateProfileBlobToCurrent(profile){
@@ -71872,8 +71886,7 @@ function schemaContractFixtures(){
       19:profile(19),
       20:profile(20),
       21:profile(21),
-      22:profile(22),
-      23:{...profile(23), adaptiveAxes:{schemaVersion:1, spatial:{schemaVersion:1, families:{}, totalPresented:0, totalAnswered:0, recentFamilies:[]}}}
+      22:profile(22)
     },
     wrapperThreeProfiles:{
       schemaVersion:24,
@@ -71883,7 +71896,7 @@ function schemaContractFixtures(){
       unknownWrapperField:{sentinel:"wrapper-24"}
     },
     futureWrapper:{schemaVersion:25, activeProfile:1, profiles:{"1":profile(22),"2":null,"3":null}, trainingTimeMs:{"1":0,"2":0,"3":0}},
-    futureProfileWrapper:{schemaVersion:24, activeProfile:1, profiles:{"1":{...profile(23),schemaVersion:24},"2":null,"3":null}, trainingTimeMs:{"1":0,"2":0,"3":0}},
+    futureProfileWrapper:{schemaVersion:24, activeProfile:1, profiles:{"1":{...profile(22),schemaVersion:23},"2":null,"3":null}, trainingTimeMs:{"1":0,"2":0,"3":0}},
     tooOldProfile:{...profile(19),schemaVersion:18},
     futureHistoryProfile:{...profile(22),progressHistory:[{...history,schemaVersion:2}]},
     currentDiagnostic:{exportKind:"eucalculia_diagnostics",schemaVersion:2,appVersion:currentAppVersion()},
@@ -71895,7 +71908,7 @@ function runSchemaAuthorityAudit(){
   const fixtures = schemaContractFixtures();
   const checks = [];
   const check = (id, pass, detail={}) => checks.push({id, pass:!!pass, detail});
-  for(const version of [19,20,21,22,23]){
+  for(const version of [19,20,21,22]){
     const source = fixtures.profiles[version];
     const before = JSON.stringify(source);
     const first = migrateProfileBlobToCurrent(source);
@@ -73555,7 +73568,6 @@ function _saveImmediate(force=false, reason="save"){
       dL1Window:State.dL1Window,
       dL2Window:State.dL2Window,
       adaptiveBaseline:State.adaptiveBaseline,
-      adaptiveAxes:globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.compactForSave?.() || State.adaptiveAxes,
       // v6.5.0: time/session telemetry persistence
       sessionCount:State.sessionCount,
       totalPlaytimeMs:State.totalPlaytimeMs,
@@ -74198,8 +74210,6 @@ function load(){
     const hadAdaptiveBaseline = !!(d.adaptiveBaseline && typeof d.adaptiveBaseline === "object");
     rehydrateAdaptiveBaseline(d.adaptiveBaseline);
     ensureAdaptiveBaselineForLevel("D", State.levelByMode.D);
-    State.adaptiveAxes = d.adaptiveAxes && typeof d.adaptiveAxes === "object" ? cloneSchemaJson(d.adaptiveAxes) : {schemaVersion:1, spatial:{schemaVersion:1, families:{}, totalPresented:0, totalAnswered:0, recentFamilies:[]}};
-    try{ globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.rehydrate?.(State.adaptiveAxes); }catch(_){}
     // v6.5.0: hydrate time/session telemetry from saved blob
     if(Number.isFinite(d.sessionCount)) State.sessionCount = Math.max(0, Math.floor(d.sessionCount));
     if(Number.isFinite(d.totalPlaytimeMs)) State.totalPlaytimeMs = Math.max(0, d.totalPlaytimeMs);
@@ -76991,7 +77001,7 @@ const SAFE_IMPORT_PROFILE_KEYS = new Set([
   "metaRepresentationTransformStats", "metaCompositionStats",
   "metaExecutiveStats", "metaDiagnostics", "dExtensionStats",
   "dLastL1ExtensionFamily", "dL0Window", "dL1Window", "dL2Window",
-  "adaptiveBaseline", "adaptiveAxes", "sessionCount", "totalPlaytimeMs", "firstSessionAt",
+  "adaptiveBaseline", "sessionCount", "totalPlaytimeMs", "firstSessionAt",
   "lastSessionAt", "lastSessionDateKey", "dayStreak", "bestDayStreak",
   "shrunkForQuota", "debtlessSchema", "temporalConsolidation",
   "temporalConsolidationState", "importExtensions"
@@ -122502,7 +122512,7 @@ try { (() => {
     check("review_integration",String(h35ReviewPolish).includes("EUCALCULIA_PROMPT_RENDERERS?.reviewText") && h35ReviewRenderModel?.__h42PromptRenderer === true);
     check("current_model",!State?.trialInfo || (!!current && current.specId === specApi.current()?.id),current?.id || "no current trial");
     check("non_enumerable_model",!State?.trialInfo || !Object.keys(State.trialInfo).includes("promptRenderModel"));
-    check("profile_schema_spatial_axis_v23",EUCALCULIA_BUILD_MANIFEST?.profileSchema === 23 && EUCALCULIA_BUILD_MANIFEST?.wrapperSchema === 24);
+    check("profile_schema_unchanged",EUCALCULIA_BUILD_MANIFEST?.profileSchema === 22 && EUCALCULIA_BUILD_MANIFEST?.wrapperSchema === 24);
     check("runtime_errors",!Array.isArray(State?.productionMonitor?.runtimeErrors) || State.productionMonitor.runtimeErrors.length === 0,State?.productionMonitor?.runtimeErrors?.slice?.(-10) || []);
     const failed=checks.filter(row=>!row.pass);
     return {milestone:"H4.2",status:failed.length?"FAIL":"PASS",checks,summary:{pass:checks.length-failed.length,fail:failed.length},runtime:h42RuntimeReport()};
@@ -165968,9 +165978,9 @@ html[data-euca-resume-geometry="pending"] #particles {
     if(!shouldStart(attempt,forcedLevel))return false;
     const mon=monitor(),forced=forceRequested();
     let variant=queryValue("g08Variant");
-    if(!VARIANTS.includes(variant))variant=forced?VARIANTS[Number(mon.shown||0)%VARIANTS.length]:pick(VARIANTS.filter(id=>Number(mon.byVariant?.[id]||0)===Math.min(...VARIANTS.map(key=>Number(mon.byVariant?.[key]||0)))),()=>globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.randomFor?.(FAMILY,"variant")??sessionRandom("content"));
-    const seed=globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((sessionRandom("content")*0xFFFFFFFF)>>>0);
-    const item=buildItem({variant,seed,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? 5),operationId:queryValue("g08Operation"),planId:queryValue("g08Plan")});
+    if(!VARIANTS.includes(variant))variant=forced?VARIANTS[Number(mon.shown||0)%VARIANTS.length]:pick(VARIANTS.filter(id=>Number(mon.byVariant?.[id]||0)===Math.min(...VARIANTS.map(key=>Number(mon.byVariant?.[key]||0)))),()=>sessionRandom("content"));
+    const seed=(sessionRandom("content")*0xFFFFFFFF)>>>0;
+    const item=buildItem({variant,seed,operationId:queryValue("g08Operation"),planId:queryValue("g08Plan")});
     if(!item||!itemGeometryValid(item)||!verifyItem(item,item.correctIndex))return false;
     try{
       if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("g08_visual_predict_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}
@@ -165989,7 +165999,7 @@ html[data-euca-resume-geometry="pending"] #particles {
         mechanismTags:["whole_scene_transform",item.variant,item.operation.id,"exact_geometry_oracle"],
         executiveTags:["visuospatial_updating","interference_control"],
         demandVector:{visuospatial_transformation:1,relational_integration:1,response_selection:1},
-        countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,adaptationAxis:"spatial",memoryEligible:false
+        countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:true,memoryEligible:false
       };
       if(forced)State._g08VisualForceConsumed=true;
       mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=Math.max(0,Number(State.blockTrials)||0);
@@ -166800,15 +166810,15 @@ html[data-euca-resume-geometry="pending"] #particles {
   }
   function startVisualPath(attempt,forcedLevel){
     if(!shouldStart(attempt,forcedLevel))return false;
-    const mon=monitor(),forced=forceRequested();let variant=queryValue("g081Variant");if(!VARIANTS.includes(variant)){const least=Math.min(...VARIANTS.map(key=>Number(mon.byVariant?.[key]||0)));variant=forced?VARIANTS[Number(mon.shown||0)%VARIANTS.length]:pick(VARIANTS.filter(key=>Number(mon.byVariant?.[key]||0)===least),()=>globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.randomFor?.(FAMILY,"variant")??sessionRandom("content"))}
-    const seed=globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((sessionRandom("content")*0xFFFFFFFF)>>>0),item=buildItem({variant,seed,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? 5),operationId:queryValue("g081Operation")});if(!item||!itemGeometryValid(item)||!verifyItem(item,item.answer))return false;
+    const mon=monitor(),forced=forceRequested();let variant=queryValue("g081Variant");if(!VARIANTS.includes(variant)){const least=Math.min(...VARIANTS.map(key=>Number(mon.byVariant?.[key]||0)));variant=forced?VARIANTS[Number(mon.shown||0)%VARIANTS.length]:pick(VARIANTS.filter(key=>Number(mon.byVariant?.[key]||0)===least),()=>sessionRandom("content"))}
+    const seed=(sessionRandom("content")*0xFFFFFFFF)>>>0,item=buildItem({variant,seed,operationId:queryValue("g081Operation")});if(!item||!itemGeometryValid(item)||!verifyItem(item,item.answer))return false;
     try{
       if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("g081_visual_path_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}
       const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode");app?.classList.add("visual-path-mode");try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }
       State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;
       State.targetValue=item.answer;State.pendingPanel="choice";State.inputBuffer="";
       const ordered=item.variant==="equal_step_path";
-      State.trialInfo={kind:"visual_relational_path",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`g081_${item.variant}`,contentSpecId:`g081.visual.${item.variant}`,contentSpecVersion:"1.0.0",responseFormat:"choice",answerKind:"multiselect",answer:item.answer,targetOutcome:item.answer,requiredSelections:2,correctIndex:null,semanticCorrectIndex:null,correctIndices:item.correctIndices.slice(),correctOrderedIndices:ordered?item.correctOrderedIndices.slice():null,answerLabel:selectionLabel(item,ordered?item.correctOrderedIndices:item.correctIndices,{ordered}),question:ordered?"Choose and order the two missing states.":"Pick one result for each source so both used the same rotation.",delayedPrompt:ordered?"Choose and order the two missing states.":"Pick one result for each source so both used the same rotation.",options:item.options,choiceSelections:[],selectedIndices:[],selectedOrderedIndices:ordered?[]:null,visualPath:item,questionLayout:"visual",orderedSelectionRequired:ordered,rngOptionOrderVersion:RNG_OPTION_ORDER_VERSION,optionOrderPolicy:"visual_index_locked",frameTags:["mental_rotation","visuospatial_transformation","complete_state_path","relational_integration",ordered?"ordered_path":"shared_relation"],mechanismTags:["whole_scene_transform",item.variant,"exact_rotation_group_oracle","marginal_plausibility"],executiveTags:["visuospatial_updating","relational_binding","interference_control"],demandVector:{visuospatial_transformation:1,relational_integration:ordered?2:3,response_selection:2},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,adaptationAxis:"spatial",memoryEligible:false};
+      State.trialInfo={kind:"visual_relational_path",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`g081_${item.variant}`,contentSpecId:`g081.visual.${item.variant}`,contentSpecVersion:"1.0.0",responseFormat:"choice",answerKind:"multiselect",answer:item.answer,targetOutcome:item.answer,requiredSelections:2,correctIndex:null,semanticCorrectIndex:null,correctIndices:item.correctIndices.slice(),correctOrderedIndices:ordered?item.correctOrderedIndices.slice():null,answerLabel:selectionLabel(item,ordered?item.correctOrderedIndices:item.correctIndices,{ordered}),question:ordered?"Choose and order the two missing states.":"Pick one result for each source so both used the same rotation.",delayedPrompt:ordered?"Choose and order the two missing states.":"Pick one result for each source so both used the same rotation.",options:item.options,choiceSelections:[],selectedIndices:[],selectedOrderedIndices:ordered?[]:null,visualPath:item,questionLayout:"visual",orderedSelectionRequired:ordered,rngOptionOrderVersion:RNG_OPTION_ORDER_VERSION,optionOrderPolicy:"visual_index_locked",frameTags:["mental_rotation","visuospatial_transformation","complete_state_path","relational_integration",ordered?"ordered_path":"shared_relation"],mechanismTags:["whole_scene_transform",item.variant,"exact_rotation_group_oracle","marginal_plausibility"],executiveTags:["visuospatial_updating","relational_binding","interference_control"],demandVector:{visuospatial_transformation:1,relational_integration:ordered?2:3,response_selection:2},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:true,memoryEligible:false};
       if(forced)State._g081PathForceConsumed=true;
       const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0);mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;mon.byVariant=mon.byVariant||{};mon.byVariant[item.variant]=(Number(mon.byVariant[item.variant])||0)+1;mon.byOperation=mon.byOperation||{};mon.byOperation[item.operation.id]=(Number(mon.byOperation[item.operation.id])||0)+1;mon.recent=Array.isArray(mon.recent)?mon.recent:[];mon.recent.push({variant:item.variant,operationId:item.operation.id,correct:item.answer,blockOrdinal});mon.recent=mon.recent.slice(-24);consumeSharedG08Budget(State,blockOrdinal,blockTrial);
       try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }if(typeof setChoiceOptions==="function")setChoiceOptions(item.options);if(typeof showMetaQuestion==="function")showMetaQuestion(0,State.trialInfo.question,"",null);if(typeof setPrompt==="function")setPrompt(ordered?"ORDER 2":"PICK 2");if(typeof setGameAriaLabel==="function")setGameAriaLabel(ordered?"Choose the first and second missing complete cube states in order.":"Choose one result for each source so both sources undergo the same complete rotation.");if(typeof beginInputPhase==="function")beginInputPhase();updateSelectionVisual(State.trialInfo,ordered);return true;
@@ -167324,7 +167334,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.g082MaskedSpatialEnabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.mode!=="D"||state.modeChoice!=="auto"||metaMemoryPending())return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,Number(CONFIG.g082MaskedSpatialMinDLevel)||5))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<4)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.g082MaskedSpatialMaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.g082MaskedSpatialCooldownTrials)||16))return false;return forced||sessionRandom("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.g082MaskedSpatialProbability)||.035))}catch(_){return false}}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of ["g08VisualPredict","g081VisualPath"]){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},byOperation:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function startMaskedSpatial(attempt,forcedLevel){
-    if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeedRaw=queryValue("g082Seed"),forcedSeed=forcedSeedRaw===null||String(forcedSeedRaw).trim()===""?NaN:Number(forcedSeedRaw),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((sessionRandom("content")*0xFFFFFFFF)>>>0)),item=buildItem({seed,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? 5)});if(!item||!itemGeometryValid(item)||!verifyItem(item,item.correctIndex))return false;
+    if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeed=Number(queryValue("g082Seed")),seed=Number.isFinite(forcedSeed)?forcedSeed:((sessionRandom("content")*0xFFFFFFFF)>>>0),item=buildItem({seed});if(!item||!itemGeometryValid(item)||!verifyItem(item,item.correctIndex))return false;
     try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("g082_masked_spatial_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode");app?.classList.add("masked-spatial-probe-mode");if(app)app.dataset.g082Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }
       State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";
       const primaryQuestion="Which object is the one you saw, only rotated?",wallStart=typeof now==="function"?now():performance.now();State.trialInfo={kind:"masked_spatial_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:"g082_masked_shepard_identity",contentSpecId:"g082.visual.masked_shepard_compound",contentSpecVersion:"1.0.0",responseFormat:"choice",answerKind:"choice",answer:item.correctIndex,targetOutcome:item.correctIndex,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`State ${item.correctIndex+1}`,question:primaryQuestion,primaryQuestion,delayedPrompt:primaryQuestion,options:item.options,maskedSpatial:item,g082Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,frameTags:["mental_rotation","masked_reference","candidate_field","delayed_probe","whole_object_identity"],mechanismTags:["whole_scene_transform","temporal_separation","unpredictable_post_response_gate","exact_rotation_group_oracle"],executiveTags:["visuospatial_maintenance","relational_binding","interference_control","response_monitoring"],demandVector:{visuospatial_transformation:2,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};
@@ -168036,7 +168046,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.g083MaskedPaperEnabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.mode!=="D"||state.modeChoice!=="auto"||metaMemoryPending())return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,Number(CONFIG.g083MaskedPaperMinDLevel)||5))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<4)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.g083MaskedPaperMaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.g083MaskedPaperCooldownTrials)||16))return false;return forced||sessionRandom("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.g083MaskedPaperProbability)||.025))}catch(_){return false}}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of["g08VisualPredict","g081VisualPath","g082MaskedSpatial"]){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},byOperation:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function startMaskedPaper(attempt,forcedLevel){
-    if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeedRaw=queryValue("g083Seed"),forcedSeed=forcedSeedRaw===null||String(forcedSeedRaw).trim()===""?NaN:Number(forcedSeedRaw),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((sessionRandom("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("g083Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!itemGeometryValid(item)||!verifyItem(item,item.correctIndex))return false;
+    if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeed=Number(queryValue("g083Seed")),seed=Number.isFinite(forcedSeed)?forcedSeed:((sessionRandom("content")*0xFFFFFFFF)>>>0),requestedVariant=String(queryValue("g083Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(stateRef()?.levelByMode?.D||0)});if(!item||!itemGeometryValid(item)||!verifyItem(item,item.correctIndex))return false;
     try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("g083_masked_paper_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode");app?.classList.add("masked-paper-folding-mode");if(app)app.dataset.g083Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }
       State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";
       const primaryQuestion=item.primaryQuestion,wallStart=typeof now==="function"?now():performance.now();State.trialInfo={kind:"masked_paper_folding_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`g083_${item.variant}`,contentSpecId:`g083.visual.${item.variant}`,contentSpecVersion:"1.0.0",responseFormat:"choice",answerKind:"choice",answer:item.correctIndex,targetOutcome:item.correctIndex,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:primaryQuestion,primaryQuestion,delayedPrompt:primaryQuestion,options:item.options,maskedPaperFolding:item,g083Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,frameTags:["paper_folding","masked_reference","candidate_field","delayed_probe","forward_inverse_mapping"],mechanismTags:["whole_scene_transform","temporal_separation","unpredictable_post_response_gate","exact_affine_fold_oracle",item.variant],executiveTags:["visuospatial_maintenance","relational_binding","interference_control","response_monitoring"],demandVector:{visuospatial_transformation:2,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};
@@ -168525,7 +168535,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     return target;
   }
   function stateRef(){try{if(typeof State!=="undefined"&&State)return State}catch(_){ }try{return globalThis.State||null}catch(_){return null}}
-  function integer(value,fallback=0){if(value===null||value===undefined||String(value).trim()==="")return fallback;const n=Math.floor(Number(value));return Number.isFinite(n)?n:fallback}
+  function integer(value,fallback=0){const n=Math.floor(Number(value));return Number.isFinite(n)?n:fallback}
   function clamp(value,min,max){return Math.max(min,Math.min(max,Number(value)||0))}
   function cloneState(state){return{LEFT:integer(state?.LEFT),RIGHT:integer(state?.RIGHT)}}
   function stateKey(state){return`${state.LEFT},${state.RIGHT}`}
@@ -171480,8 +171490,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   });
 
   function ladderStepFromContext(context) {
-    const requestedRaw = context?.difficulty?.ladderStep;
-    const requested = requestedRaw===null||requestedRaw===undefined||String(requestedRaw).trim()==="" ? NaN : Number(requestedRaw);
+    const requested = Number(context?.difficulty?.ladderStep);
     if (Number.isInteger(requested)) return clampInt(requested, 1, 3);
     const level = Math.max(0, Number(context?.difficulty?.level) || 0);
     return level >= 4 ? 3 : (level >= 2 ? 2 : 1);
@@ -171690,8 +171699,8 @@ html[data-euca-resume-geometry="pending"] #particles {
     buildReview(task, solution = this.solve(task), options = {}) {
       const rendered = this.render(task, options);
       const relationLine = solution.equivalent
-        ? `LEFT and RIGHT used different visual models of ${solution.proof.leftCanonical}.`
-        : `LEFT represented ${solution.proof.leftCanonical}; RIGHT represented ${solution.proof.rightCanonical}.`;
+        ? `LEFT (${rendered.left.text}) and RIGHT (${rendered.right.text}) both equal ${solution.proof.leftCanonical}.`
+        : `LEFT (${rendered.left.text}) is ${solution.proof.leftCanonical}; RIGHT (${rendered.right.text}) is ${solution.proof.rightCanonical}.`;
       const crossLine = `Exact cross-check: ${solution.proof.witness}; the products are ${solution.proof.crossProductEqual ? "equal" : "different"}.`;
       const conclusion = `The representations are ${solution.equivalent ? "equivalent" : "not equivalent"}, so the answer is ${solution.correctAnswer ? "YES" : "NO"}.`;
       const lines = [relationLine, crossLine, conclusion];
@@ -171872,8 +171881,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     return ["positive","negative"].includes(raw) ? raw : null;
   }
   function desiredStep() {
-    const rawText = params.get("rat01Step");
-    const raw = rawText===null||String(rawText).trim()==="" ? NaN : Number(rawText);
+    const raw = Number(params.get("rat01Step"));
     return Number.isInteger(raw) ? clampInt(raw, 1, 3) : null;
   }
   function desiredTarget() {
@@ -171901,17 +171909,12 @@ html[data-euca-resume-geometry="pending"] #particles {
     const mon = monitor();
     const started = typeof performance !== "undefined" ? performance.now() : 0;
     const targetAnswer = desiredTarget();
-    let envelope=null,task=null,solution=null,telemetry=null,leftSeed=0,rightSeed=0,visualPlan=null;
-    const visualRetryLimit=12;
-    for(let visualAttempt=0;visualAttempt<visualRetryLimit;visualAttempt++){
-      envelope=packs.execute(pack,runtimeContext(mon.generated+visualAttempt,targetAnswer));
-      task=envelope.task;solution=envelope.solution;telemetry=pack.telemetry(task,solution);
-      leftSeed=parseInt(sessionRng.hash(task.left.view).slice(0,8),16)>>>0;
-      rightSeed=parseInt(sessionRng.hash(task.right.view).slice(0,8),16)>>>0;
-      visualPlan=globalThis.EUCALCULIA_STIMULUS_INTEGRATION?.planDistinctFractionViews?.(task.left.view,task.right.view,leftSeed,rightSeed)||null;
-      if(visualPlan)break;
-    }
-    if(!visualPlan)throw new Error("RAT01_DISTINCT_INTEGRATED_WITNESS_UNAVAILABLE_AFTER_12_ATTEMPTS");
+    const envelope = packs.execute(pack, runtimeContext(mon.generated, targetAnswer));
+    const task = envelope.task;
+    const solution = envelope.solution;
+    const telemetry = pack.telemetry(task, solution);
+    const leftSeed = parseInt(sessionRng.hash(task.left.view).slice(0,8), 16) >>> 0;
+    const rightSeed = parseInt(sessionRng.hash(task.right.view).slice(0,8), 16) >>> 0;
     const buildMs = Math.max(0, (typeof performance !== "undefined" ? performance.now() : started) - started);
     mon.generated++;
     mon.generatedThisBlock++;
@@ -171944,7 +171947,7 @@ html[data-euca-resume-geometry="pending"] #particles {
       contentPackId:PACK_ID,
       contentPackVersion:PACK_VERSION,
       contentSpecId:contentSpec?.id || PACK_ID,
-      rationalEquivalence:{ task, solution, replay:envelope.replay, telemetry:{...telemetry,integratedVisualPair:`${visualPlan.leftFamily}-${visualPlan.rightFamily}`}, buildMs, visualPlan }
+      rationalEquivalence:{ task, solution, replay:envelope.replay, telemetry, buildMs }
     };
   }
 
@@ -172026,7 +172029,7 @@ html[data-euca-resume-geometry="pending"] #particles {
       const rat = info?.rationalEquivalence;
       if (!rat) return base;
       const source = side === "a" ? rat.task.left : rat.task.right;
-      return { ...base, rationalView:source.view, rationalSide:side === "a" ? "left" : "right", rationalVisualKind:side === "a" ? rat.visualPlan?.leftKind : rat.visualPlan?.rightKind };
+      return { ...base, rationalView:source.view, rationalSide:side === "a" ? "left" : "right" };
     };
     wrapped.__rat01Wrapped = true;
     l0StimOptionsForSide = wrapped;
@@ -172439,8 +172442,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   });
 
   function stepFromContext(context) {
-    const requestedRaw = context?.difficulty?.ladderStep;
-    const requested = requestedRaw===null||requestedRaw===undefined||String(requestedRaw).trim()==="" ? NaN : Number(requestedRaw);
+    const requested = Number(context?.difficulty?.ladderStep);
     if (Number.isInteger(requested)) return clampInt(requested,1,3);
     const level = Math.max(0,Number(context?.difficulty?.level)||0);
     return level>=4?3:(level>=2?2:1);
@@ -172784,7 +172786,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     return typeof eucaLegacyRandom==="function"&&eucaLegacyRandom()<0.14;
   }
   function requestedKind(){const raw=params.get("rat02Kind");return NATURAL_KINDS.includes(raw)?raw:null;}
-  function desiredStep(){const rawText=params.get("rat02Step"),raw=rawText===null||String(rawText).trim()===""?NaN:Number(rawText);return Number.isInteger(raw)?clampInt(raw,1,3):null;}
+  function desiredStep(){const raw=Number(params.get("rat02Step"));return Number.isInteger(raw)?clampInt(raw,1,3):null;}
   function eligibleKinds(){const level=Number(State?.levelByMode?.D)||1;return NATURAL_KINDS.filter(kind=>level>=minLevelByKind[kind]);}
   function chooseKind() {
     const forced=requestedKind();
@@ -173191,7 +173193,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   for(const id of ["fraction_equivalence","rational_order","rational_number_line","rational_midpoint_construct"])domains.registerFamily(id,"unit-rational",{source:"PH6.B2"});
 
   const stepFromContext=context=>{
-    const requestedRaw=context?.difficulty?.ladderStep;const requested=requestedRaw===null||requestedRaw===undefined||String(requestedRaw).trim()===""?NaN:Number(requestedRaw);
+    const requested=Number(context?.difficulty?.ladderStep);
     if(Number.isInteger(requested))return clampInt(requested,1,3);
     const level=Math.max(0,Number(context?.difficulty?.level)||0);
     return level>=4?3:(level>=2?2:1);
@@ -173331,7 +173333,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     return {
       ...commonPack(id,isShift?"signed_integer_direct_shift":"signed_integer_inverse_shift",isShift?2:3,"signed-numeric"),
       generate(context,rng){
-        const step=stepFromContext(context),requestedTargetRaw=context?.difficulty?.targetValue,requestedTarget=requestedTargetRaw===null||requestedTargetRaw===undefined||String(requestedTargetRaw).trim()===""?NaN:Number(requestedTargetRaw),targetValue=Number.isInteger(requestedTarget)&&Math.abs(requestedTarget)<=rangeForStep(step)?requestedTarget:null;
+        const step=stepFromContext(context),requestedTarget=Number(context?.difficulty?.targetValue),targetValue=Number.isInteger(requestedTarget)&&Math.abs(requestedTarget)<=rangeForStep(step)?requestedTarget:null;
         const requestedPolicy=signPolicyById(context?.difficulty?.signPolicy),caseKey=String(context?.difficulty?.caseKey||""),filterCase=pool=>caseKey==="cross-zero"?pool.filter(row=>row.crossesZero):(caseKey==="land-zero"?pool.filter(row=>row.landsOnZero):(caseKey==="zero-move"?pool.filter(row=>row.zeroMove):pool));
         const policies=(requestedPolicy?[requestedPolicy]:SIGN_POLICIES).filter(candidate=>filterCase(movementCandidates(step,kind,candidate,targetValue)).length);
         if(!policies.length)throw new Error("no sign policy satisfies the bounded movement request");
@@ -173375,10 +173377,10 @@ html[data-euca-resume-geometry="pending"] #particles {
   function openMetaMemoryPlan(){try{const plans=typeof ensureMetaMemoryPlans==="function"?ensureMetaMemoryPlans():null;return [1,2,3].some(level=>!!plans?.[level]?.active||!!plans?.[level]?.due)}catch(_){return false}}
   function normalDoseEligible(){const state=stateRef();if(disabled||!state||state.mode!=="D"||!state.running||state.paused||openMetaMemoryPlan())return false;if(globalThis.EUCALCULIA_STIMULUS_INTEGRATION_ELIGIBLE?.("signed")===false)return false;const level=Number(state.levelByMode?.D)||0;if(level<1)return false;const mon=monitor(),blockTrials=Number(state.blockTrials)||0;if(blockTrials<mon.lastObservedBlockTrials){resetMonitor();signedDose.reset()}mon.lastObservedBlockTrials=blockTrials;if(!signedDose.eligible({maximumPerBlock:2,minimumGap:4}))return false;return typeof eucaLegacyRandom==="function"&&eucaLegacyRandom()<.12;}
   function requestedKind(){const raw=params.get("int01Kind");return ["relation","shift","inverse"].includes(raw)?raw:null}
-  function desiredStep(){const rawText=params.get("int01Step"),raw=rawText===null||String(rawText).trim()===""?NaN:Number(rawText);return Number.isInteger(raw)?clampInt(raw,1,3):null}
+  function desiredStep(){const raw=Number(params.get("int01Step"));return Number.isInteger(raw)?clampInt(raw,1,3):null}
   function eligibleKinds(){const level=Number(stateRef()?.levelByMode?.D)||1;return ["relation","shift","inverse"].filter(kind=>level>=minLevelByKind[kind])}
   function chooseKind(){const forced=requestedKind();if(forced)return forced;const eligible=eligibleKinds(),mon=monitor(),minimum=Math.min(...eligible.map(kind=>Number(mon.byKind[kind])||0)),least=eligible.filter(kind=>(Number(mon.byKind[kind])||0)===minimum),random=typeof eucaLegacyRandom==="function"?eucaLegacyRandom():0;return least[Math.min(least.length-1,Math.floor(random*least.length))]||"relation"}
-  function runtimeContext(attempt,kind,targetAnswer){const state=stateRef(),session=sessionRng.session(),targetValueRaw=params.get("int01Answer"),targetValue=targetValueRaw===null||String(targetValueRaw).trim()===""?NaN:Number(targetValueRaw);return {profileId:Number(state?.activeProfile)||1,blockOrdinal:Array.isArray(state?.progressHistory)?state.progressHistory.length:0,trialIndex:Number(state?.blockTrials)||0,attempt,layer:"L0",locale:"en",seed:String(session.seed),difficulty:{level:Number(state?.levelByMode?.D)||0,ladderStep:desiredStep(),targetAnswer,promptId:params.get("int01Prompt")||null,targetValue:Number.isInteger(targetValue)?targetValue:null,caseKey:params.get("int01Case")||null,signPolicy:params.get("int01Signs")||null,activeReps:Array.isArray(state?.reps)?state.reps.slice():CANONICAL_FLASH_REPS.slice(),allowDigits:Array.isArray(state?.reps)?state.reps.includes("digit"):false}}}
+  function runtimeContext(attempt,kind,targetAnswer){const state=stateRef(),session=sessionRng.session(),targetValue=Number(params.get("int01Answer"));return {profileId:Number(state?.activeProfile)||1,blockOrdinal:Array.isArray(state?.progressHistory)?state.progressHistory.length:0,trialIndex:Number(state?.blockTrials)||0,attempt,layer:"L0",locale:"en",seed:String(session.seed),difficulty:{level:Number(state?.levelByMode?.D)||0,ladderStep:desiredStep(),targetAnswer,promptId:params.get("int01Prompt")||null,targetValue:Number.isInteger(targetValue)?targetValue:null,caseKey:params.get("int01Case")||null,signPolicy:params.get("int01Signs")||null,activeReps:Array.isArray(state?.reps)?state.reps.slice():CANONICAL_FLASH_REPS.slice(),allowDigits:Array.isArray(state?.reps)?state.reps.includes("digit"):false}}}
   function desiredBoolTarget(){const raw=params.get("int01Truth");if(raw==="yes")return true;if(raw==="no")return false;return typeof answerBudgetPickBoolTarget==="function"?!!answerBudgetPickBoolTarget(PACK_IDS.relation):null}
 
   function inspectStimulusView(view){
@@ -173635,7 +173637,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   domains.registerDomain({id:"positive-rational",label:"bounded positive exact rational",accepts:value=>!!value?.value&&numeric.compare(value,ZERO)>0&&value.value.numerator<=1000000n&&value.value.denominator<=1000000n});
   for(const id of Object.values(PACK_IDS))domains.registerFamily(id,"positive-rational",{source:PATCH_ID});
 
-  const stepFromContext=context=>{const requestedRaw=context?.difficulty?.ladderStep;const requested=requestedRaw===null||requestedRaw===undefined||String(requestedRaw).trim()===""?NaN:Number(requestedRaw);if(Number.isInteger(requested))return clamp(requested,1,3);const level=Math.max(0,Number(context?.difficulty?.level)||0);return level>=5?3:(level>=3?2:1)};
+  const stepFromContext=context=>{const requested=Number(context?.difficulty?.ladderStep);if(Number.isInteger(requested))return clamp(requested,1,3);const level=Math.max(0,Number(context?.difficulty?.level)||0);return level>=5?3:(level>=3?2:1)};
   const configForStep=step=>step===1?{base:6,factor:3,rate:6,unit:4}:step===2?{base:9,factor:4,rate:9,unit:6}:{base:12,factor:5,rate:12,unit:8};
   const trialRef=(context,family)=>`prop01:${family}:p${Number(context?.profileId)||1}:b${Number(context?.blockOrdinal)||0}:t${Number(context?.trialIndex)||0}:a${Number(context?.attempt)||0}`;
   function semanticValue(value,context,family,side,representationId,slot){const ref=trialRef(context,family);return numeric.withProvenance(numeric.integer(BigInt(value)),{sourceKind:"stimulus",trialRef:ref,side,representationId:`${representationId}:${slot}`,visibilityAtEncoding:"masked_after_encoding",episodeRef:ref,transformationRefs:[],sourceRefs:[]})}
@@ -174021,7 +174023,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   "use strict";
 
   const PATCH_ID="ph6.b3.8.1-cons01-canonical-delegation";
-  const PACK_VERSION=2;
+  const PACK_VERSION=1;
   const VIEW_FORMAT="eucalculia.conservation-view@1";
   const DOMAIN_FORMAT="eucalculia.numeric-domain-guards@1";
   const MAX_QUANTITY=12;
@@ -174054,7 +174056,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   const clamp=(value,min,max)=>Math.max(min,Math.min(max,Math.trunc(Number(value)||0)));
   const exact=semantic=>semantic?.value instanceof numeric.Rational?semantic.value:numeric.rational(semantic).value;
   const integerNumber=semantic=>{const value=exact(semantic);if(!value.isInteger())throw new Error("conservation input is not integral");const answer=Number(value.numerator);if(!Number.isSafeInteger(answer))throw new Error("conservation value exceeds presentation range");return answer};
-  const stepFromContext=context=>{const requestedRaw=context?.difficulty?.ladderStep;const requested=requestedRaw===null||requestedRaw===undefined||String(requestedRaw).trim()===""?NaN:Number(requestedRaw);if(Number.isInteger(requested))return clamp(requested,1,3);const level=Math.max(0,Number(context?.difficulty?.level)||0);return level>=5?3:(level>=3?2:1)};
+  const stepFromContext=context=>{const requested=Number(context?.difficulty?.ladderStep);if(Number.isInteger(requested))return clamp(requested,1,3);const level=Math.max(0,Number(context?.difficulty?.level)||0);return level>=5?3:(level>=3?2:1)};
   const trialRef=(context,family)=>`cons01:${family}:p${Number(context?.profileId)||1}:b${Number(context?.blockOrdinal)||0}:t${Number(context?.trialIndex)||0}:a${Number(context?.attempt)||0}`;
 
   for(const id of Object.values(PACK_IDS))domains.registerFamily(id,"positive-rational",{source:PATCH_ID});
@@ -174123,16 +174125,13 @@ html[data-euca-resume-geometry="pending"] #particles {
   }
   const NON_VALUE_TRANSFORMS=freeze(["representation-change","recode","regroup"]);
 
-  const isPrimeTransitionValue=value=>{value=Math.trunc(Number(value));if(value<2)return false;for(let d=2;d*d<=value;d++)if(value%d===0)return false;return true};
-  const isSquareTransitionValue=value=>{const root=Math.sqrt(Math.max(0,Number(value)));return Number.isInteger(root)};
   const REARRANGE_FRAMES=freeze([
-    freeze({id:"same_quantity",question:"From LEFT to RIGHT, did the quantity stay the same?",test:(left,right)=>right===left,review:"the quantity stayed the same"}),
-    freeze({id:"increased",question:"From LEFT to RIGHT, did the quantity increase?",test:(left,right)=>right>left,review:"RIGHT is greater than LEFT"}),
-    freeze({id:"decreased",question:"From LEFT to RIGHT, did the quantity decrease?",test:(left,right)=>right<left,review:"RIGHT is less than LEFT"}),
-    freeze({id:"parity_changed",question:"From LEFT to RIGHT, did the quantity change parity?",test:(left,right)=>Math.abs(left)%2!==Math.abs(right)%2,review:"the parity changed"}),
-    freeze({id:"became_prime",question:"From LEFT to RIGHT, did a non-prime quantity become prime?",test:(left,right)=>!isPrimeTransitionValue(left)&&isPrimeTransitionValue(right),review:"a non-prime became prime"}),
-    freeze({id:"became_square",question:"From LEFT to RIGHT, did a non-square quantity become a perfect square?",test:(left,right)=>!isSquareTransitionValue(left)&&isSquareTransitionValue(right),review:"a non-square became a square"}),
-    freeze({id:"absolute_change_exactly_two",question:"From LEFT to RIGHT, was the change exactly two units?",test:(left,right)=>Math.abs(right-left)===2,review:"the absolute change was two units"})
+    freeze({id:"preserved",question:"Did RIGHT keep the same quantity as LEFT?",positive:true}),
+    freeze({id:"unchanged",question:"Did the quantity stay the same?",positive:true}),
+    freeze({id:"invariant",question:"Did only the representation change?",positive:true}),
+    freeze({id:"changed",question:"Did the quantity change?",positive:false}),
+    freeze({id:"not_equal",question:"Do LEFT and RIGHT contain different quantities?",positive:false}),
+    freeze({id:"broken",question:"Did RIGHT change LEFT's quantity?",positive:false})
   ]);
   const PARTITION_FRAMES=freeze([
     freeze({id:"same_total",question:"Do LEFT and RIGHT contain the same total number of units?",positive:true}),
@@ -174162,7 +174161,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   function rearrangementRows(step,conserved){
     const key=`${step}:${conserved?1:0}`;
     if(rearrangementCache.has(key))return rearrangementCache.get(key);
-    const maximum=Math.min(MAX_QUANTITY,step===1?10:(step===2?16:24)),minimum=step===1?3:5,maxDelta=Math.max(2,step);
+    const maximum=Math.min(MAX_QUANTITY,step===1?10:(step===2?16:24)),minimum=step===1?3:5,maxDelta=step;
     const rows=[];
     for(let source=minimum;source<=maximum;source++){
       if(conserved)rows.push(freeze({source,target:source,delta:0,conserved:true}));
@@ -174240,15 +174239,15 @@ html[data-euca-resume-geometry="pending"] #particles {
   function rearrangementPack(){
     return {...commonPack(PACK_IDS.rearrangement,"exact_quantity_invariance_under_rearrangement",1,"yesno",2),
       generate(context,rng){
-        const step=stepFromContext(context),frame=REARRANGE_FRAMES.find(row=>row.id===String(context?.difficulty?.promptId||""))||rng.choice(REARRANGE_FRAMES,"rearrangement-frame"),target=typeof context?.difficulty?.targetAnswer==="boolean"?context.difficulty.targetAnswer:rng.random("target-answer")<.5,pool=[...rearrangementRows(step,true),...rearrangementRows(step,false)].filter(row=>frame.test(row.source,row.target)===target&&canonicalRepPairs(context,[row.source],[row.target]).length);
+        const step=stepFromContext(context),frame=REARRANGE_FRAMES.find(row=>row.id===String(context?.difficulty?.promptId||""))||rng.choice(REARRANGE_FRAMES,"rearrangement-frame"),target=typeof context?.difficulty?.targetAnswer==="boolean"?context.difficulty.targetAnswer:rng.random("target-answer")<.5,conserved=frame.positive?target:!target,pool=rearrangementRows(step,conserved).filter(row=>canonicalRepPairs(context,[row.source],[row.target]).length);
         if(!pool.length)throw new Error("no canonically representable rearrangement candidate");
-        const row=rng.choice(pool,"quantity-values"),conserved=row.source===row.target,{leftRep,rightRep}=chooseCanonicalRepPair(rng,context,[row.source],[row.target],"representation-pair"),transformationId=conserved?rng.choice(NON_VALUE_TRANSFORMS,"representation-transform"):(row.target>row.source?"add-units":"remove-units"),left=valueBundle([row.source],context,PACK_IDS.rearrangement,"LEFT",leftRep),refs=sourceKeys(left),right=valueBundle([row.target],context,PACK_IDS.rearrangement,"RIGHT",rightRep,[transformationId],refs);
+        const row=rng.choice(pool,"quantity-values"),{leftRep,rightRep}=chooseCanonicalRepPair(rng,context,[row.source],[row.target],"representation-pair"),transformationId=conserved?rng.choice(NON_VALUE_TRANSFORMS,"representation-transform"):(row.target>row.source?"add-units":"remove-units"),left=valueBundle([row.source],context,PACK_IDS.rearrangement,"LEFT",leftRep),refs=sourceKeys(left),right=valueBundle([row.target],context,PACK_IDS.rearrangement,"RIGHT",rightRep,[transformationId],refs);
         return freeze({schemaVersion:1,family:PACK_IDS.rearrangement,taskKind:"rearrangement",ladderStep:step,semanticCue:"QUANTITY",left:freeze({semantics:freeze(left.map(semanticRecord)),view:makeView("quantity",left,leftRep,step)}),right:freeze({semantics:freeze(right.map(semanticRecord)),view:makeView("quantity",right,rightRep,step,{transformation:freeze({id:transformationId,changesSemanticValue:!conserved,sourceRefs:refs})})}),prompt:freeze({id:frame.id,question:frame.question,cue:"QUANTITY"}),targetAnswer:target,case:freeze({conserved,delta:row.delta,transformationId})});
       },
-      solve(task){const [left]=integers(task.left.view),[right]=integers(task.right.view),conserved=left===right,frame=REARRANGE_FRAMES.find(row=>row.id===task.prompt.id);if(!frame)throw new Error("unknown rearrangement frame");return freeze({correctAnswer:!!frame.test(left,right),conserved,left,right,delta:right-left,direction:right>left?"increase":right<left?"decrease":"same",predicate:frame.id})},
+      solve(task){const [left]=integers(task.left.view),[right]=integers(task.right.view),conserved=left===right,frame=REARRANGE_FRAMES.find(row=>row.id===task.prompt.id);if(!frame)throw new Error("unknown rearrangement frame");return freeze({correctAnswer:frame.positive?conserved:!conserved,conserved,left,right,delta:right-left})},
       validate(task,solution){return validateTask(task,solution,PACK_IDS.rearrangement)},prompt:task=>task.prompt.question,
       render:task=>freeze({left:integers(task.left.view),right:integers(task.right.view),leftView:task.left.view,rightView:task.right.view}),
-      buildReview(task,solution=this.solve(task)){const frame=REARRANGE_FRAMES.find(row=>row.id===task.prompt.id);return freeze({lines:freeze([`LEFT was ${solution.left}; RIGHT was ${solution.right}.`,`The LEFT-to-RIGHT change was ${solution.delta>0?"+":""}${solution.delta}.`,`It is ${solution.correctAnswer?"true":"false"} that ${frame?.review||"the stated transition occurred"}.`]),rendered:this.render(task)})},
+      buildReview(task,solution=this.solve(task)){return freeze({lines:freeze([`LEFT contains ${solution.left} units; RIGHT contains ${solution.right}.`,solution.conserved?"The representation changed, but the exact quantity was conserved.":`The exact quantity changed by ${Math.abs(solution.delta)}.`]),rendered:this.render(task)})},
       difficulty:task=>freeze({ladderStep:task.ladderStep,promptVariant:task.prompt.id,conserved:task.case.conserved,transformationId:task.case.transformationId}),
       telemetry:(task,solution=this.solve(task))=>freeze({contentPackId:PACK_IDS.rearrangement,taskKind:"rearrangement",ladderStep:task.ladderStep,promptVariant:task.prompt.id,correctAnswer:solution.correctAnswer,conserved:solution.conserved,delta:solution.delta,transformationId:task.case.transformationId,leftRepresentation:task.left.view.representation,rightRepresentation:task.right.view.representation})
     };
@@ -174315,7 +174314,7 @@ html[data-euca-resume-geometry="pending"] #particles {
       if(solution.correctAnswer!==task.targetAnswer)errors.push("target_answer_mismatch");
       if(solution.conserved!==task.case.conserved)errors.push("conservation_metadata_mismatch");
       if(transform&&transform.changesSemanticValue===solution.conserved)errors.push("transformation_semantics_mismatch");
-      if(!solution.conserved&&family===PACK_IDS.rearrangement&&Math.abs(solution.delta)>Math.max(2,task.ladderStep))errors.push("non_near_quantity_miss");
+      if(!solution.conserved&&family===PACK_IDS.rearrangement&&Math.abs(solution.delta)>task.ladderStep)errors.push("non_near_quantity_miss");
       if(!solution.conserved&&family===PACK_IDS.partition&&task.case.nearMiss==="none")errors.push("non_near_partition_miss");
     }
     return freeze({ok:!errors.length,status:errors.length?"BLOCK":"PASS",errors:freeze(errors)});
@@ -174328,11 +174327,11 @@ html[data-euca-resume-geometry="pending"] #particles {
   });
   const responseByKind=freeze({rearrangement:"yesno",partition:"yesno",restore:"numeric"});
   const minLevelByKind=freeze({rearrangement:1,partition:3,restore:4});
-  const atomicByKind=freeze({rearrangement:"exact_quantity_transition_left_to_right",partition:"exact_product_invariance_under_repartition",restore:"exact_inverse_conservation_restoration"});
+  const atomicByKind=freeze({rearrangement:"exact_quantity_invariance_under_rearrangement",partition:"exact_product_invariance_under_repartition",restore:"exact_inverse_conservation_restoration"});
   function executePack(kind,context={}){const difficulty={...(context.difficulty||{})};if(difficulty.targetValue===null||difficulty.targetValue===undefined||difficulty.targetValue==="")delete difficulty.targetValue;if(!difficulty.canonicalRepMatrix)difficulty.canonicalRepMatrix=currentCanonicalRepMatrix();return packs.execute(packByKind[kind],{profileId:context.profileId||1,blockOrdinal:context.blockOrdinal||0,trialIndex:context.trialIndex||0,attempt:context.attempt||0,layer:"L0",locale:context.locale||"en",difficulty,semanticInputs:Array.isArray(context.semanticInputs)?context.semanticInputs:[],seed:String(context.seed||sessionRng.session().seed)})}
 
   if(typeof safeRegisterAtomic!=="function")throw new Error("CONS-01 requires declarative atomics");
-  safeRegisterAtomic({id:atomicByKind.rearrangement,kind:"relation",label:"Exact LEFT-to-RIGHT quantity transition",phrase:()=>"test a property of the visible LEFT-to-RIGHT transition",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.rearrangement.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Use only the two visible values: LEFT is the source and RIGHT is the result.",source:PATCH_ID});
+  safeRegisterAtomic({id:atomicByKind.rearrangement,kind:"relation",label:"Exact quantity conservation",phrase:()=>"test exact quantity invariance under rearrangement",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.rearrangement.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Ignore spacing and compare the exact quantities.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.partition,kind:"relation",label:"Exact partition conservation",phrase:()=>"test exact product invariance under repartition",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.partition.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Multiply both partition dimensions and compare the exact totals.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.restore,kind:"operation",label:"Exact conservation restoration",phrase:()=>"construct the exact repair of a changed quantity",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.restore.solve(state).answer}catch(_){return null}},reviewLine:()=>"Recover the original total by the exact difference.",source:PATCH_ID});
 
@@ -174340,7 +174339,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   for(const kind of Object.keys(PACK_IDS)){
     const id=PACK_IDS[kind],pack=packByKind[kind],responseFormat=responseByKind[kind],variants=kind==="rearrangement"?REARRANGE_FRAMES:(kind==="partition"?PARTITION_FRAMES:[...RESTORE_FRAMES.add,...RESTORE_FRAMES.remove]),servable=SERVABLE_KINDS.includes(kind);
     const semanticCue=kind==="partition"?"PRODUCT":"QUANTITY",runtimeEntry={id,family:id,canonicalFamily:id,tier:minLevelByKind[kind],minLevel:minLevelByKind[kind],responseFormat,requiredSelections:1,frameTags:["conservation",kind,"representation_change","mask_retention",`cue_${semanticCue.toLowerCase()}`],mechanismTags:["numeric_semantics",atomicByKind[kind],"canonical_stimulus_delegation"],canUse:()=>false,gen:()=>null,verify:()=>false,promptBuilder:task=>pack.prompt(task),reviewBuilder:task=>pack.buildReview(task,pack.solve(task))};
-    const declaration={id,version:kind==="rearrangement"?"2.0.0":"1.0.0",status:servable?"active":"diagnostic",layer:"L0",family:id,minLevel:minLevelByKind[kind],domain:{substrate:"exact-positive-rational",topology:kind==="partition"?"retained-factor-pair-pair":"retained-quantity-pair",operation:kind,predicate:atomicByKind[kind],exactness:"exact",domainAuthority:DOMAIN_FORMAT},response:{format:responseFormat,requiredSelections:1,immediate:true},generator:{run:context=>{if(!servable)throw new Error(`${id} is diagnostic-only until its post-mask canonical question-glyph route is integrated`);return executePack(kind,context).task},present:servable},oracle:{run:task=>{const source=task?.task||task,solution=pack.solve(source);return kind==="restore"?solution.answer:solution.correctAnswer},present:servable,comparesRenderedText:false},render:{run:context=>pack.render(context?.task||context),present:servable},review:{run:task=>{const source=task?.task||task;return pack.buildReview(source,pack.solve(source))},present:servable},prompt:{run:task=>pack.prompt(task?.task||task),present:servable,variants,semanticCue},compositionAxes:[kind,"exact_conservation","canonical_representation_change","mask_retention","semantic_negation",semanticCue.toLowerCase()],atomics:[atomicByKind[kind],"exact_value_invariance","whole_scene_retention"],introducedIn:"PH6.B3.3",migrationAliases:[`cons01_${kind}`,id.replaceAll("_","-")],eligibility:{kind:servable?"shared-b3-numeric-spine-dose":"fail-closed",minLevel:minLevelByKind[kind]},responseFormat,axes:{family:id,operation:kind,semanticCue},cost:{stimulusCount:servable?2:0,effectiveInputArity:kind==="partition"?4:2,responseSelections:1,boundedGeneration:true},limits:{minimumRelationalLevel:minLevelByKind[kind],sharedMaximumPerBlock:servable?2:0,maximumTaskBytes:packs.limits.maxTaskBytes,maximumVisibleComponent:MAX_QUANTITY},invariants:["exact-semantic-authority","positive-rational-domain","active-canonical-representations-only","canonical-drawings-unchanged","declared-transformation","mask-before-question","single-oracle",...(kind==="partition"?["factor-pair-arity-four","never-collapse-product-to-total","no-four-simultaneous-glyphs","post-mask-canonical-question-glyph-required-before-serving","no-domino-half-pair-grammar"]:[])],help:{label:kind==="rearrangement"?"LEFT-to-RIGHT quantity change":kind==="partition"?"Partition product conservation":"Restore conserved quantity",liveDefinition:false},tests:[{id:"exact-oracle",required:true},{id:"replay",required:true},{id:"canonical-delegation",required:true},{id:"transformation-provenance",required:true},{id:"domain-guard",required:true},{id:"shared-dose",required:true},{id:"browser-play",required:true}],accessibility:kind==="restore"?{kind:"numeric",responseFormat:"numeric",keyboard:["0-9"],ariaLabel:"Enter the exact restoration amount."}:{kind:"binary",responseFormat:"yesno",keyboard:["Y","N","ArrowLeft","ArrowRight"],ariaLabel:kind==="partition"?"Judge whether the retained factor-pair products match.":"Judge whether the retained exact quantity was conserved."},telemetry:{contentSpecId:id,contentPackId:id,family:id,layer:"L0",semanticLayers:["L0","L1","L2"],semanticCue},qa:{explicitAuditOnly:true,propertyTests:true,browserPlayRequired:true,runtimeServing:servable,failClosedReason:servable?null:"post_mask_canonical_question_glyph_not_integrated"},runtimeEntry};
+    const declaration={id,version:"1.0.0",status:servable?"active":"diagnostic",layer:"L0",family:id,minLevel:minLevelByKind[kind],domain:{substrate:"exact-positive-rational",topology:kind==="partition"?"retained-factor-pair-pair":"retained-quantity-pair",operation:kind,predicate:atomicByKind[kind],exactness:"exact",domainAuthority:DOMAIN_FORMAT},response:{format:responseFormat,requiredSelections:1,immediate:true},generator:{run:context=>{if(!servable)throw new Error(`${id} is diagnostic-only until its post-mask canonical question-glyph route is integrated`);return executePack(kind,context).task},present:servable},oracle:{run:task=>{const source=task?.task||task,solution=pack.solve(source);return kind==="restore"?solution.answer:solution.correctAnswer},present:servable,comparesRenderedText:false},render:{run:context=>pack.render(context?.task||context),present:servable},review:{run:task=>{const source=task?.task||task;return pack.buildReview(source,pack.solve(source))},present:servable},prompt:{run:task=>pack.prompt(task?.task||task),present:servable,variants,semanticCue},compositionAxes:[kind,"exact_conservation","canonical_representation_change","mask_retention","semantic_negation",semanticCue.toLowerCase()],atomics:[atomicByKind[kind],"exact_value_invariance","whole_scene_retention"],introducedIn:"PH6.B3.3",migrationAliases:[`cons01_${kind}`,id.replaceAll("_","-")],eligibility:{kind:servable?"shared-b3-numeric-spine-dose":"fail-closed",minLevel:minLevelByKind[kind]},responseFormat,axes:{family:id,operation:kind,semanticCue},cost:{stimulusCount:servable?2:0,effectiveInputArity:kind==="partition"?4:2,responseSelections:1,boundedGeneration:true},limits:{minimumRelationalLevel:minLevelByKind[kind],sharedMaximumPerBlock:servable?2:0,maximumTaskBytes:packs.limits.maxTaskBytes,maximumVisibleComponent:MAX_QUANTITY},invariants:["exact-semantic-authority","positive-rational-domain","active-canonical-representations-only","canonical-drawings-unchanged","declared-transformation","mask-before-question","single-oracle",...(kind==="partition"?["factor-pair-arity-four","never-collapse-product-to-total","no-four-simultaneous-glyphs","post-mask-canonical-question-glyph-required-before-serving","no-domino-half-pair-grammar"]:[])],help:{label:kind==="rearrangement"?"Quantity conservation":kind==="partition"?"Partition product conservation":"Restore conserved quantity",liveDefinition:false},tests:[{id:"exact-oracle",required:true},{id:"replay",required:true},{id:"canonical-delegation",required:true},{id:"transformation-provenance",required:true},{id:"domain-guard",required:true},{id:"shared-dose",required:true},{id:"browser-play",required:true}],accessibility:kind==="restore"?{kind:"numeric",responseFormat:"numeric",keyboard:["0-9"],ariaLabel:"Enter the exact restoration amount."}:{kind:"binary",responseFormat:"yesno",keyboard:["Y","N","ArrowLeft","ArrowRight"],ariaLabel:kind==="partition"?"Judge whether the retained factor-pair products match.":"Judge whether the retained exact quantity was conserved."},telemetry:{contentSpecId:id,contentPackId:id,family:id,layer:"L0",semanticLayers:["L0","L1","L2"],semanticCue},qa:{explicitAuditOnly:true,propertyTests:true,browserPlayRequired:true,runtimeServing:servable,failClosedReason:servable?null:"post_mask_canonical_question_glyph_not_integrated"},runtimeEntry};
     contentSpecs[kind]=contentRegistry.get(id)||contentRegistry.register(declaration);
   }
 
@@ -174689,7 +174688,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   const clamp=(value,min,max)=>Math.max(min,Math.min(max,Math.trunc(Number(value)||0)));
   const R=value=>value instanceof numeric.Rational?value:new numeric.Rational(BigInt(value),1n);
   const asNumber=value=>{if(!value.isInteger())throw new Error("EQ-01 served a non-integral presentation result");const n=Number(value.numerator);if(!Number.isSafeInteger(n))throw new Error("EQ-01 presentation overflow");return n};
-  const stepFromContext=context=>{const requestedRaw=context?.difficulty?.ladderStep;const requested=requestedRaw===null||requestedRaw===undefined||String(requestedRaw).trim()===""?NaN:Number(requestedRaw);if(Number.isInteger(requested))return clamp(requested,1,3);const level=Math.max(0,Number(context?.difficulty?.level)||0);return level>=5?3:(level>=3?2:1)};
+  const stepFromContext=context=>{const requested=Number(context?.difficulty?.ladderStep);if(Number.isInteger(requested))return clamp(requested,1,3);const level=Math.max(0,Number(context?.difficulty?.level)||0);return level>=5?3:(level>=3?2:1)};
   const trialRef=(context,family)=>`eq01:${family}:p${Number(context?.profileId)||1}:b${Number(context?.blockOrdinal)||0}:t${Number(context?.trialIndex)||0}:a${Number(context?.attempt)||0}`;
   try{domains.registerDomain({id:"eq01-input-integer",label:"EQ-01 retained positive input (1..12)",accepts:value=>!!value?.value&&value.value.isInteger()&&value.value.compare(1n)>=0&&value.value.compare(BigInt(MAX_INPUT))<=0})}catch(error){if(!/already registered|duplicate/i.test(String(error?.message||error)))throw error}
   for(const id of Object.values(PACK_IDS))domains.registerFamily(id,"eq01-input-integer",{source:PATCH_ID});
@@ -175212,7 +175211,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   }
   const rationalText=value=>R(value).toString();
   const rationalWithin=value=>{const exact=R(value);return exact.abs().compare(BigInt(MAX_RENDERED))<=0&&exact.denominator<=12n};
-  const stepFromContext=context=>{const requestedRaw=context?.difficulty?.ladderStep;const requested=requestedRaw===null||requestedRaw===undefined||String(requestedRaw).trim()===""?NaN:Number(requestedRaw);if(Number.isInteger(requested))return clamp(requested,1,3);const level=Math.max(0,Number(context?.difficulty?.level)||0);return level>=5?3:(level>=3?2:1)};
+  const stepFromContext=context=>{const requested=Number(context?.difficulty?.ladderStep);if(Number.isInteger(requested))return clamp(requested,1,3);const level=Math.max(0,Number(context?.difficulty?.level)||0);return level>=5?3:(level>=3?2:1)};
   const trialRef=(context,family)=>`eq02:${family}:p${Number(context?.profileId)||1}:b${Number(context?.blockOrdinal)||0}:t${Number(context?.trialIndex)||0}:a${Number(context?.attempt)||0}`;
   try{domains.registerDomain({id:"eq02-input-integer",label:"EQ-02 retained positive input (1..12)",accepts:value=>!!value?.value&&value.value.isInteger()&&value.value.compare(1n)>=0&&value.value.compare(BigInt(MAX_INPUT))<=0})}catch(error){if(!/already registered|duplicate/i.test(String(error?.message||error)))throw error}
   for(const id of Object.values(PACK_IDS))domains.registerFamily(id,"eq02-input-integer",{source:PATCH_ID});
@@ -177217,8 +177216,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     return pool;
   }
   function stepFromContext(context) {
-    const requestedRaw = context?.difficulty?.ladderStep;
-    const requested = requestedRaw===null||requestedRaw===undefined||String(requestedRaw).trim()==="" ? NaN : Number(requestedRaw);
+    const requested = Number(context?.difficulty?.ladderStep);
     if (Number.isInteger(requested)) return clamp(requested, 1, 3);
     const level = Math.max(0, Number(context?.difficulty?.level) || 0);
     return level >= 5 ? 3 : (level >= 4 ? 2 : 1);
@@ -177382,7 +177380,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     try { if (typeof shouldExtendBlockForMetaMemory === "function" && shouldExtendBlockForMetaMemory()) return true; } catch (_) {}
     return false;
   }
-  function queryInteger(name) { const raw=params.get(name); if(raw===null||String(raw).trim()==="") return null; const value=Number(raw); return Number.isInteger(value) ? value : null; }
+  function queryInteger(name) { const raw=params.get(name), value=Number(raw); return raw !== null && Number.isInteger(value) ? value : null; }
   function desiredStep() { const value=queryInteger("xrepStep"); return value === null ? null : clamp(value,1,3); }
   function forceRequested() { return forceMode && !stateRef()?._xrep01ForceConsumed; }
   function installConfig() {
@@ -180009,26 +180007,31 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     // a natural whole of ten without composing two separate timed stimuli.
     if(d===10&&activeCanonicalRep("finger"))exact.push("finger10");
     if(d===12&&n>0&&activeCanonicalRep("clock"))exact.push("clock12");
-    // Keep every honest canonical witness. Exact natural wholes remain first,
-    // but an exact witness must not hide other valid models of the same value.
-    if(n===0||d===1)return exact;
+    if(exact.length)return exact;
+
+    // Zero and unit fractions without a matching natural whole fail closed.
+    // Re-encoding 0/5 as an empty ten-frame (or 1/1 as an arbitrary full
+    // stimulus) would preserve the scalar value while silently changing the
+    // denominator the picture communicates.
+    if(n===0||d===1)return [];
+
     const projected=[];
     if(9%d===0&&activeCanonicalRep("grid"))projected.push("grid9");
     if(10%d===0&&activeCanonicalRep("ten"))projected.push("ten10");
     if(12%d===0&&activeCanonicalRep("clock"))projected.push("clock12");
-    return [...new Set([...exact,...projected])];
+    return projected;
   }
   function canRenderCanonicalFraction(numerator,denominator){return canonicalFractionCandidates(numerator,denominator).length>0;}
-  function fractionVisualKind(payload,seed=1,preferred=null){
+  function fractionVisualKind(payload,seed=1){
     const n=Number(payload?.numerator),d=Number(payload?.denominator);
     const candidates=canonicalFractionCandidates(n,d);
     if(!candidates.length)return null;
-    if(preferred&&candidates.includes(preferred))return preferred;
+    if(d===5||d===9||d===10||d===12)return candidates[0];
     return candidates[Math.abs(Math.trunc(Number(seed)||1))%candidates.length];
   }
-  function buildFractionDelegate(payload,seed=1,preferred=null){
+  function buildFractionDelegate(payload,seed=1){
     if(typeof canonicalMakeStim!=="function")return null;
-    const n=Math.max(0,Number(payload?.numerator)||0),d=Math.max(1,Number(payload?.denominator)||1),kind=fractionVisualKind(payload,seed,preferred),base={seed,lockVisualRotation:true,visualRotationPolicy:"locked"};
+    const n=Math.max(0,Number(payload?.numerator)||0),d=Math.max(1,Number(payload?.denominator)||1),kind=fractionVisualKind(payload,seed),base={seed,lockVisualRotation:true,visualRotationPolicy:"locked"};
     try{
       if(kind==="tenZero")return canonicalMakeStim(0,"ten",base);
       if(kind==="gridZero")return canonicalMakeStim(0,"grid",base);
@@ -180050,7 +180053,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     stim.draw(context,left,top,boxWidth,boxHeight);return true;
   }
   class IntegratedStim extends Stim {
-    constructor(kind,payload,seed=1,preferred=null){super(1,{seed,lockVisualRotation:true});this.kind=kind;this.payload=payload||{};this.seed=Number(seed)||1;this.fractionKind=kind==="fraction"?fractionVisualKind(this.payload,this.seed,preferred):null;this.delegate=kind==="fraction"?buildFractionDelegate(this.payload,this.seed,preferred):null;this.rep=`integrated_${kind}${this.fractionKind?`_${this.fractionKind}`:""}`;this.val=JSON.stringify(payload||{});this.invalidEncoding=false;this.visualOnly=true;this.targetNumeralVisible=false;}
+    constructor(kind,payload,seed=1){super(1,{seed,lockVisualRotation:true});this.kind=kind;this.payload=payload||{};this.seed=Number(seed)||1;this.fractionKind=kind==="fraction"?fractionVisualKind(this.payload,this.seed):null;this.delegate=kind==="fraction"?buildFractionDelegate(this.payload,this.seed):null;this.rep=`integrated_${kind}${this.fractionKind?`_${this.fractionKind}`:""}`;this.val=JSON.stringify(payload||{});this.invalidEncoding=false;this.visualOnly=true;this.targetNumeralVisible=false;}
     encodedValue(){return this.val;}
     verify(){
       if(!this.kind||this.targetNumeralVisible!==false)return false;
@@ -180077,7 +180080,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     return {ratio:Number(parts.ratio),numerator,denominator,sourceKind:String(view?.kind||"rational")};
   }
   function makeIntegratedStim(options,value,rep) {
-    if(options?.rationalView || options?.rat02Stimulus){const view=options.rationalView||options.rat02Stimulus;if(view?.format==="eucalculia.rational-number-line@1")return null;const payload=fractionPayload(view),preferred=options?.rationalVisualKind||null;if(payload&&fractionVisualKind(payload,options.seed,preferred))return new IntegratedStim("fraction",payload,options.seed,preferred);}
+    if(options?.rationalView || options?.rat02Stimulus){const view=options.rationalView||options.rat02Stimulus;if(view?.format==="eucalculia.rational-number-line@1")return null;const payload=fractionPayload(view);if(payload&&fractionVisualKind(payload,options.seed))return new IntegratedStim("fraction",payload,options.seed);}
     // Number lines belong to explicit question-phase gates. Ordinary INT-01,
     // PROP, CONS and EQ flashes delegate to canonical representations inside
     // their family modules; semantic roles never replace canonical drawings.
@@ -180110,8 +180113,8 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     const rows=[];
     const equivalence=pos?.rationalEquivalence;
     if(equivalence?.task){
-      rows.push({view:equivalence.task.left?.view,seed:pos?.stimSeedA,side:"left",preferred:equivalence.visualPlan?.leftKind||null});
-      rows.push({view:equivalence.task.right?.view,seed:pos?.stimSeedB,side:"right",preferred:equivalence.visualPlan?.rightKind||null});
+      rows.push({view:equivalence.task.left?.view,seed:pos?.stimSeedA,side:"left"});
+      rows.push({view:equivalence.task.right?.view,seed:pos?.stimSeedB,side:"right"});
     }
     const bridge=pos?.rationalBridge;
     if(bridge){
@@ -180122,28 +180125,16 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     }
     return rows.filter(row=>row.view);
   }
-  const fractionVisualFamily=kind=>String(kind||"").replace(/(?:5|9|10|12)$/u,"");
-  function planDistinctFractionViews(leftView,rightView,leftSeed,rightSeed){
-    const leftPayload=fractionPayload(leftView),rightPayload=fractionPayload(rightView);
-    if(!leftPayload||!rightPayload)return null;
-    const leftKinds=canonicalFractionCandidates(leftPayload.numerator,leftPayload.denominator),rightKinds=canonicalFractionCandidates(rightPayload.numerator,rightPayload.denominator),pairs=[];
-    for(const leftKind of leftKinds)for(const rightKind of rightKinds)if(fractionVisualFamily(leftKind)!==fractionVisualFamily(rightKind))pairs.push({leftKind,rightKind});
-    if(!pairs.length)return null;
-    const index=Math.abs((Math.trunc(Number(leftSeed)||1)^Math.imul(Math.trunc(Number(rightSeed)||1),2654435761))|0)%pairs.length;
-    return Object.freeze({...pairs[index],leftFamily:fractionVisualFamily(pairs[index].leftKind),rightFamily:fractionVisualFamily(pairs[index].rightKind)});
-  }
-  function rationalViewRenderability(view,seed,preferred=null){
+  function rationalViewRenderability(view,seed){
     if(view?.format==="eucalculia.rational-number-line@1")return {ok:true,kind:"number-line"};
-    const payload=fractionPayload(view),kind=payload&&fractionVisualKind(payload,seed,preferred);
+    const payload=fractionPayload(view),kind=payload&&fractionVisualKind(payload,seed);
     return {ok:!!kind,kind:kind||null,payload};
   }
   function rationalTrialRenderability(pos){
     const views=rationalTrialViews(pos);
     if(!views.length)return {rational:false,ok:true,views:[]};
-    const inspected=views.map(row=>({...row,...rationalViewRenderability(row.view,row.seed,row.preferred)}));
-    const equivalence=pos?.rationalEquivalence,plan=equivalence?.visualPlan;
-    const distinct=!equivalence||(plan&&plan.leftKind&&plan.rightKind&&plan.leftFamily!==plan.rightFamily&&inspected[0]?.kind===plan.leftKind&&inspected[1]?.kind===plan.rightKind);
-    return {rational:true,ok:inspected.every(row=>row.ok)&&!!distinct,views:inspected};
+    const inspected=views.map(row=>({...row,...rationalViewRenderability(row.view,row.seed)}));
+    return {rational:true,ok:inspected.every(row=>row.ok),views:inspected};
   }
   function noteRationalTrialRejection(result){
     try{
@@ -180232,12 +180223,12 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   const bridgeSemanticCue = info => String(bridgeTask(info)?.semanticCue||bridgeTask(info)?.prompt?.cue||"").trim().toUpperCase();
   const bridgePreference = info => info?.equationMoveBridge?"equations":info?.equationBridge?"equations":info?.conservationBridge?"conservation":info?.proportionBridge?(bridgeSemanticCue(info)==="FRACTION"?"fractions":"proportions"):info?.integerBridge?"signed":info?.rationalBridge||info?.rationalEquivalence?"fractions":info?.xrepBridge?"crossRepresentation":null;
   const bridgeCue = info => info?.equationMoveBridge||info?.equationBridge?"EQUALITY":info?.conservationBridge?(info.conservationBridge.kind==="partition"?"PRODUCT":"QUANTITY"):info?.proportionBridge?(bridgeSemanticCue(info)||"RATIO"):info?.integerBridge?"POSITIVE / NEGATIVE":info?.rationalBridge||info?.rationalEquivalence||info?.xrepBridge?"FRACTION":null;
-  function isForcedAuditFor(key){if(auditRequested)return true;if(key==="crossRepresentation")return params.get("xrep01")==="force"||params.get("xrep01Audit")==="1";const keys={fractions:["rat01","rat02Kind","fractionVisualAudit"],signed:["int01Kind","int01Audit"],proportions:["prop01Kind","prop01Audit"],conservation:["cons01Kind","cons01Audit"],equations:["eq01Kind","eq02Kind","eq01Audit","eq02Audit"]}[key]||[];return keys.some(name=>params.has(name));}
+  function isForcedAuditFor(key){if(auditRequested)return true;const keys={fractions:["rat01","rat02Kind","fractionVisualAudit"],signed:["int01Kind","int01Audit"],proportions:["prop01Kind","prop01Audit"],conservation:["cons01Kind","cons01Audit"],equations:["eq01Kind","eq02Kind","eq01Audit","eq02Audit"],crossRepresentation:["xrep01","xrepAudit"]}[key]||[];return keys.some(name=>params.has(name));}
 
   const rationalEquivalencePrompts=freeze({same_value:"Do LEFT and RIGHT represent the same fraction?",equivalent:"Are the two fractions equivalent?",equal_value:"Do both fraction representations have equal value?",different_value:"Do LEFT and RIGHT have different fractional values?",not_equivalent:"Are the two fractions not equivalent?",unequal_value:"Do both fraction representations have unequal values?"});
   const rationalLinePrompts=freeze({locate:"Where does LEFT fall on the magnitude line?",place:"Place LEFT using the marked divisions.",position:"Which marked point or interval contains LEFT?"});
   const proportionPrompts=freeze({same_ratio:"Do LEFT and RIGHT show the same ratio?",one_factor:"Do LEFT and RIGHT show the same ratio?",preserved:"Did the ratio stay the same?",ratio_changed:"Did the ratio change?",no_common_factor:"Do LEFT and RIGHT show different ratios?",not_equivalent:"Do LEFT and RIGHT show different ratios?",left_per_right:"How many LEFT units are there for each RIGHT unit?",normalize_right:"How many LEFT units are there for each RIGHT unit?",left_rate:"How many LEFT units are there for each RIGHT unit?",right_per_left:"How many RIGHT units are there for each LEFT unit?",normalize_left:"How many RIGHT units are there for each LEFT unit?",right_rate:"How many RIGHT units are there for each LEFT unit?",map_left_right:"What factor scales LEFT to RIGHT?",grow_left_right:"What common multiplier takes LEFT to RIGHT?",copies_left_right:"How many times must LEFT be scaled to make RIGHT?",map_right_left:"What factor scales RIGHT to LEFT?",grow_right_left:"What common multiplier takes RIGHT to LEFT?",copies_right_left:"How many times must RIGHT be scaled to make LEFT?",complete:"Complete the second pair with the same ratio.",missing:"What missing value preserves the ratio?",transfer:"Use the first pair's scale to complete the second."});
-  const conservationPrompts=freeze({same_quantity:"From LEFT to RIGHT, did the quantity stay the same?",increased:"From LEFT to RIGHT, did the quantity increase?",decreased:"From LEFT to RIGHT, did the quantity decrease?",parity_changed:"From LEFT to RIGHT, did the quantity change parity?",became_prime:"From LEFT to RIGHT, did a non-prime quantity become prime?",became_square:"From LEFT to RIGHT, did a non-square quantity become a perfect square?",absolute_change_exactly_two:"From LEFT to RIGHT, was the change exactly two units?",same_total:"Do both sides contain the same number of units?",product_preserved:"Do both partitions contain the same number of unit cells?",equal_area:"Do both partitions contain the same number of unit cells?",different_total:"Do the two sides contain different totals?",product_changed:"Do the partitions contain different numbers of unit cells?",not_conserved:"Did the total number of unit cells change?",add_restore:"How many units must RIGHT gain to match LEFT?",missing_units:"How many units is RIGHT missing?",complete_quantity:"How many units must RIGHT gain to match LEFT?",remove_restore:"How many units must RIGHT lose to match LEFT?",extra_units:"How many extra units does RIGHT have?",reduce_quantity:"How many units must RIGHT lose to match LEFT?"});
+  const conservationPrompts=freeze({preserved:"Did RIGHT keep the same quantity as LEFT?",unchanged:"Did the quantity stay the same?",invariant:"Did only the representation change?",changed:"Did the quantity change?",not_equal:"Do LEFT and RIGHT contain different quantities?",broken:"Did RIGHT change LEFT's quantity?",same_total:"Do both sides contain the same number of units?",product_preserved:"Do both partitions contain the same number of unit cells?",equal_area:"Do both partitions contain the same number of unit cells?",different_total:"Do the two sides contain different totals?",product_changed:"Do the partitions contain different numbers of unit cells?",not_conserved:"Did the total number of unit cells change?",add_restore:"How many units must RIGHT gain to match LEFT?",missing_units:"How many units is RIGHT missing?",complete_quantity:"How many units must RIGHT gain to match LEFT?",remove_restore:"How many units must RIGHT lose to match LEFT?",extra_units:"How many extra units does RIGHT have?",reduce_quantity:"How many units must RIGHT lose to match LEFT?"});
   const equationHeaders=freeze({complete:"Complete the equality:",make_equal:"What value makes both sides equal?",fill_balance:"Fill the box so both sides match:",holds:"Is this equality true?",equal:"Do both sides have the same value?",balanced:"Are both sides equal?",different:"Do the sides have different values?",not_equal:"Is this equality false?",unbalanced:"Do the sides differ?",true:"Which equality is true?",valid:"Choose the true equality."});
   const equationDiscriminationHeaders=freeze({true:"Which equality is true?",balanced:"Which option makes both sides equal?",valid:"Choose the true equality."});
   const equationMoveHeaders=freeze({make_exact:"Complete the equality.",complete_operator:"Insert one operator.",balance_operator:"Which operator makes both sides equal?",apply_move:"Apply the move.",transform_whole:"Transform both sides.",exact_result:"Which equality follows?",reach_identity:"Reach the target.",normalize:"Normalize both sides.",same_target:"Send both sides to the target."});
@@ -180391,11 +180382,11 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     check("canonical_change_oracles",!!changeSample&&changeSample.opposite.oracle.value===3&&changeSample.same.oracle.value===5,changeSample?.rep||"no active canonical sample");
     check("canonical_change_question_glyph",changeQuestion?.relRefReferenceGlyph?.questionChrome==="none"&&changeQuestion?.payload?.relRefReferenceGlyph===changeQuestion.relRefReferenceGlyph);
     check("canonical_change_retention_no_leak",!!changeQuestion&&!/\d/.test(String(changeQuestion.question||""))&&!Object.hasOwn(changeQuestion,"A")&&!Object.hasOwn(changeQuestion,"B"));
-    check("audits_off_by_default",auditRequested||document.documentElement.dataset.eucaStimulusIntegrationAudit==="off");
+    check("audits_off_by_default",auditRequested||!document.documentElement.dataset.eucaStimulusIntegrationAudit);
     const failed=checks.filter(row=>!row.pass);return freeze({milestone:MILESTONE,ticket:TICKET,status:failed.length?"BLOCK":"PASS",checks:freeze(checks),summary:freeze({pass:checks.length-failed.length,block:failed.length})});
   }
 
-  const API=freeze({patch:PATCH_ID,milestone:MILESTONE,ticket:TICKET,palette,preferenceKeys,preferences:freeze({snapshot:preferenceSnapshot,get:key=>!!state.preferences[key],set:setPreference,setAll:setAllPreferences}),drawAtlasSample,buildCanonicalChangeEpisode,planDistinctFractionViews,fractionVisualKind,fractionPayload,normalizeIntegerQuestion,normalizedQuestion,selfAudit,normalizeCanvasOwnership,contract:freeze({targetNumeralDuringFlash:false,fractionDefault:"unchanged canonical stimuli with question-phase domain cue",domainCuePlacement:"question only; never a flash badge",supportedFractionDenominators:freeze([2,3,4,5,6,9,10,12]),canonicalScalarMaximum:12,canonicalChangeEpisode:freeze({format:"eucalculia.canonical-change-episode@1",sequence:freeze(["canonical A and B","mask","canonical A-prime question glyph","answer transformed B"]),questionChrome:"none",sameOracle:"B-prime = B + delta",oppositeOracle:"B-prime = B - delta",retainedValuesInQuestion:false}),signedAxis:"explicit question-phase gate only; never ordinary flash",desktopCapPx:720,auditExplicitOnly:true})});
+  const API=freeze({patch:PATCH_ID,milestone:MILESTONE,ticket:TICKET,palette,preferenceKeys,preferences:freeze({snapshot:preferenceSnapshot,get:key=>!!state.preferences[key],set:setPreference,setAll:setAllPreferences}),drawAtlasSample,buildCanonicalChangeEpisode,normalizeIntegerQuestion,normalizedQuestion,selfAudit,normalizeCanvasOwnership,contract:freeze({targetNumeralDuringFlash:false,fractionDefault:"unchanged canonical stimuli with question-phase domain cue",domainCuePlacement:"question only; never a flash badge",supportedFractionDenominators:freeze([2,3,4,5,6,9,10,12]),canonicalScalarMaximum:12,canonicalChangeEpisode:freeze({format:"eucalculia.canonical-change-episode@1",sequence:freeze(["canonical A and B","mask","canonical A-prime question glyph","answer transformed B"]),questionChrome:"none",sameOracle:"B-prime = B + delta",oppositeOracle:"B-prime = B - delta",retainedValuesInQuestion:false}),signedAxis:"explicit question-phase gate only; never ordinary flash",desktopCapPx:720,auditExplicitOnly:true})});
   globalThis.EUCALCULIA_STIMULUS_INTEGRATION=API;
 
   const install=()=>{ensureDomainBadge();ensurePreferenceControls();installStimulusRenderer();installRationalTrialGuard();installPromptNormalizer();installQuestionCue();installGeometryRecovery();installLifecycleGeometryRecovery();updateDomainCue();document.documentElement.dataset.eucaStimulusIntegration="ready";document.documentElement.dataset.eucaStimulusIntegrationAudit=auditRequested?"on":"off";};
@@ -183852,7 +183843,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.spa02SolidNetEnabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.modeChoice!=="auto"||metaMemoryPending())return false;if(!forced&&state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,Number(CONFIG.spa02SolidNetMinDLevel)||5))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<4)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.spa02SolidNetMaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.spa02SolidNetCooldownTrials)||16))return false;return forced||sessionRandom("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.spa02SolidNetProbability)||.018))}catch(_){return false}}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of SHARED_MONITORS){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function startSolidNet(attempt,forcedLevel){
-    if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeedRaw=queryValue("spa02Seed"),forcedSeed=forcedSeedRaw===null||String(forcedSeedRaw).trim()===""?NaN:Number(forcedSeedRaw),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((sessionRandom("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa02Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;
+    if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeed=Number(queryValue("spa02Seed")),seed=Number.isFinite(forcedSeed)?forcedSeed:((sessionRandom("content")*0xFFFFFFFF)>>>0),requestedVariant=String(queryValue("spa02Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(stateRef()?.levelByMode?.D||0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;
     try{
       if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa02_solid_net_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}
       const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode");app?.classList.add("spa02-solid-net-mode");if(app)app.dataset.spa02Phase="encode";
@@ -184447,7 +184438,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function priorVisualServed(state,blockOrdinal){for(const key of SHARED_MONITORS){const mon=state?.productionMonitor?.[key];if(mon&&Number(mon.blockOrdinal)===Number(blockOrdinal)&&Number(mon.blockCount)>0)return true}return false}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of SHARED_MONITORS){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.spa03ViewsEnabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.modeChoice!=="auto"||metaMemoryPending())return false;if(!forced&&state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,Number(CONFIG.spa03ViewsMinDLevel)||5))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<4)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.spa03ViewsMaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.spa03ViewsCooldownTrials)||18))return false;return forced||sessionRandom("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.spa03ViewsProbability)||.015))}catch(_){return false}}
-  function startSpa03(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeedRaw=queryValue("spa03Seed"),forcedSeed=forcedSeedRaw===null||String(forcedSeedRaw).trim()===""?NaN:Number(forcedSeedRaw),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((sessionRandom("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa03Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa03_view_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode");app?.classList.add("spa03-view-mode");if(app)app.dataset.spa03Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa03_view_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa03_${item.variant}`,contentSpecId:`spa03.visual.${item.variant}`,contentSpecVersion:"1.0.0",responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:item.encodePrompt,primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],viewEpisode:item,spa03Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa03EncodeStartedAt:wallStart,spa03EncodeDeadline:wallStart+encodeMs,frameTags:["opaque_voxel_solid","derived_orthographic_view","face_normal_observer","masked_reference","candidate_field","delayed_probe"],mechanismTags:["whole_scene_projection","temporal_separation","unpredictable_post_response_gate","exact_discrete_voxel_oracle",item.variant],executiveTags:["visuospatial_maintenance","mental_reconstruction","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa03ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode",item.encodePrompt,"FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel(`${item.encodePrompt} It will be removed before the options appear.`);schedule("spa03_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode",item.encodePrompt,null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
+  function startSpa03(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeed=Number(queryValue("spa03Seed")),seed=Number.isFinite(forcedSeed)?forcedSeed:((sessionRandom("content")*0xFFFFFFFF)>>>0),requestedVariant=String(queryValue("spa03Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(stateRef()?.levelByMode?.D||0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa03_view_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode");app?.classList.add("spa03-view-mode");if(app)app.dataset.spa03Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa03_view_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa03_${item.variant}`,contentSpecId:`spa03.visual.${item.variant}`,contentSpecVersion:"1.0.0",responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:item.encodePrompt,primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],viewEpisode:item,spa03Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa03EncodeStartedAt:wallStart,spa03EncodeDeadline:wallStart+encodeMs,frameTags:["opaque_voxel_solid","derived_orthographic_view","face_normal_observer","masked_reference","candidate_field","delayed_probe"],mechanismTags:["whole_scene_projection","temporal_separation","unpredictable_post_response_gate","exact_discrete_voxel_oracle",item.variant],executiveTags:["visuospatial_maintenance","mental_reconstruction","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa03ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode",item.encodePrompt,"FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel(`${item.encodePrompt} It will be removed before the options appear.`);schedule("spa03_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode",item.encodePrompt,null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
   function installStartHook(){try{const previous=globalThis.maybeStartInlineGenerativeTrialAfterReset;if(typeof previous!=="function"||previous.__eucaSpa03)return previous?.__eucaSpa03===true;const wrapped=function maybeStartInlineGenerativeTrialAfterResetSpa03(attempt,forcedLevel){const app=document.getElementById("app");app?.classList.remove("spa03-view-mode");if(app){delete app.dataset.spa03Phase;delete app.dataset.spa03Status}restoreLegacyCanvas();if(startSpa03(attempt,forcedLevel))return true;return previous.apply(this,arguments)};wrapped.__eucaSpa03=true;wrapped.__eucaSpa03Original=previous;copyPatchProperties(previous,wrapped);globalThis.maybeStartInlineGenerativeTrialAfterReset=wrapped;try{maybeStartInlineGenerativeTrialAfterReset=wrapped}catch(_){ }return true}catch(_){return false}}
 
   function registerSemantics(){try{const atomicRegistry=typeof ATOMIC_REGISTRY!=="undefined"?ATOMIC_REGISTRY:globalThis.ATOMIC_REGISTRY,specRegistry=typeof SPEC_REGISTRY!=="undefined"?SPEC_REGISTRY:globalThis.SPEC_REGISTRY,atoms=[{id:"voxel_to_orthographic_views",label:"Project one exact voxel model to orthographic views"},{id:"orthographic_views_to_voxel",label:"Reconstruct one opaque voxel model from exact views"},{id:"face_normal_observer",label:"Bind an observer to an exact face normal"},{id:"observer_change_projection",label:"Update the projected view after an observer change"},{id:"spa03_delayed_probe",label:"Answer one unpredictable relation about a retired spatial episode"}];for(const atom of atoms)if(typeof registerAtomic==="function"&&(!atomicRegistry||!atomicRegistry[atom.id]))registerAtomic({id:atom.id,kind:"visuospatial_operation",phrase:()=>atom.label,evaluate:()=>null,reviewLine:()=>atom.label,minLevel:5,source:PATCH_ID});if(typeof registerSpec==="function")for(const variant of VARIANTS){const id=`spa03.visual.${variant}`;if(specRegistry?.[id])continue;registerSpec({id,layer:"AUTO",canonicalFamily:FAMILY,responseFormat:"choice",atomicsUsed:[variant==="solid_to_views"?"voxel_to_orthographic_views":variant==="views_to_solid"?"orthographic_views_to_voxel":variant==="observer_to_view"?"face_normal_observer":"observer_change_projection","spa03_delayed_probe"],prompts:[{q:({solid_to_views:"Which three views match the solid you saw?",views_to_solid:"Which solid matches the three views you saw?",observer_to_view:"What does the solid look like from the marked position?",observer_change:"Which view would you see from the new position?"})[variant]}],promptBuilder:()=>({solid_to_views:"Which three views match the solid you saw?",views_to_solid:"Which solid matches the three views you saw?",observer_to_view:"What does the solid look like from the marked position?",observer_change:"Which view would you see from the new position?"})[variant],verifier:(state,answer)=>Number(answer)===Number(state?.correctIndex),reviewBuilder:state=>Array.isArray(state?.reviewLines)?state.reviewLines:[],replayContract:{schemaVersion:1,required:["seed","variant","modelId","observerDirections","candidateSignatures","correctIndex"]},minLevel:5,frameTags:["opaque_voxel_solid","derived_orthographic_view","face_normal_observer"],source:"declarative_spa03"})}if(typeof REGISTRY_RUNTIME_INDEX!=="undefined"&&REGISTRY_RUNTIME_INDEX)REGISTRY_RUNTIME_INDEX.builtAt=0;if(typeof ensureRegistryRuntimeIndex==="function")ensureRegistryRuntimeIndex()}catch(_){ }}
@@ -184920,7 +184911,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function priorVisualServed(state,blockOrdinal){for(const key of SHARED_MONITORS){const mon=state?.productionMonitor?.[key];if(mon&&Number(mon.blockOrdinal)===Number(blockOrdinal)&&Number(mon.blockCount)>0)return true}return false}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of SHARED_MONITORS){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.spa04SectionsEnabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.modeChoice!=="auto"||metaMemoryPending())return false;if(!forced&&state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,Number(CONFIG.spa04SectionsMinDLevel)||6))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<5)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.spa04SectionsMaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.spa04SectionsCooldownTrials)||20))return false;return forced||sessionRandom("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.spa04SectionsProbability)||.012))}catch(_){return false}}
-  function startSpa04(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeedRaw=queryValue("spa04Seed"),forcedSeed=forcedSeedRaw===null||String(forcedSeedRaw).trim()===""?NaN:Number(forcedSeedRaw),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((sessionRandom("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa04Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa04_section_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode");app?.classList.add("spa04-section-mode");if(app)app.dataset.spa04Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa04_section_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa04_${item.variant}`,contentSpecId:`spa04.visual.${item.variant}`,contentSpecVersion:"1.0.0",responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:item.encodePrompt,primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],sectionEpisode:item,spa04Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa04EncodeStartedAt:wallStart,spa04EncodeDeadline:wallStart+encodeMs,frameTags:["opaque_voxel_solid","exact_cutting_plane","flat_perpendicular_section","masked_reference","candidate_field","delayed_probe"],mechanismTags:["exact_discrete_intersection","temporal_separation","unpredictable_post_response_gate",item.variant],executiveTags:["visuospatial_maintenance","mental_sectioning","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa04ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode",item.encodePrompt,"FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel(`${item.encodePrompt} It will be removed before the options appear.`);schedule("spa04_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode",item.encodePrompt,null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
+  function startSpa04(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),forcedSeed=Number(queryValue("spa04Seed")),seed=Number.isFinite(forcedSeed)?forcedSeed:((sessionRandom("content")*0xFFFFFFFF)>>>0),requestedVariant=String(queryValue("spa04Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(stateRef()?.levelByMode?.D||0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa04_section_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode");app?.classList.add("spa04-section-mode");if(app)app.dataset.spa04Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa04_section_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa04_${item.variant}`,contentSpecId:`spa04.visual.${item.variant}`,contentSpecVersion:"1.0.0",responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:item.encodePrompt,primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],sectionEpisode:item,spa04Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa04EncodeStartedAt:wallStart,spa04EncodeDeadline:wallStart+encodeMs,frameTags:["opaque_voxel_solid","exact_cutting_plane","flat_perpendicular_section","masked_reference","candidate_field","delayed_probe"],mechanismTags:["exact_discrete_intersection","temporal_separation","unpredictable_post_response_gate",item.variant],executiveTags:["visuospatial_maintenance","mental_sectioning","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa04ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode",item.encodePrompt,"FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel(`${item.encodePrompt} It will be removed before the options appear.`);schedule("spa04_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode",item.encodePrompt,null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
   function installStartHook(){try{const previous=globalThis.maybeStartInlineGenerativeTrialAfterReset;if(typeof previous!=="function"||previous.__eucaSpa04)return previous?.__eucaSpa04===true;const wrapped=function maybeStartInlineGenerativeTrialAfterResetSpa04(attempt,forcedLevel){const app=document.getElementById("app");app?.classList.remove("spa04-section-mode");if(app){delete app.dataset.spa04Phase;delete app.dataset.spa04Status}restoreLegacyCanvas();if(startSpa04(attempt,forcedLevel))return true;return previous.apply(this,arguments)};wrapped.__eucaSpa04=true;wrapped.__eucaSpa04Original=previous;copyPatchProperties(previous,wrapped);globalThis.maybeStartInlineGenerativeTrialAfterReset=wrapped;try{maybeStartInlineGenerativeTrialAfterReset=wrapped}catch(_){ }return true}catch(_){return false}}
 
   function registerSemantics(){try{const atomicRegistry=typeof ATOMIC_REGISTRY!=="undefined"?ATOMIC_REGISTRY:globalThis.ATOMIC_REGISTRY,specRegistry=typeof SPEC_REGISTRY!=="undefined"?SPEC_REGISTRY:globalThis.SPEC_REGISTRY,atoms=[{id:"voxel_plane_to_section",label:"Derive an exact flat section from a voxel solid and plane"},{id:"section_to_voxel_plane",label:"Infer the exact plane that produces a retained section"},{id:"section_to_compatible_solid",label:"Infer a complete solid and cut from a retained section"},{id:"spa04_delayed_probe",label:"Answer one unpredictable relation about a retired cutting episode"}];for(const atom of atoms)if(typeof registerAtomic==="function"&&(!atomicRegistry||!atomicRegistry[atom.id]))registerAtomic({id:atom.id,kind:"visuospatial_operation",phrase:()=>atom.label,evaluate:()=>null,reviewLine:()=>atom.label,minLevel:6,source:PATCH_ID});if(typeof registerSpec==="function")for(const variant of VARIANTS){const id=`spa04.visual.${variant}`;if(specRegistry?.[id])continue;registerSpec({id,layer:"AUTO",canonicalFamily:FAMILY,responseFormat:"choice",atomicsUsed:[variant==="solid_to_section"?"voxel_plane_to_section":variant==="section_to_plane"?"section_to_voxel_plane":"section_to_compatible_solid","spa04_delayed_probe"],prompts:[{q:({solid_to_section:"Which cross-section does this cut produce?",section_to_plane:"Which plane produces the retained cross-section?",section_to_solid:"Which solid and cut produce the retained cross-section?"})[variant]}],promptBuilder:()=>({solid_to_section:"Which cross-section does this cut produce?",section_to_plane:"Which plane produces the retained cross-section?",section_to_solid:"Which solid and cut produce the retained cross-section?"})[variant],verifier:(state,answer)=>Number(answer)===Number(state?.correctIndex),reviewBuilder:state=>Array.isArray(state?.reviewLines)?state.reviewLines:[],replayContract:{schemaVersion:1,required:["seed","variant","modelId","targetPlane","targetSectionSignature","candidateSignatures","correctIndex"]},minLevel:6,frameTags:["opaque_voxel_solid","exact_cutting_plane","flat_perpendicular_section"],source:"declarative_spa04"})}if(typeof REGISTRY_RUNTIME_INDEX!=="undefined"&&REGISTRY_RUNTIME_INDEX)REGISTRY_RUNTIME_INDEX.builtAt=0;if(typeof ensureRegistryRuntimeIndex==="function")ensureRegistryRuntimeIndex()}catch(_){ }}
@@ -185624,7 +185615,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     if(!resuming&&!shouldStart(attempt,forcedLevel))return false;
     if(resuming)delete state._spa04R1BriefingResume;
     else if(showFamilyBriefingOnce(attempt,forcedLevel))return true;
-    const forced=forceRequested(),forcedSeedRaw=queryValue("spa04Seed"),forcedSeed=forcedSeedRaw===null||String(forcedSeedRaw).trim()===""?NaN:Number(forcedSeedRaw),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((sessionRandom("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa04Variant")||""),planeMode=String(queryValue("spa04Planes")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0),...(planeMode==="dual"?{dual:true}:planeMode==="single"?{dual:false}:{})});
+    const forced=forceRequested(),forcedSeed=Number(queryValue("spa04Seed")),seed=Number.isFinite(forcedSeed)?forcedSeed:((sessionRandom("content")*0xFFFFFFFF)>>>0),requestedVariant=String(queryValue("spa04Variant")||""),planeMode=String(queryValue("spa04Planes")||""),item=buildItem({seed,variant:requestedVariant,level:Number(stateRef()?.levelByMode?.D||0),...(planeMode==="dual"?{dual:true}:planeMode==="single"?{dual:false}:{})});
     if(!item||!geometryValid(item)||(item.variant==="solid_to_section"?!verifySelection(item,item.correctIndices):!verifyItem(item,item.correctIndex)))return false;
     try{
       if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa04_section_commit");
@@ -187023,7 +187014,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function priorVisualServed(state,blockOrdinal){for(const key of SHARED_MONITORS){const mon=state?.productionMonitor?.[key];if(mon&&Number(mon.blockOrdinal)===Number(blockOrdinal)&&Number(mon.blockCount)>0)return true}return false}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of SHARED_MONITORS){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.spa05PieceCompositionEnabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.modeChoice!=="auto"||metaMemoryPending())return false;if(!forced&&state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,Number(CONFIG.spa05PieceCompositionMinDLevel)||6))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<5)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.spa05PieceCompositionMaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.spa05PieceCompositionCooldownTrials)||18))return false;return forced||randomSource("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.spa05PieceCompositionProbability)||.012))}catch(_){return false}}
-  function startSpa05(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),seedParam=queryValue("spa05Seed"),forcedSeed=seedParam===null?NaN:Number(seedParam),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((randomSource("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa05Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa05_piece_composition_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode","spa04-section-mode");app?.classList.add("spa05-piece-composition-mode");if(app)app.dataset.spa05Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa05_piece_composition_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa05_${item.variant}`,contentSpecId:`spa05.visual.${item.variant}`,contentSpecVersion:VERSION,responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:"",primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],pieceCompositionEpisode:item,spa05Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa05EncodeStartedAt:wallStart,spa05EncodeDeadline:wallStart+encodeMs,atomics:[item.variant==="block_design"?"block_design_rotation":item.variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly","spa05_delayed_probe"],atomicsUsed:[item.variant==="block_design"?"block_design_rotation":item.variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly","spa05_delayed_probe"],frameTags:["exact_discrete_geometry","canonical_mask","four_complete_candidates","delayed_probe"],mechanismTags:["temporal_separation","whole_configuration_matching","anti_fragmentation",item.variant],executiveTags:["visuospatial_maintenance","mental_composition","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa05ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode","","FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel("Retain the complete spatial reference. It will be removed before the options appear.");schedule("spa05_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode","",null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
+  function startSpa05(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),seedParam=queryValue("spa05Seed"),forcedSeed=seedParam===null?NaN:Number(seedParam),seed=Number.isFinite(forcedSeed)?forcedSeed:((randomSource("content")*0xFFFFFFFF)>>>0),requestedVariant=String(queryValue("spa05Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(stateRef()?.levelByMode?.D||0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa05_piece_composition_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode","spa04-section-mode");app?.classList.add("spa05-piece-composition-mode");if(app)app.dataset.spa05Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa05_piece_composition_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa05_${item.variant}`,contentSpecId:`spa05.visual.${item.variant}`,contentSpecVersion:VERSION,responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:"",primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],pieceCompositionEpisode:item,spa05Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa05EncodeStartedAt:wallStart,spa05EncodeDeadline:wallStart+encodeMs,atomics:[item.variant==="block_design"?"block_design_rotation":item.variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly","spa05_delayed_probe"],atomicsUsed:[item.variant==="block_design"?"block_design_rotation":item.variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly","spa05_delayed_probe"],frameTags:["exact_discrete_geometry","canonical_mask","four_complete_candidates","delayed_probe"],mechanismTags:["temporal_separation","whole_configuration_matching","anti_fragmentation",item.variant],executiveTags:["visuospatial_maintenance","mental_composition","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa05ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode","","FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel("Retain the complete spatial reference. It will be removed before the options appear.");schedule("spa05_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode","",null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
   function installStartHook(){try{const previous=globalThis.maybeStartInlineGenerativeTrialAfterReset;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function maybeStartInlineGenerativeTrialAfterResetSpa05(attempt,forcedLevel){const app=document.getElementById("app");app?.classList.remove("spa05-piece-composition-mode");if(app){delete app.dataset.spa05Phase;delete app.dataset.spa05Status;delete app.dataset.unifiedSpatialMask}restoreLegacyCanvas();if(startSpa05(attempt,forcedLevel))return true;return previous.apply(this,arguments)};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.maybeStartInlineGenerativeTrialAfterReset=wrapped;try{maybeStartInlineGenerativeTrialAfterReset=wrapped}catch(_){ }return true}catch(_){return false}}
 
   function registerSemantics(){try{const atomicRegistry=typeof ATOMIC_REGISTRY!=="undefined"?ATOMIC_REGISTRY:globalThis.ATOMIC_REGISTRY,specRegistry=typeof SPEC_REGISTRY!=="undefined"?SPEC_REGISTRY:globalThis.SPEC_REGISTRY,atoms=[{id:"block_design_rotation",label:"Rotate a complete block design exactly"},{id:"form_board_exact_cover",label:"Cover a retained form with a complete set of pieces"},{id:"inverse_piece_assembly",label:"Infer the form assembled by a retained set of pieces"},{id:"spa05_delayed_probe",label:"Answer one unpredictable relation about a retired composition episode"}];for(const atom of atoms)if(typeof registerAtomic==="function"&&(!atomicRegistry||!atomicRegistry[atom.id]))registerAtomic({id:atom.id,kind:"visuospatial_operation",phrase:()=>atom.label,evaluate:()=>null,reviewLine:()=>atom.label,minLevel:6,source:PATCH_ID});if(typeof registerSpec==="function")for(const variant of VARIANTS){const id=`spa05.visual.${variant}`;if(specRegistry?.[id])continue;const atomic=variant==="block_design"?"block_design_rotation":variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly",prompt={block_design:"Which design is the exact rotation?",form_board_exact_cover:"Which arrangement exactly covers the retained form?",inverse_assembly:"Which form can be built from all three retained pieces?"}[variant];registerSpec({id,layer:"AUTO",canonicalFamily:FAMILY,responseFormat:"choice",atomics:[atomic,"spa05_delayed_probe"],atomicsUsed:[atomic,"spa05_delayed_probe"],prompts:[{q:prompt}],promptBuilder:()=>prompt,verifier:(state,answer)=>Number(answer)===Number(state?.correctIndex),reviewBuilder:state=>Array.isArray(state?.reviewLines)?state.reviewLines:[],replayContract:{schemaVersion:1,required:["seed","variant","reference","operation","candidateSignatures","correctIndex"]},minLevel:6,frameTags:["exact_discrete_geometry","canonical_mask","complete_candidate_field"],source:"declarative_spa05"})}if(typeof REGISTRY_RUNTIME_INDEX!=="undefined"&&REGISTRY_RUNTIME_INDEX)REGISTRY_RUNTIME_INDEX.builtAt=0;if(typeof ensureRegistryRuntimeIndex==="function")ensureRegistryRuntimeIndex()}catch(_){ }}
@@ -187313,7 +187304,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function priorVisualServed(state,blockOrdinal){for(const key of SHARED_MONITORS){const mon=state?.productionMonitor?.[key];if(mon&&Number(mon.blockOrdinal)===Number(blockOrdinal)&&Number(mon.blockCount)>0)return true}return false}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of SHARED_MONITORS){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.spa05R2Enabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.modeChoice!=="auto"||metaMemoryPending())return false;if(!forced&&state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,Number(CONFIG.spa05R2MinDLevel)||6))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<5)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.spa05R2MaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.spa05R2CooldownTrials)||18))return false;return forced||randomSource("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.spa05R2Probability)||.012))}catch(_){return false}}
-  function startSpa05R2(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),seedParam=queryValue("spa05r2Seed")??queryValue("spa05Seed"),forcedSeed=seedParam===null?NaN:Number(seedParam),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((randomSource("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa05r2Variant")||queryValue("spa05Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa05_r2_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode","spa04-section-mode","spa05-piece-composition-mode");app?.classList.add("spa05-r2-mode");if(app)app.dataset.spa05R2Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa05_r2_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa05_r2_${item.variant}`,contentSpecId:`spa05.r2.${item.variant}`,contentSpecVersion:VERSION,responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,question:"",primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],spa05R2Episode:item,spa05R2Phase:"encode",spa05R2Substep:"",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa05R2EncodeStartedAt:wallStart,spa05R2EncodeDeadline:wallStart+encodeMs,atomics:[`spa05_${item.variant}`,"spa05_delayed_probe"],atomicsUsed:[`spa05_${item.variant}`,"spa05_delayed_probe"],frameTags:["exact_discrete_geometry","canonical_mask","compound_primary","delayed_probe"],mechanismTags:["temporal_separation","whole_configuration_matching","anti_fragmentation",item.variant],executiveTags:["visuospatial_maintenance","mental_composition","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:3,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa05R2ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode","","FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel("Remember the complete original Block Design.");schedule("spa05_r2_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode","",null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
+  function startSpa05R2(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),seedParam=queryValue("spa05r2Seed")??queryValue("spa05Seed"),forcedSeed=seedParam===null?NaN:Number(seedParam),seed=Number.isFinite(forcedSeed)?forcedSeed:((randomSource("content")*0xFFFFFFFF)>>>0),requestedVariant=String(queryValue("spa05r2Variant")||queryValue("spa05Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(stateRef()?.levelByMode?.D||0)});if(!item||!geometryValid(item))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa05_r2_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode","spa04-section-mode","spa05-piece-composition-mode");app?.classList.add("spa05-r2-mode");if(app)app.dataset.spa05R2Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa05_r2_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa05_r2_${item.variant}`,contentSpecId:`spa05.r2.${item.variant}`,contentSpecVersion:VERSION,responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,question:"",primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],spa05R2Episode:item,spa05R2Phase:"encode",spa05R2Substep:"",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa05R2EncodeStartedAt:wallStart,spa05R2EncodeDeadline:wallStart+encodeMs,atomics:[`spa05_${item.variant}`,"spa05_delayed_probe"],atomicsUsed:[`spa05_${item.variant}`,"spa05_delayed_probe"],frameTags:["exact_discrete_geometry","canonical_mask","compound_primary","delayed_probe"],mechanismTags:["temporal_separation","whole_configuration_matching","anti_fragmentation",item.variant],executiveTags:["visuospatial_maintenance","mental_composition","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:3,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa05R2ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode","","FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel("Remember the complete original Block Design.");schedule("spa05_r2_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode","",null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
   let activeStartWrapper=null;
   function installStartHook(){try{const previous=globalThis.maybeStartInlineGenerativeTrialAfterReset;if(typeof previous!=="function")return false;if(previous===activeStartWrapper||previous.__eucaSpa05R2Direct===previous){activeStartWrapper=previous;return true}const wrapped=function maybeStartInlineGenerativeTrialAfterResetSpa05R2(attempt,forcedLevel){if(activeStartWrapper!==wrapped)return previous.apply(this,arguments);const app=document.getElementById("app");app?.classList.remove("spa05-r2-mode","spa05-piece-composition-mode");if(app){delete app.dataset.spa05R2Phase;delete app.dataset.spa05R2Substep;delete app.dataset.unifiedSpatialMask}restoreLegacyCanvas();if(startSpa05R2(attempt,forcedLevel))return true;const config=typeof CONFIG==="object"&&CONFIG?CONFIG:null,hadLegacy=!!(config&&Object.prototype.hasOwnProperty.call(config,"spa05PieceCompositionEnabled")),legacyValue=config?.spa05PieceCompositionEnabled;try{if(config)config.spa05PieceCompositionEnabled=false;return previous.apply(this,arguments)}finally{if(config){if(hadLegacy)config.spa05PieceCompositionEnabled=legacyValue;else delete config.spa05PieceCompositionEnabled}}};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Direct=wrapped;wrapped.__eucaSpa05R2Original=previous;activeStartWrapper=wrapped;globalThis.maybeStartInlineGenerativeTrialAfterReset=wrapped;try{maybeStartInlineGenerativeTrialAfterReset=wrapped}catch(_){ }return true}catch(_){return false}}
 
@@ -193463,9 +193454,9 @@ globalThis.EUCALCULIA_SPA03RX_A2_CORE = __SPA03RX_A2_MODULE_5;
   }
   function routeRecord(state){let record=ROUTE_BY_STATE.get(state);if(!record){record={forceConsumed:false,seriesOrdinal:0,started:0,history:[],blockOrdinal:-1,blockCount:0,lastBlockTrial:-99};ROUTE_BY_STATE.set(state,record)}return record}
   function spa03rxMetaMemoryPending(){try{const plans=typeof ensureMetaMemoryPlans==="function"?ensureMetaMemoryPlans():null;if(plans&&Object.values(plans).some(plan=>plan&&(plan.active||plan.due||plan.pending)))return true}catch(_){ }try{if(typeof shouldExtendBlockForMetaMemory==="function"&&shouldExtendBlockForMetaMemory())return true}catch(_){ }return false}
-  function shouldStart(attempt,forcedLevel){const state=stateRef(),route=routeMode();if(!state||Number(attempt)!==0||(forcedLevel!==null&&forcedLevel!==undefined))return false;if(!state.running||state.paused||state.modeChoice!=="auto"||spa03rxMetaMemoryPending())return false;const record=routeRecord(state);if(route==="series")return true;if(route==="force")return!record.forceConsumed;if(route==="natural")return false;if(route!=="natural"||state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0)),blockTrial=Math.max(0,Number(state.blockTrials||0)),blockOrdinal=Math.max(0,Number(state.rngBlockOrdinal||0));if(level<6||blockTrial<6)return false;if(record.blockOrdinal!==blockOrdinal){record.blockOrdinal=blockOrdinal;record.blockCount=0;record.lastBlockTrial=-99}if(record.blockCount>=1||blockTrial-record.lastBlockTrial<24)return false;for(const key of["g08VisualPredict","g081VisualPath","g082MaskedSpatial","g083MaskedPaper","spa02SolidNet","spa03Views","spa04Sections","spa05PieceComposition","spa05R2PieceComposition"]){const mon=state.productionMonitor?.[key];if(mon&&Number(mon.blockOrdinal)===blockOrdinal&&Number(mon.blockCount)>0)return false}let draw=null;try{const candidate=globalThis.EUCALCULIA_SESSION_RNG_V1?.random?.("adaptation");if(Number.isFinite(candidate))draw=candidate}catch(_){ }return Number.isFinite(draw)&&draw<0.0125}
+  function shouldStart(attempt,forcedLevel){const state=stateRef(),route=routeMode();if(!state||Number(attempt)!==0||(forcedLevel!==null&&forcedLevel!==undefined))return false;if(!state.running||state.paused||state.modeChoice!=="auto"||spa03rxMetaMemoryPending())return false;const record=routeRecord(state);if(route==="series")return true;if(route==="force")return!record.forceConsumed;if(route!=="natural"||state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0)),blockTrial=Math.max(0,Number(state.blockTrials||0)),blockOrdinal=Math.max(0,Number(state.rngBlockOrdinal||0));if(level<6||blockTrial<6)return false;if(record.blockOrdinal!==blockOrdinal){record.blockOrdinal=blockOrdinal;record.blockCount=0;record.lastBlockTrial=-99}if(record.blockCount>=1||blockTrial-record.lastBlockTrial<24)return false;for(const key of["g08VisualPredict","g081VisualPath","g082MaskedSpatial","g083MaskedPaper","spa02SolidNet","spa03Views","spa04Sections","spa05PieceComposition","spa05R2PieceComposition"]){const mon=state.productionMonitor?.[key];if(mon&&Number(mon.blockOrdinal)===blockOrdinal&&Number(mon.blockCount)>0)return false}let draw=null;try{const candidate=globalThis.EUCALCULIA_SESSION_RNG_V1?.random?.("adaptation");if(Number.isFinite(candidate))draw=candidate}catch(_){ }return Number.isFinite(draw)&&draw<0.0125}
   function requestedSettings(routeInfo){
-    const rawText=queryValue("spa03rxSeed"),raw=rawText===null||String(rawText).trim()===""?NaN:Number(rawText),base=Number.isFinite(raw)?Math.trunc(raw)>>>0:0xC303A201,mode=routeMode(),ordinal=mode==="series"?routeInfo.seriesOrdinal:mode==="natural"?routeInfo.started:0;
+    const raw=Number(queryValue("spa03rxSeed")),base=Number.isFinite(raw)?Math.trunc(raw)>>>0:0xC303A201,mode=routeMode(),ordinal=mode==="series"?routeInfo.seriesOrdinal:mode==="natural"?routeInfo.started:0;
     return{seed:(base+Math.imul(ordinal,0x9E3779B1))>>>0,ordinal,history:routeInfo.history.slice(-24)};
   }
   function validEvaluation(value){return!!value&&typeof value.correct==="boolean"&&VALUES.includes(String(value.selectedAnswer))&&VALUES.includes(String(value.correctAnswer))}
@@ -194706,197 +194697,4 @@ html[data-euca-choice-contract="blocked"] #numpad {
 /* PH6.C5.R3.16 PUBLIC SEMANTIC HARDENING R1:END */
 </script>
 <div id="euca-c5-r3-16-public-semantic-hardening-marker" hidden data-milestone="PH6.C5.R3.16-PUBLIC-SEMANTIC-HARDENING-R1" data-status="PUBLIC_RELEASE_CANDIDATE" data-promotion="false" data-predecessor="PH6.C5.R3.15-PUBLIC-STABILITY-RC1" data-query-policy="FAIL_CLOSED_V2" data-choice-order="SINGLE_AUTHORITY" data-role-ties="WITHHELD_WHEN_REFERENT_IS_NOT_UNIQUE" data-procedural-context="VISIBLE_AT_INPUT" data-inapplicable="FAIL_CLOSED" data-provenance="VALUE_REP_SPEC_CACHE" data-next="STATIC_BROWSER_NATURAL_PERFORMANCE_RELEASE_GATE" data-authority="frozen-promoted-predecessor" data-superseded-by="PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1"></div>
-<div id="euca-c5-r3-17-persistence-safety-hotfix-marker" hidden data-milestone="PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1" data-status="HOTFIX_CANDIDATE" data-promotion="false" data-predecessor="PH6.C5.R3.16-PUBLIC-SEMANTIC-HARDENING-R1" data-scope="B1_RECOVERY_RELOAD_GUARD_B2_RESET_ESCAPE_CAPTURE" data-recovery-reload="SAVE_BLOCKED_UNTIL_REHYDRATION" data-backup-restore="SAVE_BLOCKED_UNTIL_REHYDRATION" data-reset-escape="WINDOW_CAPTURE_BEFORE_GLOBAL_HANDLER" data-content-additions="0" data-curricular-pointer-changed="false" data-next="DETERMINISTIC_BUILD_TARGETED_BROWSER_AND_RELEASE_GATE" data-authority="frozen-promoted-predecessor" data-superseded-by="PH6.C5.R3.18-AUTO-CURRICULUM-INTEGRITY-R1"></div>
-<script>/* PH6.C5.R3.18 SPATIAL AUTO COORDINATOR:START */
-(function installSpatialAutoCoordinatorR318(){
-  "use strict";
-  const PATCH_ID="ph6.c5.r3.18-spatial-auto-coordinator";
-  const VERSION="1.0.0-candidate.1";
-  const TARGET_PER_BLOCK=2;
-  const HARD_CAP_PER_BLOCK=2;
-  const MIN_ELIGIBLE_BLOCK_SIZE=8;
-  const RESPONSE_WINDOW=6;
-  const FAMILY_SPECS=Object.freeze([
-    {family:"visual_predict_complete_state",api:"EUCALCULIA_G08_VISUAL_PREDICT",baseLevel:5,monitor:"g08VisualPredict",config:["g08VisualPredictEnabled","g08VisualPredictProbability","g08VisualPredictMinDLevel","g08VisualPredictMaxPerBlock","g08VisualPredictCooldownTrials"]},
-    {family:"visual_relational_path",api:"EUCALCULIA_G081_VISUAL_PATH",baseLevel:5,monitor:"g081VisualPath",config:["g081VisualPathEnabled","g081VisualPathProbability","g081VisualPathMinDLevel","g081VisualPathMaxPerBlock","g081VisualPathCooldownTrials"]},
-    {family:"masked_shepard_identity",api:"EUCALCULIA_G082_MASKED_SPATIAL",baseLevel:5,monitor:"g082MaskedSpatial",config:["g082MaskedSpatialEnabled","g082MaskedSpatialProbability","g082MaskedSpatialMinDLevel","g082MaskedSpatialMaxPerBlock","g082MaskedSpatialCooldownTrials"]},
-    {family:"masked_paper_folding",api:"EUCALCULIA_G083_MASKED_PAPER",baseLevel:5,monitor:"g083MaskedPaper",config:["g083MaskedPaperEnabled","g083MaskedPaperProbability","g083MaskedPaperMinDLevel","g083MaskedPaperMaxPerBlock","g083MaskedPaperCooldownTrials"]},
-    {family:"solid_net_bidirectional",api:"EUCALCULIA_SPA02",baseLevel:5,monitor:"spa02SolidNet",config:["spa02SolidNetEnabled","spa02SolidNetProbability","spa02SolidNetMinDLevel","spa02SolidNetMaxPerBlock","spa02SolidNetCooldownTrials"]},
-    {family:"exact_views_observer",api:"EUCALCULIA_SPA03",baseLevel:5,monitor:"spa03Views",config:["spa03ViewsEnabled","spa03ViewsProbability","spa03ViewsMinDLevel","spa03ViewsMaxPerBlock","spa03ViewsCooldownTrials"]},
-    {family:"exact_discrete_sections",api:"EUCALCULIA_SPA04_R2",baseLevel:6,monitor:"spa04Sections",config:["spa04SectionsEnabled","spa04SectionsProbability","spa04SectionsMinDLevel","spa04SectionsMaxPerBlock","spa04SectionsCooldownTrials"]},
-    {family:"spatial_piece_composition",api:"EUCALCULIA_SPA05_R2",baseLevel:6,monitor:"spa05R2PieceComposition",config:["spa05R2Enabled","spa05R2Probability","spa05R2MinDLevel","spa05R2MaxPerBlock","spa05R2CooldownTrials"]}
-  ]);
-  const FAMILY_BY_ID=new Map(FAMILY_SPECS.map(row=>[row.family,row]));
-  const FAMILY_IDS=Object.freeze(FAMILY_SPECS.map(row=>row.family));
-  const EXCLUDED_FROM_ADAPTIVE_POOL=Object.freeze(["exact_views_identifiability_public_test"]);
-  const presentedTrials=new WeakSet(),answeredTrials=new WeakSet();
-  let activeStartWrapper=null,activePostAnswerWrapper=null;
-
-  function stateRef(){try{return typeof State==="object"&&State?State:null}catch(_){return globalThis.State||null}}
-  function clampInt(value,min,max,fallback=min){const n=Number(value);return Math.max(min,Math.min(max,Number.isFinite(n)?Math.trunc(n):fallback))}
-  function finiteCount(value){const n=Number(value);return Number.isFinite(n)&&n>=0?Math.trunc(n):0}
-  function hash32(value){let h=0x811c9dc5;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,0x01000193)}return h>>>0}
-  function sessionSeedIdentity(){try{return String(globalThis.EUCALCULIA_SESSION_RNG_V1?.session?.().seed||"")}catch(_){return""}}
-  function activeReservation(family){const state=stateRef();if(!state)return null;const schedule=ensureAxes(state).spatial.schedule;return schedule?.reservation?.family===String(family)?schedule.reservation:null}
-  function seedFor(family,label="content"){
-    const reservation=activeReservation(family),state=stateRef();if(!reservation||!state)return null;
-    const blockOrdinal=Math.max(0,clampInt(state.rngBlockOrdinal,0,0x7fffffff,0));
-    return hash32(`${sessionSeedIdentity()}|spatial_scheduler_v1|${blockOrdinal}|${reservation.slot}|${family}|${label}`);
-  }
-  function randomFor(family,label="content"){const seed=seedFor(family,label);return seed===null?null:(seed+.5)/4294967296}
-  function freshBucket(){return{level:0,exposure:0,answered:0,correct:0,confidence:.5,mastery:0,recent:[],windowsEvaluated:0,lastSeenBlock:-1,lastSeenTrial:-1}}
-  function sanitizeBucket(raw){
-    const src=raw&&typeof raw==="object"?raw:{},exposure=finiteCount(src.exposure),answered=Math.min(exposure,finiteCount(src.answered??src.exposure)),correct=Math.min(answered,finiteCount(src.correct));
-    const recent=Array.isArray(src.recent)?src.recent.slice(-RESPONSE_WINDOW).map(Boolean):[];
-    return{level:clampInt(src.level,0,3,0),exposure,answered,correct,confidence:(correct+1)/(answered+2),mastery:Math.max(0,Math.min(1,Number(src.mastery)||0)),recent,windowsEvaluated:finiteCount(src.windowsEvaluated),lastSeenBlock:Number.isFinite(Number(src.lastSeenBlock))?Math.trunc(Number(src.lastSeenBlock)):-1,lastSeenTrial:Number.isFinite(Number(src.lastSeenTrial))?Math.trunc(Number(src.lastSeenTrial)):-1};
-  }
-  function sanitizeAxes(raw){
-    const source=raw&&typeof raw==="object"?raw:{},spatial=source.spatial&&typeof source.spatial==="object"?source.spatial:{};
-    const families={};for(const family of FAMILY_IDS)families[family]=sanitizeBucket(spatial.families?.[family]);
-    return{schemaVersion:1,spatial:{schemaVersion:1,families,totalPresented:finiteCount(spatial.totalPresented),totalAnswered:finiteCount(spatial.totalAnswered),recentFamilies:Array.isArray(spatial.recentFamilies)?spatial.recentFamilies.filter(id=>FAMILY_BY_ID.has(id)).slice(-24):[],schedule:{blockOrdinal:-1,served:[],servedTrials:[],reservation:null,blacklist:[],misses:[]}}};
-  }
-  function ensureAxes(state=stateRef()){
-    if(!state)return sanitizeAxes(null);
-    if(!state.adaptiveAxes||state.adaptiveAxes.schemaVersion!==1||!state.adaptiveAxes.spatial?.families)state.adaptiveAxes=sanitizeAxes(state.adaptiveAxes);
-    else{
-      for(const family of FAMILY_IDS)state.adaptiveAxes.spatial.families[family]=sanitizeBucket(state.adaptiveAxes.spatial.families[family]);
-      if(!state.adaptiveAxes.spatial.schedule||typeof state.adaptiveAxes.spatial.schedule!=="object")state.adaptiveAxes.spatial.schedule={blockOrdinal:-1,served:[],servedTrials:[],reservation:null,blacklist:[],misses:[]};
-    }
-    return state.adaptiveAxes;
-  }
-  function rehydrate(saved){const state=stateRef();if(!state)return null;state.adaptiveAxes=sanitizeAxes(saved);return state.adaptiveAxes}
-  function compactForSave(){
-    const axes=ensureAxes(),spatial=axes.spatial,families={};
-    for(const family of FAMILY_IDS)families[family]=sanitizeBucket(spatial.families[family]);
-    return{schemaVersion:1,spatial:{schemaVersion:1,families,totalPresented:finiteCount(spatial.totalPresented),totalAnswered:finiteCount(spatial.totalAnswered),recentFamilies:(spatial.recentFamilies||[]).slice(-24)}};
-  }
-  function resetScheduleIfNeeded(state,blockOrdinal){
-    const schedule=ensureAxes(state).spatial.schedule;
-    if(Number(schedule.blockOrdinal)!==blockOrdinal){schedule.blockOrdinal=blockOrdinal;schedule.served=[];schedule.servedTrials=[];schedule.reservation=null;schedule.blacklist=[];schedule.misses=[]}
-    return schedule;
-  }
-  function slotThresholds(blockSize){const size=Math.max(MIN_ELIGIBLE_BLOCK_SIZE,clampInt(blockSize,MIN_ELIGIBLE_BLOCK_SIZE,200,20));return[Math.max(3,Math.min(5,Math.round(size*.20))),Math.max(8,Math.min(12,Math.round(size*.55)))]}
-  function metaMemoryPending(){try{const plans=typeof ensureMetaMemoryPlans==="function"?ensureMetaMemoryPlans():null;if(plans&&Object.values(plans).some(plan=>plan&&(plan.active||plan.due||plan.pending)))return true}catch(_){}try{if(typeof shouldExtendBlockForMetaMemory==="function"&&shouldExtendBlockForMetaMemory())return true}catch(_){}return false}
-  function eligibleContext(state,attempt,forcedLevel){
-    if(!state||Number(attempt)!==0||(forcedLevel!==null&&forcedLevel!==undefined))return null;
-    if(!state.running||state.paused||state.modeChoice!=="auto"||state.mode!=="D"||metaMemoryPending())return null;
-    const blockSize=clampInt(state.blockSize,1,200,20);if(blockSize<MIN_ELIGIBLE_BLOCK_SIZE)return null;
-    return{blockOrdinal:Math.max(0,clampInt(state.rngBlockOrdinal,0,0x7fffffff,0)),blockTrial:Math.max(0,clampInt(state.blockTrials,0,10000,0)),blockSize};
-  }
-  function availableSpecs(schedule){
-    const present=FAMILY_SPECS.filter(spec=>typeof globalThis[spec.api]?.start==="function"&&!schedule.blacklist.includes(spec.family));
-    const unserved=present.filter(spec=>!schedule.served.includes(spec.family));return unserved.length?unserved:present;
-  }
-  function chooseFamily(state,context,schedule,slot){
-    const axes=ensureAxes(state).spatial,candidates=availableSpecs(schedule);
-    candidates.sort((a,b)=>{const aa=axes.families[a.family],bb=axes.families[b.family];return aa.exposure-bb.exposure||aa.lastSeenBlock-bb.lastSeenBlock||hash32(`${context.blockOrdinal}|${slot}|${a.family}`)-hash32(`${context.blockOrdinal}|${slot}|${b.family}`)});
-    return candidates[0]?.family||null;
-  }
-  function reservationFor(state,attempt,forcedLevel){
-    const context=eligibleContext(state,attempt,forcedLevel);if(!context)return null;
-    const schedule=resetScheduleIfNeeded(state,context.blockOrdinal);if(schedule.served.length>=HARD_CAP_PER_BLOCK)return null;
-    const slot=schedule.served.length,threshold=slotThresholds(context.blockSize)[slot];if(context.blockTrial<threshold)return null;
-    const previousTrial=schedule.servedTrials.at(-1);if(Number.isFinite(previousTrial)&&context.blockTrial-previousTrial<3)return null;
-    if(schedule.reservation&&schedule.reservation.slot===slot)return{...schedule.reservation,context,schedule};
-    const family=chooseFamily(state,context,schedule,slot);if(!family)return null;
-    const monitorRoot=state.productionMonitor||(state.productionMonitor={}),absentMonitors=FAMILY_SPECS.filter(spec=>!monitorRoot[spec.monitor]).map(spec=>spec.monitor);
-    schedule.reservation={family,slot,createdAtTrial:context.blockTrial,failures:0,absentMonitors};return{...schedule.reservation,context,schedule};
-  }
-  function snapshotLatches(state){const root=state.productionMonitor||(state.productionMonitor={}),out={};for(const spec of FAMILY_SPECS){const mon=root[spec.monitor];out[spec.monitor]=mon?{exists:true,blockOrdinal:mon.blockOrdinal,blockCount:mon.blockCount,lastBlockTrial:mon.lastBlockTrial}:{exists:false}}return out}
-  function clearLatches(state,blockOrdinal){const root=state.productionMonitor||(state.productionMonitor={});for(const spec of FAMILY_SPECS){const mon=root[spec.monitor];if(!mon||typeof mon!=="object")continue;mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}}
-  function restoreLatches(state,snapshot){const root=state.productionMonitor||(state.productionMonitor={});for(const spec of FAMILY_SPECS){const row=snapshot[spec.monitor];if(!row?.exists)delete root[spec.monitor];else{const mon=root[spec.monitor]||(root[spec.monitor]={});mon.blockOrdinal=row.blockOrdinal;mon.blockCount=row.blockCount;mon.lastBlockTrial=row.lastBlockTrial}}}
-  function withConfigOverrides(spec,values,work){const config=typeof CONFIG==="object"&&CONFIG?CONFIG:null;if(!config)return work();const saved=[];for(let i=0;i<spec.config.length;i++){const key=spec.config[i];saved.push([key,Object.prototype.hasOwnProperty.call(config,key),config[key]]);config[key]=values[i]}try{return work()}finally{for(const[key,had,value]of saved){if(had)config[key]=value;else delete config[key]}}}
-  function withLegacySpatialDisabled(work){
-    const config=typeof CONFIG==="object"&&CONFIG?CONFIG:null;if(!config)return work();const saved=[];
-    for(const spec of FAMILY_SPECS){const key=spec.config[0];saved.push([key,Object.prototype.hasOwnProperty.call(config,key),config[key]]);config[key]=false}
-    try{return work()}finally{for(const[key,had,value]of saved){if(had)config[key]=value;else delete config[key]}}
-  }
-  function explicitLocalForce(){try{if(globalThis.__EUCALCULIA_PUBLIC_QUERY_POLICY__?.mode!=="LOCAL_QA")return false;const q=new URLSearchParams(location.search);return["g08Visual","g081Path","g082Sequence","g083Sequence","spa02","spa03","spa04","spa05","spa05r2","spa03rx"].some(key=>["force","series"].includes(String(q.get(key)||"").toLowerCase()))}catch(_){return false}}
-  function pruneSyntheticSharedMonitors(state,reservation,servedFamily){const root=state?.productionMonitor;if(!root||!Array.isArray(reservation?.absentMonitors))return;const keep=FAMILY_BY_ID.get(String(servedFamily))?.monitor;for(const key of reservation.absentMonitors)if(key!==keep)delete root[key]}
-  function notePresented(family,info=null,context=null){
-    if(!FAMILY_BY_ID.has(family))return false;const state=stateRef();if(!state)return false;const axes=ensureAxes(state).spatial,blockOrdinal=context?.blockOrdinal??Math.max(0,clampInt(state.rngBlockOrdinal,0,0x7fffffff,0)),blockTrial=context?.blockTrial??Math.max(0,clampInt(state.blockTrials,0,10000,0)),schedule=resetScheduleIfNeeded(state,blockOrdinal);
-    if(info&&typeof info==="object"&&presentedTrials.has(info))return true;
-    pruneSyntheticSharedMonitors(state,schedule.reservation,family);
-    if(schedule.served.length<HARD_CAP_PER_BLOCK){schedule.served.push(family);schedule.servedTrials.push(blockTrial);axes.totalPresented++;axes.recentFamilies.push(family);axes.recentFamilies=axes.recentFamilies.slice(-24);const bucket=axes.families[family];bucket.exposure++;bucket.lastSeenBlock=blockOrdinal;bucket.lastSeenTrial=blockTrial}
-    schedule.reservation=null;
-    if(info&&typeof info==="object"){presentedTrials.add(info);info.countsForAdaptation=false;info.adaptationAxis="spatial";info.spatialAdaptiveLevel=axes.families[family].level;info.spatialContentLevel=contentLevelFor(family);info.spatialAutoPolicy=PATCH_ID}
-    return true;
-  }
-  function noteResponse(info,correct){
-    if(!info||typeof info!=="object"||answeredTrials.has(info))return false;const family=String(info.family||info.catFamily||"");if(!FAMILY_BY_ID.has(family))return false;
-    if(info.spatialAutoPolicy!==PATCH_ID)return false;answeredTrials.add(info);const spatial=ensureAxes().spatial,bucket=spatial.families[family];bucket.answered++;bucket.correct+=correct?1:0;bucket.recent.push(!!correct);bucket.recent=bucket.recent.slice(-RESPONSE_WINDOW);spatial.totalAnswered++;
-    const completedWindows=Math.floor(bucket.answered/RESPONSE_WINDOW);if(bucket.recent.length===RESPONSE_WINDOW&&completedWindows>bucket.windowsEvaluated){const hits=bucket.recent.filter(Boolean).length;if(hits>=5)bucket.level=Math.min(3,bucket.level+1);else if(hits<=2)bucket.level=Math.max(0,bucket.level-1);bucket.windowsEvaluated=completedWindows}
-    bucket.confidence=(bucket.correct+1)/(bucket.answered+2);const localAcc=bucket.recent.length?bucket.recent.filter(Boolean).length/bucket.recent.length:.5;bucket.mastery=Math.max(0,Math.min(1,(bucket.level+Math.max(0,(localAcc-.5)*2))/4));return true;
-  }
-  function contentLevelFor(family){const spec=FAMILY_BY_ID.get(String(family));if(!spec)return 0;return spec.baseLevel+ensureAxes().spatial.families[spec.family].level}
-  function startReserved(attempt,forcedLevel){
-    const state=stateRef(),reservation=reservationFor(state,attempt,forcedLevel);if(!reservation)return false;const spec=FAMILY_BY_ID.get(reservation.family),api=spec?globalThis[spec.api]:null;if(typeof api?.start!=="function")return false;
-    const latches=snapshotLatches(state),priorInfo=state.trialInfo;clearLatches(state,reservation.context.blockOrdinal);let started=false;
-    try{started=withConfigOverrides(spec,[true,1,-1,2,-1],()=>api.start(attempt,forcedLevel))===true}catch(_) {started=false}
-    if(started){const liveInfo=state.trialInfo,committed=liveInfo&&liveInfo!==priorInfo&&String(liveInfo.family||liveInfo.catFamily||"")===spec.family;if(committed)notePresented(spec.family,liveInfo,reservation.context);else restoreLatches(state,latches);return true}
-    restoreLatches(state,latches);reservation.schedule.reservation.failures=finiteCount(reservation.schedule.reservation.failures)+1;if(reservation.schedule.reservation.failures>=2){reservation.schedule.blacklist.push(spec.family);reservation.schedule.misses.push({family:spec.family,slot:reservation.slot,trial:reservation.context.blockTrial,reason:"builder_rejected_twice"});reservation.schedule.reservation=null}return false;
-  }
-  function installStartHook(){
-    try{const previous=globalThis.maybeStartInlineGenerativeTrialAfterReset;if(typeof previous!=="function")return false;if(previous===activeStartWrapper||previous.__eucaSpatialAutoCoordinatorDirect===previous)return true;
-      const wrapped=function maybeStartInlineGenerativeTrialAfterResetSpatialAuto(attempt,forcedLevel){if(explicitLocalForce())return previous.apply(this,arguments);if(startReserved(attempt,forcedLevel))return true;return withLegacySpatialDisabled(()=>previous.apply(this,arguments))};
-      wrapped.__eucaSpatialAutoCoordinator=true;wrapped.__eucaSpatialAutoCoordinatorDirect=wrapped;wrapped.__eucaSpatialAutoCoordinatorOriginal=previous;activeStartWrapper=wrapped;globalThis.maybeStartInlineGenerativeTrialAfterReset=wrapped;try{maybeStartInlineGenerativeTrialAfterReset=wrapped}catch(_){}return true;
-    }catch(_){return false}
-  }
-  function installPostAnswerHook(){
-    try{const previous=globalThis.processInputPostAnswer;if(typeof previous!=="function")return false;if(previous===activePostAnswerWrapper||previous.__eucaSpatialAutoCoordinatorDirect===previous)return true;
-      const wrapped=function processInputPostAnswerSpatialAuto(ctx){try{const info=ctx?.trialInfoRef||stateRef()?.trialInfo,family=String(info?.family||info?.catFamily||"");if(info&&FAMILY_BY_ID.has(family)){info.countsForAdaptation=false;info.adaptationAxis="spatial";const reservation=ensureAxes().spatial.schedule?.reservation;if(info.spatialAutoPolicy!==PATCH_ID&&reservation?.family===family)notePresented(family,info);const primaryCorrect=typeof info.primaryCorrect==="boolean"?info.primaryCorrect:ctx?.correct===true;noteResponse(info,primaryCorrect)}}catch(_){}return previous.apply(this,arguments)};
-      wrapped.__eucaSpatialAutoCoordinator=true;wrapped.__eucaSpatialAutoCoordinatorDirect=wrapped;wrapped.__eucaSpatialAutoCoordinatorOriginal=previous;activePostAnswerWrapper=wrapped;globalThis.processInputPostAnswer=wrapped;try{processInputPostAnswer=wrapped}catch(_){}return true;
-    }catch(_){return false}
-  }
-  function snapshot(){const state=stateRef(),axes=ensureAxes(state),schedule=axes.spatial.schedule;return Object.freeze({patch:PATCH_ID,version:VERSION,publicMode:"auto-only",targetPerEligibleBlock:TARGET_PER_BLOCK,hardCapPerEligibleBlock:HARD_CAP_PER_BLOCK,families:FAMILY_IDS.slice(),excludedFromAdaptivePool:EXCLUDED_FROM_ADAPTIVE_POOL.slice(),numericD:Number(state?.levelByMode?.D||0),schedule:{blockOrdinal:schedule.blockOrdinal,served:schedule.served.slice(),servedTrials:schedule.servedTrials.slice(),reservation:schedule.reservation?{...schedule.reservation}:null},axis:compactForSave()})}
-  ensureAxes();installStartHook();installPostAnswerHook();const reinstall=()=>{installStartHook();installPostAnswerHook()};try{queueMicrotask(reinstall);setTimeout(reinstall,0);if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>queueMicrotask(reinstall),{once:true});window.addEventListener("pageshow",reinstall,{passive:true})}catch(_){}
-  const API=Object.freeze({patch:PATCH_ID,version:VERSION,targetPerEligibleBlock:TARGET_PER_BLOCK,hardCapPerEligibleBlock:HARD_CAP_PER_BLOCK,families:FAMILY_IDS,excludedFromAdaptivePool:EXCLUDED_FROM_ADAPTIVE_POOL,contentLevelFor,seedFor,randomFor,notePresented,noteResponse,rehydrate,compactForSave,snapshot,_test:Object.freeze({sanitizeAxes,slotThresholds,hash32})});
-  Object.defineProperty(globalThis,"EUCALCULIA_SPATIAL_AUTO_COORDINATOR",{value:API,writable:false,configurable:false,enumerable:true});
-  document.documentElement.dataset.eucaSpatialAuto="coordinated-2";
-})();
-/* PH6.C5.R3.18 SPATIAL AUTO COORDINATOR:END */</script>
-<div id="euca-c5-r3-18-spatial-auto-coordinator-marker" hidden aria-hidden="true" data-milestone="PH6.C5.R3.18-AUTO-CURRICULUM-INTEGRITY-R1" data-status="CANDIDATE" data-public-mode="AUTO_ONLY" data-spatial-target-per-eligible-block="2" data-spatial-hard-cap-per-eligible-block="2" data-adaptation-axis="spatial" data-numeric-d-isolation="true" data-spa03rx-adaptive-pool="excluded" data-browser-gate="NOT_RUN"></div>
-<script>/* PH6.C5.R3.18 AUTO CURRICULUM SELF AUDIT:START */
-(function installAutoCurriculumSelfAuditR318(){
-  "use strict";
-  const PATCH_ID="ph6.c5.r3.18-auto-curriculum-self-audit",VERSION="1.0.0-candidate.1";
-  function audit(){
-    const checks=[],check=(id,pass,detail=null)=>checks.push(Object.freeze({id,pass:!!pass,detail}));
-    const root=document.documentElement,spatial=globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR,integration=globalThis.EUCALCULIA_STIMULUS_INTEGRATION;
-    check("auto_only_surface",root?.dataset?.eucaSpatialAuto==="coordinated-2"&&document.querySelectorAll('[data-public-mode="AUTO_ONLY"]').length===1);
-    check("clean_public_query_fail_closed",globalThis.__EUCALCULIA_PUBLIC_QUERY_POLICY__?.mode==="PUBLIC_LOCKED"||globalThis.__EUCALCULIA_PUBLIC_QUERY_POLICY__?.mode==="LOCAL_QA",globalThis.__EUCALCULIA_PUBLIC_QUERY_POLICY__||null);
-    check("spatial_target_and_cap",spatial?.targetPerEligibleBlock===2&&spatial?.hardCapPerEligibleBlock===2);
-    check("spatial_axis_separate",spatial?.snapshot?.().publicMode==="auto-only"&&spatial?.excludedFromAdaptivePool?.includes("exact_views_identifiability_public_test"));
-    check("spatial_rng_isolated",typeof spatial?.seedFor==="function"&&typeof spatial?.randomFor==="function"&&spatial.seedFor("visual_predict_complete_state","probe")===null);
-    check("profile_schema_23",globalThis.EUCALCULIA_BUILD_MANIFEST?.profileSchema===23);
-    check("fraction_pair_authority",typeof integration?.planDistinctFractionViews==="function"&&typeof integration?.fractionVisualKind==="function");
-    check("stimulus_integration_self_audit",integration?.selfAudit?.().status==="PASS",integration?.selfAudit?.()||null);
-    check("public_semantic_self_audit",globalThis.EUCALCULIA_PUBLIC_SEMANTIC_HARDENING_R1?.audit?.().status==="PASS",globalThis.EUCALCULIA_PUBLIC_SEMANTIC_HARDENING_R1?.audit?.()||null);
-    const marker=document.getElementById("euca-c5-r3-18-auto-curriculum-integrity-marker");
-    check("l0_l1_information_boundary",marker?.dataset?.l0InformationContract==="TWO_VISIBLE_STIMULI_ONLY"&&marker?.dataset?.l1MetaStateContract==="PAIR_TRANSITIONS_ONLY");
-    check("formal_pointer_not_advanced",marker?.dataset?.runtimeAutoCurriculumChanged==="true"&&marker?.dataset?.formalCurricularPointerChanged==="false");
-    const failed=checks.filter(row=>!row.pass);
-    return Object.freeze({patch:PATCH_ID,version:VERSION,status:failed.length?"BLOCK":"PASS",candidate:true,promotion:false,summary:Object.freeze({pass:checks.length-failed.length,fail:failed.length,total:checks.length}),checks:Object.freeze(checks)});
-  }
-  const API=Object.freeze({patch:PATCH_ID,version:VERSION,status:"PREVIEW",promotion:false,audit});
-  Object.defineProperty(globalThis,"EUCALCULIA_R318_SELF_AUDIT",{value:API,writable:false,configurable:false,enumerable:true});
-  document.documentElement.dataset.eucaR318SelfAudit="ready";
-})();
-/* PH6.C5.R3.18 AUTO CURRICULUM SELF AUDIT:END */</script>
-<div id="euca-c5-r3-18-auto-curriculum-integrity-marker" hidden
-  data-milestone="PH6.C5.R3.18-AUTO-CURRICULUM-INTEGRITY-R1"
-  data-status="PREVIEW"
-  data-promotion="false"
-  data-predecessor="PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1"
-  data-auto-only="true"
-  data-l0-information-contract="TWO_VISIBLE_STIMULI_ONLY"
-  data-l1-meta-state-contract="PAIR_TRANSITIONS_ONLY"
-  data-clean-query-optionals="ABSENT_IS_NOT_ZERO"
-  data-rational-equivalence="DISTINCT_INTEGRATED_WITNESSES"
-  data-spatial-dose="TARGET_2_HARD_CAP_2_PER_ELIGIBLE_BLOCK"
-  data-spatial-axis="INTERNAL_SEPARATE_FROM_NUMERIC_D"
-  data-natural-browser-evidence="REQUIRED_NOT_YET_RUN"
-  data-runtime-auto-curriculum-changed="true"
-  data-new-formal-curricular-families="0"
-  data-formal-curricular-pointer-changed="false"
-  data-next="DETERMINISTIC_AUTO_CLEAN_QUERY_AND_NATURAL_BROWSER_GATE"></div>
+<div id="euca-c5-r3-17-persistence-safety-hotfix-marker" hidden data-milestone="PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1" data-status="HOTFIX_CANDIDATE" data-promotion="false" data-predecessor="PH6.C5.R3.16-PUBLIC-SEMANTIC-HARDENING-R1" data-scope="B1_RECOVERY_RELOAD_GUARD_B2_RESET_ESCAPE_CAPTURE" data-recovery-reload="SAVE_BLOCKED_UNTIL_REHYDRATION" data-backup-restore="SAVE_BLOCKED_UNTIL_REHYDRATION" data-reset-escape="WINDOW_CAPTURE_BEFORE_GLOBAL_HANDLER" data-content-additions="0" data-curricular-pointer-changed="false" data-next="DETERMINISTIC_BUILD_TARGETED_BROWSER_AND_RELEASE_GATE"></div>
