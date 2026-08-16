@@ -7945,19 +7945,19 @@ function currentVisualSystemContract(){
 }
 
 const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
-  "appVersion": "v7.1.1",
+  "appVersion": "v7.1.2",
   "releaseChannel": "stable",
-  "builtAt": "2026-08-15T22:30:00Z",
-  "artifact": "Eucalculia_v7_1_1.html",
+  "builtAt": "2026-08-16T15:00:00Z",
+  "artifact": "Eucalculia_v7_1_2.html",
   "artifactFormat": "single-file-html",
-  "milestone": "PH6.C5.R3.16-PUBLIC-SEMANTIC-HARDENING-R1",
+  "milestone": "PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1",
   "profileSchema": 22,
   "wrapperSchema": 24,
   "contentManifestVersion": 2,
   "sourceManifestVersion": 1,
   "numericViewVersion": "eucalculia.numeric-view@1",
   "contentPackVersion": "eucalculia.content-pack@1",
-  "sourceLayout": "src/eucalculia/c5_r3_16_public_semantic_hardening_r1/source-manifest.json",
+  "sourceLayout": "src/eucalculia/c5_r3_17_persistence_safety_hotfix_r1/source-manifest.json",
   "sourceDomains": ["session-core","content-oracles","adaptation","persistence","interface-components","accessibility","guide-prompts","audits"],
   "reproducibleBuild": true,
   "maskProfileVersion": "eucalculia.mask-profile@M04-native-1"
@@ -71470,8 +71470,11 @@ async function restoreLatestBackup(opts={}){
     try { _ioMsg(`Restore failed (${committed.code || "storage error"}); the current committed save was left in place.`, false); } catch(_) {}
     return {ok:false, reason:committed.code || "write_failed", phase:committed.phase || null, details:committed.details || {}};
   }
-  // Re-enable persistence; reload so load() rehydrates cleanly from the restored blob.
-  _loadFailed = false; _persistenceDisabled = false; _lastSaveFailed = false;
+  // The committed backup is authoritative, but State still describes the old
+  // in-memory profile. Keep every lifecycle/timer save blocked until reload
+  // creates a fresh document and load() rehydrates the committed payload.
+  _loadFailed = false; _persistenceDisabled = true; _lastSaveFailed = false;
+  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
   try { _profileWrapperCache = committed.payload; } catch(_) {}
   try { _ioMsg("Backup restored (" + found.source + "). Reloading…"); } catch(_) {}
   if(opts.noReload) return {ok:true, source:found.source, meta:found.meta || null};
@@ -73070,8 +73073,11 @@ function recoverPendingPersistence(){
   }
   _pendingPersistenceRecovery = null;
   _loadFailed = false;
-  _persistenceDisabled = false;
+  // State was rolled back after the failed load. The promoted candidate must
+  // remain write-protected until the new document rehydrates it.
+  _persistenceDisabled = true;
   _lastSaveFailed = false;
+  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
   _profileWrapperCache = result.payload || null;
   hidePersistenceRecoveryBanner();
   try { _ioMsg("Verified save recovered. Reloading…"); } catch(_){}
@@ -76610,12 +76616,15 @@ $("hapticToggleBtn").onclick = () => {
     if(btn.contains(e.target)) return;
     clearArmed();
   });
-  document.addEventListener("keydown", e => {
+  // Register on the same capture target before the later global Escape
+  // handler. This preserves the global menu action while guaranteeing that
+  // an armed destructive Reset is cancelled first.
+  window.addEventListener("keydown", e => {
     if(armed && e.key === "Escape"){
       e.preventDefault();
       clearArmed();
     }
-  });
+  }, true);
 
   // Keyboard fallback for non-pointer users.
   btn.addEventListener("keydown", e => {
@@ -194687,4 +194696,5 @@ html[data-euca-choice-contract="blocked"] #numpad {
 })();
 /* PH6.C5.R3.16 PUBLIC SEMANTIC HARDENING R1:END */
 </script>
-<div id="euca-c5-r3-16-public-semantic-hardening-marker" hidden data-milestone="PH6.C5.R3.16-PUBLIC-SEMANTIC-HARDENING-R1" data-status="PUBLIC_RELEASE_CANDIDATE" data-promotion="false" data-predecessor="PH6.C5.R3.15-PUBLIC-STABILITY-RC1" data-query-policy="FAIL_CLOSED_V2" data-choice-order="SINGLE_AUTHORITY" data-role-ties="WITHHELD_WHEN_REFERENT_IS_NOT_UNIQUE" data-procedural-context="VISIBLE_AT_INPUT" data-inapplicable="FAIL_CLOSED" data-provenance="VALUE_REP_SPEC_CACHE" data-next="STATIC_BROWSER_NATURAL_PERFORMANCE_RELEASE_GATE"></div>
+<div id="euca-c5-r3-16-public-semantic-hardening-marker" hidden data-milestone="PH6.C5.R3.16-PUBLIC-SEMANTIC-HARDENING-R1" data-status="PUBLIC_RELEASE_CANDIDATE" data-promotion="false" data-predecessor="PH6.C5.R3.15-PUBLIC-STABILITY-RC1" data-query-policy="FAIL_CLOSED_V2" data-choice-order="SINGLE_AUTHORITY" data-role-ties="WITHHELD_WHEN_REFERENT_IS_NOT_UNIQUE" data-procedural-context="VISIBLE_AT_INPUT" data-inapplicable="FAIL_CLOSED" data-provenance="VALUE_REP_SPEC_CACHE" data-next="STATIC_BROWSER_NATURAL_PERFORMANCE_RELEASE_GATE" data-authority="frozen-promoted-predecessor" data-superseded-by="PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1"></div>
+<div id="euca-c5-r3-17-persistence-safety-hotfix-marker" hidden data-milestone="PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1" data-status="HOTFIX_CANDIDATE" data-promotion="false" data-predecessor="PH6.C5.R3.16-PUBLIC-SEMANTIC-HARDENING-R1" data-scope="B1_RECOVERY_RELOAD_GUARD_B2_RESET_ESCAPE_CAPTURE" data-recovery-reload="SAVE_BLOCKED_UNTIL_REHYDRATION" data-backup-restore="SAVE_BLOCKED_UNTIL_REHYDRATION" data-reset-escape="WINDOW_CAPTURE_BEFORE_GLOBAL_HANDLER" data-content-additions="0" data-curricular-pointer-changed="false" data-next="DETERMINISTIC_BUILD_TARGETED_BROWSER_AND_RELEASE_GATE"></div>
