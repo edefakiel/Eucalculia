@@ -7945,10 +7945,10 @@ function currentVisualSystemContract(){
 }
 
 const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
-  "appVersion": "v7.1.3-candidate.1",
+  "appVersion": "v7.1.3",
   "releaseChannel": "stable",
   "builtAt": "2026-08-16T20:30:00Z",
-  "artifact": "Eucalculia_v7_1_3_candidate.html",
+  "artifact": "Eucalculia_v7_1_3.html",
   "artifactFormat": "single-file-html",
   "milestone": "PH6.C5.R3.18-AUTO-CURRICULUM-INTEGRITY-R1",
   "profileSchema": 23,
@@ -76423,7 +76423,7 @@ $("startBtn").onclick = () => {
     }
   }
   const ac = State.modeChoice === "auto" ? ensureAutoCurriculumState() : null;
-  if(ac && !ac.entryBriefed && (!State.stats || !State.stats.trials)){
+  if(ac && !ac.entryBriefed && (!State.stats || !State.stats.trials) && globalThis.EUCALCULIA_R318_BROWSER_BOOTSTRAP?.suppressFreshAutoBriefing!==true){
     ac.entryBriefed = true;
     showLearningTransitionBadge(
       "First step",
@@ -174020,8 +174020,8 @@ html[data-euca-resume-geometry="pending"] #particles {
 </script><script>(() => {
   "use strict";
 
-  const PATCH_ID="ph6.b3.8.1-cons01-canonical-delegation";
-  const PACK_VERSION=2;
+  const PATCH_ID="ph6.c5.r3.18-cons01-bidirectional";
+  const PACK_VERSION=3;
   const VIEW_FORMAT="eucalculia.conservation-view@1";
   const DOMAIN_FORMAT="eucalculia.numeric-domain-guards@1";
   const MAX_QUANTITY=12;
@@ -174125,15 +174125,21 @@ html[data-euca-resume-geometry="pending"] #particles {
 
   const isPrimeTransitionValue=value=>{value=Math.trunc(Number(value));if(value<2)return false;for(let d=2;d*d<=value;d++)if(value%d===0)return false;return true};
   const isSquareTransitionValue=value=>{const root=Math.sqrt(Math.max(0,Number(value)));return Number.isInteger(root)};
+  const TRANSITION_DIRECTIONS=freeze(["left_to_right","right_to_left"]);
+  const normalizeTransitionDirection=value=>TRANSITION_DIRECTIONS.includes(String(value||""))?String(value):null;
+  const transitionDirectionFor=(context,rng)=>{const requested=context?.difficulty?.transitionDirection;if(requested===null||requested===undefined||requested==="")return rng.choice(TRANSITION_DIRECTIONS,"rearrangement-transition-direction");const normalized=normalizeTransitionDirection(requested);if(!normalized)throw new Error("invalid CONS-01 transitionDirection");return normalized};
+  const transitionSides=direction=>direction==="left_to_right"?freeze({sourceSide:"LEFT",targetSide:"RIGHT",arrow:"LEFT-to-RIGHT"}):freeze({sourceSide:"RIGHT",targetSide:"LEFT",arrow:"RIGHT-to-LEFT"});
   const REARRANGE_FRAMES=freeze([
-    freeze({id:"same_quantity",question:"From LEFT to RIGHT, did the quantity stay the same?",test:(left,right)=>right===left,review:"the quantity stayed the same"}),
-    freeze({id:"increased",question:"From LEFT to RIGHT, did the quantity increase?",test:(left,right)=>right>left,review:"RIGHT is greater than LEFT"}),
-    freeze({id:"decreased",question:"From LEFT to RIGHT, did the quantity decrease?",test:(left,right)=>right<left,review:"RIGHT is less than LEFT"}),
-    freeze({id:"parity_changed",question:"From LEFT to RIGHT, did the quantity change parity?",test:(left,right)=>Math.abs(left)%2!==Math.abs(right)%2,review:"the parity changed"}),
-    freeze({id:"became_prime",question:"From LEFT to RIGHT, did a non-prime quantity become prime?",test:(left,right)=>!isPrimeTransitionValue(left)&&isPrimeTransitionValue(right),review:"a non-prime became prime"}),
-    freeze({id:"became_square",question:"From LEFT to RIGHT, did a non-square quantity become a perfect square?",test:(left,right)=>!isSquareTransitionValue(left)&&isSquareTransitionValue(right),review:"a non-square became a square"}),
-    freeze({id:"absolute_change_exactly_two",question:"From LEFT to RIGHT, was the change exactly two units?",test:(left,right)=>Math.abs(right-left)===2,review:"the absolute change was two units"})
+    freeze({id:"same_quantity",questionSuffix:"did the quantity stay the same?",test:(source,target)=>target===source}),
+    freeze({id:"increased",questionSuffix:"did the quantity increase?",test:(source,target)=>target>source}),
+    freeze({id:"decreased",questionSuffix:"did the quantity decrease?",test:(source,target)=>target<source}),
+    freeze({id:"parity_changed",questionSuffix:"did the quantity change parity?",test:(source,target)=>Math.abs(source)%2!==Math.abs(target)%2}),
+    freeze({id:"became_prime",questionSuffix:"did a non-prime quantity become prime?",test:(source,target)=>!isPrimeTransitionValue(source)&&isPrimeTransitionValue(target)}),
+    freeze({id:"became_square",questionSuffix:"did a non-square quantity become a perfect square?",test:(source,target)=>!isSquareTransitionValue(source)&&isSquareTransitionValue(target)}),
+    freeze({id:"absolute_change_exactly_two",questionSuffix:"was the change exactly two units?",test:(source,target)=>Math.abs(target-source)===2})
   ]);
+  const rearrangementQuestion=(frame,direction)=>"From "+transitionSides(direction).sourceSide+" to "+transitionSides(direction).targetSide+", "+frame.questionSuffix;
+  const rearrangementReviewClause=(frame,direction)=>{const sides=transitionSides(direction);return freeze({same_quantity:"the quantity stayed the same",increased:sides.targetSide+" is greater than "+sides.sourceSide,decreased:sides.targetSide+" is less than "+sides.sourceSide,parity_changed:"the parity changed",became_prime:"a non-prime became prime",became_square:"a non-square became a square",absolute_change_exactly_two:"the absolute change was two units"})[frame.id]};
   const PARTITION_FRAMES=freeze([
     freeze({id:"same_total",question:"Do LEFT and RIGHT contain the same total number of units?",positive:true}),
     freeze({id:"product_preserved",question:"Do both partitions contain the same number of unit cells?",positive:true}),
@@ -174154,8 +174160,8 @@ html[data-euca-resume-geometry="pending"] #particles {
       freeze({id:"reduce_quantity",question:"How many units must RIGHT lose to match LEFT?"})
     ])
   });
-  const allPrompts=freeze([...REARRANGE_FRAMES,...PARTITION_FRAMES,...RESTORE_FRAMES.add,...RESTORE_FRAMES.remove]);
-  const promptKnown=prompt=>allPrompts.some(row=>row.id===prompt?.id&&row.question===prompt?.question);
+  const allPrompts=freeze([...PARTITION_FRAMES,...RESTORE_FRAMES.add,...RESTORE_FRAMES.remove]);
+  const promptKnown=prompt=>{const frame=REARRANGE_FRAMES.find(row=>row.id===prompt?.id),direction=normalizeTransitionDirection(prompt?.transitionDirection);return frame?!!direction&&prompt?.question===rearrangementQuestion(frame,direction):allPrompts.some(row=>row.id===prompt?.id&&row.question===prompt?.question)};
   const promptLeaksValues=(text,semantics)=>semantics.some(semantic=>{const value=integerNumber(semantic);return new RegExp(`(^|\\D)${Math.abs(value)}(\\D|$)`).test(String(text))});
 
   const rearrangementCache=new Map();
@@ -174238,19 +174244,19 @@ html[data-euca-resume-geometry="pending"] #particles {
   }
 
   function rearrangementPack(){
-    return {...commonPack(PACK_IDS.rearrangement,"exact_quantity_invariance_under_rearrangement",1,"yesno",2),
+    return {...commonPack(PACK_IDS.rearrangement,"exact_quantity_transition_between_sides",1,"yesno",2),
       generate(context,rng){
-        const step=stepFromContext(context),frame=REARRANGE_FRAMES.find(row=>row.id===String(context?.difficulty?.promptId||""))||rng.choice(REARRANGE_FRAMES,"rearrangement-frame"),target=typeof context?.difficulty?.targetAnswer==="boolean"?context.difficulty.targetAnswer:rng.random("target-answer")<.5,pool=[...rearrangementRows(step,true),...rearrangementRows(step,false)].filter(row=>frame.test(row.source,row.target)===target&&canonicalRepPairs(context,[row.source],[row.target]).length);
-        if(!pool.length)throw new Error("no canonically representable rearrangement candidate");
-        const row=rng.choice(pool,"quantity-values"),conserved=row.source===row.target,{leftRep,rightRep}=chooseCanonicalRepPair(rng,context,[row.source],[row.target],"representation-pair"),transformationId=conserved?rng.choice(NON_VALUE_TRANSFORMS,"representation-transform"):(row.target>row.source?"add-units":"remove-units"),left=valueBundle([row.source],context,PACK_IDS.rearrangement,"LEFT",leftRep),refs=sourceKeys(left),right=valueBundle([row.target],context,PACK_IDS.rearrangement,"RIGHT",rightRep,[transformationId],refs);
-        return freeze({schemaVersion:1,family:PACK_IDS.rearrangement,taskKind:"rearrangement",ladderStep:step,semanticCue:"QUANTITY",left:freeze({semantics:freeze(left.map(semanticRecord)),view:makeView("quantity",left,leftRep,step)}),right:freeze({semantics:freeze(right.map(semanticRecord)),view:makeView("quantity",right,rightRep,step,{transformation:freeze({id:transformationId,changesSemanticValue:!conserved,sourceRefs:refs})})}),prompt:freeze({id:frame.id,question:frame.question,cue:"QUANTITY"}),targetAnswer:target,case:freeze({conserved,delta:row.delta,transformationId})});
+        const step=stepFromContext(context),frame=REARRANGE_FRAMES.find(row=>row.id===String(context?.difficulty?.promptId||""))||rng.choice(REARRANGE_FRAMES,"rearrangement-frame"),transitionDirection=transitionDirectionFor(context,rng),sides=transitionSides(transitionDirection),targetAnswer=typeof context?.difficulty?.targetAnswer==="boolean"?context.difficulty.targetAnswer:rng.random("target-answer")<.5,rows=[...rearrangementRows(step,true),...rearrangementRows(step,false)],pool=rows.filter(row=>{const leftValue=transitionDirection==="left_to_right"?row.source:row.target,rightValue=transitionDirection==="left_to_right"?row.target:row.source;return frame.test(row.source,row.target)===targetAnswer&&canonicalRepPairs(context,[leftValue],[rightValue]).length});
+        if(!pool.length)throw new Error("no canonically representable bidirectional rearrangement candidate");
+        const row=rng.choice(pool,"quantity-values"),conserved=row.source===row.target,leftValue=transitionDirection==="left_to_right"?row.source:row.target,rightValue=transitionDirection==="left_to_right"?row.target:row.source,{leftRep,rightRep}=chooseCanonicalRepPair(rng,context,[leftValue],[rightValue],"representation-pair"),sourceRep=transitionDirection==="left_to_right"?leftRep:rightRep,targetRep=transitionDirection==="left_to_right"?rightRep:leftRep,transformationId=conserved?rng.choice(NON_VALUE_TRANSFORMS,"representation-transform"):(row.target>row.source?"add-units":"remove-units"),source=valueBundle([row.source],context,PACK_IDS.rearrangement,sides.sourceSide,sourceRep),refs=sourceKeys(source),target=valueBundle([row.target],context,PACK_IDS.rearrangement,sides.targetSide,targetRep,[transformationId],refs),transformation=freeze({id:transformationId,changesSemanticValue:!conserved,sourceRefs:refs}),left=transitionDirection==="left_to_right"?source:target,right=transitionDirection==="left_to_right"?target:source,leftExtra=transitionDirection==="right_to_left"?{transformation}:{},rightExtra=transitionDirection==="left_to_right"?{transformation}:{};
+        return freeze({schemaVersion:1,family:PACK_IDS.rearrangement,taskKind:"rearrangement",ladderStep:step,semanticCue:"QUANTITY",left:freeze({semantics:freeze(left.map(semanticRecord)),view:makeView("quantity",left,leftRep,step,leftExtra)}),right:freeze({semantics:freeze(right.map(semanticRecord)),view:makeView("quantity",right,rightRep,step,rightExtra)}),prompt:freeze({id:frame.id,transitionDirection,question:rearrangementQuestion(frame,transitionDirection),cue:"QUANTITY"}),targetAnswer,case:freeze({conserved,delta:row.delta,transitionDirection,sourceSide:sides.sourceSide,targetSide:sides.targetSide,transformationId})});
       },
-      solve(task){const [left]=integers(task.left.view),[right]=integers(task.right.view),conserved=left===right,frame=REARRANGE_FRAMES.find(row=>row.id===task.prompt.id);if(!frame)throw new Error("unknown rearrangement frame");return freeze({correctAnswer:!!frame.test(left,right),conserved,left,right,delta:right-left,direction:right>left?"increase":right<left?"decrease":"same",predicate:frame.id})},
+      solve(task){const [left]=integers(task.left.view),[right]=integers(task.right.view),transitionDirection=normalizeTransitionDirection(task.prompt?.transitionDirection),frame=REARRANGE_FRAMES.find(row=>row.id===task.prompt.id);if(!transitionDirection)throw new Error("unknown rearrangement transitionDirection");if(!frame)throw new Error("unknown rearrangement frame");const sides=transitionSides(transitionDirection),source=transitionDirection==="left_to_right"?left:right,target=transitionDirection==="left_to_right"?right:left,delta=target-source,conserved=source===target;return freeze({correctAnswer:!!frame.test(source,target),conserved,left,right,source,target,sourceSide:sides.sourceSide,targetSide:sides.targetSide,delta,direction:delta>0?"increase":delta<0?"decrease":"same",transitionDirection,predicate:frame.id})},
       validate(task,solution){return validateTask(task,solution,PACK_IDS.rearrangement)},prompt:task=>task.prompt.question,
       render:task=>freeze({left:integers(task.left.view),right:integers(task.right.view),leftView:task.left.view,rightView:task.right.view}),
-      buildReview(task,solution=this.solve(task)){const frame=REARRANGE_FRAMES.find(row=>row.id===task.prompt.id);return freeze({lines:freeze([`LEFT was ${solution.left}; RIGHT was ${solution.right}.`,`The LEFT-to-RIGHT change was ${solution.delta>0?"+":""}${solution.delta}.`,`It is ${solution.correctAnswer?"true":"false"} that ${frame?.review||"the stated transition occurred"}.`]),rendered:this.render(task)})},
-      difficulty:task=>freeze({ladderStep:task.ladderStep,promptVariant:task.prompt.id,conserved:task.case.conserved,transformationId:task.case.transformationId}),
-      telemetry:(task,solution=this.solve(task))=>freeze({contentPackId:PACK_IDS.rearrangement,taskKind:"rearrangement",ladderStep:task.ladderStep,promptVariant:task.prompt.id,correctAnswer:solution.correctAnswer,conserved:solution.conserved,delta:solution.delta,transformationId:task.case.transformationId,leftRepresentation:task.left.view.representation,rightRepresentation:task.right.view.representation})
+      buildReview(task,solution=this.solve(task)){const frame=REARRANGE_FRAMES.find(row=>row.id===task.prompt.id),sides=transitionSides(solution.transitionDirection);return freeze({lines:freeze([`${sides.sourceSide} was ${solution.source}; ${sides.targetSide} was ${solution.target}.`,`The ${sides.arrow} change was ${solution.delta>0?"+":""}${solution.delta}.`,`It is ${solution.correctAnswer?"true":"false"} that ${rearrangementReviewClause(frame,solution.transitionDirection)}.`]),rendered:this.render(task)})},
+      difficulty:task=>freeze({ladderStep:task.ladderStep,promptVariant:task.prompt.id,conserved:task.case.conserved,transitionDirection:task.prompt.transitionDirection,transformationId:task.case.transformationId}),
+      telemetry:(task,solution=this.solve(task))=>freeze({contentPackId:PACK_IDS.rearrangement,taskKind:"rearrangement",ladderStep:task.ladderStep,promptVariant:task.prompt.id,correctAnswer:solution.correctAnswer,conserved:solution.conserved,source:solution.source,target:solution.target,sourceSide:solution.sourceSide,targetSide:solution.targetSide,delta:solution.delta,direction:solution.direction,transitionDirection:solution.transitionDirection,transformationId:task.case.transformationId,leftRepresentation:task.left.view.representation,rightRepresentation:task.right.view.representation})
     };
   }
 
@@ -174306,7 +174312,8 @@ html[data-euca-resume-geometry="pending"] #particles {
     if(inputs.some(input=>{try{const value=integerNumber(input);return value<1||value>MAX_QUANTITY}catch(_){return true}}))errors.push("visible_component_out_of_bounds");
     if(family===PACK_IDS.partition&&inputs.length!==4)errors.push("partition_arity_collapsed");
     if(family!==PACK_IDS.partition&&inputs.length!==2)errors.push("quantity_arity_mismatch");
-    const transform=task.right?.view?.transformation;
+    const transitionDirection=family===PACK_IDS.rearrangement?normalizeTransitionDirection(task.prompt?.transitionDirection):null,sourceView=family===PACK_IDS.rearrangement?(transitionDirection==="left_to_right"?task.left?.view:transitionDirection==="right_to_left"?task.right?.view:null):null,targetView=family===PACK_IDS.rearrangement?(transitionDirection==="left_to_right"?task.right?.view:transitionDirection==="right_to_left"?task.left?.view:null):task.right?.view,transform=targetView?.transformation;
+    if(family===PACK_IDS.rearrangement){if(!transitionDirection||task.case?.transitionDirection!==transitionDirection||solution.transitionDirection!==transitionDirection)errors.push("transition_direction_mismatch");if(sourceView?.transformation)errors.push("source_side_cannot_own_transformation");if(solution.sourceSide!==task.case?.sourceSide||solution.targetSide!==task.case?.targetSide||solution.delta!==task.case?.delta)errors.push("directed_solution_metadata_mismatch")}
     if(!transform?.id||!Array.isArray(transform.sourceRefs)||!transform.sourceRefs.length)errors.push("undeclared_transformation_provenance");
     if(family===PACK_IDS.restore){
       if(!Number.isInteger(solution.answer)||solution.answer<1||solution.answer>MAX_RESTORE||solution.answer!==task.targetAnswer)errors.push("constructed_answer_mismatch");
@@ -174328,11 +174335,11 @@ html[data-euca-resume-geometry="pending"] #particles {
   });
   const responseByKind=freeze({rearrangement:"yesno",partition:"yesno",restore:"numeric"});
   const minLevelByKind=freeze({rearrangement:1,partition:3,restore:4});
-  const atomicByKind=freeze({rearrangement:"exact_quantity_transition_left_to_right",partition:"exact_product_invariance_under_repartition",restore:"exact_inverse_conservation_restoration"});
+  const atomicByKind=freeze({rearrangement:"exact_quantity_transition_between_sides",partition:"exact_product_invariance_under_repartition",restore:"exact_inverse_conservation_restoration"});
   function executePack(kind,context={}){const difficulty={...(context.difficulty||{})};if(difficulty.targetValue===null||difficulty.targetValue===undefined||difficulty.targetValue==="")delete difficulty.targetValue;if(!difficulty.canonicalRepMatrix)difficulty.canonicalRepMatrix=currentCanonicalRepMatrix();return packs.execute(packByKind[kind],{profileId:context.profileId||1,blockOrdinal:context.blockOrdinal||0,trialIndex:context.trialIndex||0,attempt:context.attempt||0,layer:"L0",locale:context.locale||"en",difficulty,semanticInputs:Array.isArray(context.semanticInputs)?context.semanticInputs:[],seed:String(context.seed||sessionRng.session().seed)})}
 
   if(typeof safeRegisterAtomic!=="function")throw new Error("CONS-01 requires declarative atomics");
-  safeRegisterAtomic({id:atomicByKind.rearrangement,kind:"relation",label:"Exact LEFT-to-RIGHT quantity transition",phrase:()=>"test a property of the visible LEFT-to-RIGHT transition",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.rearrangement.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Use only the two visible values: LEFT is the source and RIGHT is the result.",source:PATCH_ID});
+  safeRegisterAtomic({id:atomicByKind.rearrangement,kind:"relation",label:"Exact directed quantity transition",phrase:()=>"test a property of the instructed transition between the two visible sides",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.rearrangement.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Use the direction named in the question to identify the source and result.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.partition,kind:"relation",label:"Exact partition conservation",phrase:()=>"test exact product invariance under repartition",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.partition.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Multiply both partition dimensions and compare the exact totals.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.restore,kind:"operation",label:"Exact conservation restoration",phrase:()=>"construct the exact repair of a changed quantity",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.restore.solve(state).answer}catch(_){return null}},reviewLine:()=>"Recover the original total by the exact difference.",source:PATCH_ID});
 
@@ -174340,7 +174347,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   for(const kind of Object.keys(PACK_IDS)){
     const id=PACK_IDS[kind],pack=packByKind[kind],responseFormat=responseByKind[kind],variants=kind==="rearrangement"?REARRANGE_FRAMES:(kind==="partition"?PARTITION_FRAMES:[...RESTORE_FRAMES.add,...RESTORE_FRAMES.remove]),servable=SERVABLE_KINDS.includes(kind);
     const semanticCue=kind==="partition"?"PRODUCT":"QUANTITY",runtimeEntry={id,family:id,canonicalFamily:id,tier:minLevelByKind[kind],minLevel:minLevelByKind[kind],responseFormat,requiredSelections:1,frameTags:["conservation",kind,"representation_change","mask_retention",`cue_${semanticCue.toLowerCase()}`],mechanismTags:["numeric_semantics",atomicByKind[kind],"canonical_stimulus_delegation"],canUse:()=>false,gen:()=>null,verify:()=>false,promptBuilder:task=>pack.prompt(task),reviewBuilder:task=>pack.buildReview(task,pack.solve(task))};
-    const declaration={id,version:kind==="rearrangement"?"2.0.0":"1.0.0",status:servable?"active":"diagnostic",layer:"L0",family:id,minLevel:minLevelByKind[kind],domain:{substrate:"exact-positive-rational",topology:kind==="partition"?"retained-factor-pair-pair":"retained-quantity-pair",operation:kind,predicate:atomicByKind[kind],exactness:"exact",domainAuthority:DOMAIN_FORMAT},response:{format:responseFormat,requiredSelections:1,immediate:true},generator:{run:context=>{if(!servable)throw new Error(`${id} is diagnostic-only until its post-mask canonical question-glyph route is integrated`);return executePack(kind,context).task},present:servable},oracle:{run:task=>{const source=task?.task||task,solution=pack.solve(source);return kind==="restore"?solution.answer:solution.correctAnswer},present:servable,comparesRenderedText:false},render:{run:context=>pack.render(context?.task||context),present:servable},review:{run:task=>{const source=task?.task||task;return pack.buildReview(source,pack.solve(source))},present:servable},prompt:{run:task=>pack.prompt(task?.task||task),present:servable,variants,semanticCue},compositionAxes:[kind,"exact_conservation","canonical_representation_change","mask_retention","semantic_negation",semanticCue.toLowerCase()],atomics:[atomicByKind[kind],"exact_value_invariance","whole_scene_retention"],introducedIn:"PH6.B3.3",migrationAliases:[`cons01_${kind}`,id.replaceAll("_","-")],eligibility:{kind:servable?"shared-b3-numeric-spine-dose":"fail-closed",minLevel:minLevelByKind[kind]},responseFormat,axes:{family:id,operation:kind,semanticCue},cost:{stimulusCount:servable?2:0,effectiveInputArity:kind==="partition"?4:2,responseSelections:1,boundedGeneration:true},limits:{minimumRelationalLevel:minLevelByKind[kind],sharedMaximumPerBlock:servable?2:0,maximumTaskBytes:packs.limits.maxTaskBytes,maximumVisibleComponent:MAX_QUANTITY},invariants:["exact-semantic-authority","positive-rational-domain","active-canonical-representations-only","canonical-drawings-unchanged","declared-transformation","mask-before-question","single-oracle",...(kind==="partition"?["factor-pair-arity-four","never-collapse-product-to-total","no-four-simultaneous-glyphs","post-mask-canonical-question-glyph-required-before-serving","no-domino-half-pair-grammar"]:[])],help:{label:kind==="rearrangement"?"LEFT-to-RIGHT quantity change":kind==="partition"?"Partition product conservation":"Restore conserved quantity",liveDefinition:false},tests:[{id:"exact-oracle",required:true},{id:"replay",required:true},{id:"canonical-delegation",required:true},{id:"transformation-provenance",required:true},{id:"domain-guard",required:true},{id:"shared-dose",required:true},{id:"browser-play",required:true}],accessibility:kind==="restore"?{kind:"numeric",responseFormat:"numeric",keyboard:["0-9"],ariaLabel:"Enter the exact restoration amount."}:{kind:"binary",responseFormat:"yesno",keyboard:["Y","N","ArrowLeft","ArrowRight"],ariaLabel:kind==="partition"?"Judge whether the retained factor-pair products match.":"Judge whether the retained exact quantity was conserved."},telemetry:{contentSpecId:id,contentPackId:id,family:id,layer:"L0",semanticLayers:["L0","L1","L2"],semanticCue},qa:{explicitAuditOnly:true,propertyTests:true,browserPlayRequired:true,runtimeServing:servable,failClosedReason:servable?null:"post_mask_canonical_question_glyph_not_integrated"},runtimeEntry};
+    const declaration={id,version:kind==="rearrangement"?"3.0.0":"1.0.0",status:servable?"active":"diagnostic",layer:"L0",family:id,minLevel:minLevelByKind[kind],domain:{substrate:"exact-positive-rational",topology:kind==="partition"?"retained-factor-pair-pair":"retained-quantity-pair",operation:kind,predicate:atomicByKind[kind],exactness:"exact",domainAuthority:DOMAIN_FORMAT},response:{format:responseFormat,requiredSelections:1,immediate:true},generator:{run:context=>{if(!servable)throw new Error(`${id} is diagnostic-only until its post-mask canonical question-glyph route is integrated`);return executePack(kind,context).task},present:servable},oracle:{run:task=>{const source=task?.task||task,solution=pack.solve(source);return kind==="restore"?solution.answer:solution.correctAnswer},present:servable,comparesRenderedText:false},render:{run:context=>pack.render(context?.task||context),present:servable},review:{run:task=>{const source=task?.task||task;return pack.buildReview(source,pack.solve(source))},present:servable},prompt:{run:task=>pack.prompt(task?.task||task),present:servable,variants,semanticCue},compositionAxes:[kind,"exact_conservation","canonical_representation_change","mask_retention","semantic_negation",semanticCue.toLowerCase()],atomics:[atomicByKind[kind],"exact_value_invariance","whole_scene_retention"],introducedIn:"PH6.B3.3",migrationAliases:[`cons01_${kind}`,id.replaceAll("_","-")],eligibility:{kind:servable?"shared-b3-numeric-spine-dose":"fail-closed",minLevel:minLevelByKind[kind]},responseFormat,axes:{family:id,operation:kind,semanticCue},cost:{stimulusCount:servable?2:0,effectiveInputArity:kind==="partition"?4:2,responseSelections:1,boundedGeneration:true},limits:{minimumRelationalLevel:minLevelByKind[kind],sharedMaximumPerBlock:servable?2:0,maximumTaskBytes:packs.limits.maxTaskBytes,maximumVisibleComponent:MAX_QUANTITY},invariants:["exact-semantic-authority","positive-rational-domain","active-canonical-representations-only","canonical-drawings-unchanged","declared-transformation","mask-before-question","single-oracle",...(kind==="partition"?["factor-pair-arity-four","never-collapse-product-to-total","no-four-simultaneous-glyphs","post-mask-canonical-question-glyph-required-before-serving","no-domino-half-pair-grammar"]:[])],help:{label:kind==="rearrangement"?"Directed quantity change":kind==="partition"?"Partition product conservation":"Restore conserved quantity",liveDefinition:false},tests:[{id:"exact-oracle",required:true},{id:"replay",required:true},{id:"canonical-delegation",required:true},{id:"transformation-provenance",required:true},{id:"domain-guard",required:true},{id:"shared-dose",required:true},{id:"browser-play",required:true}],accessibility:kind==="restore"?{kind:"numeric",responseFormat:"numeric",keyboard:["0-9"],ariaLabel:"Enter the exact restoration amount."}:{kind:"binary",responseFormat:"yesno",keyboard:["Y","N","ArrowLeft","ArrowRight"],ariaLabel:kind==="partition"?"Judge whether the retained factor-pair products match.":"Judge the stated directed transition between the two retained quantities."},telemetry:{contentSpecId:id,contentPackId:id,family:id,layer:"L0",semanticLayers:["L0","L1","L2"],semanticCue},qa:{explicitAuditOnly:true,propertyTests:true,browserPlayRequired:true,runtimeServing:servable,failClosedReason:servable?null:"post_mask_canonical_question_glyph_not_integrated"},runtimeEntry};
     contentSpecs[kind]=contentRegistry.get(id)||contentRegistry.register(declaration);
   }
 
@@ -174390,7 +174397,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   function eligibleKinds(){const level=Number(stateRef()?.levelByMode?.D)||1;return SERVABLE_KINDS.filter(kind=>level>=minLevelByKind[kind])}
   function chooseKind(){const forced=requestedKind();if(forced){if(FAIL_CLOSED_KINDS.includes(forced))throw new Error(`CONS-01 ${forced} is fail-closed until its exact operands can be sequenced after the mask as canonical question glyphs`);return forced}const eligible=eligibleKinds(),mon=monitor(),minimum=Math.min(...eligible.map(kind=>Number(mon.byKind[kind])||0)),least=eligible.filter(kind=>(Number(mon.byKind[kind])||0)===minimum),random=typeof eucaLegacyRandom==="function"?eucaLegacyRandom():0;return least[Math.min(least.length-1,Math.floor(random*least.length))]||"rearrangement"}
   function desiredBoolTarget(){const raw=params.get("cons01Truth");if(raw==="yes")return true;if(raw==="no")return false;return typeof answerBudgetPickBoolTarget==="function"?!!answerBudgetPickBoolTarget(PACK_IDS.rearrangement):null}
-  function runtimeContext(attempt,kind,targetAnswer){const state=stateRef(),session=sessionRng.session(),targetValue=optionalIntegerParam("cons01Answer");return {profileId:Number(state?.activeProfile)||1,blockOrdinal:Array.isArray(state?.progressHistory)?state.progressHistory.length:0,trialIndex:Number(state?.blockTrials)||0,attempt,layer:"L0",locale:"en",seed:String(session.seed),difficulty:{level:Number(state?.levelByMode?.D)||0,ladderStep:desiredStep(),targetAnswer,promptId:params.get("cons01Prompt")||null,targetValue}}}
+  function runtimeContext(attempt,kind,targetAnswer){const state=stateRef(),session=sessionRng.session(),targetValue=optionalIntegerParam("cons01Answer");return {profileId:Number(state?.activeProfile)||1,blockOrdinal:Array.isArray(state?.progressHistory)?state.progressHistory.length:0,trialIndex:Number(state?.blockTrials)||0,attempt,layer:"L0",locale:"en",seed:String(session.seed),difficulty:{level:Number(state?.levelByMode?.D)||0,ladderStep:desiredStep(),targetAnswer,promptId:params.get("cons01Prompt")||null,transitionDirection:normalizeTransitionDirection(params.get("cons01Direction")),targetValue}}}
   function buildRuntimeTrial(kind=chooseKind()){
     if(!SERVABLE_KINDS.includes(kind))throw new Error(`CONS-01 ${kind} is diagnostic-only and cannot be served`);
     const mon=monitor(),started=typeof performance!=="undefined"?performance.now():0,targetAnswer=kind==="restore"?null:desiredBoolTarget(),envelope=executePack(kind,runtimeContext(mon.generated,kind,targetAnswer)),task=envelope.task,solution=envelope.solution,telemetry=packByKind[kind].telemetry(task,solution),buildMs=Math.max(0,(typeof performance!=="undefined"?performance.now():started)-started);
@@ -174399,7 +174406,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     if(task.case.transformationId==="repartition"||task.case.transformationId==="transpose")mon.cases[task.case.transformationId]++;
     mon.recent.push({trialIndex:Number(stateRef()?.blockTrials)||0,taskHash:envelope.replay.taskHash,buildMs,...telemetry});mon.recent=mon.recent.slice(-40);
     const leftSeed=parseInt(sessionRng.hash(task.left.view).slice(0,8),16)>>>0,rightSeed=parseInt(sessionRng.hash(task.right.view).slice(0,8),16)>>>0;
-    return {a:1,b:1,repA:`cons01_${task.left.view.kind}`,repB:`cons01_${task.right.view.kind}`,stimSeedA:leftSeed,stimSeedB:rightSeed,question:task.prompt.question,delayedPrompt:task.prompt.question,questionCue:task.semanticCue,semanticCue:task.semanticCue,isTrue:kind==="restore"?null:solution.correctAnswer,responseFormat:responseByKind[kind],answer:kind==="restore"?solution.answer:null,targetOutcome:kind==="restore"?solution.answer:solution.correctAnswer,catId:PACK_IDS[kind],family:PACK_IDS[kind],canonicalFamily:PACK_IDS[kind],frameTags:["conservation",kind,"canonical_representation_change","mask_retention",`cue_${task.semanticCue.toLowerCase()}`,`step_${task.ladderStep}`],mechanismTags:["numeric_semantics","numeric_domain_guard",atomicByKind[kind],"content_pack","declared_transformation","canonical_stimulus_delegation"],countsForMetaHistory:false,memoryEligible:false,l0ProbeCompositionBlocked:true,representationTransform:task.right.view.transformation,conservationBridge:{kind,semanticCue:task.semanticCue,task,solution,replay:envelope.replay,telemetry,buildMs,leftView:task.left.view,rightView:task.right.view}};
+    return {a:1,b:1,repA:`cons01_${task.left.view.kind}`,repB:`cons01_${task.right.view.kind}`,stimSeedA:leftSeed,stimSeedB:rightSeed,question:task.prompt.question,delayedPrompt:task.prompt.question,questionCue:task.semanticCue,semanticCue:task.semanticCue,isTrue:kind==="restore"?null:solution.correctAnswer,responseFormat:responseByKind[kind],answer:kind==="restore"?solution.answer:null,targetOutcome:kind==="restore"?solution.answer:solution.correctAnswer,catId:PACK_IDS[kind],family:PACK_IDS[kind],canonicalFamily:PACK_IDS[kind],frameTags:["conservation",kind,"canonical_representation_change","mask_retention",`cue_${task.semanticCue.toLowerCase()}`,`step_${task.ladderStep}`],mechanismTags:["numeric_semantics","numeric_domain_guard",atomicByKind[kind],"content_pack","declared_transformation","canonical_stimulus_delegation"],countsForMetaHistory:false,memoryEligible:false,l0ProbeCompositionBlocked:true,representationTransform:kind==="rearrangement"?(task.prompt.transitionDirection==="left_to_right"?task.right.view.transformation:task.left.view.transformation):task.right.view.transformation,conservationBridge:{kind,semanticCue:task.semanticCue,task,solution,replay:envelope.replay,telemetry,buildMs,leftView:task.left.view,rightView:task.right.view}};
   }
 
   if(forceMode){try{maybeSetupMemInterferenceLure=()=>null}catch(_){}try{showL0EpistemicSufficiencyOnboardingIfNeeded=()=>false}catch(_){}try{shouldUseL0EpistemicSufficiencyProbe=()=>false}catch(_){}try{showInverseOperationOnboardingIfNeeded=()=>false}catch(_){}try{shouldUseInverseOperationProbe=()=>false}catch(_){} }
@@ -174423,9 +174430,147 @@ html[data-euca-resume-geometry="pending"] #particles {
   const previousReset=typeof resetBlock==="function"?resetBlock:null;
   if(previousReset&&!previousReset.__cons01Wrapped){const wrapped=function resetBlockCons01(){const result=previousReset.apply(this,arguments);resetMonitor();return result};wrapped.__cons01Wrapped=true;resetBlock=wrapped;try{globalThis.resetBlock=wrapped}catch(_){}}
 
-  const API=freeze({patch:PATCH_ID,packVersion:PACK_VERSION,packIds:PACK_IDS,packs:packByKind,contentSpecs:freeze(contentSpecs),domains,viewFormat:VIEW_FORMAT,rearrangementFrames:REARRANGE_FRAMES,partitionFrames:PARTITION_FRAMES,restoreFrames:RESTORE_FRAMES,execute(kind,context={}){if(!packByKind[kind])throw new Error(`unknown CONS-01 kind ${kind}`);return executePack(kind,{...context,seed:String(context.seed||sessionRng.session().seed)})},replay:envelope=>packs.replay(envelope),solve:(kind,task)=>packByKind[kind].solve(task),validate:(kind,task,solution=packByKind[kind].solve(task))=>packByKind[kind].validate(task,solution),review:(kind,task,solution=packByKind[kind].solve(task))=>packByKind[kind].buildReview(task,solution),createStim:(view,seed=1)=>new ConservationCanonicalDelegateStim(view,seed),buildRuntimeTrial,monitor,sharedDose,contract:freeze({exact:true,domain:"positive-rational",maximumVisibleComponent:MAX_QUANTITY,maskFlow:"existing-L0",semanticCues:freeze({rearrangement:"QUANTITY",restore:"QUANTITY",partition:"PRODUCT"}),canonicalDelegation:true,canonicalDrawingsMutated:false,activeRepresentationsOnly:true,servableKinds:SERVABLE_KINDS,failClosedKinds:FAIL_CLOSED_KINDS,partitionArity:4,partitionRuntime:"diagnostic-only until the additional exact operands re-enter after the mask as unchanged canonical question glyphs",partitionSimultaneousVisibleGlyphs:0,productCollapsedToTotal:false,dominoHalvesUsedAsPairGrammar:false,replayRepresentationSnapshot:"difficulty.canonicalRepMatrix",visualEncoding:freeze({canonicalRepresentations:CANONICAL_REP_ORDER,customMagnitudeRenderers:freeze([]),servedStimuliPerSide:1}),responseKinds:responseByKind,countsForMetaHistory:false,memoryEligible:false,layerProjection:["L0","L1","L2"],auditExplicitOnly:true})});
+  const API=freeze({patch:PATCH_ID,packVersion:PACK_VERSION,packIds:PACK_IDS,packs:packByKind,contentSpecs:freeze(contentSpecs),domains,viewFormat:VIEW_FORMAT,rearrangementFrames:REARRANGE_FRAMES,transitionDirections:TRANSITION_DIRECTIONS,partitionFrames:PARTITION_FRAMES,restoreFrames:RESTORE_FRAMES,execute(kind,context={}){if(!packByKind[kind])throw new Error(`unknown CONS-01 kind ${kind}`);return executePack(kind,{...context,seed:String(context.seed||sessionRng.session().seed)})},replay:envelope=>packs.replay(envelope),solve:(kind,task)=>packByKind[kind].solve(task),validate:(kind,task,solution=packByKind[kind].solve(task))=>packByKind[kind].validate(task,solution),review:(kind,task,solution=packByKind[kind].solve(task))=>packByKind[kind].buildReview(task,solution),createStim:(view,seed=1)=>new ConservationCanonicalDelegateStim(view,seed),buildRuntimeTrial,monitor,sharedDose,contract:freeze({exact:true,domain:"positive-rational",maximumVisibleComponent:MAX_QUANTITY,maskFlow:"existing-L0",semanticCues:freeze({rearrangement:"QUANTITY",restore:"QUANTITY",partition:"PRODUCT"}),canonicalDelegation:true,canonicalDrawingsMutated:false,activeRepresentationsOnly:true,servableKinds:SERVABLE_KINDS,failClosedKinds:FAIL_CLOSED_KINDS,partitionArity:4,partitionRuntime:"diagnostic-only until the additional exact operands re-enter after the mask as unchanged canonical question glyphs",partitionSimultaneousVisibleGlyphs:0,productCollapsedToTotal:false,dominoHalvesUsedAsPairGrammar:false,replayRepresentationSnapshot:"difficulty.canonicalRepMatrix",visualEncoding:freeze({canonicalRepresentations:CANONICAL_REP_ORDER,customMagnitudeRenderers:freeze([]),servedStimuliPerSide:1}),responseKinds:responseByKind,countsForMetaHistory:false,memoryEligible:false,layerProjection:["L0","L1","L2"],auditExplicitOnly:true})});
   Object.defineProperty(globalThis,"EUCALCULIA_CONS01",{value:API,writable:false,configurable:false,enumerable:true});
   if(typeof document!=="undefined"){document.documentElement.dataset.eucaCons01="ready";document.documentElement.dataset.eucaCons01Packs=Object.values(PACK_IDS).map(id=>`${id}@${PACK_VERSION}`).join(",");document.documentElement.dataset.eucaCons01Audit="off"}
+
+  /* R3.18 LOCAL_QA directed browser bootstrap. This is deliberately not a
+     public mode: without the complete loopback + policy + query conjunction it
+     installs no API, hook, listener, timer or state change. */
+  const qaBootstrapVersion="1.0.0",qaBootstrapPatch="ph6.c5.r3.18-cons01-local-qa-prepared-bootstrap";
+  const qaPolicy=globalThis.__EUCALCULIA_PUBLIC_QUERY_POLICY__||null;
+  const qaHost=String(globalThis.location?.hostname||"").toLowerCase();
+  const qaLoopback=qaHost==="localhost"||qaHost==="127.0.0.1"||qaHost==="[::1]";
+  const qaDirection=normalizeTransitionDirection(params.get("cons01Direction"));
+  const qaDirected=qaLoopback&&qaPolicy?.mode==="LOCAL_QA"&&qaPolicy?.localQaHost===true&&params.get("eucaQa")==="1"&&params.get("r318Browser")==="1"&&forceMode&&requestedKind()==="rearrangement"&&!!qaDirection;
+  if(qaDirected){
+    const QA_ROUTE="conservationBridge:rearrangement",QA_PACK=PACK_IDS.rearrangement;
+    let phase="armed",activeStart=null,activeSetup=null,activeCanPrepare=null,activeCanPhase=null,activeNextKind=null,activeInline=null;
+    let preparedBuilds=0,committedTrials=0,lastPayload=null,lastBridge=null,lastStrict=null,lastRepWitness=null,lastError=null,lastSource="boot";
+    const copyMarkers=(source,target)=>{for(const key of Object.getOwnPropertyNames(source||{})){if(!key.startsWith("__"))continue;try{Object.defineProperty(target,key,Object.getOwnPropertyDescriptor(source,key))}catch(_){}}return target};
+    const bootstrapActive=()=>phase==="building"||phase==="prepared";
+    const runtimeDebug=()=>{try{return typeof ensureRuntimeDebug==="function"?ensureRuntimeDebug():null}catch(_){return null}};
+    const strictFor=state=>{try{return globalThis.EUCALCULIA_PUBLIC_SEMANTIC_HARDENING_R1?.strictStimulusProvenance?.({repair:false,state})||null}catch(error){return{status:"BLOCK_PROVENANCE_EXCEPTION",pass:false,error:String(error?.message||error)}}};
+    function snapshot(){
+      const state=stateRef(),info=state?.trialInfo||null,bridge=info?.conservationBridge||lastBridge||null;
+      const liveStrict=info?.conservationBridge?strictFor(state):lastStrict;
+      const direction=bridge?.task?.prompt?.transitionDirection||qaDirection;
+      const debug=runtimeDebug();
+      const preparedVisible=info?.preparedTrial===true&&bridge?.kind==="rearrangement"&&["PREP","FLASH","MASK","INPUT","REVIEW","LOCKED"].includes(String(state?.status||""));
+      return freeze({
+        schemaVersion:1,version:qaBootstrapVersion,patch:qaBootstrapPatch,active:true,route:QA_ROUTE,phase,direction,
+        preparedVisible,provenanceStatus:liveStrict?.status||null,
+        query:freeze({policy:qaPolicy?.mode||null,loopback:qaLoopback,eucaQa:true,r318Browser:true,kind:"rearrangement"}),
+        hooks:freeze({start:globalThis.startTrial===activeStart,setup:globalThis.setupPosner===activeSetup,canPrepare:globalThis.canPrepareAutoNextTrialForPreparation===activeCanPrepare,canPhase:globalThis.canPreparePhase===activeCanPhase,nextKind:globalThis.nextAutoTrialKind===activeNextKind,inline:globalThis.maybeStartInlineGenerativeTrialAfterReset===activeInline}),
+        prepared:freeze({builds:preparedBuilds,committed:committedTrials,payloadType:lastPayload?.type||null,trialMarked:info?.preparedTrial===true,lastStartTrialResult:debug?.lastStartTrialResult||null,representationWitness:lastRepWitness}),
+        trial:freeze({runtimeStatus:state?.status||null,inputReady:state?.status==="INPUT",reviewReady:state?.status==="REVIEW"||state?.status==="LOCKED",catId:info?.catId||null,packId:info?.contentPackId||null,kind:bridge?.kind||null,promptId:bridge?.task?.prompt?.id||null,question:bridge?.task?.prompt?.question||info?.question||null,correctAnswer:bridge?.solution?.correctAnswer??null,taskHash:bridge?.replay?.taskHash||null}),
+        provenance:freeze({status:liveStrict?.status||null,pass:liveStrict?.pass===true,adapter:liveStrict?.adapter||null,kind:liveStrict?.kind||null}),
+        pass:phase==="committed"&&committedTrials>0&&direction===qaDirection&&info?.preparedTrial===true&&bridge?.kind==="rearrangement"&&lastRepWitness?.restoredExact===true&&liveStrict?.status==="PASS_EXPLICIT_CONTENT_PACK_CONTRACT"&&liveStrict?.pass===true,
+        source:lastSource,error:lastError
+      });
+    }
+    function publish(source){
+      lastSource=String(source||phase);
+      const snap=snapshot();
+      try{globalThis.__EUCALCULIA_R318_BROWSER_BOOTSTRAP_LAST__=snap}catch(_){}
+      try{document.documentElement.dataset.eucaR318BrowserBootstrap=phase;document.documentElement.dataset.eucaR318BrowserDirection=qaDirection;document.documentElement.dataset.eucaR318BrowserProvenance=snap.provenance.status||"pending"}catch(_){}
+      return snap;
+    }
+    function failClosed(source,error){
+      phase="blocked";lastError=String(error?.message||error||source||"bootstrap_blocked");
+      try{document.documentElement.dataset.eucaChoiceContract="blocked"}catch(_){}
+      const snap=publish(source||"blocked");
+      try{if(typeof recordRuntimeError==="function")recordRuntimeError(new Error(lastError),{source:qaBootstrapPatch,detail:snap})}catch(_){}
+      try{if(typeof enterPanicMenu==="function")enterPanicMenu(qaBootstrapPatch+":"+lastError)}catch(_){}
+      return false;
+    }
+    function rearm(source="start_click"){
+      try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("r318_cons01_qa_rearm")}catch(_){}
+      const state=stateRef();if(state){state.nextTrialPrepared=null;state.nextTrialPrepareInFlight=false;state._g092ImmediatePair=null;state._g092ImmediatePairTrialIndex=null}
+      phase="armed";lastPayload=null;lastBridge=null;lastStrict=null;lastRepWitness=null;lastError=null;publish(source);return true;
+    }
+    function installSetup(){
+      const previous=globalThis.setupPosner;if(typeof previous!=="function")return false;
+      if(previous===activeSetup||previous.__eucaR318Cons01QaSetupDirect===previous){activeSetup=previous;return true}
+      const wrapped=copyMarkers(previous,function setupPosnerR318Cons01Qa(){
+        if(phase!=="building")return previous.apply(this,arguments);
+        const state=stateRef(),originalReps=state?.reps,before=Array.from(originalReps||[]),active=[...new Set(before.filter(rep=>CANONICAL_REP_ORDER.includes(rep)))],preferred=["ten","dice",...CANONICAL_REP_ORDER],witness=[...new Set(preferred.filter(rep=>CANONICAL_REP_ORDER.includes(rep)))].slice(0,2),injected=active.length<2;
+        if(injected&&witness.length<2)throw new Error("two canonical representation witnesses unavailable");
+        if(injected&&state)state.reps=witness.slice();
+        try{
+          const trial=API.buildRuntimeTrial("rearrangement"),bridge=trial?.conservationBridge;
+          if(!bridge||bridge.kind!=="rearrangement"||bridge.task?.prompt?.transitionDirection!==qaDirection)throw new Error("directed CONS01 setup boundary mismatch");
+          lastBridge=bridge;return trial;
+        }finally{
+          if(injected&&state)state.reps=originalReps;
+          lastRepWitness=freeze({before,during:injected?witness.slice():before.slice(),injected,restored:Array.from(state?.reps||[]),restoredExact:!state||state.reps===originalReps});
+        }
+      });
+      wrapped.__eucaR318Cons01QaSetupDirect=wrapped;wrapped.__eucaR318Cons01QaSetupOriginal=previous;activeSetup=wrapped;globalThis.setupPosner=wrapped;try{setupPosner=wrapped}catch(_){}return true;
+    }
+    function installCanPrepare(){
+      const previous=globalThis.canPrepareAutoNextTrialForPreparation;if(typeof previous!=="function")return false;
+      if(previous===activeCanPrepare||previous.__eucaR318Cons01QaCanPrepareDirect===previous){activeCanPrepare=previous;return true}
+      const wrapped=copyMarkers(previous,function canPrepareAutoNextTrialForPreparationR318Cons01Qa(){return bootstrapActive()?true:previous.apply(this,arguments)});
+      wrapped.__eucaR318Cons01QaCanPrepareDirect=wrapped;activeCanPrepare=wrapped;globalThis.canPrepareAutoNextTrialForPreparation=wrapped;try{canPrepareAutoNextTrialForPreparation=wrapped}catch(_){}return true;
+    }
+    function installCanPhase(){
+      const previous=globalThis.canPreparePhase;if(typeof previous!=="function")return false;
+      if(previous===activeCanPhase||previous.__eucaR318Cons01QaCanPhaseDirect===previous){activeCanPhase=previous;return true}
+      const wrapped=copyMarkers(previous,function canPreparePhaseR318Cons01Qa(requested){return bootstrapActive()&&requested==="L0"?true:previous.apply(this,arguments)});
+      wrapped.__eucaR318Cons01QaCanPhaseDirect=wrapped;activeCanPhase=wrapped;globalThis.canPreparePhase=wrapped;try{canPreparePhase=wrapped}catch(_){}return true;
+    }
+    function installNextKind(){
+      const previous=globalThis.nextAutoTrialKind;if(typeof previous!=="function")return false;
+      if(previous===activeNextKind||previous.__eucaR318Cons01QaNextKindDirect===previous){activeNextKind=previous;return true}
+      const wrapped=copyMarkers(previous,function nextAutoTrialKindR318Cons01Qa(){return bootstrapActive()?"L0":previous.apply(this,arguments)});
+      wrapped.__eucaR318Cons01QaNextKindDirect=wrapped;activeNextKind=wrapped;globalThis.nextAutoTrialKind=wrapped;try{nextAutoTrialKind=wrapped}catch(_){}return true;
+    }
+    function installInline(){
+      const previous=globalThis.maybeStartInlineGenerativeTrialAfterReset;if(typeof previous!=="function")return false;
+      if(previous===activeInline||previous.__eucaR318Cons01QaInlineDirect===previous){activeInline=previous;return true}
+      const wrapped=copyMarkers(previous,function maybeStartInlineGenerativeTrialAfterResetR318Cons01Qa(){return bootstrapActive()?false:previous.apply(this,arguments)});
+      wrapped.__eucaR318Cons01QaInlineDirect=wrapped;activeInline=wrapped;globalThis.maybeStartInlineGenerativeTrialAfterReset=wrapped;try{maybeStartInlineGenerativeTrialAfterReset=wrapped}catch(_){}return true;
+    }
+    function buildPrepared(){
+      try{
+        phase="building";publish("build_pending");
+        const state=stateRef();if(!state)throw new Error("runtime State unavailable");
+        state.nextTrialPrepared=null;state.nextTrialPrepareInFlight=false;state._g092ImmediatePair=null;state._g092ImmediatePairTrialIndex=null;
+        const builder=globalThis.buildPreparedAutoNextTrial;if(typeof builder!=="function")throw new Error("buildPreparedAutoNextTrial unavailable");
+        const payload=builder("r318_cons01_local_qa"),bridge=payload?.trialInfo?.conservationBridge;
+        if(payload?.type!=="generic_l0"||!bridge||bridge.kind!=="rearrangement"||bridge.task?.prompt?.transitionDirection!==qaDirection)throw new Error("prepared payload is not the requested directed CONS01 trial");
+        const strict=strictFor({trialInfo:payload.trialInfo,mainStim:payload.mainStim,secStim:payload.secStim,mainCache:payload.mainCache,secCache:payload.secCache});
+        lastStrict=strict;if(strict?.status!=="PASS_EXPLICIT_CONTENT_PACK_CONTRACT"||strict?.pass!==true)throw new Error("prepared CONS01 provenance blocked:"+(strict?.status||"missing"));
+        lastPayload=payload;lastBridge=bridge;preparedBuilds++;state.nextTrialPrepared=payload;state.nextTrialPrepareInFlight=false;phase="prepared";publish("prepared");return payload;
+      }catch(error){failClosed("prepare_failed",error);return null}
+    }
+    function installStart(){
+      const previous=globalThis.startTrial;if(typeof previous!=="function")return false;
+      if(previous===activeStart||previous.__eucaR318Cons01QaStartDirect===previous){activeStart=previous;return true}
+      const wrapped=copyMarkers(previous,function startTrialR318Cons01Qa(attempt=0,forcedLevel=null){
+        const state=stateRef(),owns=phase==="armed"&&Number(attempt)===0&&forcedLevel===null&&!!state?.running&&!state?.paused;
+        if(!owns)return previous.apply(this,arguments);
+        if(!buildPrepared())return false;
+        let result;try{result=previous.call(this,attempt,forcedLevel)}catch(error){failClosed("start_failed",error);throw error}
+        const info=stateRef()?.trialInfo,bridge=info?.conservationBridge,debug=runtimeDebug(),strict=strictFor(stateRef());lastStrict=strict;
+        const committed=result===true&&info===lastPayload?.trialInfo&&info?.preparedTrial===true&&bridge===lastBridge&&bridge?.kind==="rearrangement"&&bridge?.task?.prompt?.transitionDirection===qaDirection&&debug?.lastStartTrialResult==="prepared_trial"&&strict?.status==="PASS_EXPLICIT_CONTENT_PACK_CONTRACT"&&strict?.pass===true;
+        if(!committed)return failClosed("prepared_commit_mismatch",new Error("startTrial did not consume the directed prepared payload"));
+        committedTrials++;phase="committed";publish("committed");return result;
+      });
+      wrapped.__eucaR318Cons01QaStartDirect=wrapped;wrapped.__eucaR318Cons01QaStartOriginal=previous;activeStart=wrapped;globalThis.startTrial=wrapped;try{startTrial=wrapped}catch(_){}return true;
+    }
+    function install(){installSetup();installCanPrepare();installCanPhase();installNextKind();installInline();installStart();return snapshot().hooks}
+    function bindStart(){
+      const button=document.getElementById("startBtn");if(!button)return false;
+      if(button.__eucaR318Cons01QaStartBoundary)return true;
+      button.addEventListener("click",()=>{install();rearm("start_click")},true);button.__eucaR318Cons01QaStartBoundary=true;return true;
+    }
+    const bootstrapApi=freeze({version:qaBootstrapVersion,patch:qaBootstrapPatch,route:QA_ROUTE,direction:qaDirection,suppressFreshAutoBriefing:true,snapshot});
+    Object.defineProperty(globalThis,"EUCALCULIA_R318_BROWSER_BOOTSTRAP",{value:bootstrapApi,writable:false,configurable:false,enumerable:true});
+    install();bindStart();publish("armed");
+    try{queueMicrotask(()=>{install();bindStart();publish("microtask_install")});setTimeout(()=>{install();bindStart();publish("timer_install")},0);if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{install();bindStart();publish("dom_ready")},{once:true});globalThis.addEventListener?.("pageshow",()=>{install();bindStart();publish("pageshow")},{passive:true})}catch(_){}
+  }
 })();
 </script><script>(() => {
   "use strict";
@@ -174454,7 +174599,8 @@ html[data-euca-resume-geometry="pending"] #particles {
       const envelope=api.execute(kind,{profileId:1,blockOrdinal:Math.floor(index/20),trialIndex:index%20,attempt:index,layer:"L0",locale:"en",seed:`B33-AUDIT-${kind}-${index}`,difficulty}),task=envelope.task,solution=envelope.solution,validation=api.validate(kind,task,solution),review=api.review(kind,task,solution),bucket=coverage[kind];
       if(!validation.ok||!Array.isArray(review.lines)||review.lines.length<2)failures.push({kind,index,issue:"validation_or_review",validation,review});
       if(task.left.view.representation===task.right.view.representation)failures.push({kind,index,issue:"same_representation"});
-      if(!task.right.view.transformation?.id||!task.right.view.transformation?.sourceRefs?.length)failures.push({kind,index,issue:"missing_transform_provenance"});
+      const transformedView=kind==="rearrangement"&&task.prompt?.transitionDirection==="right_to_left"?task.left.view:task.right.view;
+      if(!transformedView.transformation?.id||!transformedView.transformation?.sourceRefs?.length)failures.push({kind,index,issue:"missing_transform_provenance"});
       bucket.steps[task.ladderStep]=(bucket.steps[task.ladderStep]||0)+1;bucket.prompts[task.prompt.id]=(bucket.prompts[task.prompt.id]||0)+1;bucket.leftReps[task.left.view.representation]=(bucket.leftReps[task.left.view.representation]||0)+1;bucket.rightReps[task.right.view.representation]=(bucket.rightReps[task.right.view.representation]||0)+1;bucket.transforms[task.case.transformationId]=(bucket.transforms[task.case.transformationId]||0)+1;
       if(kind==="restore"){
         bucket.directions[task.case.direction]=(bucket.directions[task.case.direction]||0)+1;bucket.answers[solution.answer]=(bucket.answers[solution.answer]||0)+1;
@@ -174474,7 +174620,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     check("property_matrix",failures.length===0,{cases:total,replayCases,failures:failures.slice(0,20)});
 
     const rearrangement=coverage.rearrangement;
-    check("rearrangement_balance_frames_and_near_misses",rearrangement.yes===rearrangement.no&&rearrangement.conserved>0&&rearrangement.changed>0&&Object.keys(rearrangement.steps).length===3&&Object.keys(rearrangement.prompts).length===6&&Object.keys(rearrangement.deltas).some(value=>Number(value)<0)&&Object.keys(rearrangement.deltas).some(value=>Number(value)>0),rearrangement);
+    check("rearrangement_balance_frames_and_near_misses",rearrangement.yes===rearrangement.no&&rearrangement.conserved>0&&rearrangement.changed>0&&Object.keys(rearrangement.steps).length===3&&Object.keys(rearrangement.prompts).length===7&&Object.keys(rearrangement.deltas).some(value=>Number(value)<0)&&Object.keys(rearrangement.deltas).some(value=>Number(value)>0),rearrangement);
     check("rearrangement_cross_representation_and_perceptual_conflict",Object.keys(rearrangement.leftReps).length===4&&Object.keys(rearrangement.rightReps).length===4&&Object.keys(rearrangement.transforms).length>=5&&rearrangement.extentConflict>0,{left:rearrangement.leftReps,right:rearrangement.rightReps,transforms:rearrangement.transforms,extentConflict:rearrangement.extentConflict});
     const partition=coverage.partition;
     check("partition_balance_products_and_representations",partition.yes===partition.no&&partition.conserved>0&&partition.changed>0&&Object.keys(partition.steps).length===3&&Object.keys(partition.prompts).length===6&&Object.keys(partition.leftReps).length===3&&Object.keys(partition.rightReps).length===3,partition);
@@ -174498,7 +174644,7 @@ html[data-euca-resume-geometry="pending"] #particles {
       const semantic=clone(rearranged.task);semantic.left.semantics[0].canonicalKey="tampered";verdict=api.validate("rearrangement",semantic,rearranged.solution);mutations.push({id:"semantic-provenance",blocked:!verdict.ok,errors:verdict.errors});
       const target={...rearranged.task,targetAnswer:!rearranged.task.targetAnswer};verdict=api.validate("rearrangement",target,rearranged.solution);mutations.push({id:"rearrangement-target",blocked:!verdict.ok,errors:verdict.errors});
       const metadata=clone(rearranged.task);metadata.case.conserved=!metadata.case.conserved;verdict=api.validate("rearrangement",metadata,rearranged.solution);mutations.push({id:"conservation-metadata",blocked:!verdict.ok,errors:verdict.errors});
-      const transformation=clone(rearranged.task);transformation.right.view.transformation.changesSemanticValue=!transformation.right.view.transformation.changesSemanticValue;verdict=api.validate("rearrangement",transformation,rearranged.solution);mutations.push({id:"transform-semantics",blocked:!verdict.ok,errors:verdict.errors});
+      const transformation=clone(rearranged.task),transformationTarget=transformation.prompt?.transitionDirection==="right_to_left"?transformation.left.view:transformation.right.view;transformationTarget.transformation.changesSemanticValue=!transformationTarget.transformation.changesSemanticValue;verdict=api.validate("rearrangement",transformation,rearranged.solution);mutations.push({id:"transform-semantics",blocked:!verdict.ok,errors:verdict.errors});
       const sameRepresentation=clone(rearranged.task);sameRepresentation.right.view.representation=sameRepresentation.left.view.representation;verdict=api.validate("rearrangement",sameRepresentation,rearranged.solution);mutations.push({id:"same-representation",blocked:!verdict.ok,errors:verdict.errors});
       const leaked=clone(rearranged.task);leaked.prompt.question+=` LEFT contained ${rearranged.solution.left}.`;verdict=api.validate("rearrangement",leaked,rearranged.solution);mutations.push({id:"post-mask-value-leak",blocked:!verdict.ok,errors:verdict.errors});
       const partitionTarget={...partitioned.task,targetAnswer:!partitioned.task.targetAnswer};verdict=api.validate("partition",partitionTarget,partitioned.solution);mutations.push({id:"partition-target",blocked:!verdict.ok,errors:verdict.errors});
@@ -180273,7 +180419,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
       if(String(task.semanticCue||task.prompt?.cue||"").toUpperCase()==="FRACTION")return asFractionQuestion(task.prompt?.question||info.question);
       return proportionPrompts[id]||task.prompt?.question||info.question;
     }
-    if(info.conservationBridge)return conservationPrompts[id]||task.prompt?.question||info.question;
+    if(info.conservationBridge)return task.prompt?.question||conservationPrompts[id]||info.question;
     if(info.equationBridge){const lines=String(task.prompt?.question||info.question||"").split("\n"),kind=String(task.taskKind||bridge.kind||"");let header=(kind==="discrimination"?equationDiscriminationHeaders[id]:equationHeaders[id])||lines[0];if(kind!=="discrimination"&&id==="balanced"&&task.view==="balance")header="Is the balance exact?";if(kind!=="discrimination"&&id==="unbalanced"&&task.view==="balance")header="Is the balance unequal?";return [header,...lines.slice(1)].join("\n");}
     if(info.equationMoveBridge){const lines=String(task.prompt?.question||info.question||"").split("\n"),header=equationMoveHeaders[id]||lines[0],tail=lines.slice(1).map(line=>{const clean=line.replace(/each complete member/gi,"both sides").replace(/both members/gi,"both sides").trim(),match=/^(START|MOVE|TARGET)\b/i.exec(clean),label=match?.[1]?.toUpperCase(),body=clean.replace(/^(?:START|MOVE|TARGET)\b\s*[^\w(+-]?\s*/i,"").replace(label==="MOVE"?/\s+to both sides\b/i:/(?!)/,"").trim(),prefix=label==="START"?"Start:":label==="MOVE"?"Do this to both sides:":label==="TARGET"?"Target:":"";return [prefix,body].filter(Boolean).join(" ")}).filter(Boolean);return [header,...tail].join("\n");}
     return null;
@@ -194241,9 +194387,14 @@ html[data-euca-choice-contract="blocked"] #numpad {
     if(!Number.isInteger(index)||index<0||index>=info.options.length)return targetValue;
     // semanticCorrectIndex and targetOutcome identify the semantic option
     // before display placement. They must never be overwritten with the
-    // displayed slot. Builders already establish answer/correctIndex.
+    // displayed slot. Builders already establish answer/correctIndex. Build
+    // the complete response witness before mutating either field: a missing
+    // label remains malformed and is rejected by the pack provenance guard.
+    const optionText=text(info.options[index]?.text||info.options[index]?.label||"").trim();
+    if(!optionText)return targetValue;
+    const answerLabel=`${index+1}. ${optionText}`;
     info.answer=index;
-    info.answerLabel=text(info.options[index]?.text||info.options[index]?.label||`Option ${index+1}`);
+    info.answerLabel=answerLabel;
     return index;
   }
 
@@ -194395,7 +194546,7 @@ html[data-euca-choice-contract="blocked"] #numpad {
   function expectedTransform(adapter,bridge){
     if(adapter.key==="integerBridge")return bridge.kind==="relation"?null:{id:bridge.kind==="shift"?"signed_direct_shift":"signed_inverse_shift",changesSemanticValue:true};
     if(adapter.key==="rationalBridge")return bridge.kind==="construct"?{id:"retained_midpoint_inverse",changesSemanticValue:true}:null;
-    if(adapter.key==="conservationBridge")return bridge?.rightView?.transformation||null;
+    if(adapter.key==="conservationBridge"){const targetView=bridge?.kind==="rearrangement"&&bridge?.task?.prompt?.transitionDirection==="right_to_left"?bridge?.leftView:bridge?.rightView;return targetView?.transformation||null;}
     return null;
   }
   function rationalPayloadFromView(view){
@@ -194662,7 +194813,7 @@ html[data-euca-choice-contract="blocked"] #numpad {
     check("visual_order_family_present",visualMarkerRows>0,visualMarkerRows);
     const semanticChoice={options:[{text:"semantic 0"},{text:"semantic 1"},{text:"semantic 2"}],requiredSelections:1,correctIndex:2,semanticCorrectIndex:0,targetOutcome:0,answer:0,answerLabel:"semantic 0"};
     const syncedTarget=syncSingleChoice(semanticChoice,0);
-    check("choice_semantic_index_preserved",syncedTarget===2&&semanticChoice.correctIndex===2&&semanticChoice.answer===2&&semanticChoice.answerLabel==="semantic 2"&&semanticChoice.semanticCorrectIndex===0&&semanticChoice.targetOutcome===0,semanticChoice);
+    check("choice_semantic_index_preserved",syncedTarget===2&&semanticChoice.correctIndex===2&&semanticChoice.answer===2&&semanticChoice.answerLabel==="3. semantic 2"&&semanticChoice.semanticCorrectIndex===0&&semanticChoice.targetOutcome===0,semanticChoice);
     const malformedMulti={options:[{text:"A"},{text:"B"},{text:"C"}],correctIndices:[0,2],correctIndex:1,answer:"0,2"};
     const malformedTarget=syncSingleChoice(malformedMulti,"0,2");
     check("ambiguous_multiselect_not_coerced",malformedTarget==="0,2"&&malformedMulti.answer==="0,2",malformedMulti);
@@ -194685,7 +194836,7 @@ html[data-euca-choice-contract="blocked"] #numpad {
     const responseBool={kind:"relation",solution:{correctAnswer:true},task:{targetAnswer:true}},responseChoice={kind:"move",solution:{answer:2,correctIndex:2},task:{targetAnswer:2,correctIndex:2,options:[{index:0,text:"A",correct:false},{index:1,text:"B",correct:false},{index:2,text:"C",correct:true},{index:3,text:"D",correct:false}]}};
     const boolInfo={responseFormat:"yesno",answerKind:"bool",isTrue:true,targetOutcome:true,requiredSelections:1,options:null,correctIndex:null,correctIndices:null,semanticCorrectIndex:null,answerLabel:null};
     const choiceInfo={responseFormat:"choice",answerKind:"choice",isTrue:null,answer:2,targetOutcome:2,correctIndex:2,correctIndices:null,semanticCorrectIndex:2,answerLabel:"3. C",requiredSelections:1,options:responseChoice.task.options};
-    check("pack_response_contract_self_test",packResponseMatches({key:"integerBridge"},responseBool,boolInfo)&&!packResponseMatches({key:"integerBridge"},responseBool,{...boolInfo,isTrue:false,targetOutcome:false})&&packResponseMatches({key:"equationMoveBridge"},responseChoice,choiceInfo)&&!packResponseMatches({key:"equationMoveBridge"},responseChoice,{...choiceInfo,answer:0,targetOutcome:0,correctIndex:0,semanticCorrectIndex:0,answerLabel:"1. A",options:choiceInfo.options.map((row,index)=>({...row,correct:index===0}))})&&!packResponseMatches({key:"equationMoveBridge"},responseChoice,{...choiceInfo,correctIndices:[2]})&&!packResponseMatches({key:"equationMoveBridge"},responseChoice,{...choiceInfo,multiSelect:true}));
+    check("pack_response_contract_self_test",packResponseMatches({key:"integerBridge"},responseBool,boolInfo)&&!packResponseMatches({key:"integerBridge"},responseBool,{...boolInfo,isTrue:false,targetOutcome:false})&&packResponseMatches({key:"equationMoveBridge"},responseChoice,choiceInfo)&&!packResponseMatches({key:"equationMoveBridge"},responseChoice,{...choiceInfo,answerLabel:"C"})&&!packResponseMatches({key:"equationMoveBridge"},responseChoice,{...choiceInfo,answer:0,targetOutcome:0,correctIndex:0,semanticCorrectIndex:0,answerLabel:"1. A",options:choiceInfo.options.map((row,index)=>({...row,correct:index===0}))})&&!packResponseMatches({key:"equationMoveBridge"},responseChoice,{...choiceInfo,correctIndices:[2]})&&!packResponseMatches({key:"equationMoveBridge"},responseChoice,{...choiceInfo,multiSelect:true}));
     const failed=checks.filter(row=>!row.pass);
     return Object.freeze({patch:PATCH_ID,version:VERSION,status:failed.length?"BLOCK":"PASS",summary:Object.freeze({pass:checks.length-failed.length,fail:failed.length,total:checks.length}),checks:Object.freeze(checks)});
   }
@@ -194855,11 +195006,11 @@ html[data-euca-choice-contract="blocked"] #numpad {
   document.documentElement.dataset.eucaSpatialAuto="coordinated-2";
 })();
 /* PH6.C5.R3.18 SPATIAL AUTO COORDINATOR:END */</script>
-<div id="euca-c5-r3-18-spatial-auto-coordinator-marker" hidden aria-hidden="true" data-milestone="PH6.C5.R3.18-AUTO-CURRICULUM-INTEGRITY-R1" data-status="CANDIDATE" data-public-mode="AUTO_ONLY" data-spatial-target-per-eligible-block="2" data-spatial-hard-cap-per-eligible-block="2" data-adaptation-axis="spatial" data-numeric-d-isolation="true" data-spa03rx-adaptive-pool="excluded" data-browser-gate="NOT_RUN"></div>
+<div id="euca-c5-r3-18-spatial-auto-coordinator-marker" hidden aria-hidden="true" data-milestone="PH6.C5.R3.18-AUTO-CURRICULUM-INTEGRITY-R1" data-status="INTEGRATED_RELEASE_INPUT" data-public-mode="AUTO_ONLY" data-spatial-target-per-eligible-block="2" data-spatial-hard-cap-per-eligible-block="2" data-adaptation-axis="spatial" data-numeric-d-isolation="true" data-spa03rx-adaptive-pool="excluded" data-browser-gate="REQUIRED_NOT_YET_SEALED"></div>
 <script>/* PH6.C5.R3.18 AUTO CURRICULUM SELF AUDIT:START */
 (function installAutoCurriculumSelfAuditR318(){
   "use strict";
-  const PATCH_ID="ph6.c5.r3.18-auto-curriculum-self-audit",VERSION="1.0.0-candidate.1";
+  const PATCH_ID="ph6.c5.r3.18-auto-curriculum-self-audit",VERSION="1.0.0";
   function audit(){
     const checks=[],check=(id,pass,detail=null)=>checks.push(Object.freeze({id,pass:!!pass,detail}));
     const root=document.documentElement,spatial=globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR,integration=globalThis.EUCALCULIA_STIMULUS_INTEGRATION;
@@ -194873,29 +195024,38 @@ html[data-euca-choice-contract="blocked"] #numpad {
     check("stimulus_integration_self_audit",integration?.selfAudit?.().status==="PASS",integration?.selfAudit?.()||null);
     check("public_semantic_self_audit",globalThis.EUCALCULIA_PUBLIC_SEMANTIC_HARDENING_R1?.audit?.().status==="PASS",globalThis.EUCALCULIA_PUBLIC_SEMANTIC_HARDENING_R1?.audit?.()||null);
     const marker=document.getElementById("euca-c5-r3-18-auto-curriculum-integrity-marker");
-    check("l0_l1_information_boundary",marker?.dataset?.l0InformationContract==="TWO_VISIBLE_STIMULI_ONLY"&&marker?.dataset?.l1MetaStateContract==="PAIR_TRANSITIONS_ONLY");
+    check("l0_l1_information_boundary",marker?.dataset?.l0InformationContract==="TWO_VISIBLE_STIMULI_ONLY"&&marker?.dataset?.l0TransitionDirections==="LEFT_TO_RIGHT_AND_RIGHT_TO_LEFT"&&marker?.dataset?.l0TransitionFamily==="SINGLE_CANONICAL_FAMILY"&&marker?.dataset?.l1MetaStateContract==="PAIR_TRANSITIONS_ONLY");
+    const choiceProbe={options:[{text:"A"},{text:"B"},{text:"C"}],requiredSelections:1,correctIndex:2,semanticCorrectIndex:0,targetOutcome:0,answer:0,answerLabel:"C"},choiceTarget=globalThis.EUCALCULIA_PUBLIC_SEMANTIC_HARDENING_R1?.syncSingleChoice?.(choiceProbe,0);
+    check("prepared_choice_label_contract",marker?.dataset?.preparedPackResponseBinding==="16_ROUTES_FAIL_CLOSED"&&choiceTarget===2&&choiceProbe.answer===2&&choiceProbe.answerLabel==="3. C",choiceProbe);
     check("formal_pointer_not_advanced",marker?.dataset?.runtimeAutoCurriculumChanged==="true"&&marker?.dataset?.formalCurricularPointerChanged==="false");
     const failed=checks.filter(row=>!row.pass);
     return Object.freeze({patch:PATCH_ID,version:VERSION,status:failed.length?"BLOCK":"PASS",candidate:true,promotion:false,summary:Object.freeze({pass:checks.length-failed.length,fail:failed.length,total:checks.length}),checks:Object.freeze(checks)});
   }
-  const API=Object.freeze({patch:PATCH_ID,version:VERSION,status:"PREVIEW",promotion:false,audit});
+  const API=Object.freeze({patch:PATCH_ID,version:VERSION,status:"PUBLIC_RELEASE_CANDIDATE",promotion:false,audit});
   Object.defineProperty(globalThis,"EUCALCULIA_R318_SELF_AUDIT",{value:API,writable:false,configurable:false,enumerable:true});
   document.documentElement.dataset.eucaR318SelfAudit="ready";
 })();
 /* PH6.C5.R3.18 AUTO CURRICULUM SELF AUDIT:END */</script>
 <div id="euca-c5-r3-18-auto-curriculum-integrity-marker" hidden
   data-milestone="PH6.C5.R3.18-AUTO-CURRICULUM-INTEGRITY-R1"
-  data-status="PREVIEW"
+  data-status="PUBLIC_RELEASE_CANDIDATE"
   data-promotion="false"
   data-predecessor="PH6.C5.R3.17-PERSISTENCE-SAFETY-HOTFIX-R1"
   data-auto-only="true"
   data-l0-information-contract="TWO_VISIBLE_STIMULI_ONLY"
+  data-l0-transition-directions="LEFT_TO_RIGHT_AND_RIGHT_TO_LEFT"
+  data-l0-transition-family="SINGLE_CANONICAL_FAMILY"
   data-l1-meta-state-contract="PAIR_TRANSITIONS_ONLY"
+  data-prepared-pack-response-binding="16_ROUTES_FAIL_CLOSED"
+  data-local-qa-prepared-bootstrap="LOOPBACK_POLICY_QUERY_CONJUNCTION"
+  data-local-qa-bootstrap-public-api="ABSENT"
+  data-local-qa-bootstrap-fail-closed="BEFORE_VISIBILITY"
+  data-local-qa-bootstrap-representation-state="RESTORED_EXACTLY"
   data-clean-query-optionals="ABSENT_IS_NOT_ZERO"
   data-rational-equivalence="DISTINCT_INTEGRATED_WITNESSES"
   data-spatial-dose="TARGET_2_HARD_CAP_2_PER_ELIGIBLE_BLOCK"
   data-spatial-axis="INTERNAL_SEPARATE_FROM_NUMERIC_D"
-  data-natural-browser-evidence="REQUIRED_NOT_YET_RUN"
+  data-natural-browser-evidence="REQUIRED_NOT_YET_SEALED"
   data-runtime-auto-curriculum-changed="true"
   data-new-formal-curricular-families="0"
   data-formal-curricular-pointer-changed="false"
