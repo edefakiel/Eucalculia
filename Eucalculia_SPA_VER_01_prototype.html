@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>SPA-VER-01 · prototype v14</title>
+<title>SPA-VER-01 · prototype v15</title>
 <style>
 :root{
   --euca-bg:#050508;--canvas:#000;--s2:#161618;
@@ -96,8 +96,9 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
 .boolBtn:active{transform:scale(.97)}
 #choicepad{display:none;gap:6px}
 #choicepad.active{display:grid;grid-template-columns:repeat(4,1fr)}
-#choicepad.active.c2{grid-template-columns:repeat(2,1fr)}
+#choicepad.active.c2{grid-template-columns:repeat(2,1fr);height:clamp(70px,13svh,96px)}
 #choicepad.active.c3{grid-template-columns:repeat(3,1fr)}
+#choicepad.active.multirow{height:clamp(96px,17svh,126px);grid-auto-rows:minmax(44px,1fr)}
 .choiceBtn{background:var(--s2);border:1px solid var(--bdchoice);border-radius:var(--rad);color:var(--fg);
   display:flex;align-items:center;justify-content:center;gap:6px;padding:6px;text-align:center;
   font-size:.76rem;line-height:1.15;cursor:pointer;font-family:inherit;transition:transform .08s}
@@ -108,6 +109,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
   font-family:var(--mono);font-size:9.5px;font-weight:700;color:var(--muted);flex:0 0 auto}
 .choiceBtn svg{max-width:46px;max-height:50px;height:auto}
 .choiceBtn .sizeTag{font-family:var(--mono);font-size:.66rem;font-weight:800;color:var(--muted)}
+.dirGlyph{font-size:1.12rem;line-height:1;font-weight:900;color:var(--soft)}
 .surface{position:absolute;inset:0;background:#050508;display:none;flex-direction:column;
   padding:14px;overflow-y:auto;z-index:20}
 .surface.visible{display:flex}
@@ -222,7 +224,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
     </section>
     <section id="menuSurface" class="surface">
       <div class="menu-title">SPA · VER · 01</div>
-      <div class="menu-sub">spatial verification under the mask · prototype v14</div>
+      <div class="menu-sub">spatial verification under the mask · prototype v15</div>
       <div class="menu-conv" id="menuConv"></div>
       <div class="menu-convnote pnote">The four sizes — S · M · L · XL. Every claim is judged from memory.</div>
       <section class="review-section"><span class="review-section-label">How to play</span>
@@ -279,8 +281,17 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
 
 <script>
 "use strict";
-/* ═══════ SPA-VER-01 · prototype v14 ═══════
-   FORENSIC CORRECTION RELEASE:
+/* ═══════ SPA-VER-01 · prototype v15 ═══════
+   CONCEPTUAL EXPANSION RELEASE:
+   - `dual_qrel`: both relational terms are qualified and must be bound;
+   - `all_and_only`: class equality as two-way inclusion with witnesses;
+   - `vector_chain`: two orthogonal spatial vectors compose to a diagonal;
+   - `consistency_cycle`: global satisfiability versus a directed cycle;
+   - `signed_step`: restores the direct signed-step precursor on the S–XL scale;
+   - `step_compare`: adapts the earlier step-comparison donor and adds a third “neither” class;
+   - expanded coverage, task-space reporting, semantic reviews and audits.
+
+   v14 FORENSIC CORRECTION RELEASE:
    - real full-resolution mask measured from the visible game container;
    - mask randomness isolated from the seeded content stream;
    - answered-trial blocks, persistent partial blocks, and block-boundary moves;
@@ -643,7 +654,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
    corrupta false o rechazo; nitidez dentro), marcos negados, espejado
    léxico, auditoría con listones Bonferroni, telemetría, semilla. */
 
-const APP_VERSION="SPA-VER-01 v14";
+const APP_VERSION="SPA-VER-01 v15";
 let SEED=(()=>{const m=/[?&]seed=(\d+)/.exec(location.search);return m?(+m[1])>>>0:((Date.now()^0x9E3779B9)>>>0);})();
 const SEED0=SEED;
 function rngValue(state){let t=state>>>0;t=Math.imul(t^(t>>>15),t|1);
@@ -672,6 +683,18 @@ const SIZE_GAP=2;               // hueco mínimo ENUNCIABLE (adyacentes = ambigu
 const SIZE_LETTER=["S","M","L","XL"];
 const TEXTURES=["filled","striped","dotted","outlined"];
 const ROWNAME=["top","middle","bottom"], COLNAME=["left","middle","right"];
+const SPATIAL_DIRS={
+  leftOf:{dx:-1,dy:0,phrase:"to the left of",short:"left"},
+  rightOf:{dx:1,dy:0,phrase:"to the right of",short:"right"},
+  above:{dx:0,dy:-1,phrase:"above",short:"above"},
+  below:{dx:0,dy:1,phrase:"below",short:"below"}
+};
+const DIAGONAL_OPTIONS=[
+  {dx:-1,dy:-1,label:"Upper-left",glyph:"↖"},
+  {dx:1,dy:-1,label:"Upper-right",glyph:"↗"},
+  {dx:-1,dy:1,label:"Lower-left",glyph:"↙"},
+  {dx:1,dy:1,label:"Lower-right",glyph:"↘"}
+];
 
 /* ── dibujo ── */
 function poly(cx,cy,r,n,rot){let o=[];for(let i=0;i<n;i++){const a=rot+i*2*Math.PI/n;
@@ -797,6 +820,30 @@ function drawPairFrame(sc,pairIdx,scale){
   b+=drawFig(f1,x+w*.28,cy,{rscale:scale})+drawFig(f2,x+w*.72,cy,{rscale:scale});
   return svgWrap(b,"pair");
 }
+/* A spatial premise is stored as {a,b,dx,dy}: A is displaced from B by
+   that cardinal vector. Frames are recentered independently, so absolute
+   screen position cannot be carried from one premise to the next. */
+function spatialPairBody(p,x,y,w,h,rscale){
+  const cx=x+w/2,cy=y+h/2,gap=Math.min(w*.22,h*.31);
+  let ax=cx,ay=cy,bx=cx,by=cy;
+  if(p.dx){ax=cx+p.dx*gap;bx=cx-p.dx*gap;}
+  else {ay=cy+p.dy*gap;by=cy-p.dy*gap;}
+  let b=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.10)" stroke-width="1.6"/>`;
+  b+=`<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#4a515e" stroke-width="2.4"/>`;
+  b+=drawFig(p.a,ax,ay,{rscale:rscale||1})+drawFig(p.b,bx,by,{rscale:rscale||1});
+  return b;
+}
+function drawSpatialFrame(sc,pairIdx){
+  const p=sc.spatialPremises[pairIdx];
+  return svgWrap(spatialPairBody(p,44,280,512,260,1),"spatial premise");
+}
+function drawSpatialReview(sc){
+  const ps=sc.spatialPremises||[],n=ps.length;
+  const h=n===2?260:190,step=n===2?370:235,y0=n===2?95:55,rs=n===2?.92:.76;
+  let b="";ps.forEach((p,i)=>{b+=spatialPairBody(p,44,y0+i*step,512,h,rs);});
+  return svgWrap(b,"spatial premises in logical order");
+}
+
 /* ── generadores de escena ── */
 const CELLS9=[0,1,2,3,4,5,6,7,8];
 function gridScene(n){
@@ -896,6 +943,59 @@ function twinScene(dblAnchor){
   }
   return {kind:"grid",figs:shuffle(figs),rep,anchor,c1,c2,dim,axis,w1};
 }
+/* v15 · DOBLE REFERENTE CUALIFICADO. Both shapes are repeated and each
+   queried term is unique only after binding shape to colour or texture. */
+function dualQualifiedScene(){
+  const [shapeA,shapeB]=sample(SHAPE_KEYS,2);
+  const [kA,kB]=pick([["colour","colour"],["colour","texture"],
+    ["texture","colour"],["texture","texture"]]);
+  const keys=k=>k==="colour"?COLOUR_KEYS:TEXTURES;
+  const [vA,vA2]=sample(keys(kA),2),[vB,vB2]=sample(keys(kB),2);
+  const axis=coin()?"h":"v",forward=coin();
+  const r=axis==="h"?(forward?"leftOf":"rightOf"):(forward?"above":"below");
+  let aGood,aBad,bGood,bBad;
+  if(axis==="h"){
+    const rows=sample([0,1,2],2),L=0,R=2;
+    if(r==="leftOf"){
+      aGood=rows[0]*3+L;bGood=rows[0]*3+R;aBad=rows[1]*3+R;bBad=rows[1]*3+L;
+    }else{
+      aGood=rows[0]*3+R;bGood=rows[0]*3+L;aBad=rows[1]*3+L;bBad=rows[1]*3+R;
+    }
+  }else{
+    const cols=sample([0,1,2],2),T=0,B=2;
+    if(r==="above"){
+      aGood=T*3+cols[0];bGood=B*3+cols[0];aBad=B*3+cols[1];bBad=T*3+cols[1];
+    }else{
+      aGood=B*3+cols[0];bGood=T*3+cols[0];aBad=T*3+cols[1];bBad=B*3+cols[1];
+    }
+  }
+  const F=(shape,k,v,cell)=>{const f={shape,cell,size:ri(0,3),colour:pick(COLOUR_KEYS),texture:pick(TEXTURES)};f[k]=v;return f;};
+  const figs=[F(shapeA,kA,vA,aGood),F(shapeA,kA,vA2,aBad),
+    F(shapeB,kB,vB,bGood),F(shapeB,kB,vB2,bBad)];
+  const spec=(shape,k,v)=>({shape,k,v});
+  return {kind:"grid",figs:shuffle(figs),__dual:{axis,r,
+    goodA:spec(shapeA,kA,vA),badA:spec(shapeA,kA,vA2),
+    goodB:spec(shapeB,kB,vB),badB:spec(shapeB,kB,vB2)}};
+}
+
+/* v15 · ALL AND ONLY. Both classes have at least two witnesses. False
+   scenes instantiate A\\B, B\\A, or both, rather than relying on vacuity. */
+function allAndOnlyScene(){
+  const sc=gridScene(5),k1=coin()?"colour":"texture",k2=k1==="colour"?"texture":"colour";
+  const keys=k=>k==="colour"?COLOUR_KEYS:TEXTURES;
+  const v1=pick(keys(k1)),v2=pick(keys(k2));
+  const alt1=keys(k1).filter(v=>v!==v1),alt2=keys(k2).filter(v=>v!==v2);
+  sc.figs.forEach(f=>{f[k1]=pick(alt1);f[k2]=pick(alt2);});
+  const truth=coin(),mode=truth?"equal":pick(["a-only","b-only","both-sides"]);
+  const set=(i,a,b)=>{sc.figs[i][k1]=a?v1:pick(alt1);sc.figs[i][k2]=b?v2:pick(alt2);};
+  if(truth){set(0,true,true);set(1,true,true);}
+  else if(mode==="a-only"){set(0,true,true);set(1,true,true);set(2,true,false);}
+  else if(mode==="b-only"){set(0,true,true);set(1,true,true);set(2,false,true);}
+  else {set(0,true,true);set(1,true,true);set(2,true,false);set(3,false,true);}
+  sc.__allOnly={k1,v1,k2,v2,truth,mode};
+  return sc;
+}
+
 /* «entre» exige exactamente una fila completa: se construye, no se sortea */
 function betweenScene(){
   const r=ri(0,2), shapes=sample(SHAPE_KEYS,3);
@@ -966,6 +1066,36 @@ function parityScene(){
     premises:[[figs[0],figs[1]],[figs[1],figs[2]],[figs[2],figs[3]]],
     serveOrder:shuffle([0,1,2]),jit:[pick(JIT),pick(JIT),pick(JIT)]};
 }
+function neutralFig(shape){return {shape,size:1,colour:"grey",texture:"filled"};}
+/* v15 · 2-D VECTOR COMPOSITION. One horizontal and one vertical relation
+   guarantee a non-zero diagonal answer and eliminate cancellation trials. */
+function vectorChainScene(){
+  const sh=sample(SHAPE_KEYS,3),figs=sh.map(neutralFig);
+  const h=pick([SPATIAL_DIRS.leftOf,SPATIAL_DIRS.rightOf]);
+  const v=pick([SPATIAL_DIRS.above,SPATIAL_DIRS.below]);
+  const dirs=coin()?[h,v]:[v,h];
+  const spatialPremises=[
+    {a:figs[0],b:figs[1],dx:dirs[0].dx,dy:dirs[0].dy},
+    {a:figs[1],b:figs[2],dx:dirs[1].dx,dy:dirs[1].dy}
+  ];
+  return {kind:"spatial-chain",figs,chain:sh,spatialPremises,serveOrder:shuffle([0,1]),
+    result:{dx:dirs[0].dx+dirs[1].dx,dy:dirs[0].dy+dirs[1].dy}};
+}
+
+/* v15 · GLOBAL CONSISTENCY. The first two constraints are always acyclic;
+   the third either closes the transitive order or creates a directed cycle. */
+function consistencyCycleScene(){
+  const sh=sample(SHAPE_KEYS,3),figs=sh.map(neutralFig),order=shuffle(figs.slice());
+  const dirKey=pick(["leftOf","rightOf","above","below"]),d=SPATIAL_DIRS[dirKey];
+  const consistent=coin();
+  const pairs=consistent
+    ?[[order[0],order[1]],[order[1],order[2]],[order[0],order[2]]]
+    :[[order[0],order[1]],[order[1],order[2]],[order[2],order[0]]];
+  const spatialPremises=pairs.map(([a,b])=>({a,b,dx:d.dx,dy:d.dy}));
+  return {kind:"constraint-cycle",figs,spatialPremises,serveOrder:shuffle([0,1,2]),
+    __consistency:{consistent,dirKey,order:order.map(nameOf),pairs:pairs.map(([a,b])=>[nameOf(a),nameOf(b)])}};
+}
+
 /* ── ANALOGÍA (comparacion_relacional / grv_analog): dos parejas EN CAJAS,
    mismo paso firmado — el cierre con las parejas DADAS, hermana ligera de
    la proporción (4 figuras contra 6) ── */
@@ -995,6 +1125,28 @@ function analogMatchScene(){
     else if(b[k]===a[k])b[k]=pick(KEYS.filter(v=>v!==a[k]));};
   fix(figs[0],figs[1],m1); fix(figs[2],figs[3],m2);
   return {kind:"analog",figs,k,serveOrder:shuffle([0,1]),
+    premises:[[figs[0],figs[1]],[figs[2],figs[3]]]};
+}
+
+/* v15 · direct signed step restored from the modular progression. The
+   two referents share one contour, so exact class distance is not confounded
+   by shape geometry. */
+function signedStepScene(){
+  const [cA,cB]=sample(COLOUR_KEYS,2),d=pick([2,-2,3,-3]),x=pick(analogValidX(d));
+  const a={shape:"circle",cell:3,size:x,colour:cA,texture:"filled"};
+  const b={shape:"circle",cell:5,size:x+d,colour:cB,texture:"filled"};
+  return {kind:"grid",figs:[a,b],__signedStep:{cA,cB,d}};
+}
+
+/* v15 · adapted from the modular `comparacion_pasos` donor and expanded:
+   classify two signed size steps as identical, opposite, or neither. */
+function stepCompareScene(){
+  const sh=sample(SHAPE_KEYS,4),s1=pick([2,-2,3,-3]),mode=pick(["same","opposite","neither"]);
+  const s2=mode==="same"?s1:mode==="opposite"?-s1:pick([2,-2,3,-3].filter(s=>s!==s1&&s!==-s1));
+  const x1=pick(analogValidX(s1)),x2=pick(analogValidX(s2));
+  const F=(shape,size)=>({shape,size,colour:"grey",texture:"filled"});
+  const figs=[F(sh[0],x1),F(sh[1],x1+s1),F(sh[2],x2),F(sh[3],x2+s2)];
+  return {kind:"analog",figs,s1,s2,__stepMode:mode,
     premises:[[figs[0],figs[1]],[figs[2],figs[3]]]};
 }
 
@@ -1155,8 +1307,27 @@ function pairBy(sc,pred){const c=[];for(const a of sc.figs)for(const b of sc.fig
   if(a!==b&&pred(a,b))c.push([a,b]);return c.length?pick(c):null;}
 function countBy(sc,pred){return sc.figs.filter(pred).length;}
 
-/* ═══ ORÁCULO SEMÁNTICO (idéntico al v3) ═══
-   true / false / "AMBIG" (no ostensible) / "ERR" (referente no único);
+function qualifiedText(x){return `${x.v} ${x.shape}`;}
+function resolveQualified(sc,x){const m=sc.figs.filter(f=>f.shape===x.shape&&f[x.k]===x.v);return m.length===1?m[0]:null;}
+function relationHolds(a,b,r){
+  if(r==="leftOf")return colOf(a)<colOf(b);
+  if(r==="rightOf")return colOf(a)>colOf(b);
+  if(r==="above")return rowOf(a)<rowOf(b);
+  if(r==="below")return rowOf(a)>rowOf(b);
+  return null;
+}
+function diagonalOption(dx,dy){return DIAGONAL_OPTIONS.find(o=>o.dx===Math.sign(dx)&&o.dy===Math.sign(dy))||null;}
+function hasDirectedCycle(pairs){
+  const g=new Map(),nodes=new Set();
+  pairs.forEach(([a,b])=>{nodes.add(a);nodes.add(b);if(!g.has(a))g.set(a,[]);g.get(a).push(b);});
+  const state=new Map();
+  const visit=n=>{const st=state.get(n)||0;if(st===1)return true;if(st===2)return false;state.set(n,1);
+    for(const m of (g.get(n)||[]))if(visit(m))return true;state.set(n,2);return false;};
+  for(const n of nodes)if(visit(n))return true;return false;
+}
+
+/* ═══ CENTRAL SEMANTIC ORACLE · extended without duplicating truth logic ═══
+   true / false / "AMBIG" (not perceptually decidable) / "ERR" (non-unique referent);
    contención por GEOMETRÍA con las mismas constantes que el dibujo. */
 function geoInside(f,cont){
   if(!cont)return "ERR";
@@ -1263,11 +1434,10 @@ function evalSem(sem,sc){
       const subj=sc.figs.filter(f=>f.shape===sem.shape&&f[sem.k]===sem.v);
       if(subj.length!==1)return"ERR";
       const b=one(sem.b);if(!b)return"ERR";
-      const a=subj[0];
-      if(sem.r==="leftOf")return colOf(a)<colOf(b);
-      if(sem.r==="rightOf")return colOf(a)>colOf(b);
-      if(sem.r==="above")return rowOf(a)<rowOf(b);
-      if(sem.r==="below")return rowOf(a)>rowOf(b);return"ERR";}
+      const x=relationHolds(subj[0],b,sem.r);return x==null?"ERR":x;}
+    case"qqrel":{/* both relational roles require a qualified binding */
+      const a=resolveQualified(sc,sem.a),b=resolveQualified(sc,sem.b);if(!a||!b||a===b)return"ERR";
+      const x=relationHolds(a,b,sem.r);return x==null?"ERR":x;}
     case"qident":{/* identidad descripción-rasgo ↔ descripción-posición;
       el ancla puede ir CALIFICADA (modo B): {shape,k,v} */
       let b;
@@ -1315,6 +1485,11 @@ function evalSem(sem,sc){
     case"noneWith":{for(const f of sc.figs){if(f[sem.k1]!==sem.v1)continue;
         if(f[sem.k2]===sem.v2)return false;}
       return true;}
+    case"sameSet":{const A=sc.figs.filter(f=>f[sem.k1]===sem.v1),B=sc.figs.filter(f=>f[sem.k2]===sem.v2);
+      const min=sem.minWitness||1;if(A.length<min||B.length<min)return"ERR";
+      return sc.figs.every(f=>(f[sem.k1]===sem.v1)===(f[sem.k2]===sem.v2));}
+    case"acyclicOrder":{for(const [a,b] of sem.pairs)if(!one(a)||!one(b)||a===b)return"ERR";
+      return !hasDirectedCycle(sem.pairs);}
     case"xor":{const va=evalSem(sem.a,sc);if(va!==true&&va!==false)return va;
       const vb=evalSem(sem.b,sc);if(vb!==true&&vb!==false)return vb;
       return (va?1:0)+(vb?1:0)===1;}
@@ -1395,6 +1570,12 @@ function factLine(sem,sc){
       const a=sc.figs.filter(f=>f[sem.k]===sem.va).length,
         b=sc.figs.filter(f=>f[sem.k]===sem.vb).length;
       return `${sem.va}: ${a} · ${sem.vb}: ${b}.`;}
+    case"qqrel":{const a=resolveQualified(sc,sem.a),b=resolveQualified(sc,sem.b);if(!a||!b)return"";
+      const horiz=sem.r==="leftOf"||sem.r==="rightOf";
+      if(horiz&&colOf(a)===colOf(b))return `The ${qualifiedText(sem.a)} and the ${qualifiedText(sem.b)} were in the same column.`;
+      if(!horiz&&rowOf(a)===rowOf(b))return `The ${qualifiedText(sem.a)} and the ${qualifiedText(sem.b)} were in the same row.`;
+      const actual=horiz?(colOf(a)<colOf(b)?"to the left of":"to the right of"):(rowOf(a)<rowOf(b)?"above":"below");
+      return `The ${qualifiedText(sem.a)} was ${actual} the ${qualifiedText(sem.b)}.`;}
     case"qrel":case"qident":{
       const aSpec=sem.b||sem.anchor;
       const b=typeof aSpec==="object"
@@ -1429,6 +1610,16 @@ function factLine(sem,sc){
     case"noneWith":{const hit=sc.figs.find(f=>f[sem.k1]===sem.v1&&f[sem.k2]===sem.v2);
       return hit?`The ${sem.v1} ${nameOf(hit)} was ${sem.v2}.`
         :`No ${sem.v1} shape was ${sem.v2}.`;}
+    case"sameSet":{const inA=f=>f[sem.k1]===sem.v1,inB=f=>f[sem.k2]===sem.v2;
+      const both=sc.figs.filter(f=>inA(f)&&inB(f)).map(nameOf),onlyA=sc.figs.filter(f=>inA(f)&&!inB(f)).map(nameOf),
+        onlyB=sc.figs.filter(f=>!inA(f)&&inB(f)).map(nameOf);
+      if(!onlyA.length&&!onlyB.length)return `Both classes had exactly the same members: ${both.join(", ")}.`;
+      return `${sem.v1}-only: ${onlyA.join(", ")||"none"}. ${sem.v2}-only: ${onlyB.join(", ")||"none"}.`;}
+    case"acyclicOrder":{const x=sc.__consistency;if(!x)return"";
+      const rel=SPATIAL_DIRS[x.dirKey]&&SPATIAL_DIRS[x.dirKey].phrase;if(!rel)return"";
+      return x.consistent
+        ?`They fit one strict order: the ${x.order[0]} was ${rel} the ${x.order[1]}, and the ${x.order[1]} was ${rel} the ${x.order[2]}.`
+        :`They formed a cycle: the ${x.order[0]} was ${rel} the ${x.order[1]}, the ${x.order[1]} was ${rel} the ${x.order[2]}, and the ${x.order[2]} was ${rel} the ${x.order[0]}.`;}
     case"xor":return"";
   }
   return"";
@@ -1825,6 +2016,19 @@ const QUESTIONS=[
     corrupt:{q:`Was the ${bad} ${rep} the one ${word} ${aTxt}?`,
       clause:`the ${bad} ${rep} was the one ${word} ${aTxt}`,
       sem:{p:"qident",shape:rep,k:dim,v:bad,anchor:aSpec,r},cls:"ligadura_intercambiada"}};}},
+/* v15 · both terms are qualified: shape alone identifies neither role. */
+{id:"dual_qrel",scene:dualQualifiedScene,applies:sc=>!!sc.__dual,build(sc){
+  const d=sc.__dual,word=SPATIAL_DIRS[d.r].phrase;
+  const question=(a,b)=>`Was the ${qualifiedText(a)} ${word} the ${qualifiedText(b)}?`;
+  const clause=(a,b)=>`the ${qualifiedText(a)} was ${word} the ${qualifiedText(b)}`;
+  const swapA=coin(),badA=swapA?d.badA:d.goodA,badB=swapA?d.goodB:d.badB;
+  return {label:"DUAL REFERENCE",long:true,
+    q:question(d.goodA,d.goodB),clause:clause(d.goodA,d.goodB),
+    sem:{p:"qqrel",a:d.goodA,b:d.goodB,r:d.r},
+    variant:`${d.goodA.k}-${d.goodB.k}|${d.r}`,
+    corrupt:{q:question(badA,badB),clause:clause(badA,badB),
+      sem:{p:"qqrel",a:badA,b:badB,r:d.r},cls:"ligadura_intercambiada"}};}},
+
 /* ── R10 · TWINS·CLOSURE: el cierre cuaternario sobre ligaduras ── */
 {id:"twin_analog",scene:()=>{
     const [sh1,sh2]=sample(SHAPE_KEYS,2);
@@ -2047,6 +2251,15 @@ const QUESTIONS=[
     note:"one negative mark",
     computed:true,sem:{p:"noneWith",k1,v1,k2,v2}};}},
 
+/* v15 · biconditional of classes: A⊆B and B⊆A, with non-vacuous witnesses. */
+{id:"all_and_only",scene:allAndOnlyScene,applies:sc=>!!sc.__allOnly,build(sc){
+  const x=sc.__allOnly,swap=coin(),a=swap?x.v2:x.v1,b=swap?x.v1:x.v2;
+  return {label:"SET CLOSURE",computed:true,clsWhenFalse:"igualdad_clases_rota",long:true,
+    q:`Were the ${a} shapes exactly the ${b} shapes?`,
+    clause:`the ${a} shapes were exactly the ${b} shapes`,
+    sem:{p:"sameSet",k1:x.k1,v1:x.v1,k2:x.k2,v2:x.v2,minWitness:2},
+    note:"both class inclusions must hold",variant:x.mode};}},
+
 /* ── SERIE TRANSITIVA de 4 términos: premisas secuenciales barajadas,
    pregunta a distancia 2 o 3 (la composición es obligada) ── */
 {id:"series_4",scene:seriesScene,applies:()=>true,pairFrames:true,build(sc){
@@ -2069,6 +2282,29 @@ const QUESTIONS=[
     q:`Was the ${ch[i]} the same size as the ${ch[j]}?`,
     clause:`the ${ch[i]} was the same size as the ${ch[j]}`,
     sem:{p:"sameAttr",a:ch[i],b:ch[j],k:"size"}};}},
+/* v15 · compose two orthogonal displacement vectors. */
+{id:"vector_chain",scene:vectorChainScene,kind:"choice",frameKind:"spatial",applies:()=>true,build(sc){
+  const [A,B,C]=sc.chain,co=diagonalOption(sc.result.dx,sc.result.dy);if(!co)return null;
+  const p=sc.spatialPremises,first=SPATIAL_DIRS[Object.keys(SPATIAL_DIRS).find(k=>SPATIAL_DIRS[k].dx===p[0].dx&&SPATIAL_DIRS[k].dy===p[0].dy)],
+    second=SPATIAL_DIRS[Object.keys(SPATIAL_DIRS).find(k=>SPATIAL_DIRS[k].dx===p[1].dx&&SPATIAL_DIRS[k].dy===p[1].dy)];
+  return {q:`Where was the ${A} relative to the ${C}?`,label:"VECTOR CHAIN",long:true,
+    frameKind:"spatial",frames:2,choiceCols:2,variant:co.label,
+    note:"combine both displacement vectors",
+    whyDetail:`The ${A} was ${first.phrase} the ${B}; the ${B} was ${second.phrase} the ${C}. Together: ${co.label.toLowerCase()}.`,
+    options:shuffle(DIAGONAL_OPTIONS).map(o=>({label:o.label,dx:o.dx,dy:o.dy,
+      html:`<span class="dirGlyph">${o.glyph}</span><span>${o.label}</span>`,correct:o.dx===co.dx&&o.dy===co.dy}))};},
+  auditChoice(sc,b){const o=b.options.find(x=>x.correct),c=diagonalOption(sc.result.dx,sc.result.dy);
+    return !!o&&!!c&&o.dx===c.dx&&o.dy===c.dy;}},
+
+/* v15 · satisfiability of a complete three-relation constraint set. */
+{id:"consistency_cycle",scene:consistencyCycleScene,frameKind:"spatial",applies:sc=>!!sc.__consistency,build(sc){
+  const x=sc.__consistency;
+  return {label:"CONSISTENCY",computed:true,clsWhenFalse:"ciclo_inconsistente",long:true,
+    frameKind:"spatial",frames:3,variant:x.consistent?"consistent":"cycle",
+    q:"Could all three spatial relations be true at the same time?",
+    clause:"all three spatial relations could be true at the same time",
+    sem:{p:"acyclicOrder",pairs:x.pairs,r:x.dirKey},note:"test the whole constraint set"};}},
+
 /* ── ANALOGÍA: cierre con parejas dadas; negación 50 % en su peldaño
    nivela la fuga de dirección igual que en la proporción ── */
 {id:"analog_step",scene:analogScene,applies:()=>true,build(sc){
@@ -2087,6 +2323,27 @@ const QUESTIONS=[
     clause:`the ${A} is to the ${B} as the ${C} is to the ${D}, in ${sc.k}`,
     sem:{p:"sameRel2",k:sc.k,pairs:[[A,B],[C,D]]},
     whyDetail:`${A}/${B}: ${m1?"same":"different"} ${sc.k}. ${C}/${D}: ${m2?"same":"different"}.`};}},
+
+/* v15 · one signed step, explicitly classified on the public size scale. */
+{id:"signed_step",scene:signedStepScene,kind:"choice",applies:sc=>!!sc.__signedStep,build(sc){
+  const x=sc.__signedStep,labels=[
+    {d:2,label:"Two steps larger"},{d:3,label:"Three steps larger"},
+    {d:-2,label:"Two steps smaller"},{d:-3,label:"Three steps smaller"}];
+  return {q:`How did the ${x.cB} circle compare in size with the ${x.cA} circle?`,
+    label:"SIGNED STEP",long:true,choiceCols:2,variant:(x.d>0?"up":"down")+Math.abs(x.d),
+    note:"use the S · M · L · XL scale",
+    whyDetail:`The ${x.cA} circle was ${SIZE_LETTER[sc.figs[0].size]}; the ${x.cB} circle was ${SIZE_LETTER[sc.figs[1].size]}.`,
+    options:shuffle(labels).map(o=>({...o,correct:o.d===x.d}))};},
+  auditChoice(sc,b){const o=b.options.find(x=>x.correct);return !!o&&o.d===sc.__signedStep.d;}},
+
+/* v15 · explicit relation between two signed size steps. */
+{id:"step_compare",scene:stepCompareScene,kind:"choice",applies:sc=>!!sc.__stepMode,build(sc){
+  const labels={same:"Same step",opposite:"Equal magnitude, opposite direction",neither:"Neither"};
+  return {q:"How did the second size step compare with the first?",label:"STEP COMPARISON",long:true,
+    variant:sc.__stepMode,
+    whyDetail:`First pair: ${stepWords(sc.s1)}. Second pair: ${stepWords(sc.s2)}.`,
+    options:shuffle(Object.entries(labels)).map(([k,label])=>({label,mode:k,correct:k===sc.__stepMode}))};},
+  auditChoice(sc,b){const o=b.options.find(x=>x.correct);return !!o&&o.mode===sc.__stepMode;}},
 
 /* ── PUERTAS GRANULARES sobre la riqueza interna (v8) — sólo XOR/XNOR,
    doctrina del controlador; monedas de escena → P(Sí)=0,5 exacto ── */
@@ -2275,16 +2532,20 @@ const CLS_LABEL={
   cardinal_desplazado:"count shifted",
   pertenencia_movida:"wrong side of boundary",
   paso_desviado:"step size off",
-  direccion_invertida:"step direction reversed"};
+  direccion_invertida:"step direction reversed",
+  igualdad_clases_rota:"class equality broken",
+  ciclo_inconsistente:"inconsistent cycle"};
 const WHY={
   atributo_cambiado:"The sentence named a different value from the one that shape had.",
   referente_sustituido:"The sentence named a different shape from the one the property belonged to.",
   relacion_invertida:"Both terms were right — the direction of the relation was not.",
-  ligadura_intercambiada:"Both properties were present in the scene, but not on the same shape.",
+  ligadura_intercambiada:"All named properties were present, but one binding selected the wrong object.",
   cardinal_desplazado:"The count in the sentence did not match the scene.",
   pertenencia_movida:"That shape was on the other side of the boundary.",
   paso_desviado:"The second pair takes a step in the same direction, but not of the same size.",
-  direccion_invertida:"The second pair takes a step of the right size — in the opposite direction."
+  direccion_invertida:"The second pair takes a step of the right size — in the opposite direction.",
+  igualdad_clases_rota:"At least one shape belonged to one named class but not the other.",
+  ciclo_inconsistente:"The three directed relations formed a cycle, so no arrangement could satisfy them all."
 };
 /* ═══ ESCALERA · DOS TRAMOS, TODO BAJO MÁSCARA ═══
    Tramo A: CARGA (figuras, dimensiones, negación). Tramo B: ARIDAD con
@@ -2309,17 +2570,19 @@ const RUNGS=[
  {key:"R3",name:"LOAD III",neg:.5,encode:2200,types:[
    {id:"mem_in"},{id:"mem_out"},{id:"mem_count"},{id:"mem_only"},{id:"mem_colour_in"},
    {id:"mem_all_colour"},{id:"duo_in"},{id:"duo_same"},{id:"duo_which"},
-   {id:"compose_2"},{id:"quant_all"},{id:"quant_none"},{id:"connective",w:1.4},
+   {id:"compose_2"},{id:"quant_all"},{id:"quant_none"},{id:"all_and_only",w:1.15},{id:"connective",w:1.4},
    {id:"twin_ident"},{id:"num_onemore"},{id:"num_most"}]},
  {key:"R4",name:"SEQUENCES",neg:0,encode:2000,frameMs:1600,types:[
    {id:"order_ba",n:3},{id:"order_between",n:3},{id:"order_first",n:4},{id:"order_adjacent",n:3},
-   {id:"order_last",n:3},{id:"series_4"},{id:"parity_chain"}]},
+   {id:"order_last",n:3},{id:"series_4"},{id:"parity_chain"},
+   {id:"vector_chain",w:1.2},{id:"consistency_cycle",w:1.2}]},
  {key:"R5",name:"REFERENCE",neg:0,encode:2200,types:[
-   {id:"ref_chain"},{id:"ref_colour"},{id:"which_sentence_ab",n:2},{id:"which_sentence_voice",n:2}]},
+   {id:"ref_chain"},{id:"ref_colour"},{id:"dual_qrel",w:1.35},
+   {id:"which_sentence_ab",n:2},{id:"which_sentence_voice",n:2}]},
  {key:"R6",name:"LST · LINE",neg:0,frameMs:1500,types:[{id:"lst_line"}]},
  {key:"R7",name:"LST · CROSS",neg:0,frameMs:1600,types:[{id:"lst_cross"}]},
  {key:"R8",name:"ANALOGY",neg:.5,encode:2200,types:[
-   {id:"analog_step"},{id:"analog_match"}]},
+   {id:"analog_step"},{id:"analog_match"},{id:"signed_step"},{id:"step_compare"}]},
  {key:"R9",name:"ANALOGY · SEQ",neg:.5,frameMs:2000,types:[{id:"analog_step",pf:true}]},
  {key:"R10",name:"TWINS · CLOSURE",neg:.5,encode:2400,types:[{id:"twin_analog"}]},
  /* TRAMO C · NUMBER — pista paralela; exposición corta A PROPÓSITO
@@ -2345,10 +2608,10 @@ const COVERAGE_REQ={
   R0:["attribute","position","comparison","binding"],
   R1:["attribute","position","logic","number-count"],
   R2:["position","comparison","binding","set","logic","twins","number-compare"],
-  R3:["membership","regions","quantifier","composition","twins","number-relation"],
-  R4:["order","composition","parity"],
-  R5:["reference","verbal"],
-  R8:["analog-step","analog-match"],
+  R3:["membership","regions","quantifier","set-closure","composition","twins","number-relation"],
+  R4:["order","composition","parity","vector","consistency"],
+  R5:["reference","dual-binding","verbal"],
+  R8:["analog-step","analog-match","signed-step","step-compare"],
   N1:["number-subset","number-kinds"],
   N3:["number-relation","number-most"]};
 function coverageGroup(id){
@@ -2360,15 +2623,21 @@ function coverageGroup(id){
   if(id.startsWith("mem_"))return"membership";
   if(id.startsWith("duo_"))return"regions";
   if(id.startsWith("quant_"))return"quantifier";
+  if(id==="all_and_only")return"set-closure";
   if(id==="connective"||id.startsWith("gate_"))return"logic";
   if(id.startsWith("twin_"))return"twins";
   if(id.startsWith("order_"))return"order";
   if(id==="compose_2"||id==="series_4")return"composition";
   if(id==="parity_chain")return"parity";
+  if(id==="vector_chain")return"vector";
+  if(id==="consistency_cycle")return"consistency";
+  if(id==="dual_qrel")return"dual-binding";
   if(id.startsWith("ref_"))return"reference";
   if(id.startsWith("which_sentence"))return"verbal";
   if(id==="analog_step")return"analog-step";
   if(id==="analog_match")return"analog-match";
+  if(id==="signed_step")return"signed-step";
+  if(id==="step_compare")return"step-compare";
   if(id==="num_exact"||id==="num_pick")return"number-count";
   if(id==="num_exact_sub"||id==="num_pick_sub")return"number-subset";
   if(id==="num_kinds")return"number-kinds";
@@ -2396,9 +2665,10 @@ const MINSCENE={
  compose_2:[3,3],connective:[3,3],
  order_ba:[3,3],order_between:[3,3],order_adjacent:[3,3],order_last:[3,3],order_first:[4,4],
  pos_centre:[4,4],pos_corner:[4,4],bind_pick_colour:[4,4],bind_pick_texture:[4,4],
- set_count_colour:[4,4],set_count_row:[6,6],quant_all:[4,4],quant_none:[4,4],
- series_4:[4,4],parity_chain:[4,4],analog_step:[4,4],analog_match:[4,4],
- ref_chain:[4,4],ref_colour:[4,4],
+ set_count_colour:[4,4],set_count_row:[6,6],quant_all:[4,4],quant_none:[4,4],all_and_only:[5,5],
+ series_4:[4,4],parity_chain:[4,4],vector_chain:[3,3],consistency_cycle:[3,3],
+ analog_step:[4,4],analog_match:[4,4],signed_step:[2,2],step_compare:[4,4],
+ ref_chain:[4,4],ref_colour:[4,4],dual_qrel:[4,4],
  mem_in:[2,4],mem_out:[2,4],mem_count:[1,4],mem_colour_in:[2,4],mem_all_colour:[2,4],mem_only:[2,3],
  duo_in:[2,5],duo_same:[2,5],duo_which:[2,5],
  num_exact:[1,4],num_pick:[1,4],num_exact_sub:[3,6],num_pick_sub:[3,6],num_kinds:[4,6],
@@ -2417,11 +2687,12 @@ const bump=(o,k)=>{o[k]=(o[k]||0)+1;};
 function famOf(id){
   if(id.startsWith("lst_"))return"lst";
   if(id.startsWith("num_"))return"number";
-  if(id==="series_4"||id==="parity_chain")return"chains";
+  if(id==="series_4"||id==="parity_chain"||id==="vector_chain"||id==="consistency_cycle")return"chains";
+  if(id==="all_and_only")return"sets";
   if(id.startsWith("duo_"))return"regions";
   if(id.startsWith("gate_"))return"gates";
-  if(id.startsWith("twin_"))return"twins";
-  if(id.startsWith("analog"))return"analogy";
+  if(id.startsWith("twin_")||id==="dual_qrel")return"twins";
+  if(id.startsWith("analog")||id==="signed_step"||id==="step_compare")return"analogy";
   if(id==="proportion")return"proportion";
   return"verif";
 }
@@ -2450,9 +2721,13 @@ function tryBuild(entry,R){
     const nC=b.options.filter(o=>o.correct).length;
     if(nC!==1){bump(STATS.noCorrect,entry.id);return null;}
     if(spec.auditChoice&&!spec.auditChoice(sc,b)){bump(STATS.choiceBad,entry.id);return null;}
+    const pf=!!spec.pairFrames||!!entry.pf;
+    const frameKind=b.lst?"lst":(b.frameKind||spec.frameKind||(pf?"pair":null));
+    const frames=b.frames!=null?b.frames:(frameKind==="lst"?sc.clues.length:
+      (frameKind?((sc.spatialPremises||sc.premises||[]).length):0));
     return {id:entry.id,kind:"choice",label:b.label||"VERIFICATION",scene:sc,q:b.q,
-      options:b.options,halos:b.halos||null,long:!!b.long,note:b.note||"",
-      lst:!!b.lst,frames:b.lst?sc.clues.length:0,frameKind:b.lst?"lst":null,
+      options:b.options,halos:b.halos||null,long:!!b.long,note:b.note||"",choiceCols:b.choiceCols||null,
+      whyDetail:b.whyDetail||null,variant:b.variant||null,lst:!!b.lst,frames,frameKind,
       served:"faithful",cls:null,negated:false,truth:null};
   }
   let served="faithful", q=b.q, clause=b.clause, sem=b.sem,
@@ -2471,9 +2746,10 @@ function tryBuild(entry,R){
      (analogía: paso_desviado / direccion_invertida para la review) */
   if(!cls&&core===false&&b.clsWhenFalse)cls=b.clsWhenFalse;
   const pf=!!(spec&&spec.pairFrames)||!!entry.pf;
+  const frameKind=b.frameKind||(spec&&spec.frameKind)||(pf?"pair":null);
+  const frames=b.frames!=null?b.frames:(frameKind?((sc.spatialPremises||sc.premises||[]).length):0);
   return {id:entry.id,kind:"bool",label:b.label||"VERIFICATION",scene:sc,q:qq,clause,sem,
-    served,cls,core,truth,negated,lst:false,
-    frames:pf?sc.premises.length:0,frameKind:pf?"pair":null,
+    served,cls,core,truth,negated,lst:false,frames,frameKind,variant:b.variant||null,
     long:!!b.long||negated,note:b.note||"",whyDetail:b.whyDetail||null};
 }
 function preferredEntriesForProgress(ri){
@@ -2540,7 +2816,7 @@ const Ladder={cur:0,unlockedMain:0,unlockedNum:TRACK_BOUNDS.number[0],win:[],cov
 /* ═══ TELEMETRY + PERSISTENCE ═══
    Current-session rows stay separate from the stored history tail. Incomplete
    answered blocks are restored, so a reload cannot create a one-row block. */
-const LSKEY="SPAVER01_V14", LEGACY_KEYS=["SPAVER01_V5"];
+const LSKEY="SPAVER01_V15", LEGACY_KEYS=["SPAVER01_V14","SPAVER01_V5"];
 const TELE=[];
 let HISTORY_TAIL=[];
 let BLOCK_ROWS=[];
@@ -2727,6 +3003,10 @@ function showFrame(){
     const jit=sc.jit?sc.jit[State.frameIdx]:1;
     stimLayer.innerHTML=drawPairFrame(sc,pi,jit);
     setPrompt(`View ${State.frameIdx+1} of ${it.frames}`);
+  }else if(it.frameKind==="spatial"){
+    const pi=sc.serveOrder?sc.serveOrder[State.frameIdx]:State.frameIdx;
+    stimLayer.innerHTML=drawSpatialFrame(sc,pi);
+    setPrompt(`Relation ${State.frameIdx+1} of ${it.frames}`);
   }else{
     stimLayer.innerHTML=drawLST(sc,"frame",State.frameIdx);
     setPrompt(`Clue ${State.frameIdx+1} of ${it.frames}`);
@@ -2762,7 +3042,9 @@ function beginInput(){
   metaQuestion.classList.add("visible");gc.classList.add("input-ready");
   if(it.kind==="choice"){
     const cp=$("choicepad");
-    cp.className="pad active"+(it.options.length===2?" c2":it.options.length===3?" c3":"");
+    const multirow=it.choiceCols===2&&it.options.length>2;
+    cp.className="pad active"+((it.choiceCols===2||(!it.choiceCols&&it.options.length===2))?" c2":
+      (it.choiceCols===3||(!it.choiceCols&&it.options.length===3))?" c3":"")+(multirow?" multirow":"");
     cp.innerHTML=it.options.map((o,i)=>
       `<button class="choiceBtn" type="button" data-i="${i}" disabled><span class="choiceKey">${i+1}</span>${o.html||`<span>${o.label}</span>`}</button>`).join("");
     cp.querySelectorAll(".choiceBtn").forEach(b=>b.addEventListener("click",()=>answer(Number(b.dataset.i))));
@@ -2793,7 +3075,7 @@ function answer(v){
     userAnswer:u,correctAnswer:c,choiceIndex,correctIndex};
   BLOCK_ROWS.push(row);
   TELE.push({t:State.trial,ts:new Date().toISOString(),rung:RUNGS[it.rung].key,fam:it.fam,id:it.id,
-    itemSeed:it.itemSeed,streamSeed:it.streamSeed,entrySpec:it.entrySpec,kind:it.kind,served:it.served,figs:figCount(it.scene),enc:it.enc||0,
+    itemSeed:it.itemSeed,streamSeed:it.streamSeed,entrySpec:it.entrySpec,kind:it.kind,served:it.served,variant:it.variant,figs:figCount(it.scene),enc:it.enc||0,
     encodeActual:segmentTotal("encode"),maskActual:segmentTotal("mask"),
     inputRenderDelay:Math.round(State.timing.inputReadyAt-State.timing.inputRenderStart),
     cls:it.cls,neg:!!it.negated,truth:it.kind==="choice"?null:!!it.truth,
@@ -2825,6 +3107,9 @@ function showReview(it,u,c){
       ?"The pairs, in order and at true scale"
       :(it.id==="analog_step"?"The two pairs, in logical order":"The premises, in logical order");
     $("rvScene").innerHTML=drawScene(it.scene);
+  }else if(it.frameKind==="spatial"){
+    $("rvSceneH").textContent="The spatial relations, in logical order";
+    $("rvScene").innerHTML=drawSpatialReview(it.scene);
   }else if(it.kind==="choice"&&it.halos&&it.halos.length){
     $("rvSceneH").textContent=it.halos.length>1?"What you saw — the counted shapes ringed":"What you saw — the correct one ringed";
     $("rvScene").innerHTML=drawScene(it.scene,{halos:it.halos});
@@ -2848,6 +3133,7 @@ function showReview(it,u,c){
         ?(it.halos.length>1?"The shapes counted by the correct option are ringed in the picture.":"The correct option is ringed in the picture.")
         :"The correct option is shown under “Correct answer”.";
     }
+    if(it.whyDetail)why+=" "+it.whyDetail;
   }else{
     const base=it.cls&&WHY[it.cls]?WHY[it.cls]
       :(it.core?"The clause was a true description of the scene."
@@ -3062,7 +3348,7 @@ $("pExport").addEventListener("click",()=>{
     sessionRows:TELE,historyTail:HISTORY_TAIL};
   const b=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(b);
-  a.download=`SPAVER01_v14_telemetry_${SEED0}_${TELE.length}.json`; a.click();
+  a.download=`SPAVER01_v15_telemetry_${SEED0}_${TELE.length}.json`; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 });
 $("pReset").addEventListener("click",()=>{
@@ -3105,11 +3391,22 @@ function addLex(store,key,yes){const x=store[key]=store[key]||{n:0,yes:0};x.n++;
 function twoPropZ(y1,n1,y0,n0){if(!n1||!n0)return 0;const p=(y1+y0)/(n1+n0);
   const se=Math.sqrt(Math.max(1e-12,p*(1-p)*(1/n1+1/n0)));return Math.abs(y1/n1-y0/n0)/se;}
 
+function stableJSON(x){
+  if(x==null||typeof x!=="object")return JSON.stringify(x);
+  if(Array.isArray(x))return `[${x.map(stableJSON).join(",")}]`;
+  return `{${Object.keys(x).sort().map(k=>JSON.stringify(k)+":"+stableJSON(x[k])).join(",")}}`;
+}
+function taskSignature(it){
+  if(it.kind==="choice"){const c=it.options.find(o=>o.correct);return `${it.id}|${it.q}|${c?c.label:"?"}`;}
+  return `${it.id}|${stableJSON(it.sem)}|${it.truth}`;
+}
+
 const Audit={running:false,
  async run(nPer){
   if(this.running)return "An audit is already running.";
   this.running=true;
   const seedSave=SEED,lexGlobal={},lexByType={},typeAgg={},L=[],twinCover=new Set();
+  const concept={dualDims:{},dualA:new Set(),dualB:new Set(),allOnly:{},vectors:{},cycles:{},signedSteps:{},stepModes:{}};
   try{
     const pre=STATS.snap();
     L.push(`AUDIT · n=${nPer}/rung · served items only`);
@@ -3117,23 +3414,30 @@ const Audit={running:false,
       const R=RUNGS[ri];
       const S={n:0,bool:0,yes:0,neg:0,types:{},cls:{},fail:0,
         dirEq:{n:0,y:0},dirOp:{n:0,y:0},seq:{},pairView:{},
-        area:{n:0,congr:0},figsSum:0,figsN:0,badScene:0,offAnchor:0,
+        area:{n:0,congr:0},figsSum:0,figsN:0,badScene:0,offAnchor:0,tasks:new Set(),
         lst:{n:0,line:0,ansBySize:{},decisive:{}},choice:{n:0,pos:{}}};
       for(let i=0;i<nPer;i++){
         if(i%150===0)await yieldMC();
         const it=serveItem(ri);
         if(!it){S.fail++;continue;}
-        S.n++;S.types[it.id]=(S.types[it.id]||0)+1;
+        S.n++;S.types[it.id]=(S.types[it.id]||0)+1;S.tasks.add(taskSignature(it));
         const TA=typeAgg[it.id]=typeAgg[it.id]||{bool:0,yes:0,choice:0,pos:{},seenLabels:{},correctLabels:{},maxOptions:0};
         const nf=figCount(it.scene);
         if(nf){S.figsSum+=nf;S.figsN++;const mb=MINSCENE[it.id];if(mb&&(nf<mb[0]||nf>mb[1]))S.badScene++;}
         const scn=it.scene;
-        if(scn.figs&&!scn.container&&!scn.containers&&!scn.track&&!scn.premises&&scn.kind!=="lst"){
+        if(scn.figs&&!scn.container&&!scn.containers&&!scn.track&&!scn.premises&&!scn.spatialPremises&&scn.kind!=="lst"){
           if(scn.figs.some(f=>f.dx||f.dy||f.cell==null||f.cell<0||f.cell>8))S.offAnchor++;}
         if(it.lst){const sc=it.scene;S.lst.n++;if(lstLineForced(sc))S.lst.line++;
           S.lst.ansBySize[SIZE_LETTER[sc.answer]]=(S.lst.ansBySize[SIZE_LETTER[sc.answer]]||0)+1;
           let dec=-1;for(let k=0;k<sc.clues.length;k++)if(lstCands(sc,sc.clues.slice(0,k+1)).length===1){dec=k;break;}
           S.lst.decisive[dec]=(S.lst.decisive[dec]||0)+1;}
+        if(it.id==="dual_qrel"){const d=it.scene.__dual,k=`${d.goodA.k}-${d.goodB.k}|${d.r}`;
+          concept.dualDims[k]=(concept.dualDims[k]||0)+1;concept.dualA.add(d.goodA.shape);concept.dualB.add(d.goodB.shape);}
+        if(it.id==="all_and_only"){const m=it.scene.__allOnly.mode;concept.allOnly[m]=(concept.allOnly[m]||0)+1;}
+        if(it.id==="vector_chain"){const c=diagonalOption(it.scene.result.dx,it.scene.result.dy).label;concept.vectors[c]=(concept.vectors[c]||0)+1;}
+        if(it.id==="consistency_cycle"){const k=it.scene.__consistency.consistent?"consistent":"cycle";concept.cycles[k]=(concept.cycles[k]||0)+1;}
+        if(it.id==="signed_step"){const k=it.variant;concept.signedSteps[k]=(concept.signedSteps[k]||0)+1;}
+        if(it.id==="step_compare"){const k=it.scene.__stepMode;concept.stepModes[k]=(concept.stepModes[k]||0)+1;}
         if(it.kind==="choice"){
           S.choice.n++;TA.choice++;TA.maxOptions=Math.max(TA.maxOptions,it.options.length);
           const pos=it.options.findIndex(o=>o.correct);S.choice.pos[pos]=(S.choice.pos[pos]||0)+1;TA.pos[pos]=(TA.pos[pos]||0)+1;
@@ -3156,6 +3460,7 @@ const Audit={running:false,
         if(it.fam==="twins"){const x=it.sem;
           if(x.p==="qrel")twinCover.add(`rel|${x.r}|${x.k}`);
           else if(x.p==="qident")twinCover.add(`ident|${x.r}|${x.k}|${typeof x.anchor==="object"?"q":"p"}`);
+          else if(x.p==="qqrel")twinCover.add(`dual|${x.r}|${x.a.k}|${x.b.k}`);
           else if(x.p==="twinDir2")twinCover.add(`analog|${x.axis}|${x.dim}`);}
         if(it.sem.p==="moreWith"||it.sem.p==="diffWith"||it.sem.p==="sameCount"){
           const cnt=v=>it.scene.figs.filter(f=>f[it.sem.k]===v),ga=cnt(it.sem.va),gb=cnt(it.sem.vb);
@@ -3167,7 +3472,7 @@ const Audit={running:false,
       let line=`${R.key} ${R.name.padEnd(15)} n=${S.n}`;
       if(S.bool)line+=` P(YES)=${p3(S.yes/S.bool)}`;
       line+=` neg=${S.bool?Math.round(100*S.neg/S.bool):0}% types=${Object.keys(S.types).length}`+
-        ` share ${lo.toFixed(1)}–${hi.toFixed(1)}%`+(S.figsN?` figs=${(S.figsSum/S.figsN).toFixed(1)}`:"")+
+        ` share ${lo.toFixed(1)}–${hi.toFixed(1)}% tasks=${S.tasks.size}`+(S.figsN?` figs=${(S.figsSum/S.figsN).toFixed(1)}`:"")+
         (S.badScene?` 🔴 outside-minimum=${S.badScene}`:"")+(S.offAnchor?` 🔴 off-anchor=${S.offAnchor}`:"")+
         (S.fail?` 🔴 unserved=${S.fail}`:"");
       L.push(line);
@@ -3185,7 +3490,12 @@ const Audit={running:false,
           ` · answer ${Object.entries(S.lst.ansBySize).map(([k,v])=>`${k} ${(100*v/S.lst.n).toFixed(0)}%`).join(" ")}`+
           ` · decisive clue ${Object.entries(S.lst.decisive).map(([k,v])=>`#${+k+1}:${(100*v/S.lst.n).toFixed(0)}%`).join(" ")}`);}
     }
-    L.push(`twins coverage: ${twinCover.size}/28 combinations served (rel 8 · ident 16 · analog 4)`);
+    L.push(`twins coverage: ${twinCover.size}/44 combinations served (rel 8 · ident 16 · dual 16 · analog 4)`);
+    const fmt=o=>Object.entries(o).sort().map(([k,v])=>`${k}:${v}`).join(" ")||"—";
+    L.push(`v15 concepts · dual dimensions ${Object.keys(concept.dualDims).length}/16, role shapes ${concept.dualA.size}/${concept.dualB.size}`+
+      ` · all-and-only ${fmt(concept.allOnly)} · vectors ${fmt(concept.vectors)}`+
+      ` · consistency ${fmt(concept.cycles)} · signed steps ${fmt(concept.signedSteps)}`+
+      ` · step modes ${fmt(concept.stepModes)}`);
     const post=STATS.snap(),dMis=sumV(post.mismatch)-sumV(pre.mismatch),dNoC=sumV(post.noCorrect)-sumV(pre.noCorrect),
       dBad=sumV(post.choiceBad)-sumV(pre.choiceBad),dAmb=post.ambig-pre.ambig,dErr=post.err-pre.err,dFall=post.fallbacks-pre.fallbacks;
     L.push(`ORACLE: faithful/corrupt mismatch=${dMis} · choice without one correct=${dNoC}`+
@@ -3233,6 +3543,7 @@ const Audit={running:false,
 restore();
 window.SPAV={version:APP_VERSION,Audit,serveItem,tryBuild,RUNGS,Ladder,State,STATS,
   evalSem,factLine,TELE,QUESTIONS,CAT,lstCands,lstLineForced,rebuildItem,
+  drawSpatialFrame,drawSpatialReview,diagonalOption,hasDirectedCycle,
   run:n=>Audit.run(n||400)};
 requestAnimationFrame(()=>{sizeCanvas(true);showMenu();});
 </script>
