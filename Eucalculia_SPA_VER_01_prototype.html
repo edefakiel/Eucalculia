@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>SPA-VER-01 · prototype v12</title>
+<title>SPA-VER-01 · prototype v13</title>
 <style>
 :root{
   --euca-bg:#050508;--canvas:#000;--s2:#161618;
@@ -220,7 +220,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
     </section>
     <section id="menuSurface" class="surface">
       <div class="menu-title">SPA · VER · 01</div>
-      <div class="menu-sub">spatial verification under the mask · prototype v12</div>
+      <div class="menu-sub">spatial verification under the mask · prototype v13</div>
       <div class="menu-conv" id="menuConv"></div>
       <div class="menu-convnote pnote">The four sizes — S · M · L · XL. Every claim is judged from memory.</div>
       <section class="review-section"><span class="review-section-label">How to play</span>
@@ -277,7 +277,40 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
 
 <script>
 "use strict";
-/* ═══════ SPA-VER-01 · prototipo v12 ═══════
+/* ═══════ SPA-VER-01 · prototipo v13 ═══════
+   RATIFICADO POR EL AUTOR: «el espacio de preguntas combinadas
+   (color × forma × posición relativa) que abren los twins es la base
+   para los próximos peldaños de alta aridad». El diseño acordado:
+
+   1. R10 · TWINS·CLOSURE — el techo nuevo del tramo principal.
+      `twin_analog`: dos parejas de gemelos (p. ej. cruces azul/roja y
+      círculos azul/rojo, discriminador COMPARTIDO), ambas parejas en el
+      MISMO eje por ítem; «Is the blue cross to the red cross as the
+      blue circle is to the red circle?» = XNOR de las direcciones
+      internas (vA→vB) de cada pareja. La dirección NO existe sin la
+      ligadura color→posición — la interacción que MARC exige y que a
+      `analog_match` le faltaba. Verdad por monedas de escena (P(Sí)=0,5
+      exacto), negación 50 % en el peldaño, clase descriptiva
+      `direccion_invertida`. Eje del tramo B: RC 2,2,2,3,4,4,4 monótono,
+      con el asterisco de máscara (Andrews-Halford) que ya está escrito.
+      Por qué NO por cadenas de calificadores: se caminan (lección
+      medida de grv_ref_cadena) y bajo máscara cobran en retención.
+   2. DISCRIMINADOR ESPEJADO en toda la familia twins: gemelos por color
+      O por textura («the striped cross»), 50/50 — léxico equilibrado y
+      espacio más ancho. Preds `qrel`/`qident` generalizados a (k,v).
+   3. `twin_ident` gana el ANCLA CALIFICADA al 50 % (modo B, 4 figuras):
+      «Was the blue cross the one below the RED circle?» — el ancla
+      también es gemela y se resuelve por rasgo.
+   4. PILOTO de la PUERTA DE COBERTURA (observación del autor: exploramos
+      menos de lo preguntable): el espacio twins es enumerable —
+      rel(4r×2k=8) + ident(4r×2k×2anclas=16) + analog(2ejes×2k=4) = 28
+      combinaciones — y la auditoría reporta cuántas se sirvieron.
+   5. MIGRACIÓN DE GUARDADO: insertar R10 desplaza la pista N (10–13 →
+      11–14). TRACK_BOUNDS pasa a CALCULARSE de RUNGS y el blob gana
+      esquema (v:2) con migración de índices viejos — los guardados de
+      los testers desplegados no se rompen.
+
+   ─── historia v12 ───
    CINCO señales del autor jugando el v11, todas con diana:
    1. 🔴 GRAMÁTICA: «Were there exactly ONE SHAPES?» — concordancia de
       número en los exactos (exactQ/exactC: singular con uno).
@@ -597,7 +630,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
    corrupta false o rechazo; nitidez dentro), marcos negados, espejado
    léxico, auditoría con listones Bonferroni, telemetría, semilla. */
 
-const APP_VERSION="SPA-VER-01 v12";
+const APP_VERSION="SPA-VER-01 v13";
 let SEED=(()=>{const m=/[?&]seed=(\d+)/.exec(location.search);return m?(+m[1])>>>0:((Date.now()^0x9E3779B9)>>>0);})();
 const SEED0=SEED;
 function rnd(){SEED=(SEED+0x6D2B79F5)>>>0;let t=SEED;t=Math.imul(t^(t>>>15),t|1);
@@ -794,19 +827,31 @@ function trackScene(n){
    por color — la referencia calificada («the blue cross») abre el espacio
    compuesto forma×color×posición. El ancla en banda central del eje;
    los gemelos a ambos lados. */
-function twinScene(){
+function twinScene(dblAnchor){
   const rep=pick(SHAPE_KEYS);
   const anchor=pick(SHAPE_KEYS.filter(s=>s!==rep));
-  const [c1,c2]=sample(COLOUR_KEYS,2);
+  /* v13: discriminador ESPEJADO — color o textura, 50/50 */
+  const dim=coin()?"colour":"texture";
+  const KEYS=dim==="colour"?COLOUR_KEYS:TEXTURES;
+  const [c1,c2]=sample(KEYS,2);
   const axis=coin()?"h":"v";
   let aCell,t1,t2;
   if(axis==="h"){const rows=sample([0,1,2],3);
     aCell=rows[0]*3+1; t1=rows[1]*3; t2=rows[2]*3+2;}
   else {const cols=sample([0,1,2],3);
     aCell=3+cols[0]; t1=cols[1]; t2=6+cols[2];}
-  const F=(sh,cl,cell)=>({shape:sh,colour:cl,cell,size:ri(0,3),texture:pick(TEXTURES)});
-  return {kind:"grid",figs:shuffle([F(rep,c1,t1),F(rep,c2,t2),F(anchor,pick(COLOUR_KEYS),aCell)]),
-    rep,anchor,c1,c2,axis};
+  const F=(sh,val,cell)=>{const o={shape:sh,cell,size:ri(0,3),
+    colour:pick(COLOUR_KEYS),texture:pick(TEXTURES)};o[dim]=val;return o;};
+  const figs=[F(rep,c1,t1),F(rep,c2,t2),F(anchor,pick(KEYS),aCell)];
+  let w1=null;
+  if(dblAnchor){ /* modo B: el ancla también es gemela y se nombra por rasgo */
+    const [x1,x2]=sample(KEYS,2); w1=x1;
+    figs[2][dim]=x1;
+    const used=figs.map(f=>f.cell);
+    const free=CELLS9.filter(c=>!used.includes(c));
+    figs.push(F(anchor,x2,pick(free)));
+  }
+  return {kind:"grid",figs:shuffle(figs),rep,anchor,c1,c2,dim,axis,w1};
 }
 /* «entre» exige exactamente una fila completa: se construye, no se sortea */
 function betweenScene(){
@@ -1160,8 +1205,8 @@ function evalSem(sem,sc){
       b=sc.figs.filter(f=>f[sem.k]===sem.vb).length;
       if(Math.max(a,b)>5)return"AMBIG";     /* la relación exacta exige rango contable */
       return a-b===sem.d;}
-    case"qrel":{/* referente CALIFICADO: forma+color debe ser único */
-      const subj=sc.figs.filter(f=>f.shape===sem.shape&&f.colour===sem.colour);
+    case"qrel":{/* referente CALIFICADO: forma+rasgo debe ser único */
+      const subj=sc.figs.filter(f=>f.shape===sem.shape&&f[sem.k]===sem.v);
       if(subj.length!==1)return"ERR";
       const b=one(sem.b);if(!b)return"ERR";
       const a=subj[0];
@@ -1169,14 +1214,32 @@ function evalSem(sem,sc){
       if(sem.r==="rightOf")return colOf(a)>colOf(b);
       if(sem.r==="above")return rowOf(a)<rowOf(b);
       if(sem.r==="below")return rowOf(a)>rowOf(b);return"ERR";}
-    case"qident":{/* identidad entre descripción por rasgo y por posición */
-      const b=one(sem.anchor);if(!b)return"ERR";
+    case"qident":{/* identidad descripción-rasgo ↔ descripción-posición;
+      el ancla puede ir CALIFICADA (modo B): {shape,k,v} */
+      let b;
+      if(typeof sem.anchor==="object"){
+        const m=sc.figs.filter(f=>f.shape===sem.anchor.shape&&f[sem.anchor.k]===sem.anchor.v);
+        if(m.length!==1)return"ERR"; b=m[0];
+      } else { b=one(sem.anchor); if(!b)return"ERR"; }
       const rel=f=>sem.r==="leftOf"?colOf(f)<colOf(b)
         :sem.r==="rightOf"?colOf(f)>colOf(b)
         :sem.r==="above"?rowOf(f)<rowOf(b):rowOf(f)>rowOf(b);
       const cands=sc.figs.filter(f=>f.shape===sem.shape&&rel(f));
       if(cands.length!==1)return"ERR";
-      return cands[0].colour===sem.colour;}
+      return cands[0][sem.k]===sem.v;}
+    case"twinDir2":{/* R10: XNOR de direcciones internas de dos parejas de
+      gemelos — la dirección no existe sin la ligadura rasgo→posición */
+      const get=(sh,v)=>{const m=sc.figs.filter(f=>f.shape===sh&&f[sem.dim]===v);
+        return m.length===1?m[0]:null;};
+      const a1=get(sem.s1,sem.vA), b1=get(sem.s1,sem.vB),
+            a2=get(sem.s2,sem.vA), b2=get(sem.s2,sem.vB);
+      if(!a1||!b1||!a2||!b2)return"ERR";
+      const dir=(a,b)=>sem.axis==="h"
+        ?(colOf(a)===colOf(b)?null:colOf(a)<colOf(b))
+        :(rowOf(a)===rowOf(b)?null:rowOf(a)<rowOf(b));
+      const x=dir(a1,b1), y=dir(a2,b2);
+      if(x==null||y==null)return"AMBIG";
+      return x===y;}
     case"orderAdj":{const ia=sc.figs.findIndex(f=>f.shape===sem.a),ib=sc.figs.findIndex(f=>f.shape===sem.b);
       if(ia<0||ib<0)return"ERR";return ib-ia===1;}
     case"orderEnd":{const f=one(sem.shape);if(!f)return"ERR";
@@ -1278,13 +1341,24 @@ function factLine(sem,sc){
         b=sc.figs.filter(f=>f[sem.k]===sem.vb).length;
       return `${sem.va}: ${a} · ${sem.vb}: ${b}.`;}
     case"qrel":case"qident":{
-      const b=sc.figs.find(g=>g.shape===(sem.b||sem.anchor));
+      const aSpec=sem.b||sem.anchor;
+      const b=typeof aSpec==="object"
+        ?sc.figs.find(g=>g.shape===aSpec.shape&&g[aSpec.k]===aSpec.v)
+        :sc.figs.find(g=>g.shape===aSpec);
       const twins=sc.figs.filter(f=>f.shape===sem.shape);
       if(!b||twins.length<2)return"";
       const horiz=sem.r==="leftOf"||sem.r==="rightOf";
       const d=f=>horiz?(colOf(f)<colOf(b)?"left of it":"right of it")
         :(rowOf(f)<rowOf(b)?"above it":"below it");
-      return `The ${twins[0].colour} ${sem.shape} was ${d(twins[0])}; the ${twins[1].colour} one ${d(twins[1])}.`;}
+      return `The ${twins[0][sem.k]} ${sem.shape} was ${d(twins[0])}; the ${twins[1][sem.k]} one ${d(twins[1])}.`;}
+    case"twinDir2":{
+      const get=(sh,v)=>sc.figs.find(f=>f.shape===sh&&f[sem.dim]===v);
+      const a1=get(sem.s1,sem.vA), b1=get(sem.s1,sem.vB),
+            a2=get(sem.s2,sem.vA), b2=get(sem.s2,sem.vB);
+      if(!a1||!b1||!a2||!b2)return"";
+      const w=(a,b)=>sem.axis==="h"?(colOf(a)<colOf(b)?"left of":"right of")
+        :(rowOf(a)<rowOf(b)?"above":"below");
+      return `The ${sem.vA} ${sem.s1} was ${w(a1,b1)} the ${sem.vB} one; the ${sem.vA} ${sem.s2} was ${w(a2,b2)} the ${sem.vB} one.`;}
     case"orderAdj":case"orderEnd":{
       return `The order was: ${sc.figs.map(nameOf).join(", ")}.`;}
     case"insideCont":{const f=one(sem.shape);if(!f)return"";
@@ -1669,9 +1743,10 @@ const QUESTIONS=[
       clause:`the ${rep} to the ${side} of the ${anchor} was ${o}`,
       sem:{p:"refAttr",rep,anchor,side,k:"colour",v:o},cls:"atributo_cambiado"}};}},
 
-/* ── GEMELOS (v12): referencia calificada sobre forma repetida ── */
-{id:"twin_rel",scene:twinScene,applies:()=>true,build(sc){
-  const {rep,anchor,c1,c2,axis}=sc;
+/* ── GEMELOS (v12/v13): referencia calificada sobre forma repetida,
+   discriminador espejado color/textura ── */
+{id:"twin_rel",scene:()=>twinScene(false),applies:()=>true,build(sc){
+  const {rep,anchor,c1,c2,dim,axis}=sc;
   const h=axis==="h", side=coin();
   const r=h?(side?"leftOf":"rightOf"):(side?"above":"below");
   const word=h?(side?"to the left of":"to the right of"):(side?"above":"below");
@@ -1679,23 +1754,54 @@ const QUESTIONS=[
   return {label:"TWINS",long:true,
     q:`Was the ${good} ${rep} ${word} the ${anchor}?`,
     clause:`the ${good} ${rep} was ${word} the ${anchor}`,
-    sem:{p:"qrel",shape:rep,colour:good,b:anchor,r},
+    sem:{p:"qrel",shape:rep,k:dim,v:good,b:anchor,r},
     corrupt:{q:`Was the ${bad} ${rep} ${word} the ${anchor}?`,
       clause:`the ${bad} ${rep} was ${word} the ${anchor}`,
-      sem:{p:"qrel",shape:rep,colour:bad,b:anchor,r},cls:"referente_sustituido"}};}},
-{id:"twin_ident",scene:twinScene,applies:()=>true,build(sc){
-  const {rep,anchor,c1,c2,axis}=sc;
+      sem:{p:"qrel",shape:rep,k:dim,v:bad,b:anchor,r},cls:"referente_sustituido"}};}},
+{id:"twin_ident",scene:()=>twinScene(coin()),applies:()=>true,build(sc){
+  const {rep,anchor,c1,c2,dim,axis,w1}=sc;
   const h=axis==="h", side=coin();
   const r=h?(side?"leftOf":"rightOf"):(side?"above":"below");
   const word=h?(side?"to the left of":"to the right of"):(side?"above":"below");
   const good=side?c1:c2, bad=side?c2:c1;
+  /* modo B: el ancla también es gemela y se nombra por rasgo */
+  const aSpec=w1?{shape:anchor,k:dim,v:w1}:anchor;
+  const aTxt=w1?`the ${w1} ${anchor}`:`the ${anchor}`;
   return {label:"TWINS",long:true,
-    q:`Was the ${good} ${rep} the one ${word} the ${anchor}?`,
-    clause:`the ${good} ${rep} was the one ${word} the ${anchor}`,
-    sem:{p:"qident",shape:rep,colour:good,anchor,r},
-    corrupt:{q:`Was the ${bad} ${rep} the one ${word} the ${anchor}?`,
-      clause:`the ${bad} ${rep} was the one ${word} the ${anchor}`,
-      sem:{p:"qident",shape:rep,colour:bad,anchor,r},cls:"ligadura_intercambiada"}};}},
+    q:`Was the ${good} ${rep} the one ${word} ${aTxt}?`,
+    clause:`the ${good} ${rep} was the one ${word} ${aTxt}`,
+    sem:{p:"qident",shape:rep,k:dim,v:good,anchor:aSpec,r},
+    corrupt:{q:`Was the ${bad} ${rep} the one ${word} ${aTxt}?`,
+      clause:`the ${bad} ${rep} was the one ${word} ${aTxt}`,
+      sem:{p:"qident",shape:rep,k:dim,v:bad,anchor:aSpec,r},cls:"ligadura_intercambiada"}};}},
+/* ── R10 · TWINS·CLOSURE: el cierre cuaternario sobre ligaduras ── */
+{id:"twin_analog",scene:()=>{
+    const [sh1,sh2]=sample(SHAPE_KEYS,2);
+    const dim=coin()?"colour":"texture";
+    const KEYS=dim==="colour"?COLOUR_KEYS:TEXTURES;
+    const [vA,vB]=sample(KEYS,2);
+    const axis=coin()?"h":"v";
+    const d1=coin(), d2=coin(); /* XNOR(d1,d2) = verdad → P(Sí)=0,5 exacto */
+    const F=(sh,val,cell)=>{const o={shape:sh,cell,size:ri(0,3),
+      colour:pick(COLOUR_KEYS),texture:pick(TEXTURES)};o[dim]=val;return o;};
+    const f=[];
+    if(axis==="h"){
+      const rows=sample([0,1,2],2);
+      f.push(F(sh1,vA,rows[0]*3+(d1?0:2)),F(sh1,vB,rows[0]*3+(d1?2:0)));
+      f.push(F(sh2,vA,rows[1]*3+(d2?0:2)),F(sh2,vB,rows[1]*3+(d2?2:0)));
+    }else{
+      const cols=sample([0,1,2],2);
+      f.push(F(sh1,vA,(d1?0:6)+cols[0]),F(sh1,vB,(d1?6:0)+cols[0]));
+      f.push(F(sh2,vA,(d2?0:6)+cols[1]),F(sh2,vB,(d2?6:0)+cols[1]));
+    }
+    return {kind:"grid",figs:shuffle(f),sh1,sh2,dim,vA,vB,axis};},
+  applies:()=>true,build(sc){
+  const {sh1,sh2,dim,vA,vB,axis}=sc;
+  return {label:"TWINS",long:true,computed:true,
+    clsWhenFalse:"direccion_invertida",
+    q:`Is the ${vA} ${sh1} to the ${vB} ${sh1} as the ${vA} ${sh2} is to the ${vB} ${sh2}?`,
+    clause:`the ${vA} ${sh1} is to the ${vB} ${sh1} as the ${vA} ${sh2} is to the ${vB} ${sh2}`,
+    sem:{p:"twinDir2",dim,vA,vB,s1:sh1,s2:sh2,axis}};}},
 
 /* ── orden · espejado before/after + VOZ PASIVA (Baddeley 2⁶ / Clark y Chase:
       las dos condiciones del factorial que faltaban; la pasiva vive en UN
@@ -2164,6 +2270,7 @@ const RUNGS=[
  {key:"R8",name:"ANALOGY",neg:.5,encode:2200,types:[
    {id:"analog_step"},{id:"analog_match"}]},
  {key:"R9",name:"ANALOGY · SEQ",neg:.5,frameMs:2000,types:[{id:"analog_step",pf:true}]},
+ {key:"R10",name:"TWINS · CLOSURE",neg:.5,encode:2400,types:[{id:"twin_analog"}]},
  /* TRAMO C · NUMBER — pista paralela; exposición corta A PROPÓSITO
     (bloquea el conteo serial; ENCMUL del ⚙ la ajusta) */
  {key:"N0",name:"COUNT",neg:0,encode:450,track:"number",types:[
@@ -2175,7 +2282,10 @@ const RUNGS=[
  {key:"N3",name:"RELATION",neg:0,encode:800,track:"number",types:[
    {id:"num_onemore"},{id:"num_most"}]}
 ];
-const TRACK_BOUNDS={main:[0,9],number:[10,13]};
+/* v13: los límites de pista se CALCULAN de RUNGS — insertar un peldaño ya
+   no desplaza en silencio los índices de la pista N */
+const TRACK_BOUNDS=(()=>{const first=RUNGS.findIndex(R=>R.track==="number");
+  return {main:[0,first-1],number:[first,RUNGS.length-1]};})();
 const trackOf=i=>RUNGS[i]&&RUNGS[i].track==="number"?"number":"main";
 
 /* ═══ LA ESCENA MÍNIMA DE LA TERNA — mínimo y máximo de figuras declarados
@@ -2197,7 +2307,7 @@ const MINSCENE={
  mem_in:[2,4],mem_out:[2,4],mem_count:[2,4],mem_colour_in:[2,4],mem_all_colour:[2,4],mem_only:[2,3],
  duo_in:[2,5],duo_same:[2,5],duo_which:[2,5],
  num_exact:[1,4],num_pick:[1,4],num_exact_sub:[3,6],num_pick_sub:[3,6],num_kinds:[4,6],
- twin_rel:[3,3],twin_ident:[3,3],
+ twin_rel:[3,3],twin_ident:[3,4],twin_analog:[4,4],
  num_more:[3,9],num_same:[3,9],num_onemore:[3,8],num_most:[7,9],
  proportion:[6,6]};
 const figCount=sc=>sc.figs?sc.figs.length:(sc.chain?sc.chain.length:0);
@@ -2288,7 +2398,7 @@ function serveItem(ri){
 
 /* ═══ ADAPTACIÓN MÍNIMA: ventana 8, sube 7, baja 4, nunca salta.
    v7: DOS PISTAS (main / number), cada una con su desbloqueo. ═══ */
-const Ladder={cur:0,unlockedMain:0,unlockedNum:10,win:[],
+const Ladder={cur:0,unlockedMain:0,unlockedNum:TRACK_BOUNDS.number[0],win:[],
  unlockedOf(t){return t==="number"?this.unlockedNum:this.unlockedMain;},
  bump(t,v){if(t==="number")this.unlockedNum=Math.max(this.unlockedNum,v);
    else this.unlockedMain=Math.max(this.unlockedMain,v);},
@@ -2314,18 +2424,27 @@ let BLOCK_ROWS=[];
 let ENCMUL=1;
 function persist(){
   try{localStorage.setItem(LSKEY,JSON.stringify({v:APP_VERSION,
-    ladder:{cur:Ladder.cur,unlockedMain:Ladder.unlockedMain,
+    ladder:{v:2,cur:Ladder.cur,unlockedMain:Ladder.unlockedMain,
       unlockedNum:Ladder.unlockedNum,win:Ladder.win},
     trial:State.trial,tot:State.tot,encmul:ENCMUL,tail:TELE.slice(-600)}));}catch(e){}
 }
 function restore(){
   try{const d=JSON.parse(localStorage.getItem(LSKEY));
     if(!d||!d.ladder)return;
-    Ladder.cur=clamp(d.ladder.cur|0,0,RUNGS.length-1);
-    /* compat v5/v6: `unlocked` era la pista única (0..9) */
-    const um=d.ladder.unlockedMain!=null?d.ladder.unlockedMain:d.ladder.unlocked;
-    Ladder.unlockedMain=clamp(um|0,0,9);
-    Ladder.unlockedNum=clamp((d.ladder.unlockedNum!=null?d.ladder.unlockedNum:10)|0,10,13);
+    const NB=TRACK_BOUNDS.number, MB=TRACK_BOUNDS.main;
+    let cur=d.ladder.cur|0;
+    /* compat v5/v6: `unlocked` era la pista única */
+    let um=(d.ladder.unlockedMain!=null?d.ladder.unlockedMain:d.ladder.unlocked)|0;
+    let un=(d.ladder.unlockedNum!=null?d.ladder.unlockedNum:NB[0])|0;
+    /* migración de esquema (≤v12): la pista N empezaba en el índice 10 */
+    if(d.ladder.v==null){
+      const shift=NB[0]-10;
+      if(cur>=10)cur+=shift;
+      if(un>=10)un+=shift;
+    }
+    Ladder.cur=clamp(cur,0,RUNGS.length-1);
+    Ladder.unlockedMain=clamp(um,0,MB[1]);
+    Ladder.unlockedNum=clamp(un,NB[0],NB[1]);
     if(trackOf(Ladder.cur)==="main")Ladder.unlockedMain=Math.max(Ladder.unlockedMain,Ladder.cur);
     else Ladder.unlockedNum=Math.max(Ladder.unlockedNum,Ladder.cur);
     Ladder.win=Array.isArray(d.ladder.win)?d.ladder.win.slice(0,8):[];
@@ -2628,9 +2747,10 @@ function renderMenu(){
   const chip=(R,i)=>{const locked=Ladder.isLocked(i), on=i===Ladder.cur,
     done=!locked&&i<Ladder.unlockedOf(trackOf(i));
     return `<button class="rungBtn${on?" on":done?" done":""}${locked?" locked":""}" data-r="${i}" type="button">${R.key} ${R.name}</button>`;};
+  const nb=TRACK_BOUNDS.number[0];
   $("mapA").innerHTML=RUNGS.slice(0,4).map((R,i)=>chip(R,i)).join("");
-  $("mapB").innerHTML=RUNGS.slice(4,10).map((R,i)=>chip(R,i+4)).join("");
-  $("mapC").innerHTML=RUNGS.slice(10).map((R,i)=>chip(R,i+10)).join("");
+  $("mapB").innerHTML=RUNGS.slice(4,nb).map((R,i)=>chip(R,i+4)).join("");
+  $("mapC").innerHTML=RUNGS.slice(nb).map((R,i)=>chip(R,i+nb)).join("");
   document.querySelectorAll("#mapA .rungBtn,#mapB .rungBtn,#mapC .rungBtn").forEach(b=>
     b.addEventListener("click",()=>{
       const i=+b.dataset.r;
@@ -2809,7 +2929,7 @@ const Audit={running:false,
   if(this.running)return "ya hay una auditoría corriendo";
   this.running=true;
   const seedSave=SEED;
-  const lex={}, typeAgg={}, L=[];
+  const lex={}, typeAgg={}, L=[], twinCover=new Set();
   try{
     const pre=STATS.snap();
     L.push(`AUDITORÍA · n=${nPer}/peldaño · sobre lo SERVIDO`);
@@ -2865,6 +2985,12 @@ const Audit={running:false,
             const ch=it.scene.chain;
             const d=Math.abs(ch.indexOf(it.sem.b)-ch.indexOf(it.sem.a));
             S.seq[d]=(S.seq[d]||0)+1;}
+          /* piloto de la puerta de COBERTURA: el espacio twins es enumerable */
+          if(it.fam==="twins"){
+            const s=it.sem;
+            if(s.p==="qrel")twinCover.add(`rel|${s.r}|${s.k}`);
+            else if(s.p==="qident")twinCover.add(`ident|${s.r}|${s.k}|${typeof s.anchor==="object"?"q":"p"}`);
+            else if(s.p==="twinDir2")twinCover.add(`analog|${s.axis}|${s.dim}`);}
           /* puerta de Gebuis y Reynvoet: el grupo más numeroso NO debe llevar
              sistemáticamente más tinta — cuota congruente ≈ 50 % */
           if(it.sem.p==="moreWith"||it.sem.p==="diffWith"||it.sem.p==="sameCount"){
@@ -2913,6 +3039,8 @@ const Audit={running:false,
           ` · pista decisiva ${Object.entries(S.lst.decisive).map(([k,v])=>`#${+k+1}:${(100*v/S.lst.n).toFixed(0)}%`).join(" ")}`);
       }
     }
+    L.push(`cobertura twins: ${twinCover.size}/28 combinaciones servidas`+
+      ` (rel 8 · ident 16 · analog 4) — piloto de puerta de cobertura`);
     const post=STATS.snap();
     const dMis=sumV(post.mismatch)-sumV(pre.mismatch);
     const dNoC=sumV(post.noCorrect)-sumV(pre.noCorrect);
