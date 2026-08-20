@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>SPA-VER-01 · prototype v11</title>
+<title>SPA-VER-01 · prototype v12</title>
 <style>
 :root{
   --euca-bg:#050508;--canvas:#000;--s2:#161618;
@@ -220,7 +220,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
     </section>
     <section id="menuSurface" class="surface">
       <div class="menu-title">SPA · VER · 01</div>
-      <div class="menu-sub">spatial verification under the mask · prototype v11</div>
+      <div class="menu-sub">spatial verification under the mask · prototype v12</div>
       <div class="menu-conv" id="menuConv"></div>
       <div class="menu-convnote pnote">The four sizes — S · M · L · XL. Every claim is judged from memory.</div>
       <section class="review-section"><span class="review-section-label">How to play</span>
@@ -277,7 +277,36 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
 
 <script>
 "use strict";
-/* ═══════ SPA-VER-01 · prototipo v11 ═══════
+/* ═══════ SPA-VER-01 · prototipo v12 ═══════
+   CINCO señales del autor jugando el v11, todas con diana:
+   1. 🔴 GRAMÁTICA: «Were there exactly ONE SHAPES?» — concordancia de
+      número en los exactos (exactQ/exactC: singular con uno).
+   2. ANCLAS RE-CENTRADAS: tenía razón — 130/150 NO eran los centros de
+      los tercios del lienzo (200×273): las figuras grandes quedaban
+      arrimadas al borde de su cuadrado invisible. Ahora GX=100/300/500,
+      GY=137/410/683 — cada figura centrada en su tercio EXACTO. Los
+      contenedores del duo compensan con dx=±30 (marco visible propio,
+      exentos de ancla; geoInside respeta el dx).
+   3. LAS ESQUINAS SE REPARTEN: pos_corner estaba CLAVADO en top-left
+      por código (celda 0 fija), no por azar — ahora sortea las cuatro.
+   4. FORMAS REPETIDAS CON REFERENCIA CALIFICADA (petición del autor:
+      «¿es la cruz azul la que está bajo el cuadrado?»): escena de
+      gemelos (misma forma, colores discriminantes) y dos tipos nuevos —
+      `twin_rel` R2 («Was the blue cross to the left of the square?»,
+      gemela = nombrar al OTRO gemelo → referente_sustituido puro) y
+      `twin_ident` R3 («Was the blue cross the one below the square?» —
+      identidad entre descripción por rasgo y descripción por posición,
+      gemela → ligadura_intercambiada). Preds `qrel`/`qident`: el
+      referente calificado (forma+color) debe ser ÚNICO o ERR.
+   5. Y el conteo cobra sentido con repetición: `num_kinds` en N1 —
+      «How many DIFFERENT shapes were there?» (tipos contra fichas;
+      k∈1..4 para que ninguna opción quede muerta).
+   Nota del autor que queda apuntada: con tantos atributos, el espacio
+   de preguntas posible es mayor que el explorado — las referencias
+   calificadas lo abren en serio (color×forma×posición componen); una
+   puerta de COBERTURA del espacio de preguntas queda como candidata.
+
+   ─── historia v11 ───
    PULIDO DE CARA A TESTERS (antes de volver a compartir el despliegue):
    1. HOW TO PLAY en el menú — el flujo ver→máscara→responder no se
       explicaba en ningún sitio; ahora tres líneas + las teclas.
@@ -568,7 +597,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
    corrupta false o rechazo; nitidez dentro), marcos negados, espejado
    léxico, auditoría con listones Bonferroni, telemetría, semilla. */
 
-const APP_VERSION="SPA-VER-01 v11";
+const APP_VERSION="SPA-VER-01 v12";
 let SEED=(()=>{const m=/[?&]seed=(\d+)/.exec(location.search);return m?(+m[1])>>>0:((Date.now()^0x9E3779B9)>>>0);})();
 const SEED0=SEED;
 function rnd(){SEED=(SEED+0x6D2B79F5)>>>0;let t=SEED;t=Math.imul(t^(t>>>15),t|1);
@@ -632,7 +661,10 @@ function drawFig(f,cx,cy,opt){opt=opt||{};
 /* lienzo VERTICAL 600×820 — el contenedor del juego es alto y el cuadrado
    del v3 dejaba bandas vacías arriba y abajo (observación del autor) */
 const VW=600, VH=820;
-const GX=[130,300,470], GY=[150,410,670];
+/* v12: anclas = CENTROS EXACTOS de los tercios del lienzo (200×273) —
+   antes 130/150 dejaban a las figuras grandes arrimadas al borde de su
+   cuadrado invisible (observación del autor) */
+const GX=[100,300,500], GY=[137,410,683];
 const cellXY=i=>[GX[i%3],GY[Math.floor(i/3)]];
 const svgWrap=(b,l)=>`<svg viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${l||"scene"}">${texDefs()}${b}</svg>`;
 function figXY(sc,f,i){
@@ -640,7 +672,7 @@ function figXY(sc,f,i){
   const [x,y]=cellXY(f.cell);return [x+(f.dx||0),y+(f.dy||0)];}
 function drawScene(sc,opt){opt=opt||{};let b="";
   if(sc.containers)sc.containers.forEach(C=>{const [x,y]=cellXY(C.cell);
-    b+=`<g fill="none" stroke="#e6c34c" stroke-width="3">${shapePath(C.shape,x,y,C.r)}</g>`;});
+    b+=`<g fill="none" stroke="#e6c34c" stroke-width="3">${shapePath(C.shape,x+(C.dx||0),y,C.r)}</g>`;});
   else if(sc.container){const [x,y]=cellXY(sc.container.cell);
     b+=`<g fill="none" stroke="#e6c34c" stroke-width="3">${shapePath(sc.container.shape,x,y,sc.container.r)}</g>`;}
   if(sc.track){
@@ -758,6 +790,24 @@ function trackScene(n){
   return {kind:"track",track:true,figs:shapes.map(s=>({shape:s,size:1,
     colour:pick(COLOUR_KEYS),texture:pick(TEXTURES)}))};
 }
+/* GEMELOS (v12, petición del autor): la misma forma DOS veces, discriminada
+   por color — la referencia calificada («the blue cross») abre el espacio
+   compuesto forma×color×posición. El ancla en banda central del eje;
+   los gemelos a ambos lados. */
+function twinScene(){
+  const rep=pick(SHAPE_KEYS);
+  const anchor=pick(SHAPE_KEYS.filter(s=>s!==rep));
+  const [c1,c2]=sample(COLOUR_KEYS,2);
+  const axis=coin()?"h":"v";
+  let aCell,t1,t2;
+  if(axis==="h"){const rows=sample([0,1,2],3);
+    aCell=rows[0]*3+1; t1=rows[1]*3; t2=rows[2]*3+2;}
+  else {const cols=sample([0,1,2],3);
+    aCell=3+cols[0]; t1=cols[1]; t2=6+cols[2];}
+  const F=(sh,cl,cell)=>({shape:sh,colour:cl,cell,size:ri(0,3),texture:pick(TEXTURES)});
+  return {kind:"grid",figs:shuffle([F(rep,c1,t1),F(rep,c2,t2),F(anchor,pick(COLOUR_KEYS),aCell)]),
+    rep,anchor,c1,c2,axis};
+}
 /* «entre» exige exactamente una fila completa: se construye, no se sortea */
 function betweenScene(){
   const r=ri(0,2), shapes=sample(SHAPE_KEYS,3);
@@ -780,15 +830,18 @@ function duoScene(){
   const shapes=sample(["pentagon","circle","square","hexagon"],2);
   const n1=ri(1,2), n2=ri(1,2), nOut=coin(.35)?1:0;
   const inner=sample(SHAPE_KEYS.filter(s=>!shapes.includes(s)),n1+n2+nOut);
+  /* dx=±30: con las anclas re-centradas (x=100/500) el radio 120 se
+     saldría del lienzo; el duo lleva marco visible propio y está exento
+     de ancla — geoInside respeta el dx */
   const figs=[]; let k=0;
   for(let i=0;i<n1;i++,k++)figs.push({cell:3,shape:inner[k],size:ri(0,1),colour:pick(COLOUR_KEYS),
-    texture:pick(TEXTURES),dx:DUO_OFF[i][0],dy:DUO_OFF[i][1],inside:1});
+    texture:pick(TEXTURES),dx:DUO_OFF[i][0]+30,dy:DUO_OFF[i][1],inside:1});
   for(let i=0;i<n2;i++,k++)figs.push({cell:5,shape:inner[k],size:ri(0,1),colour:pick(COLOUR_KEYS),
-    texture:pick(TEXTURES),dx:DUO_OFF[i][0],dy:DUO_OFF[i][1],inside:2});
+    texture:pick(TEXTURES),dx:DUO_OFF[i][0]-30,dy:DUO_OFF[i][1],inside:2});
   if(nOut)figs.push({cell:pick([1,7]),shape:inner[k],size:1,colour:pick(COLOUR_KEYS),
     texture:pick(TEXTURES),inside:0});
   return {kind:"duo",figs,
-    containers:[{cell:3,shape:shapes[0],r:120},{cell:5,shape:shapes[1],r:120}]};
+    containers:[{cell:3,dx:30,shape:shapes[0],r:120},{cell:5,dx:-30,shape:shapes[1],r:120}]};
 }
 /* ── SERIE TRANSITIVA de 4 términos (n-term): premisas SECUENCIALES en orden
    barajado; el descarte «caminable» era de escena visible ── */
@@ -852,6 +905,12 @@ function analogMatchScene(){
    Campo único entrelazado; posiciones por rechazo sin solapes. El hueco
    enunciable de cuentas y el control de área viven aquí y en el oráculo. */
 const NUMWORD=["zero","one","two","three","four","five","six","seven"];
+/* concordancia de número (v12 — «Were there exactly one shapes?» cazada
+   por el autor en el despliegue) */
+const exactQ=(n,noun)=>n===1?`Was there exactly one ${noun}?`
+  :`Were there exactly ${NUMWORD[n]} ${noun}s?`;
+const exactC=(n,noun)=>n===1?`there was exactly one ${noun}`
+  :`there were exactly ${NUMWORD[n]} ${noun}s`;
 function numGapOK(a,b){
   const lo=Math.min(a,b),hi=Math.max(a,b);
   if(hi<=4)return hi-lo>=1;               /* rango exacto: basta ±1 */
@@ -884,6 +943,17 @@ function numScene0(){
   const n=ri(1,4);
   const figs=[];for(let i=0;i<n;i++)figs.push(numFig(ri(0,2)));
   return anchorPlace(figs)?{kind:"grid",figs,nAll:n}:null;
+}
+/* tipos contra fichas (v12): la repetición hace coherente el «different» */
+function kindsScene(){
+  const total=ri(4,6);
+  const k=ri(1,Math.min(4,total));
+  const shapes=sample(SHAPE_KEYS,k);
+  const figs=[];
+  for(let i=0;i<k;i++){const f=numFig(ri(0,2));f.shape=shapes[i];figs.push(f);}
+  for(let i=k;i<total;i++){const f=numFig(ri(0,2));f.shape=pick(shapes);figs.push(f);}
+  const fs=shuffle(figs);
+  return anchorPlace(fs)?{kind:"grid",figs:fs,kinds:k}:null;
 }
 /* N1: subconjunto por rasgo entre distractores */
 function numScene1(){
@@ -991,7 +1061,8 @@ function countBy(sc,pred){return sc.figs.filter(pred).length;}
    contención por GEOMETRÍA con las mismas constantes que el dibujo. */
 function geoInside(f,cont){
   if(!cont)return "ERR";
-  const [cx,cy]=cellXY(cont.cell);
+  const [cx0,cy]=cellXY(cont.cell);
+  const cx=cx0+(cont.dx||0);
   const x=cellXY(f.cell)[0]+(f.dx||0), y=cellXY(f.cell)[1]+(f.dy||0);
   const d=Math.hypot(x-cx,y-cy), env=SIZES[f.size]*1.2, r=cont.r;
   if(d+env<=r-6)return "in";
@@ -1089,6 +1160,23 @@ function evalSem(sem,sc){
       b=sc.figs.filter(f=>f[sem.k]===sem.vb).length;
       if(Math.max(a,b)>5)return"AMBIG";     /* la relación exacta exige rango contable */
       return a-b===sem.d;}
+    case"qrel":{/* referente CALIFICADO: forma+color debe ser único */
+      const subj=sc.figs.filter(f=>f.shape===sem.shape&&f.colour===sem.colour);
+      if(subj.length!==1)return"ERR";
+      const b=one(sem.b);if(!b)return"ERR";
+      const a=subj[0];
+      if(sem.r==="leftOf")return colOf(a)<colOf(b);
+      if(sem.r==="rightOf")return colOf(a)>colOf(b);
+      if(sem.r==="above")return rowOf(a)<rowOf(b);
+      if(sem.r==="below")return rowOf(a)>rowOf(b);return"ERR";}
+    case"qident":{/* identidad entre descripción por rasgo y por posición */
+      const b=one(sem.anchor);if(!b)return"ERR";
+      const rel=f=>sem.r==="leftOf"?colOf(f)<colOf(b)
+        :sem.r==="rightOf"?colOf(f)>colOf(b)
+        :sem.r==="above"?rowOf(f)<rowOf(b):rowOf(f)>rowOf(b);
+      const cands=sc.figs.filter(f=>f.shape===sem.shape&&rel(f));
+      if(cands.length!==1)return"ERR";
+      return cands[0].colour===sem.colour;}
     case"orderAdj":{const ia=sc.figs.findIndex(f=>f.shape===sem.a),ib=sc.figs.findIndex(f=>f.shape===sem.b);
       if(ia<0||ib<0)return"ERR";return ib-ia===1;}
     case"orderEnd":{const f=one(sem.shape);if(!f)return"ERR";
@@ -1189,6 +1277,14 @@ function factLine(sem,sc){
       const a=sc.figs.filter(f=>f[sem.k]===sem.va).length,
         b=sc.figs.filter(f=>f[sem.k]===sem.vb).length;
       return `${sem.va}: ${a} · ${sem.vb}: ${b}.`;}
+    case"qrel":case"qident":{
+      const b=sc.figs.find(g=>g.shape===(sem.b||sem.anchor));
+      const twins=sc.figs.filter(f=>f.shape===sem.shape);
+      if(!b||twins.length<2)return"";
+      const horiz=sem.r==="leftOf"||sem.r==="rightOf";
+      const d=f=>horiz?(colOf(f)<colOf(b)?"left of it":"right of it")
+        :(rowOf(f)<rowOf(b)?"above it":"below it");
+      return `The ${twins[0].colour} ${sem.shape} was ${d(twins[0])}; the ${twins[1].colour} one ${d(twins[1])}.`;}
     case"orderAdj":case"orderEnd":{
       return `The order was: ${sc.figs.map(nameOf).join(", ")}.`;}
     case"insideCont":{const f=one(sem.shape);if(!f)return"";
@@ -1322,13 +1418,21 @@ const QUESTIONS=[
     options:shuffle([c,...others]).map(f=>({label:nameOf(f),correct:f===c}))};},
   auditChoice(sc,b){const c=sc.figs.find(f=>f.cell===4);
     return b.options.find(o=>o.correct).label===nameOf(c);}},
-{id:"pos_corner",scene:G(5),kind:"choice",applies:sc=>distinct(sc)&&sc.figs.some(f=>f.cell===0),
-  build(sc){const c=sc.figs.find(f=>f.cell===0);
+/* v12: las esquinas se REPARTEN — estaba clavado en top-left por código */
+{id:"pos_corner",scene:G(5),kind:"choice",
+  applies:sc=>distinct(sc)&&sc.figs.some(f=>[0,2,6,8].includes(f.cell)),
+  build(sc){
+  const CORNER={0:"top-left",2:"top-right",6:"bottom-left",8:"bottom-right"};
+  const occupied=sc.figs.filter(f=>CORNER[f.cell]);
+  const c=pick(occupied);
   const others=sample(sc.figs.filter(f=>f!==c),3);
-  return {q:`Which shape was in the top-left corner?`,halos:[sc.figs.indexOf(c)],
+  return {q:`Which shape was in the ${CORNER[c.cell]} corner?`,halos:[sc.figs.indexOf(c)],
     options:shuffle([c,...others]).map(f=>({label:nameOf(f),correct:f===c}))};},
-  auditChoice(sc,b){const c=sc.figs.find(f=>f.cell===0);
-    return b.options.find(o=>o.correct).label===nameOf(c);}},
+  auditChoice(sc,b){
+    const m=/in the (\S+) corner/.exec(b.q);
+    const cell={"top-left":0,"top-right":2,"bottom-left":6,"bottom-right":8}[m[1]];
+    const c=sc.figs.find(f=>f.cell===cell);
+    return !!c&&b.options.find(o=>o.correct).label===nameOf(c);}},
 {id:"pos_between",scene:betweenScene,applies:distinct,build(sc){
   const s=[...sc.figs].sort((a,b)=>colOf(a)-colOf(b));
   const M=nameOf(s[1]),A=nameOf(s[0]),B=nameOf(s[2]);
@@ -1564,6 +1668,34 @@ const QUESTIONS=[
     corrupt:{q:`Was the ${rep} to the ${side} of the ${anchor} ${o}?`,
       clause:`the ${rep} to the ${side} of the ${anchor} was ${o}`,
       sem:{p:"refAttr",rep,anchor,side,k:"colour",v:o},cls:"atributo_cambiado"}};}},
+
+/* ── GEMELOS (v12): referencia calificada sobre forma repetida ── */
+{id:"twin_rel",scene:twinScene,applies:()=>true,build(sc){
+  const {rep,anchor,c1,c2,axis}=sc;
+  const h=axis==="h", side=coin();
+  const r=h?(side?"leftOf":"rightOf"):(side?"above":"below");
+  const word=h?(side?"to the left of":"to the right of"):(side?"above":"below");
+  const good=side?c1:c2, bad=side?c2:c1;
+  return {label:"TWINS",long:true,
+    q:`Was the ${good} ${rep} ${word} the ${anchor}?`,
+    clause:`the ${good} ${rep} was ${word} the ${anchor}`,
+    sem:{p:"qrel",shape:rep,colour:good,b:anchor,r},
+    corrupt:{q:`Was the ${bad} ${rep} ${word} the ${anchor}?`,
+      clause:`the ${bad} ${rep} was ${word} the ${anchor}`,
+      sem:{p:"qrel",shape:rep,colour:bad,b:anchor,r},cls:"referente_sustituido"}};}},
+{id:"twin_ident",scene:twinScene,applies:()=>true,build(sc){
+  const {rep,anchor,c1,c2,axis}=sc;
+  const h=axis==="h", side=coin();
+  const r=h?(side?"leftOf":"rightOf"):(side?"above":"below");
+  const word=h?(side?"to the left of":"to the right of"):(side?"above":"below");
+  const good=side?c1:c2, bad=side?c2:c1;
+  return {label:"TWINS",long:true,
+    q:`Was the ${good} ${rep} the one ${word} the ${anchor}?`,
+    clause:`the ${good} ${rep} was the one ${word} the ${anchor}`,
+    sem:{p:"qident",shape:rep,colour:good,anchor,r},
+    corrupt:{q:`Was the ${bad} ${rep} the one ${word} the ${anchor}?`,
+      clause:`the ${bad} ${rep} was the one ${word} the ${anchor}`,
+      sem:{p:"qident",shape:rep,colour:bad,anchor,r},cls:"ligadura_intercambiada"}};}},
 
 /* ── orden · espejado before/after + VOZ PASIVA (Baddeley 2⁶ / Clark y Chase:
       las dos condiciones del factorial que faltaban; la pasiva vive en UN
@@ -1846,9 +1978,9 @@ const QUESTIONS=[
      «one» 0,658 · «two» 0,190 — el patrón mismo_color) */
   const oo=pick([1,2,3,4].filter(k=>k!==n));
   return {label:"NUMBER",
-    q:`Were there exactly ${NUMWORD[n]} shapes?`,clause:`there were exactly ${NUMWORD[n]} shapes`,
+    q:exactQ(n,"shape"),clause:exactC(n,"shape"),
     sem:{p:"countAll",n},
-    corrupt:{q:`Were there exactly ${NUMWORD[oo]} shapes?`,clause:`there were exactly ${NUMWORD[oo]} shapes`,
+    corrupt:{q:exactQ(oo,"shape"),clause:exactC(oo,"shape"),
       sem:{p:"countAll",n:oo},cls:"cardinal_desplazado"}};}},
 {id:"num_pick",scene:numScene0,kind:"choice",applies:sc=>!!sc,build(sc){
   const n=sc.figs.length;
@@ -1860,12 +1992,15 @@ const QUESTIONS=[
   const n=sc.n, v=sc.v;
   const oo=pick([1,2,3,4].filter(k=>k!==n));
   return {label:"NUMBER",
-    q:`Were there exactly ${NUMWORD[n]} ${v} shapes?`,
-    clause:`there were exactly ${NUMWORD[n]} ${v} shapes`,
+    q:exactQ(n,`${v} shape`),clause:exactC(n,`${v} shape`),
     sem:{p:"countWith",k:sc.dim,v,n},
-    corrupt:{q:`Were there exactly ${NUMWORD[oo]} ${v} shapes?`,
-      clause:`there were exactly ${NUMWORD[oo]} ${v} shapes`,
+    corrupt:{q:exactQ(oo,`${v} shape`),clause:exactC(oo,`${v} shape`),
       sem:{p:"countWith",k:sc.dim,v,n:oo},cls:"cardinal_desplazado"}};}},
+{id:"num_kinds",scene:kindsScene,kind:"choice",applies:sc=>!!sc,build(sc){
+  return {q:`How many different shapes were there?`,label:"NUMBER",
+    options:["One","Two","Three","Four"].map((l,i)=>({label:l,correct:i+1===sc.kinds}))};},
+  auditChoice(sc,b){const k=new Set(sc.figs.map(f=>f.shape)).size;
+    return b.options.findIndex(o=>o.correct)===k-1;}},
 {id:"num_pick_sub",scene:numScene1,kind:"choice",applies:sc=>!!sc,build(sc){
   return {q:`How many ${sc.v} shapes were there?`,label:"NUMBER",
     halos:sc.figs.map((f,i)=>f[sc.dim]===sc.v?i:-1).filter(i=>i>=0),
@@ -2013,12 +2148,12 @@ const RUNGS=[
    {id:"bind_size_colour",n:3},{id:"bind_size_texture",n:3},{id:"bind_cross",n:2},{id:"bind_shape_colour",n:2},
    {id:"bind_double",n:2},{id:"set_allsame"},{id:"set_exception"},{id:"set_count_colour",n:4},
    {id:"set_count_row",n:4},{id:"set_alldiff_colour"},{id:"set_alldiff_texture"},{id:"attr_absent_texture",n:2},
-   {id:"gate_match"},{id:"num_more"},{id:"num_same"}]},
+   {id:"gate_match"},{id:"twin_rel"},{id:"num_more"},{id:"num_same"}]},
  {key:"R3",name:"LOAD III",neg:.5,encode:2200,types:[
    {id:"mem_in"},{id:"mem_out"},{id:"mem_count"},{id:"mem_only"},{id:"mem_colour_in"},
    {id:"mem_all_colour"},{id:"duo_in"},{id:"duo_same"},{id:"duo_which"},
    {id:"compose_2"},{id:"quant_all"},{id:"quant_none"},{id:"connective",w:1.4},
-   {id:"num_onemore"},{id:"num_most"}]},
+   {id:"twin_ident"},{id:"num_onemore"},{id:"num_most"}]},
  {key:"R4",name:"SEQUENCES",neg:0,encode:2000,frameMs:1600,types:[
    {id:"order_ba",n:3},{id:"order_between",n:3},{id:"order_first",n:4},{id:"order_adjacent",n:3},
    {id:"order_last",n:3},{id:"series_4"},{id:"parity_chain"}]},
@@ -2034,7 +2169,7 @@ const RUNGS=[
  {key:"N0",name:"COUNT",neg:0,encode:450,track:"number",types:[
    {id:"num_exact"},{id:"num_pick"}]},
  {key:"N1",name:"SUBSET",neg:0,encode:600,track:"number",types:[
-   {id:"num_exact_sub"},{id:"num_pick_sub"}]},
+   {id:"num_exact_sub"},{id:"num_pick_sub"},{id:"num_kinds"}]},
  {key:"N2",name:"COMPARE",neg:0,encode:700,track:"number",types:[
    {id:"num_more",w:1.4},{id:"num_same"}]},
  {key:"N3",name:"RELATION",neg:0,encode:800,track:"number",types:[
@@ -2061,7 +2196,8 @@ const MINSCENE={
  ref_chain:[4,4],ref_colour:[4,4],
  mem_in:[2,4],mem_out:[2,4],mem_count:[2,4],mem_colour_in:[2,4],mem_all_colour:[2,4],mem_only:[2,3],
  duo_in:[2,5],duo_same:[2,5],duo_which:[2,5],
- num_exact:[1,4],num_pick:[1,4],num_exact_sub:[3,6],num_pick_sub:[3,6],
+ num_exact:[1,4],num_pick:[1,4],num_exact_sub:[3,6],num_pick_sub:[3,6],num_kinds:[4,6],
+ twin_rel:[3,3],twin_ident:[3,3],
  num_more:[3,9],num_same:[3,9],num_onemore:[3,8],num_most:[7,9],
  proportion:[6,6]};
 const figCount=sc=>sc.figs?sc.figs.length:(sc.chain?sc.chain.length:0);
@@ -2079,6 +2215,7 @@ function famOf(id){
   if(id==="series_4"||id==="parity_chain")return"chains";
   if(id.startsWith("duo_"))return"regions";
   if(id.startsWith("gate_"))return"gates";
+  if(id.startsWith("twin_"))return"twins";
   if(id.startsWith("analog"))return"analogy";
   if(id==="proportion")return"proportion";
   return"verif";
