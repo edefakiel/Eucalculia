@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>SPA-VER-01 · prototype v33</title>
+<title>SPA-VER-01 · prototype v34</title>
 <style>
 :root{
   --euca-bg:#050508;--canvas:#000;--s2:#161618;
@@ -290,7 +290,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
     </section>
     <section id="menuSurface" class="surface">
       <div class="menu-title">SPA · VER · 01</div>
-      <div class="menu-sub">the Eucalculia interlude · adaptive exposure · varied question forms · prototype v33</div>
+      <div class="menu-sub">the Eucalculia interlude · adaptive exposure · varied question forms · prototype v34</div>
       <div class="menu-conv" id="menuConv"></div>
       <div class="menu-convnote pnote">The core size scale is S · M · L · XL. Latin grids use numbers, colours, or shading patterns as their symbols. Every claim is judged from memory.</div>
       <section class="review-section"><span class="review-section-label">How to play</span>
@@ -305,7 +305,7 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
         <div class="menu-track-note pnote">Brief flashes: subsets by feature, kinds, comparisons and exact differences — never the bare total, which Eucalculia's own blocks train; total area is controlled.</div>
         <div class="rungMap" id="mapC"></div></section>
       <section class="review-section"><span class="review-section-label">Track D · Induction</span>
-        <div class="menu-track-note pnote">A finite public grammar — alternations, quarter and half turns, texture and size cycles, side counts, two operations at every step — then hypothesis spaces, active tests, transfer to new dimensions, two-input gates and program equivalence.</div>
+        <div class="menu-track-note pnote">A finite public grammar — alternations, quarter and half turns, texture and size cycles, side counts, two or three operations at every step — then hypothesis spaces, active tests, transfer to new dimensions, two-input gates and program equivalence.</div>
         <div class="rungMap" id="mapD"></div></section>
       <section class="review-section"><span class="review-section-label">Track E · Relational oddity</span>
         <div class="menu-track-note pnote">Four cards, one exception, one public explanation: relations, transformations, programs, gates and conditional counterexamples. Surface salience never counts by itself.</div>
@@ -1185,8 +1185,8 @@ body{margin:0;background:var(--euca-bg);color:var(--fg);font-family:var(--ui);
    corrupta false o rechazo; nitidez dentro), marcos negados, espejado
    léxico, auditoría con listones Bonferroni, telemetría, semilla. */
 
-const APP_VERSION="SPA-VER-01 · prototype v33 (change over time · two at once · bare sentences)";
-const SPAV_STORE_KEYS=Object.freeze(["SPAVER01_V33","SPAVER01_V32","SPAVER01_V29","SPAVER01_V28","SPAVER01_V27","SPAVER01_V26","SPAVER01_V25","SPAVER01_V24","SPAVER01_V23","SPAVER01_V22","SPAVER01_V21","SPAVER01_V20","SPAVER01_V19","SPAVER01_V18","SPAVER01_V17","SPAVER01_V16","SPAVER01_V15","SPAVER01_V14","SPAVER01_V5"]);
+const APP_VERSION="SPA-VER-01 · prototype v34 (induction without a guess · three at once · change translation)";
+const SPAV_STORE_KEYS=Object.freeze(["SPAVER01_V34","SPAVER01_V33","SPAVER01_V32","SPAVER01_V29","SPAVER01_V28","SPAVER01_V27","SPAVER01_V26","SPAVER01_V25","SPAVER01_V24","SPAVER01_V23","SPAVER01_V22","SPAVER01_V21","SPAVER01_V20","SPAVER01_V19","SPAVER01_V18","SPAVER01_V17","SPAVER01_V16","SPAVER01_V15","SPAVER01_V14","SPAVER01_V5"]);
 const EXPLICIT_SEED=(()=>{const m=/[?&]seed=(\d+)/.exec(location.search);return m?(+m[1])>>>0:null;})();
 function storedRootSeed(){try{for(const k of SPAV_STORE_KEYS){const raw=localStorage.getItem(k);if(!raw)continue;
     const d=JSON.parse(raw);const v=d&&Number.isInteger(d.rootSeed)?d.rootSeed:(d&&Number.isInteger(d.seed0)?d.seed0:null);
@@ -1813,6 +1813,29 @@ function verbFactors(lv){
 const verbSem=(a,b,neg)=>neg?{p:"not",arg:{p:"order",a,b,dir:"before"}}:{p:"order",a,b,dir:"before"};
 const verbPair=sc=>{const i=ri(0,sc.figs.length-2),j=ri(i+1,sc.figs.length-1);return [nameOf(sc.figs[i]),nameOf(sc.figs[j])];};
 const cap1=s=>s.charAt(0).toUpperCase()+s.slice(1);
+/* v34 · the change-over-time statements as FAMILIES — {kind, dim, cls, T(N), F(N)}: T is the true
+   sentence, F its twin, N the negated surface (the sem stays the atom; the caller wraps it in
+   `not`). Shared by verb_change (bool, V0–V4/V6) and verb_change_pick (choice, V7). */
+function changeFamilies(sc){
+  const fs=sc.figs,n=fs.length,fams=[],P=(txt,sem)=>({txt,sem});
+  for(const dim of ["colour","texture"]){
+    const vs=fs.map(f=>f[dim]),constant=vs.every(v=>v===vs[0]),KEYS=dim==="colour"?COLOUR_KEYS:TEXTURES;
+    const ch=N=>P(`the ${dim} ${N?"did not change":"changed"} over time`,{p:"dimChanged",dim}),
+          st=N=>P(`the ${dim} ${N?"did not stay":"stayed"} the same over time`,{p:"dimConstant",dim});
+    fams.push(constant?{kind:"changed",dim,cls:"cambio_negado",T:st,F:ch}:{kind:"changed",dim,cls:"cambio_negado",T:ch,F:st});
+    if(constant){const other=pick(KEYS.filter(v=>v!==vs[0])),mk=v=>N=>P(`the ${dim} ${N?"did not stay":"stayed"} ${v} throughout`,{p:"dimConstVal",dim,v});
+      fams.push({kind:"constval",dim,cls:"valor_cambiado",T:mk(vs[0]),F:mk(other)});}
+    else if(vs[0]!==vs[n-1]){const mk=(a,b)=>N=>P(`the ${dim} ${N?"did not go":"went"} from ${a} to ${b}`,{p:"dimFromTo",dim,v1:a,v2:b});
+      fams.push({kind:"fromto",dim,cls:"cambio_invertido",T:mk(vs[0],vs[n-1]),F:mk(vs[n-1],vs[0])});}
+  }
+  {const s=fs.map(f=>f.size),L=v=>SIZE_LETTER[v],mk=(a,b)=>N=>P(`the size ${N?"did not go":"went"} from ${L(a)} to ${L(b)}`,{p:"dimFromTo",dim:"size",v1:a,v2:b});
+   fams.push({kind:"fromto",dim:"size",cls:"cambio_invertido",T:mk(s[0],s[n-1]),F:mk(s[n-1],s[0])});
+   const up=s.every((v,i)=>!i||v>s[i-1]),down=s.every((v,i)=>!i||v<s[i-1]);
+   if(up||down){const mt=dir=>N=>P(`the size ${N?"did not ":""}${dir==="up"?(N?"increase":"increased"):(N?"decrease":"decreased")} over time`,{p:"sizeTrend",dir});
+     fams.push({kind:"trend",dim:"size",cls:"cambio_invertido",T:mt(up?"up":"down"),F:mt(up?"down":"up")});}}
+  return fams;
+}
+const wrapNot=(x,N)=>N?{txt:x.txt,sem:{p:"not",arg:x.sem}}:x;
 function trackScene(n){
   const shapes=sample(SHAPE_KEYS,n||ri(3,4));
   return {kind:"track",track:true,figs:shapes.map(s=>({shape:s,size:1,
@@ -2314,7 +2337,14 @@ const IND_RULES=Object.freeze([
   {id:"FLIP_SIZE_BOTH",level:3,label:"180° turn and size advance at every step",active:["heading","size"],program:[["flip","cycle_size"]]},
   {id:"SHAPE_COLOUR_BOTH",level:3,label:"shape change and colour change at every step",active:["shape","colour"],program:[["toggle_shape","toggle_colour"]]},
   {id:"TEXTURE_SIZE_BOTH",level:3,label:"texture advance and size advance at every step",active:["texture","size"],program:[["cycle_texture","cycle_size"]]},
-  {id:"SHAPE_TEXTURE_BOTH",level:3,label:"shape change and texture advance at every step",active:["shape","texture"],program:[["toggle_shape","cycle_texture"]]}
+  {id:"SHAPE_TEXTURE_BOTH",level:3,label:"shape change and texture advance at every step",active:["shape","texture"],program:[["toggle_shape","cycle_texture"]]},
+  /* v34 · level 4 — THREE operations at every step (the author: «siempre y cuando sea comprensible
+     para el usuario»): four rules, one per triple of dimensions; the lures are the states with one
+     of the three left undone */
+  {id:"CW_COLOUR_TEXTURE_ALL",level:4,label:"clockwise turn, colour change and texture advance at every step",active:["heading","colour","texture"],program:[["rotate_cw","toggle_colour","cycle_texture"]]},
+  {id:"CCW_TEXTURE_SIZE_ALL",level:4,label:"counterclockwise turn, texture advance and size advance at every step",active:["heading","texture","size"],program:[["rotate_ccw","cycle_texture","cycle_size"]]},
+  {id:"SHAPE_COLOUR_SIZE_ALL",level:4,label:"shape change, colour change and size advance at every step",active:["shape","colour","size"],program:[["toggle_shape","toggle_colour","cycle_size"]]},
+  {id:"COLOUR_TEXTURE_SIZE_ALL",level:4,label:"colour change, texture advance and size advance at every step",active:["colour","texture","size"],program:[["toggle_colour","cycle_texture","cycle_size"]]}
 ]);
 function indClone(x){return {shape:x.shape,colour:x.colour,texture:x.texture,size:x.size,heading:ORIENTABLE_SHAPES.includes(x.shape)?(x.heading||0):0};}
 function indStateKey(x){return [x.shape,x.colour,x.texture,x.size,((x.heading||0)%4+4)%4].join("|");}
@@ -2371,6 +2401,47 @@ function indMinimalDistractors(expected,ctx,count){const out=[],seen=new Set([in
   while(out.length<count){const x=indClone(expected);if(ORIENTABLE_SHAPES.includes(x.shape))x.heading=(x.heading+ri(1,3))%4;else x.texture=pick(IND_TEXTURE_CYCLE.filter(t=>t!==x.texture));x.colour=pick(COLOUR_KEYS);const k=indStateKey(x);if(!seen.has(k)){seen.add(k);out.push(x);}}
   return out;
 }
+/* v34 · LURES WITHOUT A GUESS. (1) Size is a lure only when the prefix SHOWED two sizes — a lone
+   constant size under the mask is not enunciable (the SIZE_GAP doctrine), and the author met
+   exactly this: «lo mismo es M que XL cuando todos los estímulos tienen el mismo tamaño».
+   (2) On a compound step the lures that matter are the states with ONE operation left undone. */
+function indLures(expected,ctx,prefix,count,firsts){
+  const sizeFree=new Set((prefix||[]).map(s=>s.size)).size>=2,seen=new Set([indStateKey(expected)]),out=[];
+  const push=x=>{if(!x)return false;const k=indStateKey(x);if(seen.has(k)||(!sizeFree&&x.size!==expected.size))return false;seen.add(k);out.push(x);return true;};
+  for(const x of (firsts||[]))if(out.length<count)push(x);
+  const ops=["toggle_colour","toggle_shape","rotate_cw","rotate_ccw","cycle_texture"].concat(sizeFree?["cycle_size"]:[]);
+  for(const op of shuffle(ops)){if(out.length>=count)break;push(indApplyOp(expected,op,ctx));}
+  for(let t=0;t<200&&out.length<count;t++){const x=indClone(expected);
+    if(ORIENTABLE_SHAPES.includes(x.shape)&&coin())x.heading=(x.heading+ri(1,3))%4;else x.texture=pick(IND_TEXTURE_CYCLE.filter(q=>q!==x.texture));
+    if(coin())x.colour=pick(COLOUR_KEYS);push(x);}
+  return out;
+}
+/* the states of the current step with one operation left undone (for a two-operation step: the
+   other single operation applied alone) */
+function indHalfStates(last,rule,stepIndex,ctx){if(!rule)return[];const step=rule.program[stepIndex%rule.program.length];if(!step||step.length<2)return[];
+  return step.map((_,i)=>{let x=indClone(last);for(let j=0;j<step.length&&x;j++){if(j!==i)x=indApplyOp(x,step[j],ctx);}return x;}).filter(Boolean);}
+/* v34 · THE PLAYER'S HYPOTHESIS SPACE. A rule is public, but the cycle ORDER of textures and sizes
+   is private per item and only readable from the prefix, and a toggle reveals its partner only
+   when it fires. The next state is decidable only if every (rule, order, pair) that fits the
+   shown prefix predicts the same state. Builders reject items whose options would otherwise be a
+   guess; the audit counts them and asserts that none is served. */
+function permutationsOf(a){if(a.length<=1)return[a.slice()];const out=[];a.forEach((x,i)=>{for(const p of permutationsOf(a.filter((_,j)=>j!==i)))out.push([x,...p]);});return out;}
+const TEX_ORDERS=Object.freeze(permutationsOf(IND_TEXTURE_CYCLE)),SIZE_ORDERS=Object.freeze(permutationsOf([0,1,2,3]));
+function indCtxVariants(rule,prefix){
+  const ops=new Set(rule.program.flat()),seenC=[...new Set(prefix.map(s=>s.colour))],seenS=[...new Set(prefix.map(s=>s.shape))];
+  let colourPairs=[[null,null]],shapePairs=[[null,null]];
+  if(ops.has("toggle_colour"))colourPairs=seenC.length===2?[seenC]:seenC.length===1?COLOUR_KEYS.filter(c=>c!==seenC[0]).map(c=>[seenC[0],c]):[];
+  if(ops.has("toggle_shape")){const fam=s=>ORIENTABLE_FAMILIES[shapeFamily(s)]||[];
+    shapePairs=seenS.length===2?[seenS]:seenS.length===1?fam(seenS[0]).filter(s=>s!==seenS[0]).map(s=>[seenS[0],s]):[];}
+  const texOrders=ops.has("cycle_texture")?TEX_ORDERS:[IND_TEXTURE_CYCLE],sizeOrders=ops.has("cycle_size")?SIZE_ORDERS:[[0,1,2,3]],out=[];
+  for(const cp of colourPairs)for(const sp of shapePairs)for(const to of texOrders)for(const so of sizeOrders)out.push({colourPair:cp,shapePair:sp,textureCycle:to,sizeCycle:so});
+  return out;
+}
+function indPublicPredictions(prefix,rules){const m=new Map();
+  for(const r of rules)for(const ctx of indCtxVariants(r,prefix)){if(!indRuleFits(r,prefix,ctx))continue;
+    const x=indApplyRule(prefix[prefix.length-1],r,prefix.length-1,ctx);if(!x)continue;const k=indStateKey(x);if(!m.has(k))m.set(k,{state:x,rules:new Set()});m.get(k).rules.add(r.id);}
+  return [...m.values()];}
+const indDecided=(prefix,rules,expected)=>{const P=indPublicPredictions(prefix,rules);return P.length===1&&indStateEq(P[0].state,expected);};
 function hypothesisConsensusScene(){
   /* Two distinct finite programs share the observed prefix. In consensus
      trials they also share the next operation but diverge later; in split
@@ -2380,8 +2451,13 @@ function hypothesisConsensusScene(){
     rotate_ccw:"turn ↺",cycle_texture:"texture",cycle_size:"size"};
   const pool=Object.keys(names),wantConsensus=coin();
   for(let t=0;t<800;t++){
-    const ctx=indContext(),common=sample(pool,2),nextA=pick(pool),
-      nextB=wantConsensus?nextA:pick(pool.filter(x=>x!==nextA));
+    const ctx=indContext(),common=sample(pool,2);
+    /* v34 · the NEXT operation of each hypothesis must be publicly decidable after the three-state
+       prefix: turns always are; a toggle or the texture cycle only if it already fired in the
+       prefix (its partner / its order is then known); a size advance never is (two of the four
+       sizes seen at most) */
+    const nextPool=pool.filter(op=>op==="rotate_cw"||op==="rotate_ccw"||(op!=="cycle_size"&&common.includes(op)));
+    const nextA=pick(nextPool),nextB=wantConsensus?nextA:pick(nextPool.filter(x=>x!==nextA));
     const tailA=pick(pool),tailB=pick(pool.filter(x=>x!==tailA));
     const opsA=[...common,nextA,tailA],opsB=[...common,nextB,tailB];
     const mk=(id,ops)=>({id,label:ops.map(op=>names[op]).join(" → "),level:3,program:ops.map(op=>[op])});
@@ -2433,7 +2509,11 @@ function transferInductionScene(){
      v18 showed four test states, which fixed the next state alone (200/200). */
   const schedule=pick([[0,1],[1,0],[0,1,1],[1,0,0]]),demoCtx=indContext(),testCtx=indContext();
   const demoOps=pick([["toggle_colour","rotate_cw"],["toggle_shape","cycle_texture"]]);
-  const testOps=demoOps[0]==="toggle_colour"?["cycle_texture","cycle_size"]:["toggle_colour","rotate_ccw"];
+  let testOps=demoOps[0]==="toggle_colour"?["cycle_texture","cycle_size"]:["toggle_colour","rotate_ccw"];
+  /* v34 · the predicted step (index 2) must be publicly decidable: a size advance after a
+     three-state prefix never is (two of the four sizes seen at most), so in the texture/size
+     domain the operation that lands on the prediction is the texture advance */
+  if(testOps.includes("cycle_size")&&testOps[schedule[2%schedule.length]]==="cycle_size")testOps=[testOps[1],testOps[0]];
   const mkRule=(ops)=>({id:"transfer",label:"shared program",program:schedule.map(i=>[ops[i]])});
   const dr=mkRule(demoOps),tr=mkRule(testOps),d0=indRandomInitial(dr,demoCtx,5),t0=indRandomInitial(tr,testCtx,4);if(!d0||!t0)return null;
   const demo=indSimulate(d0,dr,5,demoCtx),targetFull=indSimulate(t0,tr,4,testCtx);if(!demo||!targetFull)return null;
@@ -2446,19 +2526,23 @@ function escSvgText(x){return String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;
 /* v19: cards keep TRUE relative size (XL fills the card, S is 30/67 of it). v18
    normalised every state to one radius, so the size dimension — and every
    "cycle size" rule — was invisible in the induction cards. */
-function drawIndStateCard(state,x,y,w,h,index,refSize){const scale=(Math.min(w,h)*.30)/SIZES[refSize==null?3:refSize];
+/* v34 · ABSOLUTE size in every induction card (one scale per row width): v19 scaled each row to its
+   largest state, so a row of four XL figures looked exactly like a row of four M and the size
+   named in the options was a guess (the author: «lo mismo es M que XL cuando todos los estímulos
+   tienen el mismo tamaño»). Now S · M · L · XL look in the cards as they do everywhere else. */
+const IND_CARD_SCALE=.6,IND_ROW5_SCALE=.47;
+function drawIndStateCard(state,x,y,w,h,index,rscale){const scale=rscale||IND_CARD_SCALE;
   let b=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="16" fill="rgba(255,255,255,.025)" stroke="rgba(255,255,255,.10)"/>`;
   b+=drawFig(state,x+w/2,y+h*.48,{rscale:scale});
   if(index!=null)b+=`<text x="${x+12}" y="${y+20}" fill="#777788" font-family="ui-monospace,monospace" font-size="13" font-weight="800">${index}</text>`;
   return b;}
 function drawInductionScene(sc){let b="";
-  /* v19: relative size is preserved WITHIN a row (the largest state fills its
-     card); a row of uniformly small states is not rendered tiny */
-  const refOf=states=>Math.max(...states.map(s=>Number(s.size)||0));
+  /* v34: absolute sizes — a five-card row (transfer demo) is narrower and takes the smaller
+     constant; demo and test domains never share the size dimension */
   const drawRow=(states,y,label)=>{b+=`<text x="50" y="${y-14}" fill="#8f88bc" font-family="ui-monospace,monospace" font-size="14" font-weight="800">${escSvgText(label)}</text>`;
-    const n=states.length,gap=12,w=(500-gap*(n-1))/n,h=190,ref=refOf(states);states.forEach((st,i)=>{b+=drawIndStateCard(st,50+i*(w+gap),y,w,h,i+1,ref);});};
-  if(sc.kind==="induction-sequence"){const n=sc.states.length,cols=Math.min(3,n),rows=Math.ceil(n/cols),gap=14,w=(500-gap*(cols-1))/cols,h=rows===1?230:190,ref=refOf(sc.states);
-    sc.states.forEach((st,i)=>{const r=Math.floor(i/cols),c=i%cols;b+=drawIndStateCard(st,50+c*(w+gap),150+r*(h+gap),w,h,i+1,ref);});}
+    const n=states.length,gap=12,w=(500-gap*(n-1))/n,h=190,rs=n>=5?IND_ROW5_SCALE:IND_CARD_SCALE;states.forEach((st,i)=>{b+=drawIndStateCard(st,50+i*(w+gap),y,w,h,i+1,rs);});};
+  if(sc.kind==="induction-sequence"){const n=sc.states.length,cols=Math.min(3,n),rows=Math.ceil(n/cols),gap=14,w=(500-gap*(cols-1))/cols,h=rows===1?230:190;
+    sc.states.forEach((st,i)=>{const r=Math.floor(i/cols),c=i%cols;b+=drawIndStateCard(st,50+c*(w+gap),150+r*(h+gap),w,h,i+1,IND_CARD_SCALE);});}
   else if(sc.kind==="induction-hypotheses"){drawRow(sc.states,120,"OBSERVED PREFIX");
     sc.hypotheses.forEach((r,i)=>{const y=430+i*100;b+=`<rect x="70" y="${y}" width="460" height="76" rx="14" fill="rgba(108,92,231,.08)" stroke="rgba(155,140,255,.28)"/>`+
       `<text x="92" y="${y+30}" fill="#b9b0ff" font-family="ui-monospace,monospace" font-size="15" font-weight="900">${r.id}</text>`+
@@ -4107,42 +4191,32 @@ const QUESTIONS=[
    (from/to, trend → cambio_invertido), asserts or denies it (changed/stayed → cambio_negado)
    or names another constant value (valor_cambiado). Polarity from V1, negation last. ── */
 {id:"verb_change",scene:verbalStreetScene,applies:sc=>distinct(sc)&&sc.figs.length>=3,build(sc){
-  const lv=sc.verbalLevel||0,neg=lv>=1&&coin(),fs=sc.figs,n=fs.length,cands=[];
-  for(const dim of ["colour","texture"]){
-    const vs=fs.map(f=>f[dim]),constant=vs.every(v=>v===vs[0]);
-    cands.push({kind:"changed",dim,constant});
-    if(constant)cands.push({kind:"constval",dim,v:vs[0]});
-    else if(vs[0]!==vs[n-1])cands.push({kind:"fromto",dim,v1:vs[0],v2:vs[n-1]});
-  }
-  {const s=fs.map(f=>f.size);cands.push({kind:"fromto",dim:"size",v1:s[0],v2:s[n-1]});
-   const up=s.every((v,i)=>!i||v>s[i-1]),down=s.every((v,i)=>!i||v<s[i-1]);
-   if(up||down)cands.push({kind:"trend",dim:"size",dir:up?"up":"down"});}
-  const c=pick(cands),word=v=>c.dim==="size"?SIZE_LETTER[v]:v,P=(txt,sem)=>({txt,sem});
-  /* T(N) = the true sentence, F(N) = its twin; N = negated surface (the sem stays the atom) */
-  let T,F,cls;
-  if(c.kind==="changed"){
-    const ch=N=>P(`the ${c.dim} ${N?"did not change":"changed"} over time`,{p:"dimChanged",dim:c.dim}),
-          st=N=>P(`the ${c.dim} ${N?"did not stay":"stayed"} the same over time`,{p:"dimConstant",dim:c.dim});
-    [T,F]=c.constant?[st,ch]:[ch,st];cls="cambio_negado";
-  }else if(c.kind==="constval"){
-    const other=pick((c.dim==="colour"?COLOUR_KEYS:TEXTURES).filter(v=>v!==c.v));
-    const mk=v=>N=>P(`the ${c.dim} ${N?"did not stay":"stayed"} ${v} throughout`,{p:"dimConstVal",dim:c.dim,v});
-    T=mk(c.v);F=mk(other);cls="valor_cambiado";
-  }else if(c.kind==="fromto"){
-    const mk=(a,b)=>N=>P(`the ${c.dim} ${N?"did not go":"went"} from ${word(a)} to ${word(b)}`,{p:"dimFromTo",dim:c.dim,v1:a,v2:b});
-    T=mk(c.v1,c.v2);F=mk(c.v2,c.v1);cls="cambio_invertido";
-  }else{
-    const mk=dir=>N=>P(`the size ${N?"did not ":""}${dir==="up"?(N?"increase":"increased"):(N?"decrease":"decreased")} over time`,{p:"sizeTrend",dir});
-    T=mk(c.dir);F=mk(c.dir==="up"?"down":"up");cls="cambio_invertido";
-  }
+  const lv=sc.verbalLevel||0,neg=lv>=1&&coin(),c=pick(changeFamilies(sc));
   /* negative polarity: the faithful (TRUE) sentence denies the twin; the corrupt denies the truth */
-  const wrapN=(x,N)=>N?{txt:x.txt,sem:{p:"not",arg:x.sem}}:x;
-  const fa=wrapN(neg?F(true):T(false),neg),co=wrapN(neg?T(true):F(false),neg),wrap=pick(VERB_WRAPPERS);
+  const fa=wrapNot(neg?c.F(true):c.T(false),neg),co=wrapNot(neg?c.T(true):c.F(false),neg),wrap=pick(VERB_WRAPPERS);
   return {label:"SENTENCE",long:false,noNeg:true,q:wrap(fa.txt),clause:fa.txt,sem:fa.sem,
     variant:`${neg?"negative":"affirmative"}|${c.kind}|${c.dim}`,
     note:lv>=6?"":(lv>=1?"replay the track first → middle → last, then apply the negation last":"the track is a timeline: left came first, right came last"),
     whyDetail:VERB_WHY_CHANGE,
-    corrupt:{q:wrap(co.txt),clause:co.txt,sem:co.sem,cls}};}},
+    corrupt:{q:wrap(co.txt),clause:co.txt,sem:co.sem,cls:c.cls}};}},
+/* ── v34 · TRANSLATION OF CHANGE (V7, beside verb_to_phrase — the author: «si tiene cabida
+   armoniosa, se puede incluir verb_change en otras partes»): four sentences about how the track
+   evolved — colour, texture, size — exactly one true of what was seen; a third of them negated ── */
+{id:"verb_change_pick",kind:"choice",scene:verbalStreetScene,applies:sc=>distinct(sc)&&sc.figs.length>=3,build(sc){
+  const pool=[];
+  for(const f of changeFamilies(sc))for(const gen of [f.T,f.F]){
+    const N=coin(.3),x=wrapNot(gen(N),N),v=evalSem(x.sem,sc);if(v!==true&&v!==false)continue;
+    pool.push({label:cap1(x.txt),sem:x.sem,correct:v===true,sig:`${f.kind}|${f.dim}`});
+  }
+  const trues=shuffle(pool.filter(o=>o.correct)),falses=shuffle(pool.filter(o=>!o.correct));
+  if(!trues.length||falses.length<3)return null;
+  const t=trues[0],picked=[t],seen=new Set([t.label]),used=new Set([t.sig]);
+  /* lures from other families first, then any — never the same sentence twice */
+  for(const pass of [0,1])for(const o of falses){if(picked.length>=4)break;if(seen.has(o.label)||(pass===0&&used.has(o.sig)))continue;seen.add(o.label);used.add(o.sig);picked.push(o);}
+  if(picked.length<4)return null;
+  return {label:"TRANSLATION",long:true,choiceCols:2,q:"Which statement describes what you saw?",note:"",
+    variant:t.sig,whyDetail:VERB_WHY_CHANGE,options:shuffle(picked).map(o=>({label:o.label,sem:o.sem,correct:o.correct}))};},
+  auditChoice(sc,b){return b.options.filter(o=>o.correct).length===1&&b.options.every(o=>o.correct===(evalSem(o.sem,sc)===true));}},
 /* ── orden · espejado before/after + VOZ PASIVA (Baddeley 2⁶ / Clark y Chase:
       las dos condiciones del factorial que faltaban; la pasiva vive en UN
       sitio — lección del reparto) ── */
@@ -4664,12 +4738,12 @@ const QUESTIONS=[
 
 /* ── INDUCTION · the same evidence supports more than one legitimate query ── */
 {id:"ind_next",kind:"choice",scene:()=>makeInductionSequenceScene(0,true),applies:sc=>!!sc.prediction,build(sc){
-  /* v33 · on a compound rule (two operations at every step) the two HALF-applied states —
-     only one of the operations performed on the last state — are the lures that matter */
-  const rule=IND_RULES.find(r=>r.id===sc.ruleId),last=sc.states[sc.states.length-1],
-    step=rule?rule.program[(sc.states.length-1)%rule.program.length]:[],seen=new Set([indStateKey(sc.prediction)]),ds=[];
-  if(step.length>1)for(const op of shuffle(step.slice())){const x=indApplyOp(last,op,sc.ctx);if(x&&!seen.has(indStateKey(x))){seen.add(indStateKey(x));ds.push(x);}}
-  for(const x of indMinimalDistractors(sc.prediction,sc.ctx,3)){if(ds.length>=3)break;const k=indStateKey(x);if(!seen.has(k)){seen.add(k);ds.push(x);}}
+  /* v34 · decidable by construction: the public grammar (every rule, every cycle order and pair
+     consistent with the prefix) must predict ONE next state; lures never use a size the prefix
+     did not show; on compound steps the first lures are the half-applied states */
+  if(!indDecided(sc.states,IND_RULES,sc.prediction)){bump(STATS.indAmbiguous,"ind_next");return null;}
+  const rule=IND_RULES.find(r=>r.id===sc.ruleId),last=sc.states[sc.states.length-1];
+  const ds=indLures(sc.prediction,sc.ctx,sc.states,3,indHalfStates(last,rule,sc.states.length-1,sc.ctx));
   if(ds.length<3)return null;
   const all=shuffle([sc.prediction,...ds]);
   return {label:"INDUCTION",q:"Which state must come next?",long:true,choiceCols:2,
@@ -4704,8 +4778,9 @@ const QUESTIONS=[
    question time; the states do not. */
 {id:"ind_hyp_next",kind:"choice",scene:hypothesisConsensusScene,applies:sc=>Array.isArray(sc.predictions)&&sc.predictions.length===2,build(sc){
   const k=ri(0,1),pred=sc.predictions[k],other=sc.predictions[1-k];
+  if(!indDecided(sc.states,[sc.hypotheses[k]],pred)){bump(STATS.indAmbiguous,"ind_hyp_next");return null;}   /* v34 */
   const pool=[pred];if(!indStateEq(other,pred))pool.push(other);
-  const fill=indMinimalDistractors(pred,sc.ctx,5).filter(x=>!pool.some(y=>indStateEq(x,y)));
+  const fill=indLures(pred,sc.ctx,sc.states,5).filter(x=>!pool.some(y=>indStateEq(x,y)));
   while(pool.length<4&&fill.length)pool.push(fill.shift());
   if(pool.length<4)return null;
   const cards=sc.hypotheses.map((h,i)=>`<div class="rule-card${i===k?" rule-card-on":""}"><b>H${i+1}</b> · ${h.label}</div>`).join("");
@@ -4717,7 +4792,8 @@ const QUESTIONS=[
   auditChoice(sc,b){const o=b.options.find(x=>x.correct);return !!o&&Number.isInteger(b.hyp)&&indStateEq(o.state,sc.predictions[b.hyp]);}},
 {id:"ind_hyp_which",kind:"choice",scene:hypothesisConsensusScene,applies:sc=>Array.isArray(sc.predictions)&&sc.predictions.length===2,build(sc){
   const [p1,p2]=sc.predictions,same=indStateEq(p1,p2);
-  const foil=indMinimalDistractors(p1,sc.ctx,6).find(x=>!indStateEq(x,p1)&&!indStateEq(x,p2));if(!foil)return null;
+  if(!indDecided(sc.states,[sc.hypotheses[0]],p1)||!indDecided(sc.states,[sc.hypotheses[1]],p2)){bump(STATS.indAmbiguous,"ind_hyp_which");return null;}   /* v34 */
+  const foil=indLures(p1,sc.ctx,sc.states,6).find(x=>!indStateEq(x,p1)&&!indStateEq(x,p2));if(!foil)return null;
   /* v20: exact ¼ per key — consensus scenes: Both (shown=p1) or Neither (foil)
      50/50; divergence scenes: H1 or H2 50/50 (a foil there would inflate
      Neither to ⅓+ and make "always Both/Neither" worth 66 %). */
@@ -4741,7 +4817,13 @@ const QUESTIONS=[
       state:x.state,score:x.score,correct:indStateKey(x.state)===sc.correctStateKey}))};},
   auditChoice(sc,b){const o=b.options.find(x=>x.correct);return !!o&&o.score===2;}},
 {id:"ind_transfer_next",kind:"choice",scene:transferInductionScene,applies:sc=>!!sc.prediction,build(sc){
-  const ds=indMinimalDistractors(sc.prediction,sc.ctx,3),all=shuffle([sc.prediction,...ds]);
+  /* v34 · the schedule is read from the demo; the next state must be decidable from the test
+     prefix under every cycle order / pair consistent with it */
+  const tr={id:"transfer",label:"shared program",program:sc.schedule.map(i=>[sc.testLabels[i]])};
+  if(!indDecided(sc.target,[tr],sc.prediction)){bump(STATS.indAmbiguous,"ind_transfer_next");return null;}
+  const ds=indLures(sc.prediction,sc.ctx,sc.target,3,indHalfStates(sc.target[sc.target.length-1],tr,sc.target.length-1,sc.ctx));
+  if(ds.length<3)return null;
+  const all=shuffle([sc.prediction,...ds]);
   return {label:"STRUCTURAL TRANSFER",q:"The surface dimensions changed. Which state follows the same abstract program?",long:true,choiceCols:2,
     variant:sc.schedule.join(""),note:"map the program, not the objects",
     whyDetail:`The operation schedule is ${sc.schedule.map(i=>i+1).join(" → ")} in both domains.`,
@@ -5012,6 +5094,8 @@ const SCENE_PROFILES={
   ind_program:{scene:()=>makeInductionSequenceScene(2,true),minQueries:2,minFamilies:1,minDimensions:2,queryIds:["ind_next","ind_rule"]},
   /* v33 · I3 TWO AT ONCE: compound rules, same two routes (next state / public rule) */
   ind_compound:{scene:()=>makeInductionSequenceScene(3,true),minQueries:2,minFamilies:1,minDimensions:2,queryIds:["ind_next","ind_rule"]},
+  /* v34 · I4 THREE AT ONCE */
+  ind_triple:{scene:()=>makeInductionSequenceScene(4,true),minQueries:2,minFamilies:1,minDimensions:2,queryIds:["ind_next","ind_rule"]},
   ind_hypotheses:{scene:hypothesisConsensusScene,minQueries:2,minFamilies:1,minDimensions:2,queryIds:["ind_hyp_next","ind_hyp_which"]},
   ind_matrix:{scene:gateMatrixScene,minQueries:2,minFamilies:2,minDimensions:2,queryIds:["ind_matrix_output","ind_matrix_rule"]},
   /* v22: two entries over the same-looking board with their own priors — the
@@ -5034,7 +5118,7 @@ function hashText32(text){let h=2166136261>>>0;for(let i=0;i<String(text).length
 const cloneData=x=>JSON.parse(JSON.stringify(x));
 function withContentSeed(seed,fn){const save=SEED;try{SEED=seed>>>0;return fn();}finally{SEED=save;}}
 function queryDimension(id){
-  if(id==="verb_change")return"change-over-time";
+  if(id==="verb_change"||id==="verb_change_pick")return"change-over-time";
   if(id==="compose_2")return"binary-entailment";
   if(id==="compose_direction")return"composed-direction";
   if(id==="compose_middle")return"middle-term";
@@ -5240,15 +5324,20 @@ const RUNGS=[
     later modules keep their content and move one key up (I3–I7 → I4–I8; saves are renamed). */
  {key:"I3",name:"TWO AT ONCE",neg:0,encode:3900,track:"induction",types:[
    {id:"@ind-compound",profile:"ind_compound"}]},
- {key:"I4",name:"HYPOTHESES",neg:0,encode:4100,track:"induction",types:[
+ /* v34 · three operations at every step — the load ceiling of the sequences; a side branch of I3
+    (the hypothesis-space modules do not require it). The later modules move one key up again
+    (I4–I8 → I5–I9; v32 and v33 saves are renamed on load). */
+ {key:"I4",name:"THREE AT ONCE",neg:0,encode:4200,track:"induction",types:[
+   {id:"@ind-triple",profile:"ind_triple"}]},
+ {key:"I5",name:"HYPOTHESES",neg:0,encode:4100,track:"induction",types:[
    {id:"@ind-hypotheses",profile:"ind_hypotheses"}]},
- {key:"I5",name:"ACTIVE TEST",neg:0,encode:4400,track:"induction",types:[
+ {key:"I6",name:"ACTIVE TEST",neg:0,encode:4400,track:"induction",types:[
    {id:"ind_active_probe"}]},
- {key:"I6",name:"TRANSFER",neg:0,encode:4300,track:"induction",types:[
+ {key:"I7",name:"TRANSFER",neg:0,encode:4300,track:"induction",types:[
    {id:"ind_transfer_next"}]},
- {key:"I7",name:"MATRIX",neg:0,encode:5200,track:"induction",types:[
+ {key:"I8",name:"MATRIX",neg:0,encode:5200,track:"induction",types:[
    {id:"@ind-matrix",profile:"ind_matrix"}]},
- {key:"I8",name:"EQUIVALENCE",neg:0,encode:4600,track:"induction",types:[
+ {key:"I9",name:"EQUIVALENCE",neg:0,encode:4600,track:"induction",types:[
    {id:"@ind-equivalence",profile:"ind_equivalence"},{id:"@ind-witness",profile:"ind_equivalence_witness"}]},
 
  /* Relational oddity. Every board is generated without an answer key and is
@@ -5283,7 +5372,7 @@ const RUNGS=[
  {key:"V4",name:"MARKED TERM",neg:0,encode:2400,track:"verbal",types:[{id:"verb_compare",n:4},{id:"verb_change",n:4,w:.5}]},
  {key:"V5",name:"SUBJECT SHIFT",neg:0,encode:2400,track:"verbal",types:[{id:"verb_focus",n:5}]},
  {key:"V6",name:"NO SCAFFOLD",neg:0,encode:2400,track:"verbal",types:[{id:"verb_precede",n:6},{id:"verb_compare",n:6,w:.5},{id:"verb_change",n:6,w:.5}]},
- {key:"V7",name:"TRANSLATION",neg:0,encode:2500,track:"verbal",types:[{id:"verb_to_phrase",n:7}]},
+ {key:"V7",name:"TRANSLATION",neg:0,encode:2500,track:"verbal",types:[{id:"verb_to_phrase",n:7},{id:"verb_change_pick",n:7,w:.5}]},   /* v34 · translation of change */
  /* v27 · Reichenbach (Ars §3.5 rungs 5–6): one reference point across clauses; the
     anchor clause places the reference, the tense places the event */
  {key:"V8",name:"REFERENCE POINT",neg:0,encode:2500,track:"verbal",types:[{id:"verb_reference",n:8}]},
@@ -5301,7 +5390,14 @@ const PRE_V32_KEYS=Object.freeze(["R0","R1","R2","R3","R4","R5","R6","R7","R8","
 /* v33 · rung order of v32 (39 modules, ladder.v 8) and the key renames of the induction track
    (I3 TWO AT ONCE inserted: the former I3–I7 are now I4–I8) */
 const V32_KEYS=Object.freeze(PRE_V32_KEYS.filter(k=>k!=="N0"));
-const V33_KEY_RENAME=Object.freeze({I3:"I4",I4:"I5",I5:"I6",I6:"I7",I7:"I8"});
+/* v34 · rung order of v33 (40 modules, ladder.v 9: I3 TWO AT ONCE inserted) and the key renames by
+   the schema a save was written in: ladder.v ≤ 8 (v32 and older) → I3–I7 became I4–I8 in v33;
+   ladder.v ≤ 9 (v33) → I4–I8 became I5–I9 in v34 (I4 THREE AT ONCE inserted). Renames compose. */
+const V33_KEYS=Object.freeze(["R0","R1","R2","R3","R4","R5","R6","R7","R8","R9","R10","N1","N2","N3",
+  "I0","I1","I2","I3","I4","I5","I6","I7","I8","O0","O1","O2","O3","O4","E0","E1","V0","V1","V2","V3","V4","V5","V6","V7","V8","V9"]);
+const KEY_ORDERS=Object.freeze({7:PRE_V32_KEYS,8:V32_KEYS,9:V33_KEYS});
+const KEY_RENAMES=Object.freeze([[8,Object.freeze({I3:"I4",I4:"I5",I5:"I6",I6:"I7",I7:"I8"})],[9,Object.freeze({I4:"I5",I5:"I6",I6:"I7",I7:"I8",I8:"I9"})]]);
+function migrateRungKey(k,lv){for(const [upTo,map] of KEY_RENAMES)if(lv<=upTo&&map[k])k=map[k];return k;}
 
 /* Promotion requires a recent-performance window plus genuine task-space
    coverage. Profiles can satisfy several groups, but only the query actually
@@ -5322,11 +5418,12 @@ const COVERAGE_REQ={
   I1:["ind-prediction","ind-rule","ind-dimension"],
   I2:["ind-prediction","ind-rule"],
   I3:["ind-prediction","ind-rule"],
-  I4:["ind-hyp-next","ind-hyp-which"],
-  I5:["ind-active-test"],
-  I6:["ind-transfer"],
-  I7:["ind-matrix-output","ind-matrix-rule"],
-  I8:["ind-equivalence","ind-separator"],
+  I4:["ind-prediction","ind-rule"],
+  I5:["ind-hyp-next","ind-hyp-which"],
+  I6:["ind-active-test"],
+  I7:["ind-transfer"],
+  I8:["ind-matrix-output","ind-matrix-rule"],
+  I9:["ind-equivalence","ind-separator"],
   O0:["odd-location","odd-rule"],
   O1:["odd-location","odd-rule"],
   O2:["odd-location","odd-rule"],
@@ -5336,7 +5433,7 @@ const COVERAGE_REQ={
   E1:["premise-effect","premise-redundant","premise-relevance"],
   /* v33 · the change-over-time sentences share the bool rungs of the track (V0–V4, V6) */
   V0:["verbal-factorial","verbal-change"],V1:["verbal-factorial","verbal-change"],V2:["verbal-factorial","verbal-change"],V3:["verbal-factorial","verbal-change"],
-  V4:["verbal-markedness","verbal-change"],V5:["verbal-focus"],V6:["verbal-factorial","verbal-markedness","verbal-change"],V7:["verbal-translation"],
+  V4:["verbal-markedness","verbal-change"],V5:["verbal-focus"],V6:["verbal-factorial","verbal-markedness","verbal-change"],V7:["verbal-translation","verbal-change"],
   V8:["verbal-reference"],V9:["verbal-anchor"]
 };
 function coverageGroup(id){
@@ -5402,7 +5499,7 @@ function coverageGroup(id){
   if(id==="verb_to_phrase")return"verbal-translation";
   if(id==="verb_reference")return"verbal-reference";
   if(id==="verb_anchor")return"verbal-anchor";
-  if(id==="verb_change")return"verbal-change";
+  if(id==="verb_change"||id==="verb_change_pick")return"verbal-change";
   return"other";
 }
 const requiredCoverage=i=>COVERAGE_REQ[RUNGS[i].key]||[];
@@ -5448,7 +5545,7 @@ const MINSCENE={
  odd_program:[12,16],odd_program_rule:[12,16],   /* level≤1 rules give 3-state sequences (12), level 2 give 4 (16) */odd_gate:[12,12],odd_gate_rule:[12,12],
  odd_conditional_case:[4,4],odd_conditional_rule:[4,4],
  spatial_modal:[4,4],modal_necessary_pick:[4,4],modal_possible_pick:[4,4],modal_impossible_pick:[4,4],
- verb_precede:[3,3],verb_compare:[3,3],verb_focus:[3,3],verb_to_phrase:[3,3],verb_reference:[3,3],verb_anchor:[3,3],verb_change:[3,3],
+ verb_precede:[3,3],verb_compare:[3,3],verb_focus:[3,3],verb_to_phrase:[3,3],verb_reference:[3,3],verb_anchor:[3,3],verb_change:[3,3],verb_change_pick:[3,3],
  ablation_effect:[5,5],ablation_redundant:[5,5],ablation_relevance:[5,5],
  proportion:[6,6]};
 const PROFILE_SCENE_BOUNDS={
@@ -5457,7 +5554,7 @@ const PROFILE_SCENE_BOUNDS={
  "order-track":[4,4],"sequence-bundle":[4,4],"compose-bundle":[3,3],"vector-chain":[3,3],"constraint-cycle":[3,3],
  "reference-bundle":[4,4],"verbal-pair":[4,4],"twin-binding":[3,3],"pointing-bundle":[3,3],"quant-bundle":[4,4],"closure-bundle":[5,5],"dual-reference":[4,4],"number-field":[4,8],
  "relation-board":[4,4],"induction-L0":[4,4],"induction-L1":[3,4],
- "induction-L2":[5,5],"induction-L3":[5,5],"induction-hypotheses":[3,3],
+ "induction-L2":[5,5],"induction-L3":[5,5],"induction-L4":[5,5],"induction-hypotheses":[3,3],
  "active-probe":[0,0],"induction-transfer":[8,10],"induction-matrix":[11,11],
  "induction-equivalence":[2,2],"oddity-pair":[8,8],"oddity-transform":[8,8],
  "oddity-program":[12,16],"oddity-gate":[12,12],"oddity-conditional":[4,4],"spatial-modal":[4,4],"spatial-ablation":[5,5]
@@ -5478,9 +5575,9 @@ const figCount=sc=>{
 };
 
 /* contadores de puertas: en juego real y en auditoría */
-const STATS={mismatch:{},ambig:0,err:0,noCorrect:{},choiceBad:{},fallbacks:0,degenerate:{},
+const STATS={mismatch:{},ambig:0,err:0,noCorrect:{},choiceBad:{},fallbacks:0,degenerate:{},indAmbiguous:{},
   snap(){return JSON.parse(JSON.stringify({mismatch:this.mismatch,ambig:this.ambig,err:this.err,
-    noCorrect:this.noCorrect,choiceBad:this.choiceBad,fallbacks:this.fallbacks,degenerate:this.degenerate}));}};
+    noCorrect:this.noCorrect,choiceBad:this.choiceBad,fallbacks:this.fallbacks,degenerate:this.degenerate,indAmbiguous:this.indAmbiguous}));}};
 const bump=(o,k)=>{o[k]=(o[k]||0)+1;};
 
 /* familia para la telemetría de gemelos de transferencia (doc 06) */
@@ -5869,8 +5966,8 @@ const MODULE_PREREQS=Object.freeze({
   I0:["R1"],R2:["R1"],N2:["N1","R1"],O0:["R1"],
   R3:["R2"],N3:["N2"],R4:["R2"],R5:["R2"],R6:["R2"],
   R7:["R6"],R8:["R2","I0"],R9:["R8"],R10:["R5","R9"],
-  I1:["I0"],I2:["I1"],I3:["I2"],I4:["I3"],I5:["I4"],I6:["I5"],I7:["I6"],I8:["I7"],
-  O1:["O0","R8"],O2:["O1","I2"],O3:["O2","I7"],O4:["O0","R3","I1"],
+  I1:["I0"],I2:["I1"],I3:["I2"],I4:["I3"],I5:["I3"],I6:["I5"],I7:["I6"],I8:["I7"],I9:["I8"],
+  O1:["O0","R8"],O2:["O1","I2"],O3:["O2","I8"],O4:["O0","R3","I1"],
   E0:["R4"],E1:["E0"],
   V0:["R2"],V1:["V0"],V2:["V0"],V3:["V1","V2"],V4:["V3"],V5:["V3"],V6:["V4","V5"],V7:["V6"],V8:["V6","R5"],V9:["V7","V8","R8"]
 });
@@ -6359,7 +6456,7 @@ function serialiseEvidenceByRung(){
 }
 function persist(){
   try{localStorage.setItem(LSKEY,JSON.stringify({v:APP_VERSION,rootSeed:SEED0,contentSeed:SEED,
-    ladder:{v:9,cur:Ladder.cur,masteredKeys:[...Ladder.masteredKeys],
+    ladder:{v:10,cur:Ladder.cur,masteredKeys:[...Ladder.masteredKeys],
       unlockedByTrack:{...Ladder.unlockedByTrack},currentByTrack:{...Ladder.currentByTrack},
       evidenceByRung:serialiseEvidenceByRung()},
     interlude:{miniOrdinal:Interlude.miniOrdinal,autoTrack:Interlude.autoTrack,
@@ -6401,9 +6498,9 @@ function restore(){
     /* v32 · N0 retired: the index-based fields of v24–v31 saves (ladder.v 7) are remapped by key.
        v33 · I3 TWO AT ONCE inserted: v32 saves (ladder.v 8) remap their indices through the v32
        key order and rename I3–I7 → I4–I8 (mastery, evidence, return tickets, block in flight). */
-    const lv=Number(d.ladder.v),pre32=lv===7,pre33=lv<=8;
-    const migKey=k=>(pre33&&V33_KEY_RENAME[k])||k;
-    const remapIdx=i=>{if(!pre33)return i;const order=pre32?PRE_V32_KEYS:V32_KEYS,k=order[i|0];const j=k==null?-1:rungIndex(migKey(k));return j>=0?j:null;};
+    const lv=Number(d.ladder.v),pre33=lv<=9;   /* v34 · any save written before schema 10 */
+    const migKey=k=>migrateRungKey(k,lv);
+    const remapIdx=i=>{if(!pre33)return i;const order=KEY_ORDERS[lv];if(!order)return i;const k=order[i|0];const j=k==null?-1:rungIndex(migKey(k));return j>=0?j:null;};
     let oldCur=d.ladder.cur|0;
     if(pre33){const m=remapIdx(oldCur);oldCur=m==null?0:m;}
     if(d.ladder.v==null&&oldCur>=10)oldCur+=TRACK_BOUNDS.number[0]-10;
@@ -6562,7 +6659,7 @@ function renderVisualAtlas(){const role=$("atlasRole").value,size=+$("atlasSize"
 }
 function openVisualAtlas(){if(!Panel.open)return;$("panelSurface").classList.remove("visible");$("atlasSurface").classList.add("visible");renderVisualAtlas();setPrompt("Visual atlas");}
 function closeVisualAtlas(){$("atlasSurface").classList.remove("visible");$("panelSurface").classList.add("visible");setPrompt("Tools");}
-const GUIDE_STORE_KEY="SPAVER01_V33_GUIDES",GUIDE_LEGACY_KEYS=["SPAVER01_V32_GUIDES","SPAVER01_V30_GUIDES","SPAVER01_V28_GUIDES","SPAVER01_V27_GUIDES","SPAVER01_V26_GUIDES","SPAVER01_V25_GUIDES","SPAVER01_V24_GUIDES","SPAVER01_V23_GUIDES","SPAVER01_V22_GUIDES","SPAVER01_V21_GUIDES","SPAVER01_V20_GUIDES","SPAVER01_V19_GUIDES","SPAVER01_V18_GUIDES","SPAVER01_V17_GUIDES","SPAVER01_V16_GUIDES"];
+const GUIDE_STORE_KEY="SPAVER01_V34_GUIDES",GUIDE_LEGACY_KEYS=["SPAVER01_V33_GUIDES","SPAVER01_V32_GUIDES","SPAVER01_V30_GUIDES","SPAVER01_V28_GUIDES","SPAVER01_V27_GUIDES","SPAVER01_V26_GUIDES","SPAVER01_V25_GUIDES","SPAVER01_V24_GUIDES","SPAVER01_V23_GUIDES","SPAVER01_V22_GUIDES","SPAVER01_V21_GUIDES","SPAVER01_V20_GUIDES","SPAVER01_V19_GUIDES","SPAVER01_V18_GUIDES","SPAVER01_V17_GUIDES","SPAVER01_V16_GUIDES"];
 const GUIDE_CONTENT=Object.freeze({
   /* v20: guides for the first rung of each early track and for the new kinds of
      stimulus (pointing, sequential frames, Latin grids, the transformation board) */
@@ -6586,16 +6683,26 @@ const GUIDE_CONTENT=Object.freeze({
     lead:"The scene flashes too briefly to count one by one. You are never asked for the bare total: the question names a feature — how many were striped, how many were green, how many different shapes — and later compares groups.",
     rule:"Total area is controlled: the more numerous group is often the one with less ink. Judge number, not surface.",
     steps:["Take the whole field in one glance.","Group by the named feature.","Answer from the impression — hesitation loses it."]},
+  /* v34 · the induction track opens with its public grammar on the table */
+  I0:{eyebrow:"New track",title:"One figure, one public rule",
+    lead:"A short sequence of one figure is shown, then masked. Exactly one rule of a finite public grammar generated it, and the question asks what must come next, which dimension carried the rule, or which rule it was. Every card draws the figure at its true size — S, M, L or XL, as everywhere else.",
+    rule:"The grammar: alternate colour or shape · turn 90° clockwise, 90° counterclockwise or 180° · cycle through the three textures or the four sizes (the order of a cycle is read from the sequence itself) · add or remove one side. Later: two rules alternating, two or three rules at every step.",
+    steps:["Name what changed from card to card, dimension by dimension.","Keep only the public rule that explains every transition.","Apply it once more — and read the sizes as you see them."]},
   /* v33 · compound rules */
   I3:{eyebrow:"New induction operation",title:"Two changes at every step",
     lead:"From here a public rule may act on two dimensions at once: every transition turns the figure AND changes its colour, or advances its texture AND its size. The half of the rule you noticed first is the lure.",
     rule:"Name both operations before you predict. A rule that alternates two changes (one per step) is a different rule from one that performs both at every step.",
     steps:["Describe each transition on every dimension that moved.","Check that both operations repeat at every step.","Predict by applying both — not the one you saw first."]},
-  I7:{eyebrow:"New induction operation",title:"Two inputs, one public gate",
+  /* v34 · three operations at every step */
+  I4:{eyebrow:"New induction operation",title:"Three changes at every step",
+    lead:"The load ceiling of the sequences: every transition performs three public operations at once — a turn, a colour change and a texture advance, for instance. The lures are the states with one of the three left undone.",
+    rule:"Take the dimensions one at a time: each moving dimension follows its own simple rule, and all of them apply at every step.",
+    steps:["List the dimensions that moved.","Name the operation on each.","Predict by applying all three."]},
+  I8:{eyebrow:"New induction operation",title:"Two inputs, one public gate",
     lead:"Each complete row shows two inputs on the left and their output on the right. The same board may ask for the missing output or for the gate itself.",
     rule:"Every token carries four binary features: red/grey, striped/filled, large/small and turned-right/upright. One bitwise gate acts on all four features.",
     steps:["Test one candidate gate against every complete row.","Reject a gate as soon as one feature in one row fails.","Apply the surviving gate to the incomplete row only after identifying it."]},
-  I8:{eyebrow:"New induction operation",title:"Equivalent everywhere—or one separator",
+  I9:{eyebrow:"New induction operation",title:"Equivalent everywhere—or one separator",
     lead:"Two programs are behaviourally equivalent only when they produce the same output for every state in the finite public domain.",
     rule:"A single separating input is enough to prove that the programs are different. Failing to find one among the shown probes does not prove equivalence unless the oracle has exhausted the public domain.",
     steps:["Apply both programs to the same input.","Compare complete output states, not just the most salient feature.","Use one disagreement as a certificate of non-equivalence."]},
@@ -6646,10 +6753,10 @@ const GUIDE_CONTENT=Object.freeze({
     rule:"Same adverb, same verb, a different moment: read where the perfect sits before comparing with what you saw. “Had not yet come” places the event after the reference.",
     steps:["Find the anchor clause (“when …”).","Place the other event before or after it by its tense.","Compare with the order you saw."]}
 });
-let SEEN_GUIDES=(()=>{try{let raw=localStorage.getItem(GUIDE_STORE_KEY),legacy=false;if(!raw)for(const k of GUIDE_LEGACY_KEYS){raw=localStorage.getItem(k);if(raw){legacy=true;break;}}
+let SEEN_GUIDES=(()=>{try{let raw=localStorage.getItem(GUIDE_STORE_KEY),lv=99;if(!raw)for(const k of GUIDE_LEGACY_KEYS){raw=localStorage.getItem(k);if(raw){lv=k==="SPAVER01_V33_GUIDES"?9:8;break;}}
   const x=JSON.parse(raw||"[]"),arr=Array.isArray(x)?x:[];
-  /* v33 · guides seen under the old induction keys follow their modules (I6→I7, I7→I8) */
-  return new Set(legacy?arr.map(k=>V33_KEY_RENAME[k]||k):arr);}catch(e){return new Set();}})();
+  /* v33/v34 · guides seen under the old induction keys follow their modules (v32 store: I6→I8, I7→I9; v33 store: I7→I8, I8→I9) */
+  return new Set(arr.map(k=>migrateRungKey(k,lv)));}catch(e){return new Set();}})();
 function saveGuides(){try{localStorage.setItem(GUIDE_STORE_KEY,JSON.stringify([...SEEN_GUIDES]));}catch(e){}}
 function showGuideIfNeeded(rungKey){const g=GUIDE_CONTENT[rungKey];if(!g||SEEN_GUIDES.has(rungKey))return false;
   clearTimeout(timer);hideMaskCanvas();State.phase="guide";stimLayer.classList.remove("opaque");stimLayer.innerHTML="";
@@ -7188,7 +7295,7 @@ $("pEncSet").addEventListener("click",()=>{
 });
 $("pExport").addEventListener("click",()=>{
   const data={app:APP_VERSION,exportedAt:new Date().toISOString(),seed0:SEED0,contentSeed:SEED,
-    ladder:{v:9,cur:Ladder.cur,masteredKeys:[...Ladder.masteredKeys],
+    ladder:{v:10,cur:Ladder.cur,masteredKeys:[...Ladder.masteredKeys],
       unlockedByTrack:{...Ladder.unlockedByTrack},currentByTrack:{...Ladder.currentByTrack},
       evidenceByRung:serialiseEvidenceByRung()},
     interlude:{miniOrdinal:Interlude.miniOrdinal,autoTrack:Interlude.autoTrack,
@@ -7280,7 +7387,8 @@ const Audit={running:false,
     signedSteps:{},stepModes:{},headings:{},turns:{},pose:{},indRules:{},indConsensus:{},indProbe:{},indTransfer:0,
     matrixOps:{},matrixRoutes:{},equivalence:{},equivalenceRoutes:{},oddKinds:{},oddRules:{},oddPositions:{},oddRoutes:{},
     modal:{},modalRoutes:{},ablation:{},ablationRoutes:{},pointWhichKeys:{},pointWhichRoutes:{},verbalCells:{},verbalPosPassive:0,verbalN:0,
-    topologies:{},transferN:0,transferTrivial:0,oddN:0,oddSalient:0,oddRivals:0,oddDeadRivals:0};
+    topologies:{},transferN:0,transferTrivial:0,oddN:0,oddSalient:0,oddRivals:0,oddDeadRivals:0,
+    indNextN:0,indUndecided:0,indSizeGuess:0};
   try{
     const pre=STATS.snap();
     /* v22: the audit runs on a stream derived from the ROOT seed, so the same
@@ -7350,6 +7458,15 @@ const Audit={running:false,
             if(!it.scene.units.some(u=>oddUnitMatches(rule,u,it.scene)))concept.oddDeadRivals++;});}}
         if(it.id==="ind_active_probe"){const o=it.options.find(x=>x.correct);const h=o?String(o.score):"?";concept.indProbe[h]=(concept.indProbe[h]||0)+1;}
         if(it.id==="ind_transfer_next")concept.indTransfer++;
+        /* v34 · next-state items must be decidable under the PUBLIC grammar (every cycle order and
+           pair consistent with the prefix), and size must never be the only difference between
+           options when the prefix showed one size */
+        if(it.id==="ind_next"||it.id==="ind_transfer_next"||it.id==="ind_hyp_next"){const sc=it.scene;let ok,prefix;
+          if(it.id==="ind_next"){prefix=sc.states;ok=indDecided(prefix,IND_RULES,sc.prediction);}
+          else if(it.id==="ind_transfer_next"){prefix=sc.target;ok=indDecided(prefix,[{id:"t",program:sc.schedule.map(i=>[sc.testLabels[i]])}],sc.prediction);}
+          else{const k=/^next:H1/.test(it.variant||"")?0:1;prefix=sc.states;ok=indDecided(prefix,[sc.hypotheses[k]],sc.predictions[k]);}
+          concept.indNextN++;if(!ok)concept.indUndecided++;
+          if(new Set(prefix.map(s=>s.size)).size===1&&it.options.some(o=>o.state&&o.state.size!==prefix[0].size))concept.indSizeGuess++;}
         if(it.id==="ind_matrix_output"||it.id==="ind_matrix_rule"){const op=gateMatrixSolve(it.scene),h=op?op.id:"?";
           concept.matrixOps[h]=(concept.matrixOps[h]||0)+1;concept.matrixRoutes[it.id]=(concept.matrixRoutes[it.id]||0)+1;}
         if(it.id==="ind_program_equiv"||it.id==="ind_equivalence_witness"){const h=eqSolve(it.scene).equivalent?"equivalent":"separable";
@@ -7490,6 +7607,9 @@ const Audit={running:false,
     L.push(`ORACLE: faithful/corrupt mismatch=${dMis} · choice without one correct=${dNoC}`+
       ` · choice mis-scored=${dBad} · degenerate twins=${dDeg} ${dMis+dNoC+dBad+dDeg===0?"✅":"🔴 REVIEW BUILDER"}`);
     L.push(`rejections: AMBIG=${dAmb} ERR=${dErr} type fallbacks=${dFall}${dAmb+dErr>nPer*.06?" ⚠️ high":""}`);
+    L.push(`induction decidability · next-state items ${concept.indNextN} · publicly undecided ${concept.indUndecided}${concept.indUndecided?" 🔴 GUESS":" ✅"}`+
+      ` · size-only lures on a one-size prefix ${concept.indSizeGuess}${concept.indSizeGuess?" 🔴":" ✅"}`+
+      ` · builder rejections for public ambiguity ${sumV(post.indAmbiguous||{})-sumV(pre.indAmbiguous||{})}`);
 
     const tys=Object.entries(typeAgg).filter(([,v])=>v.bool>=60),mT=Math.max(1,tys.length);
     const zB=invNorm(1-.001/(2*mT)),zW=invNorm(1-.05/(2*mT)),flags=[];
@@ -7577,7 +7697,32 @@ window.SPAV={version:APP_VERSION,Audit,serveItem,tryBuild,RUNGS,Ladder,Interlude
 requestAnimationFrame(()=>{sizeCanvas(true);Interlude.active?startTrial():showMenu();});
 </script>
 
-<!-- v33 (2026-08-22, on v32; v32 intact) — five signals of the author on v32:
+<!-- v34 (2026-08-22, on v33; v33 intact) — the author on the induction questions («hay que tener
+  cuidado … que las reglas estén claras y no confundir al usuario»):
+  * INDUCTION · sizes were a guess: v19 drew every row relative to its largest state, so four XL
+    figures looked like four M and «M or XL» in the options was a coin. Now every induction card
+    draws the figure at its ABSOLUTE size (IND_CARD_SCALE; the five-card transfer demo row takes
+    a smaller constant — demo and test never share the size dimension); and size is a lure only
+    when the prefix SHOWED two sizes (indLures; SIZE_GAP doctrine: a lone size under the mask is
+    not enunciable). Compound steps: the lures are the states with one operation left undone
+    (indHalfStates; k=2 → the other single op, k=3 → two of three).
+  * INDUCTION · decidability under the PUBLIC grammar (indPublicPredictions / indDecided): the
+    cycle ORDER of textures and sizes is private per item and only readable from the prefix, and
+    a toggle reveals its partner only when it fires; a next-state item is served only if every
+    (rule, order, pair) consistent with the prefix predicts ONE state. Builders reject otherwise
+    (STATS.indAmbiguous). Generators were aligned so rejections are rare: the hypothesis scenes
+    (I5) draw the NEXT operation from turns or operations that already fired in the prefix,
+    never a size advance; the transfer scenes (I7) put the texture advance, not the size advance,
+    on the predicted step in the texture/size domain. Audit line «induction decidability».
+  * INDUCTION · I4 THREE AT ONCE (level 4: four rules, three operations at every step, one per
+    triple of dimensions; a side branch of I3 — hypotheses do not require it). Former I4–I8 →
+    I5–I9 (keys, prereqs O3←I8, coverage, guides); saves of v32 (ladder.v ≤ 8) and v33 (v 9)
+    remap indices through KEY_ORDERS and rename keys through KEY_RENAMES (composed); ladder.v 10.
+  * INDUCTION · entry guide I0 («One figure, one public rule»: the grammar on the table, sizes
+    true, cycle order read from the sequence) and guide I4.
+  * VERBAL · `verb_change_pick` (V7, w .5, beside verb_to_phrase): four change sentences, one true,
+    a third negated — the translation of change (author: «si tiene cabida armoniosa»).
+  v33 (2026-08-22, on v32; v32 intact) — five signals of the author on v32:
   * VERBAL · bare sentences: the question is the sentence itself («The heart preceded the
     spade?»; YES = true of what you saw) — the two v26 frames («Does this statement describe
     what you saw: “…”?» / «Compare with what you saw…») are gone (VERB_WRAPPERS, one wrapper;
