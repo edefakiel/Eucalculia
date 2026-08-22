@@ -7945,10 +7945,10 @@ function currentVisualSystemContract(){
 }
 
 const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
-  "appVersion": "v7.1.10",
+  "appVersion": "v7.1.11",
   "releaseChannel": "stable",
-  "builtAt": "2026-08-19T10:20:00Z",
-  "artifact": "Eucalculia_v7_1_10.html",
+  "builtAt": "2026-08-22T12:00:00Z",
+  "artifact": "Eucalculia_v7_1_11.html",
   "artifactFormat": "single-file-html",
   "milestone": "PH6.C5.R3.22-SPATIAL-ADMISSION-ACCESSIBILITY-R1",
   "profileSchema": 23,
@@ -7960,7 +7960,7 @@ const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
   "sourceLayout": "src/eucalculia/c5_r3_22_spatial_admission_accessibility_r1/source-manifest.json",
   "sourceDomains": ["session-core","content-oracles","adaptation","persistence","interface-components","accessibility","guide-prompts","audits"],
   "reproducibleBuild": true,
-  "maskProfileVersion": "eucalculia.mask-profile@M04-native-1"
+  "maskProfileVersion": "eucalculia.mask-profile@SYM01-native-1"
 });
 const APP_VERSION = EUCALCULIA_BUILD_MANIFEST.appVersion;
 const APP_LOADED_AT = new Date().toISOString();
@@ -196786,3 +196786,814 @@ html[data-euca-choice-contract="blocked"] #numpad {
   data-security-review="NOT_ESTABLISHED"
   data-performance-review="NOT_ESTABLISHED"
   data-next="R3_22_EXACT_SHA_STATIC_THEN_DIRECTED_AND_NATURAL_BROWSER_GATES"></div>
+<script>/* PH6.MASK-SYM01-SYMBOL-CLOUD-R1:START */
+/* PH6.MASK-SYM01 — «Nube de símbolos»: perfil nativo SYM01 dentro del motor común de máscaras.
+   Sustituye VISUALMENTE al perfil M04 (formas aleatorias: arcos, trazos y puntos) por una nube
+   de dígitos y símbolos matemáticos que nacen, brillan y se apagan al azar, en la paleta de
+   Eucalculia (violeta, índigo, azul, teal, hielo y un toque ámbar) sobre el mismo fondo #07090f.
+
+   Contrato que conserva del motor M04 (PH6.C5.R3.1):
+     · UN solo motor (Mask.gen / Mask.draw), UN solo pase por frame, sin RAF propio, sin canvas
+       subyacente, sin reescalado (renderScale 1) y misma reclamación canónica del canvas.
+     · Episodio por fase (mismo token que M04): cada máscara es una nube distinta y determinista.
+     · Movimiento reducido → nube ESTÁTICA por episodio (sigue enmascarando, no parpadea).
+     · M04 sigue compilado como perfil de reserva: CONFIG.maskSymbolCloudEnabled=false
+       o ?eucaQa=1&maskProfile=M04 (QA local) vuelven al perfil anterior sin tocar nada más.
+     · ?maskTrial=off conserva su semántica (no se instala nada: máscara legada).
+
+   Función (enmascaramiento retroactivo): cobertura densa desde el primer frame (los glifos
+   «nacen» antes de t=0), alto contraste, dos escalas espaciales (glifos pequeños y grandes),
+   y ningún glifo persiste más de ~150 ms. Los dígitos salen de una BOLSA barajada (0–9 en
+   cada diez extracciones), para que ningún número predomine y no sesgue la respuesta.
+
+   Rendimiento: los glifos se rasterizan UNA vez por color y tamaño en atlas (construcción en
+   tiempo ocioso tras gen(); síncrona sólo si la máscara llega antes). En caliente, cada frame
+   es fondo + ~N drawImage desde el atlas (N ≈ área/1700, tope 420), sin fillText ni sombras. */
+(() => {
+  "use strict";
+  const PATCH_ID = "ph6.mask-sym01-symbol-cloud-r1";
+  const VERSION = "1.0.0";
+  const PROFILE = "SYM01";
+  const FALLBACK_PROFILE = "M04";
+  const MILESTONE = "PH6.MASK-SYM01-SYMBOL-CLOUD-R1";
+  const API_NAME = "EUCALCULIA_MASK_SYM01";
+
+  const Engine = (() => {
+    try{ if(typeof Mask === "object" && Mask) return Mask; }catch(_){ }
+    return globalThis.__EUCALCULIA_SHARED_MASK_ENGINE__;
+  })();
+  if(typeof Engine !== "object" || !Engine || Engine.__sym01Installed) return;
+
+  const query = new URLSearchParams(location.search);
+  if(query.get("maskTrial") === "off") return;
+
+  const cfg = (() => { try{ return (typeof CONFIG === "object" && CONFIG) ? CONFIG : null; }catch(_){ return null; } })();
+  const defaults = {
+    maskSymbolCloudEnabled: true,          // false → perfil de reserva M04
+    maskSymbolCloudDensity: 1,             // multiplicador de glifos vivos (0.5–2)
+    maskSymbolCloudDigitShare: 0.45,       // fracción de nacimientos que son dígitos 0–9 (0 = sólo símbolos)
+    maskSymbolCloudMaxLiveGlyphs: 700,     // tope de glifos vivos por frame
+    maskSymbolCloudGlow: true,             // halo horneado en el atlas (sin coste por frame)
+    maskSymbolCloudStaticReducedMotion: true // movimiento reducido → nube estática por episodio
+  };
+  if(cfg){ for(const key of Object.keys(defaults)) if(cfg[key] === undefined) cfg[key] = defaults[key]; }
+  const readCfg = key => { const v = cfg ? cfg[key] : undefined; return v === undefined ? defaults[key] : v; };
+
+  const forcedProfile = (() => {
+    const raw = String(query.get("maskProfile") || "").toUpperCase();
+    return raw === PROFILE || raw === FALLBACK_PROFILE ? raw : "";
+  })();
+  const seedOverride = (() => { const n = Number(query.get("maskSeed")); return Number.isFinite(n) ? (n >>> 0) : 0; })();
+  const auditEnabled = query.get("maskTrialAudit") === "1";
+  const reducedMotionForcedForAudit = auditEnabled && query.get("maskReducedMotion") === "force";
+  const reducedMotionMedia = (() => { try{ return window.matchMedia?.("(prefers-reduced-motion: reduce)") || null; }catch(_){ return null; } })();
+  let reducedMotion = reducedMotionForcedForAudit || !!reducedMotionMedia?.matches;
+
+  // ── Paleta (la de M04 = la de marca: --euca-violet-bright, --euca-violet, --euca-blue,
+  //    --euca-success; más hielo --euca-text-violet-soft y ámbar --euca-warning) ──────────
+  const BG = "#07090f";
+  const COLORS = Object.freeze([
+    Object.freeze({id:"violet", rgb:[150,128,255], weight:0.26, core:0.30}),
+    Object.freeze({id:"indigo", rgb:[105, 94,222], weight:0.17, core:0.22}),
+    Object.freeze({id:"blue",   rgb:[ 72,166,255], weight:0.22, core:0.30}),
+    Object.freeze({id:"teal",   rgb:[ 27,211,183], weight:0.13, core:0.28}),
+    Object.freeze({id:"ice",    rgb:[230,226,255], weight:0.14, core:0.40}),
+    Object.freeze({id:"amber",  rgb:[255,176, 84], weight:0.08, core:0.30})
+  ]);
+  const COLOR_CDF = (() => { const out = []; let acc = 0; for(const c of COLORS){ acc += c.weight; out.push(acc); } return out.map(v => v / acc); })();
+
+  // ── Repertorio: dígitos (bolsa equilibrada) + símbolos con peso ───────────────────────
+  const DIGITS = Object.freeze(["0","1","2","3","4","5","6","7","8","9"]);
+  const SYMBOLS = Object.freeze([
+    // operadores y relaciones (peso 3)
+    ["+",3],["−",3],["×",3],["÷",3],["=",3],["≠",2],["<",3],[">",3],["≤",2],["≥",2],["±",2],["≈",2],["≡",1],
+    // constantes, raíces, análisis (peso 2)
+    ["√",3],["π",3],["∞",3],["∑",2],["∏",1],["∫",2],["∂",1],["∇",1],["Δ",2],["θ",1],["λ",1],["μ",1],["σ",1],["φ",2],["Ω",1],["ε",1],
+    // conjuntos y lógica (peso 1)
+    ["∈",1],["∅",1],["∩",1],["∪",1],["⊂",1],["∀",1],["∃",1],["∧",1],["¬",1],["⊕",1],
+    // geometría, fracciones, potencias, puntuación matemática
+    ["∠",1],["°",2],["%",2],["²",2],["³",2],["½",2],["¾",1],
+    ["(",2],[")",2],["[",1],["]",1],["{",1],["}",1],["/",1],["·",2],["→",2],["⇒",1],["ℝ",1],["ℕ",1],["ℤ",1],["ℚ",1]
+  ]);
+  const FONT_STACK = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, "SF Mono", "DejaVu Sans Mono", "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", "Noto Sans Symbols 2", "Noto Sans Math", "DejaVu Sans", system-ui, sans-serif';
+  const FONT_WEIGHT = 600;
+
+  // ── Dinámica ──────────────────────────────────────────────────────────────────────────
+  const CHUNK_MS = 240;          // ventana de generación; la vida máxima nunca la supera
+  const LIFE_MIN = 70, LIFE_MAX = 150, LIFE_MEAN = (LIFE_MIN + LIFE_MAX) / 2;
+  const RISE = 0.20, FALL = 0.36; // fracciones de la vida: aparición / desvanecimiento
+  const BASE_LIVE = 560;         // glifos vivos por frame (antes del multiplicador); los tamaños escalan
+                                 // con √área, así que la FRACCIÓN cubierta es la misma en cualquier pantalla
+  const MIN_LIVE = 60;
+  const STATIC_T_BASE = 120;     // movimiento reducido: instante congelado del episodio
+
+  // ── Atlas de glifos: dos escalas (em lógico), k = min(DPR, 1.5) ───────────────────────
+  const TIERS = Object.freeze([
+    Object.freeze({id:"small", em:18, below:30}),   // tamaños < 30 px
+    Object.freeze({id:"big",   em:44, below:Infinity})
+  ]);
+  const CELL_RATIO = 1.45;       // celda = em × CELL_RATIO (deja sitio al halo)
+  const ATLAS_COLUMNS = 8;
+  const ATLAS_MAX_SCALE = 1.5;
+
+  const state = {
+    episode: 0,
+    current: "",
+    lastElapsed: Number.NaN,
+    lastPhaseToken: "",
+    episodeSeed: 1,
+    chunkCache: new Map(),
+    drawSamples: [],
+    successfulDraws: 0,
+    failedDraws: 0,
+    lastLiveCount: 0,
+    lastT: 0,
+    staticT: STATIC_T_BASE,
+    lastGateEvidenceKey: "",
+    atlasBuilds: 0,
+    atlasSyncBuilds: 0,
+    atlasIdleHandle: 0,
+    runtimeErrors: 0,
+    genW: 0,
+    genH: 0
+  };
+
+  const atlas = {
+    ready: false,
+    scale: 0,
+    glyphs: [],          // [{ch, digit:boolean, weight, index}]
+    symbolCdf: [],       // acumulada sobre los símbolos (no dígitos)
+    digitIndices: [],    // índices de los 10 dígitos dentro de glyphs (los presentes)
+    tiers: [],           // [{id, em, below, cell, columns, rows, canvases:[perColor], rects:[perGlyph]}]
+    bytes: 0,
+    droppedTofu: [],
+    droppedDuplicate: [],
+    builtAt: 0
+  };
+
+  // ── Utilidades ────────────────────────────────────────────────────────────────────────
+  function hashSeed(text){
+    let h = 2166136261 >>> 0;
+    for(let i=0; i<text.length; i++){ h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h || 1;
+  }
+  function rngFor(text){
+    let a = hashSeed(text);
+    return () => {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function makeCanvas(w, h){
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, w|0); canvas.height = Math.max(1, h|0);
+    return canvas;
+  }
+  function reportError(error, source){
+    state.runtimeErrors += 1;
+    try{ if(typeof recordRuntimeError === "function") recordRuntimeError(error, {source:`${PATCH_ID}.${source}`}); }catch(_){ }
+  }
+  function logicalW(){ try{ return Math.max(1, (typeof W === "number" ? W : 400)|0); }catch(_){ return 400; } }
+  function logicalH(){ try{ return Math.max(1, (typeof H === "number" ? H : 400)|0); }catch(_){ return 400; } }
+  function devicePixelScale(){
+    let dpr = 1;
+    try{ dpr = Number(typeof DPR === "number" && DPR > 0 ? DPR : (window.devicePixelRatio || 1)); }catch(_){ dpr = 1; }
+    if(!Number.isFinite(dpr) || dpr <= 0) dpr = 1;
+    return Math.min(ATLAS_MAX_SCALE, Math.max(1, dpr));
+  }
+  function elapsedNow(){
+    try{ const v = typeof phaseElapsedMs === "function" ? Number(phaseElapsedMs()) : 0; return Number.isFinite(v) ? Math.max(0, v) : 0; }catch(_){ return 0; }
+  }
+  function maskPhaseToken(){
+    // Mismo token que M04: fase + inicio de fase + ensayo del bloque.
+    try{
+      const info = (typeof State !== "undefined" && State?.trialInfo) || {};
+      return [String(State?.phaseStartTime || ""), String(info.spa05R2Phase || info.spa05Phase || info.spa04Phase || info.spa03Phase || info.spa02Phase || info.g083Phase || info.xrepPhase || "MASK"), String(State?.blockTrials ?? "")].join("|");
+    }catch(_){ return ""; }
+  }
+  function activeProfile(){
+    if(forcedProfile) return forcedProfile;
+    return readCfg("maskSymbolCloudEnabled") === false ? FALLBACK_PROFILE : PROFILE;
+  }
+  function clamp(v, lo, hi){ return v < lo ? lo : v > hi ? hi : v; }
+  function rgba(rgb, a){ return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`; }
+
+  // ── Construcción del atlas ────────────────────────────────────────────────────────────
+  function inkSignature(ctx, ch, px){
+    // Firma de la tinta de un glifo a `px` píxeles; detecta tofu (igual que U+FFFF) y duplicados.
+    const size = Math.ceil(px * 1.6);
+    ctx.canvas.width = size; ctx.canvas.height = size;
+    ctx.clearRect(0,0,size,size);
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `${FONT_WEIGHT} ${px}px ${FONT_STACK}`;
+    ctx.fillText(ch, size/2, size/2);
+    const data = ctx.getImageData(0,0,size,size).data;
+    let h = 2166136261 >>> 0, ink = 0;
+    for(let i=3; i<data.length; i+=4){ const a = data[i]; if(a > 8) ink++; h ^= a; h = Math.imul(h, 16777619) >>> 0; }
+    return {hash:h, ink};
+  }
+  function selectGlyphs(){
+    const probe = makeCanvas(8,8).getContext("2d", {willReadFrequently:true});
+    const tofu = inkSignature(probe, "￿", 32).hash;
+    const tofu2 = inkSignature(probe, "͸", 32).hash; // sin asignar: otra caja .notdef posible
+    const seen = new Set();
+    const glyphs = [];
+    const dropTofu = [], dropDup = [];
+    const push = (ch, digit, weight) => {
+      const sig = inkSignature(probe, ch, 32);
+      if(sig.ink === 0 || sig.hash === tofu || sig.hash === tofu2){ dropTofu.push(ch); return; }
+      if(seen.has(sig.hash)){ dropDup.push(ch); return; }
+      seen.add(sig.hash);
+      glyphs.push({ch, digit, weight, index:glyphs.length});
+    };
+    for(const d of DIGITS) push(d, true, 1);
+    for(const [ch, weight] of SYMBOLS) push(ch, false, weight);
+    return {glyphs, dropTofu, dropDup};
+  }
+  function buildTier(tier, glyphs, scale){
+    const em = tier.em;
+    const cell = Math.ceil(em * CELL_RATIO * scale);
+    const columns = ATLAS_COLUMNS;
+    const rows = Math.max(1, Math.ceil(glyphs.length / columns));
+    const width = cell * columns, height = cell * rows;
+    // 1) atlas blanco con halo (una sola rasterización por glifo)
+    const white = makeCanvas(width, height);
+    const wctx = white.getContext("2d");
+    wctx.textAlign = "left"; wctx.textBaseline = "alphabetic";
+    wctx.font = `${FONT_WEIGHT} ${Math.round(em * scale)}px ${FONT_STACK}`;
+    const glow = readCfg("maskSymbolCloudGlow") !== false;
+    const rects = [];
+    for(let i=0; i<glyphs.length; i++){
+      const g = glyphs[i];
+      const cx = (i % columns) * cell + cell/2, cy = Math.floor(i / columns) * cell + cell/2;
+      const m = wctx.measureText(g.ch);
+      const left = Number(m.actualBoundingBoxLeft), right = Number(m.actualBoundingBoxRight);
+      const asc = Number(m.actualBoundingBoxAscent), desc = Number(m.actualBoundingBoxDescent);
+      const haveBox = [left,right,asc,desc].every(Number.isFinite) && (left + right) > 0;
+      const inkW = haveBox ? (left + right) : m.width, inkH = haveBox ? (asc + desc) : em * scale * 0.7;
+      // centrado exacto de la caja de tinta en la celda
+      const x = haveBox ? cx - inkW/2 + left : cx - m.width/2;
+      const y = haveBox ? cy + inkH/2 - desc : cy + em*scale*0.35;
+      wctx.save();
+      if(glow){
+        wctx.shadowColor = "rgba(255,255,255,0.95)";
+        wctx.shadowBlur = Math.max(2, em * scale * 0.16);
+        wctx.fillStyle = "rgba(255,255,255,0.55)";
+        wctx.fillText(g.ch, x, y);
+        wctx.shadowBlur = Math.max(1, em * scale * 0.05);
+        wctx.fillStyle = "#fff";
+        wctx.fillText(g.ch, x, y);
+      } else {
+        wctx.fillStyle = "#fff";
+        wctx.fillText(g.ch, x, y);
+      }
+      wctx.restore();
+      rects.push({sx:(i % columns) * cell, sy:Math.floor(i / columns) * cell, sw:cell, sh:cell, inkW, inkH});
+    }
+    // 2) un atlas por color: tinte por composición (source-in) + núcleo aclarado
+    const canvases = [];
+    let bytes = 0;
+    for(const color of COLORS){
+      const c = makeCanvas(width, height);
+      const ctx = c.getContext("2d");
+      ctx.drawImage(white, 0, 0);
+      ctx.globalCompositeOperation = "source-in";
+      ctx.fillStyle = rgba(color.rgb, 1);
+      ctx.fillRect(0,0,width,height);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = color.core;
+      ctx.drawImage(white, 0, 0);   // núcleo más luminoso (mezcla hacia blanco), halo queda del color
+      ctx.globalAlpha = 1;
+      canvases.push(c);
+      bytes += width * height * 4;
+    }
+    return {id:tier.id, em, below:tier.below, cell, columns, rows, width, height, canvases, rects, bytes};
+  }
+  function buildAtlas(reason){
+    const started = performance.now();
+    const scale = devicePixelScale();
+    const picked = selectGlyphs();
+    const glyphs = picked.glyphs;
+    const tiers = TIERS.map(t => buildTier(t, glyphs, scale));
+    const symbolCdf = []; let acc = 0;
+    for(const g of glyphs){ if(!g.digit){ acc += g.weight; } symbolCdf.push(acc); }
+    atlas.glyphs = glyphs;
+    atlas.symbolCdf = symbolCdf.map(v => acc > 0 ? v/acc : 1);
+    atlas.symbolTotal = acc;
+    atlas.digitIndices = glyphs.filter(g => g.digit).map(g => g.index);
+    atlas.tiers = tiers;
+    atlas.bytes = tiers.reduce((s,t) => s + t.bytes, 0);
+    atlas.droppedTofu = picked.dropTofu;
+    atlas.droppedDuplicate = picked.dropDup;
+    atlas.scale = scale;
+    atlas.builtAt = performance.now();
+    atlas.buildMs = atlas.builtAt - started;
+    atlas.ready = glyphs.length >= 12;
+    atlas.lastReason = reason;
+    state.atlasBuilds += 1;
+    state.chunkCache.clear();
+    return atlas.ready;
+  }
+  function cancelIdleBuild(){
+    if(!state.atlasIdleHandle) return;
+    try{ if(typeof cancelIdleCallback === "function" && state.atlasIdleKind === "idle") cancelIdleCallback(state.atlasIdleHandle); else clearTimeout(state.atlasIdleHandle); }catch(_){ }
+    state.atlasIdleHandle = 0;
+  }
+  function scheduleAtlasBuild(reason){
+    cancelIdleBuild();
+    const run = () => { state.atlasIdleHandle = 0; try{ if(!atlas.ready || atlas.scale !== devicePixelScale()) buildAtlas(reason); }catch(e){ reportError(e, "atlas.idle"); } };
+    try{
+      if(typeof requestIdleCallback === "function"){ state.atlasIdleKind = "idle"; state.atlasIdleHandle = requestIdleCallback(run, {timeout:1200}); return; }
+    }catch(_){ }
+    state.atlasIdleKind = "timeout"; state.atlasIdleHandle = setTimeout(run, 40);
+  }
+  function ensureAtlasSync(reason){
+    if(atlas.ready && atlas.scale === devicePixelScale()) return true;
+    cancelIdleBuild();
+    state.atlasSyncBuilds += 1;
+    return buildAtlas(reason);
+  }
+
+  // ── Generación estocástica determinista por episodio y ventana ────────────────────────
+  function geometry(w, h){
+    // Base de tamaños: √área (no el lado menor), para que un móvil en vertical no quede con
+    // glifos diminutos y huecos. Con N constante y tamaño ∝ √área, la cobertura no depende
+    // del tamaño de la escena ni del aspecto.
+    const m = 0.93 * Math.sqrt(w * h);
+    const density = clamp(Number(readCfg("maskSymbolCloudDensity")) || 1, 0.25, 3);
+    const maxLive = clamp(Number(readCfg("maskSymbolCloudMaxLiveGlyphs")) || 700, 40, 1400);
+    const live = clamp(Math.round(BASE_LIVE * density), MIN_LIVE, maxLive);
+    return {
+      w, h, m, live,
+      sMin: Math.max(11, 0.03 * m),
+      sMax: Math.max(24, 0.19 * m),
+      perChunk: Math.max(8, Math.round(live * CHUNK_MS / LIFE_MEAN))
+    };
+  }
+  function pickColor(rnd){
+    const u = rnd();
+    for(let i=0; i<COLOR_CDF.length; i++) if(u <= COLOR_CDF[i]) return i;
+    return COLOR_CDF.length - 1;
+  }
+  function pickSymbol(rnd){
+    const cdf = atlas.symbolCdf, u = rnd();
+    // búsqueda binaria sobre la acumulada (los dígitos comparten el valor anterior → nunca salen aquí)
+    let lo = 0, hi = cdf.length - 1;
+    while(lo < hi){ const mid = (lo + hi) >> 1; if(cdf[mid] < u) lo = mid + 1; else hi = mid; }
+    // si cayó sobre un dígito (valor repetido), avanza al primer símbolo con ese valor
+    while(lo < atlas.glyphs.length && atlas.glyphs[lo].digit) lo++;
+    return lo < atlas.glyphs.length ? lo : atlas.glyphs.length - 1;
+  }
+  function makeDigitBag(rnd){
+    const bag = { items:[], take(){ if(!this.items.length){ this.items = atlas.digitIndices.slice(); for(let i=this.items.length-1; i>0; i--){ const j = Math.floor(rnd()*(i+1)); const t = this.items[i]; this.items[i] = this.items[j]; this.items[j] = t; } } return this.items.pop(); } };
+    return bag;
+  }
+  function generateChunk(chunkIndex, geo){
+    const rnd = rngFor(`${PROFILE}|${state.episodeSeed}|${chunkIndex}`);
+    const digitShare = atlas.digitIndices.length ? clamp(Number(readCfg("maskSymbolCloudDigitShare")), 0, 1) : 0;
+    const hasSymbols = atlas.symbolTotal > 0;
+    const bag = makeDigitBag(rnd);
+    const start = chunkIndex * CHUNK_MS;
+    const n = geo.perChunk;
+    const out = new Array(n);
+    const logRatio = Math.log(geo.sMax / geo.sMin);
+    for(let i=0; i<n; i++){
+      const birth = start + rnd() * CHUNK_MS;
+      const life = LIFE_MIN + rnd() * (LIFE_MAX - LIFE_MIN);
+      const size = geo.sMin * Math.exp(logRatio * Math.pow(rnd(), 1.5));
+      const big = size > geo.sMax * 0.55;
+      const isDigit = digitShare > 0 && (!hasSymbols || rnd() < digitShare);
+      const glyph = isDigit ? bag.take() : pickSymbol(rnd);
+      let color = pickColor(rnd);
+      if(big && (color === 4 || color === 5) && rnd() < 0.7) color = rnd() < 0.5 ? 0 : 1; // los grandes, fríos y fantasmales
+      const tilt = rnd() < 0.2 ? (rnd() - 0.5) * 1.4 : (rnd() - 0.5) * 0.5;
+      out[i] = {
+        x: rnd() * geo.w, y: rnd() * geo.h,
+        size, glyph, color,
+        alpha: big ? 0.28 + rnd() * 0.27 : 0.70 + rnd() * 0.30,
+        rot: tilt, rotVel: (rnd() - 0.5) * 0.35,
+        dx: (rnd() - 0.5) * size * 0.22, dy: (rnd() - 0.5) * size * 0.22,
+        birth, life
+      };
+    }
+    return out;
+  }
+  function chunkFor(chunkIndex, geo){
+    const key = `${chunkIndex}|${geo.w}x${geo.h}|${geo.live}`;
+    let chunk = state.chunkCache.get(key);
+    if(!chunk){
+      chunk = generateChunk(chunkIndex, geo);
+      state.chunkCache.set(key, chunk);
+      if(state.chunkCache.size > 6){ const first = state.chunkCache.keys().next().value; state.chunkCache.delete(first); }
+    }
+    return chunk;
+  }
+  function envelope(u, frozen){
+    if(frozen) return {a:1, s:1};
+    let a;
+    if(u < RISE){ const x = u / RISE; a = 1 - (1 - x) * (1 - x); }
+    else if(u > 1 - FALL){ const x = (1 - u) / FALL; a = x * Math.sqrt(x); }
+    else a = 1;
+    const r = Math.min(1, u / RISE), pop = 1 - Math.pow(1 - r, 3);
+    return {a, s: 0.76 + 0.24 * pop + 0.06 * u};
+  }
+  function forEachLive(t, geo, frozen, fn){
+    const k = Math.floor(t / CHUNK_MS);
+    let count = 0;
+    for(let c = k - 1; c <= k; c++){
+      const chunk = chunkFor(c, geo);
+      for(let i=0; i<chunk.length; i++){
+        const g = chunk[i];
+        const u = (t - g.birth) / g.life;
+        if(u < 0 || u >= 1) continue;
+        fn(g, u, envelope(u, frozen));
+        count++;
+      }
+    }
+    return count;
+  }
+
+  // ── Pintado (un pase) ─────────────────────────────────────────────────────────────────
+  let groundCache = {key:"", gradient:null};
+  function ground(ctx, w, h){
+    const key = `${w}x${h}`;
+    if(groundCache.key !== key || !groundCache.gradient){
+      const g = ctx.createRadialGradient(w*0.5, h*0.46, 0, w*0.5, h*0.46, Math.max(w, h) * 0.72);
+      g.addColorStop(0, "rgba(124,104,255,0.11)");
+      g.addColorStop(0.55, "rgba(72,166,255,0.045)");
+      g.addColorStop(1, "rgba(7,9,15,0)");
+      groundCache = {key, gradient:g};
+    }
+    return groundCache.gradient;
+  }
+  function tierFor(size){
+    const tiers = atlas.tiers;
+    for(let i=0; i<tiers.length; i++) if(size < tiers[i].below) return tiers[i];
+    return tiers[tiers.length - 1];
+  }
+  function paint(ctx, t, w, h, frozen){
+    const geo = geometry(w, h);
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = ground(ctx, w, h); ctx.fillRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+    try{ ctx.imageSmoothingQuality = "high"; }catch(_){ }
+    let base = null;
+    try{ base = ctx.getTransform(); }catch(_){ base = null; }
+    const ba = base ? base.a : 1, bb = base ? base.b : 0, bc = base ? base.c : 0, bd = base ? base.d : 1, be = base ? base.e : 0, bf = base ? base.f : 0;
+    const useMatrix = !!base && typeof ctx.setTransform === "function";
+    const live = forEachLive(t, geo, frozen, (g, u, env) => {
+      const alpha = g.alpha * env.a;
+      if(alpha < 0.02) return;
+      const size = g.size * env.s;
+      const tier = tierFor(size);
+      const rect = tier.rects[g.glyph];
+      const img = tier.canvases[g.color];
+      if(!rect || !img) return;
+      const dw = size * CELL_RATIO;
+      const x = g.x + g.dx * u, y = g.y + g.dy * u;
+      const ang = g.rot + g.rotVel * u;
+      ctx.globalAlpha = alpha;
+      if(useMatrix){
+        const cs = Math.cos(ang), sn = Math.sin(ang);
+        ctx.setTransform(ba*cs + bc*sn, bb*cs + bd*sn, -ba*sn + bc*cs, -bb*sn + bd*cs, ba*x + bc*y + be, bb*x + bd*y + bf);
+        ctx.drawImage(img, rect.sx, rect.sy, rect.sw, rect.sh, -dw/2, -dw/2, dw, dw);
+      } else {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+        ctx.drawImage(img, rect.sx, rect.sy, rect.sw, rect.sh, -dw/2, -dw/2, dw, dw);
+        ctx.restore();
+      }
+    });
+    if(useMatrix) ctx.setTransform(ba, bb, bc, bd, be, bf);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    state.lastLiveCount = live;
+    state.lastT = t;
+    return live;
+  }
+
+  // ── Episodios e informe ───────────────────────────────────────────────────────────────
+  function resetEpisodeState(){
+    state.current = "";
+    state.lastElapsed = Number.NaN;
+    state.lastPhaseToken = "";
+    state.chunkCache.clear();
+    state.drawSamples = [];
+    state.successfulDraws = 0;
+    state.failedDraws = 0;
+    groundCache = {key:"", gradient:null};
+  }
+  function selectEpisode(elapsed, phaseToken){
+    const reset = !state.current || (!!phaseToken && phaseToken !== state.lastPhaseToken) || (Number.isFinite(state.lastElapsed) && elapsed + 8 < state.lastElapsed);
+    if(reset){
+      state.episode += 1;
+      state.current = PROFILE;
+      state.episodeSeed = (hashSeed(`${PROFILE}|${state.episode}|${phaseToken}|${seedOverride}`) ^ seedOverride) >>> 0 || 1;
+      state.staticT = STATIC_T_BASE + (state.episode % 5) * 37;
+      state.chunkCache.clear();
+      state.drawSamples = [];
+      state.successfulDraws = 0;
+      state.failedDraws = 0;
+      publishAudit();
+    }
+    state.lastElapsed = elapsed;
+    state.lastPhaseToken = phaseToken;
+  }
+  function percentile(values, p){
+    if(!values.length) return 0;
+    const sorted = values.slice().sort((a,b) => a-b);
+    return sorted[Math.min(sorted.length-1, Math.floor((sorted.length-1)*p))];
+  }
+  function buildReport(){
+    const m04 = Engine._c5r3Profiles?.M04 || [];
+    const profiles = [FALLBACK_PROFILE, PROFILE];
+    return {
+      milestone: MILESTONE,
+      patch: PATCH_ID,
+      version: VERSION,
+      engine: "shared-Mask.draw",
+      profiles,
+      forcedProfile: forcedProfile || null,
+      activeProfile: activeProfile(),
+      currentProfile: state.current || null,
+      fallbackProfile: FALLBACK_PROFILE,
+      episode: state.episode,
+      phaseToken: state.lastPhaseToken || null,
+      warm: {M04: m04.length === 4, SYM01: atlas.ready},
+      canonicalUnderlay: false,
+      renderPassesPerFrame: 1,
+      renderScale: 1,
+      independentRaf: false,
+      reducedMotion,
+      reducedMotionSource: reducedMotionForcedForAudit ? "explicit-audit" : (reducedMotion ? "media-query" : "none"),
+      staticUnderReducedMotion: readCfg("maskSymbolCloudStaticReducedMotion") !== false,
+      legacyStepIgnored: true,
+      compiledFrames: m04.length,
+      frameBased: false,
+      drawP50ms: +percentile(state.drawSamples, .50).toFixed(3),
+      drawP95ms: +percentile(state.drawSamples, .95).toFixed(3),
+      successfulDraws: state.successfulDraws,
+      failedDraws: state.failedDraws,
+      samples: state.drawSamples.length,
+      sym: {
+        glyphSet: atlas.glyphs.length,
+        digits: atlas.digitIndices.length,
+        droppedTofu: atlas.droppedTofu.slice(),
+        droppedDuplicate: atlas.droppedDuplicate.slice(),
+        atlasBytes: atlas.bytes,
+        atlasScale: atlas.scale,
+        atlasBuildMs: +Number(atlas.buildMs || 0).toFixed(1),
+        atlasBuilds: state.atlasBuilds,
+        atlasSyncBuilds: state.atlasSyncBuilds,
+        digitShare: clamp(Number(readCfg("maskSymbolCloudDigitShare")), 0, 1),
+        density: clamp(Number(readCfg("maskSymbolCloudDensity")) || 1, 0.25, 3),
+        liveTarget: geometry(logicalW(), logicalH()).live,
+        lastLiveCount: state.lastLiveCount,
+        lastT: +Number(state.lastT).toFixed(1),
+        lifeMs: [LIFE_MIN, LIFE_MAX],
+        chunkMs: CHUNK_MS,
+        runtimeErrors: state.runtimeErrors
+      }
+    };
+  }
+  function publishAudit(){
+    try{ document.documentElement.dataset.eucaMaskProfile = state.current || activeProfile(); }catch(_){ }
+    if(!auditEnabled) return;
+    const report = buildReport();
+    window.__EUCALCULIA_MASK_EXPERIMENT__ = report;
+    const ds = document.documentElement.dataset;
+    ds.eucaMaskExperiment = report.milestone;
+    ds.eucaMaskUnderlay = String(report.canonicalUnderlay);
+    ds.eucaMaskPasses = String(report.renderPassesPerFrame);
+    ds.eucaMaskScale = String(report.renderScale);
+    ds.eucaMaskRaf = String(report.independentRaf);
+    ds.eucaMaskSamples = String(report.samples);
+    ds.eucaMaskP95 = String(report.drawP95ms);
+    ds.eucaMaskLive = String(report.sym.lastLiveCount);
+  }
+
+  // ── Motor: gen / draw ─────────────────────────────────────────────────────────────────
+  const prevGen = typeof Engine.gen === "function" ? Engine.gen : null;
+  const prevDraw = typeof Engine.draw === "function" ? Engine.draw : null;
+  if(!prevGen || !prevDraw) return;
+
+  Engine.gen = function sym01Gen(){
+    // M04 (o el motor anterior) se recompila igual que hasta ahora: sigue siendo el perfil de reserva
+    // y la auditoría v6.8.90/P4 exige sus cuatro frames. Lo nuestro sólo añade el atlas (en ocioso).
+    const ret = prevGen.apply(this, arguments);
+    try{
+      state.genW = logicalW(); state.genH = logicalH();
+      resetEpisodeState();
+      if(activeProfile() === PROFILE){
+        if(!atlas.ready || atlas.scale !== devicePixelScale()) scheduleAtlasBuild("gen");
+      }
+      publishAudit();   // el informe/dataset vuelven a ser los de SYM01 tras el gen de M04
+    }catch(e){ reportError(e, "gen"); }
+    return ret;
+  };
+
+  Engine.draw = function sym01Draw(ctx){
+    if(activeProfile() !== PROFILE){
+      state.current = FALLBACK_PROFILE;
+      return prevDraw.call(this, ctx);
+    }
+    const started = auditEnabled ? performance.now() : 0;
+    let liveMaskDraw = false;
+    try{ liveMaskDraw = String(State?.status || "") === "MASK" && ctx?.canvas === document.getElementById("gameCanvas"); }catch(_){ }
+    if(liveMaskDraw) try{ globalThis.EUCALCULIA_C5_R32_MASK_OWNER?.claimCanonicalMask?.(); }catch(_){ }
+    const w = logicalW(), h = logicalH();
+    if(state.genW !== w || state.genH !== h) this.gen();
+    if(!atlas.ready || atlas.scale !== devicePixelScale()){
+      if(!ensureAtlasSync("draw")){
+        state.current = FALLBACK_PROFILE;
+        return prevDraw.call(this, ctx);   // sin glifos utilizables (fuente sin tinta): reserva M04
+      }
+    }
+    const elapsed = elapsedNow();
+    selectEpisode(elapsed, maskPhaseToken());
+    const frozen = reducedMotion && readCfg("maskSymbolCloudStaticReducedMotion") !== false;
+    const t = frozen ? state.staticT : elapsed;
+    let painted = false, paintError = null;
+    try{ paint(ctx, t, w, h, frozen); painted = true; }
+    catch(error){ paintError = error; try{ ctx.restore(); }catch(_){ } }
+    if(auditEnabled && liveMaskDraw){
+      if(painted){ state.successfulDraws += 1; state.drawSamples.push(performance.now() - started); }
+      else state.failedDraws += 1;
+      if(state.drawSamples.length > 240) state.drawSamples.splice(0, state.drawSamples.length - 240);
+      publishAudit();
+    }
+    if(paintError){ reportError(paintError, "draw"); throw paintError; }
+  };
+  Engine.__sym01Installed = true;
+  Engine.__sym01Profile = PROFILE;
+
+  if(!reducedMotionForcedForAudit){
+    try{ reducedMotionMedia?.addEventListener?.("change", event => { reducedMotion = !!event.matches; publishAudit(); }); }catch(_){ }
+  }
+
+  // ── API pública y auditoría ───────────────────────────────────────────────────────────
+  function paintTo(canvas, t, opts={}){
+    // Pinta la nube en un canvas ajeno (pruebas/demos). No toca el estado de episodio del juego.
+    const ctx = canvas.getContext("2d");
+    if(!atlas.ready || atlas.scale !== devicePixelScale()) ensureAtlasSync("paintTo");
+    const savedSeed = state.episodeSeed, savedCache = state.chunkCache;
+    state.episodeSeed = (opts.seed >>> 0) || savedSeed || 1;
+    state.chunkCache = new Map();
+    try{
+      const w = Number(opts.w) || canvas.width, h = Number(opts.h) || canvas.height;
+      ctx.setTransform(1,0,0,1,0,0);
+      return paint(ctx, Number(t) || 0, w, h, !!opts.frozen);
+    } finally {
+      state.episodeSeed = savedSeed; state.chunkCache = savedCache;
+      groundCache = {key:"", gradient:null};
+    }
+  }
+  function simulate(opts={}){
+    // Estadísticas de la nube sin pintar: histograma de dígitos, vivos por instante, equilibrio.
+    if(!atlas.ready || atlas.scale !== devicePixelScale()) ensureAtlasSync("simulate");
+    const w = Number(opts.w) || 800, h = Number(opts.h) || 600, ms = Number(opts.ms) || 2000, step = Number(opts.step) || 16;
+    const geo = geometry(w, h);
+    const savedSeed = state.episodeSeed, savedCache = state.chunkCache;
+    state.episodeSeed = (opts.seed >>> 0) || 12345;
+    state.chunkCache = new Map();
+    try{
+      const digitHist = new Map(atlas.digitIndices.map(i => [atlas.glyphs[i].ch, 0]));
+      let symbolCount = 0, digitCount = 0;
+      const chunks = Math.ceil(ms / CHUNK_MS) + 1;
+      for(let c = -1; c < chunks; c++){
+        for(const g of chunkFor(c, geo)){
+          const glyph = atlas.glyphs[g.glyph];
+          if(glyph.digit){ digitCount++; digitHist.set(glyph.ch, digitHist.get(glyph.ch) + 1); } else symbolCount++;
+        }
+      }
+      const liveSeries = [];
+      for(let t = 0; t <= ms; t += step) liveSeries.push(forEachLive(t, geo, false, () => {}));
+      const histValues = [...digitHist.values()];
+      const maxD = Math.max(0, ...histValues), minD = histValues.length ? Math.min(...histValues) : 0;
+      return {
+        w, h, live: geo.live, perChunk: geo.perChunk, sizeRange:[+geo.sMin.toFixed(1), +geo.sMax.toFixed(1)],
+        digitCount, symbolCount, digitShareObserved: digitCount + symbolCount ? +(digitCount/(digitCount+symbolCount)).toFixed(3) : 0,
+        digitHistogram: Object.fromEntries(digitHist), digitBalanceRatio: minD > 0 ? +(maxD/minD).toFixed(3) : (maxD === 0 ? 1 : Infinity),
+        liveAtOnset: liveSeries[0], liveMin: Math.min(...liveSeries), liveMax: Math.max(...liveSeries), liveMean: +(liveSeries.reduce((a,b)=>a+b,0)/liveSeries.length).toFixed(1),
+        seed: state.episodeSeed
+      };
+    } finally { state.episodeSeed = savedSeed; state.chunkCache = savedCache; }
+  }
+  function coverageOf(canvas){
+    const ctx = canvas.getContext("2d", {willReadFrequently:true});
+    const data = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    let inked = 0, total = 0;
+    for(let i=0; i<data.length; i+=16){ // 1 de cada 4 píxeles
+      total++;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      if(r + g + b > 120) inked++;   // claramente por encima del fondo #07090f y del degradado
+    }
+    return total ? inked/total : 0;
+  }
+  function diffOf(a, b){
+    const da = a.getContext("2d", {willReadFrequently:true}).getImageData(0,0,a.width,a.height).data;
+    const db = b.getContext("2d", {willReadFrequently:true}).getImageData(0,0,b.width,b.height).data;
+    let changed = 0, total = 0;
+    for(let i=0; i<da.length; i+=16){ total++; if(Math.abs(da[i]-db[i]) + Math.abs(da[i+1]-db[i+1]) + Math.abs(da[i+2]-db[i+2]) > 40) changed++; }
+    return total ? changed/total : 0;
+  }
+  function audit(){
+    const block = [], warnings = [], details = {patch:PATCH_ID, version:VERSION, profile:PROFILE};
+    const AR = (typeof auditResult === "function") ? auditResult : ((status, payload) => Object.assign({status}, payload || {}));
+    try{
+      details.installed = Engine.__sym01Installed === true && typeof Engine.draw === "function" && Engine.draw.name === "sym01Draw";
+      if(!details.installed) block.push("SYM01: el perfil no está instalado sobre el motor común");
+      details.activeProfile = activeProfile();
+      details.fallbackFramesM04 = (Engine._c5r3Profiles?.M04 || []).length;
+      if(Engine.__c5r31M04Native && details.fallbackFramesM04 !== 4) block.push(`SYM01: el perfil de reserva M04 no conserva cuatro frames (${details.fallbackFramesM04})`);
+      const okAtlas = ensureAtlasSync("audit");
+      details.atlas = {ready:atlas.ready, glyphs:atlas.glyphs.length, digits:atlas.digitIndices.length, tiers:atlas.tiers.map(t => ({id:t.id, em:t.em, cell:t.cell, size:`${t.width}x${t.height}`})), bytes:atlas.bytes, scale:atlas.scale, buildMs:+Number(atlas.buildMs||0).toFixed(1), droppedTofu:atlas.droppedTofu, droppedDuplicate:atlas.droppedDuplicate};
+      if(!okAtlas) block.push("SYM01: el atlas no pudo construirse");
+      if(atlas.glyphs.length < 30) warnings.push(`SYM01: repertorio corto (${atlas.glyphs.length} glifos con tinta en esta fuente)`);
+      if(atlas.digitIndices.length !== 10) block.push(`SYM01: faltan dígitos en el atlas (${atlas.digitIndices.length}/10)`);
+      if(atlas.bytes > 48 * 1024 * 1024) warnings.push(`SYM01: atlas grande (${(atlas.bytes/1048576).toFixed(1)} MB)`);
+      // estadística de la nube
+      const sim = simulate({w:800, h:600, ms:2000, seed:777});
+      details.simulation = sim;
+      if(!(sim.liveAtOnset >= sim.live * 0.6)) block.push(`SYM01: la nube no es densa desde t=0 (${sim.liveAtOnset} vivos de ${sim.live} objetivo)`);
+      if(!(sim.liveMin >= sim.live * 0.6 && sim.liveMax <= sim.live * 1.5)) warnings.push(`SYM01: población viva fuera de banda (${sim.liveMin}–${sim.liveMax}, objetivo ${sim.live})`);
+      if(sim.digitCount > 0 && !(sim.digitBalanceRatio <= 1.35)) block.push(`SYM01: dígitos desequilibrados (max/min ${sim.digitBalanceRatio})`);
+      const share = clamp(Number(readCfg("maskSymbolCloudDigitShare")), 0, 1);
+      if(share > 0 && Math.abs(sim.digitShareObserved - share) > 0.08) warnings.push(`SYM01: cuota de dígitos observada ${sim.digitShareObserved} vs configurada ${share}`);
+      // determinismo
+      const sim2 = simulate({w:800, h:600, ms:600, seed:777});
+      details.deterministic = JSON.stringify(sim2.digitHistogram) === JSON.stringify(simulate({w:800, h:600, ms:600, seed:777}).digitHistogram);
+      if(!details.deterministic) block.push("SYM01: la misma semilla no reproduce la misma nube");
+      // pintado real: cobertura al inicio y cambio temporal
+      const a = makeCanvas(480, 360), b = makeCanvas(480, 360), c = makeCanvas(480, 360);
+      const t0 = performance.now();
+      paintTo(a, 0, {seed:4242}); paintTo(b, 48, {seed:4242}); paintTo(c, 0, {seed:4242});
+      const paintMs = (performance.now() - t0) / 3;
+      details.paint = {coverageT0:+coverageOf(a).toFixed(3), coverageT48:+coverageOf(b).toFixed(3), changed0to48:+diffOf(a,b).toFixed(3), identicalSameSeed:diffOf(a,c) === 0, meanPaintMs:+paintMs.toFixed(2)};
+      if(!(details.paint.coverageT0 >= 0.35)) block.push(`SYM01: cobertura insuficiente al inicio de la máscara (${details.paint.coverageT0}; M04 ronda 0.10–0.18 con la misma métrica)`);
+      if(!(details.paint.changed0to48 >= 0.25)) block.push(`SYM01: la nube apenas cambia en 48 ms (${details.paint.changed0to48})`);
+      if(!details.paint.identicalSameSeed) block.push("SYM01: dos pintados con la misma semilla y el mismo instante difieren");
+      if(paintMs > 12) warnings.push(`SYM01: pintado lento en esta máquina (${paintMs.toFixed(1)} ms por frame a 480×360)`);
+      // movimiento reducido: congelado
+      const f1 = makeCanvas(320, 240), f2 = makeCanvas(320, 240);
+      paintTo(f1, 120, {seed:99, frozen:true}); paintTo(f2, 120, {seed:99, frozen:true});
+      details.frozenIdentical = diffOf(f1, f2) === 0;
+      if(!details.frozenIdentical) block.push("SYM01: la variante estática no es estable");
+      // informe/contrato del motor
+      const report = buildReport();
+      details.contract = {canonicalUnderlay:report.canonicalUnderlay, renderPassesPerFrame:report.renderPassesPerFrame, renderScale:report.renderScale, independentRaf:report.independentRaf, legacyStepIgnored:report.legacyStepIgnored, engine:report.engine};
+      if(report.canonicalUnderlay !== false || report.renderPassesPerFrame !== 1 || report.renderScale !== 1 || report.independentRaf !== false) block.push("SYM01: el contrato del motor (un pase, sin RAF, sin capa inferior) no se cumple");
+      details.runtimeErrors = state.runtimeErrors;
+      if(state.runtimeErrors) warnings.push(`SYM01: ${state.runtimeErrors} errores de ejecución registrados por el perfil`);
+    }catch(e){ block.push(`SYM01: excepción en la auditoría: ${(e && e.message) || e}`); }
+    return AR(block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), {block, warnings, details});
+  }
+
+  const api = Object.freeze({
+    patch: PATCH_ID, version: VERSION, milestone: MILESTONE, profile: PROFILE, fallbackProfile: FALLBACK_PROFILE,
+    activeProfile, report: buildReport, simulate, paintTo, audit,
+    glyphs: () => atlas.glyphs.map(g => g.ch),
+    colors: () => COLORS.map(c => ({id:c.id, rgb:c.rgb.slice(), weight:c.weight})),
+    rebuildAtlas: reason => ensureAtlasSync(reason || "manual"),
+    engine: Engine
+  });
+  try{ Object.defineProperty(globalThis, API_NAME, {value:api, writable:false, configurable:false, enumerable:true}); }catch(_){ try{ globalThis[API_NAME] = api; }catch(__){ } }
+  try{ globalThis.auditMaskSymbolCloud = audit; }catch(_){ }
+  try{ if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("maskSymbolCloud", audit); }catch(_){ }
+  try{ if(typeof registerFeatureAudit === "function") registerFeatureAudit(["mask_symbol_cloud", "mask_sym01", "sym01", "symbol_cloud"], audit, "auditMaskSymbolCloud"); }catch(_){ }
+
+  try{ document.documentElement.dataset.eucaMaskSym01 = "ready"; }catch(_){ }
+  // El motor ya fue generado por M04 al instalarse (no recompilamos sus frames otra vez):
+  // anotamos la geometría vigente, arrancamos limpios y programamos el atlas en tiempo ocioso.
+  try{
+    state.genW = Engine.__c5r31M04Native ? Math.max(1, Engine.w|0) : logicalW();
+    state.genH = Engine.__c5r31M04Native ? Math.max(1, Engine.h|0) : logicalH();
+    resetEpisodeState();
+    if(activeProfile() === PROFILE) scheduleAtlasBuild("install");
+  }catch(e){ reportError(e, "install"); }
+  publishAudit();
+})();
+/* PH6.MASK-SYM01-SYMBOL-CLOUD-R1:END */</script>
+<div id="euca-mask-sym01-symbol-cloud-marker" hidden
+  data-milestone="PH6.MASK-SYM01-SYMBOL-CLOUD-R1"
+  data-status="INSTALLED_DEFAULT_PROFILE"
+  data-profile="SYM01"
+  data-fallback-profile="M04"
+  data-fallback-switch="CONFIG.maskSymbolCloudEnabled=false | ?eucaQa=1&maskProfile=M04"
+  data-engine="shared-Mask.draw"
+  data-render-passes="1"
+  data-independent-raf="false"
+  data-canonical-underlay="false"
+  data-render-scale="1"
+  data-reduced-motion="STATIC_CLOUD_PER_EPISODE"
+  data-digit-balance="SHUFFLED_BAG_0_9"
+  data-glyph-atlas="PER_COLOR_TWO_TIERS_IDLE_BUILD"
+  data-audit="EUCALCULIA_MASK_SYM01.audit | runFeatureAudit('mask_symbol_cloud')"
+  data-base-artifact="Eucalculia_v7_1_10.html"
+  data-base-sha256="7E4FA2572E0FB167F27DBEACE3BAF78FE8BAE853AD55AAD94AE93577034D85BA"
+  data-module="tools/eucalculia_mask_sym01_module.js"
+  data-module-sha256="10EEA6966F4BB1BB62CDE76BD3E33BFA23548A4D7912B5AAE82D29A1FCF14EBE"></div>
