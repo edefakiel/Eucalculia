@@ -7945,10 +7945,10 @@ function currentVisualSystemContract(){
 }
 
 const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
-  "appVersion": "v7.1.11",
+  "appVersion": "v7.1.12",
   "releaseChannel": "stable",
-  "builtAt": "2026-08-22T12:00:00Z",
-  "artifact": "Eucalculia_v7_1_11.html",
+  "builtAt": "2026-08-26T16:00:00Z",
+  "artifact": "Eucalculia_v7_1_12.html",
   "artifactFormat": "single-file-html",
   "milestone": "PH6.C5.R3.22-SPATIAL-ADMISSION-ACCESSIBILITY-R1",
   "profileSchema": 23,
@@ -195691,7 +195691,7 @@ html[data-euca-choice-contract="blocked"] #numpad {
   function startReserved(attempt,forcedLevel){
     const state=stateRef(),reservation=reservationFor(state,attempt,forcedLevel);if(!reservation)return false;const curriculum=globalThis.EUCALCULIA_R320_SPATIAL;if(!curriculum?.introductionComplete?.(state)){if(curriculum?.ensureIntroduction?.(state,()=>startReserved(attempt,forcedLevel))===true)return true;return false}const spec=FAMILY_BY_ID.get(reservation.family),api=spec?globalThis[spec.api]:null;if(typeof api?.start!=="function")return false;
     const latches=snapshotLatches(state),priorInfo=state.trialInfo;clearLatches(state,reservation.context.blockOrdinal);let started=false;
-    try{started=withConfigOverrides(spec,[true,1,0,1,3],()=>api.start(attempt,forcedLevel))===true}catch(_) {started=false}
+    try{started=withConfigOverrides(spec,[true,1,-1,1,3],()=>api.start(attempt,forcedLevel))===true}catch(_) {started=false}
     if(started){const liveInfo=state.trialInfo,committed=state.running===true&&liveInfo&&liveInfo!==priorInfo&&String(liveInfo.family||liveInfo.catFamily||"")===spec.family&&reservation.schedule?.reservation?.family===spec.family;if(committed){causalPresentedTrials.add(liveInfo);if(notePresented(spec.family,liveInfo,reservation.context)!==true){causalPresentedTrials.delete(liveInfo);restoreLatches(state,latches);return false}}else restoreLatches(state,latches);return committed}
     restoreLatches(state,latches);reservation.schedule.reservation.failures=finiteCount(reservation.schedule.reservation.failures)+1;if(reservation.schedule.reservation.failures>=2){reservation.schedule.blacklist.push(spec.family);reservation.schedule.misses.push({family:spec.family,slot:reservation.slot,trial:reservation.context.blockTrial,reason:"builder_rejected_twice"});reservation.schedule.reservation=null}return false;
   }
@@ -197597,3 +197597,52 @@ html[data-euca-choice-contract="blocked"] #numpad {
   data-base-sha256="7E4FA2572E0FB167F27DBEACE3BAF78FE8BAE853AD55AAD94AE93577034D85BA"
   data-module="tools/eucalculia_mask_sym01_module.js"
   data-module-sha256="10EEA6966F4BB1BB62CDE76BD3E33BFA23548A4D7912B5AAE82D29A1FCF14EBE"></div>
+<script>/* PH6.FIX-SPATIAL-MINDLEVEL-OVERRIDE-R1:START */
+(function installSpatialMinDLevelFixAudit(){
+  "use strict";
+  const PATCH_ID="ph6.fix-spatial-mindlevel-override-r1",VERSION="1.0.0";
+  function audit(){
+    const block=[],warnings=[],details={patch:PATCH_ID,version:VERSION};
+    const AR=(typeof auditResult==="function")?auditResult:((status,payload)=>Object.assign({status},payload||{}));
+    try{
+      const scripts=[...document.scripts].map(node=>node.textContent||"");
+      // Agujas construidas por concatenación y filtro por doble firma para que ESTA auditoría
+      // no se cuente a sí misma como coordinador ni aporte las agujas literalmente.
+      const overridesCall="withConfig"+"Overrides(spec,";
+      const fixedNeedle=overridesCall+"[true,1,"+"-1,1,3]";
+      const buggyNeedle=overridesCall+"[true,1,"+"0,1,3]";
+      const coordinator=scripts.filter(text=>text.includes("ph6.c5.r3.18-spatial-"+"auto-coordinator")&&text.includes(overridesCall));
+      details.coordinatorScripts=coordinator.length;
+      const fixed=coordinator.some(text=>text.includes(fixedNeedle));
+      const buggy=coordinator.some(text=>text.includes(buggyNeedle));
+      details.overrides={fixed,buggy};
+      if(!coordinator.length)block.push("FIX-MIND: no se encuentra el script del coordinador espacial");
+      if(!fixed)block.push("FIX-MIND: el coordinador no lleva el override -1 (MinDLevel sigue anulable por ||)");
+      if(buggy)block.push("FIX-MIND: sigue presente el override 0 (el || lo convierte en 5/6)");
+      const guardPattern=/level<Math\.max\(0,Number\(CONFIG\.[A-Za-z0-9]*MinDLevel\)\|\|[0-9]+\)/g;
+      const guards=scripts.reduce((sum,text)=>sum+((text.match(guardPattern)||[]).length),0);
+      details.guardShapeCount=guards;
+      if(guards<8)block.push(`FIX-MIND: la forma de guarda esperada aparece ${guards} veces (<8): revisar si cambió shouldStart`);
+      // -1 debe quedar acotado a 0 por la propia guarda: nunca puede abrir niveles negativos
+      details.clampProbe=Math.max(0,Number(-1)|| 5)===0;
+      if(!details.clampProbe)block.push("FIX-MIND: la sonda del acotado Math.max(0,-1) no da 0");
+      const coordApi=globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR;
+      details.coordinatorApi=!!coordApi&&coordApi.families?.length===8;
+      if(!details.coordinatorApi)block.push("FIX-MIND: EUCALCULIA_SPATIAL_AUTO_COORDINATOR ausente o sin 8 familias");
+    }catch(e){block.push(`FIX-MIND: excepción en la auditoría: ${(e&&e.message)||e}`)}
+    return AR(block.length?"BLOCK":(warnings.length?"WARN":"PASS"),{block,warnings,details});
+  }
+  try{globalThis.auditSpatialMinDLevelFix=audit}catch(_){ }
+  try{if(typeof registerExtraFeatureAudit==="function")registerExtraFeatureAudit("spatialMinDLevelFix",audit)}catch(_){ }
+  try{if(typeof registerFeatureAudit==="function")registerFeatureAudit(["spatial_mindlevel_fix","mindlevel_fix"],audit,"auditSpatialMinDLevelFix")}catch(_){ }
+  try{document.documentElement.dataset.eucaSpatialMindlevelFix="ready"}catch(_){ }
+})();
+/* PH6.FIX-SPATIAL-MINDLEVEL-OVERRIDE-R1:END */</script>
+<div id="euca-fix-spatial-mindlevel-override-marker" hidden
+  data-milestone="PH6.FIX-SPATIAL-MINDLEVEL-OVERRIDE-R1"
+  data-root-cause="MinDLevel override 0 swallowed by falsy || in family shouldStart guards"
+  data-fix="coordinator withConfigOverrides [true,1,-1,1,3]; Math.max(0,-1)=0 disables the floor as intended"
+  data-symptom="spatial families announced (intro card+demo) but never served below D5/D6"
+  data-families="visual_predict_complete_state,visual_relational_path,masked_shepard_identity,masked_paper_folding,solid_net_bidirectional,exact_views_observer,exact_discrete_sections,spatial_piece_composition"
+  data-audit="runFeatureAudit('spatial_mindlevel_fix') | auditSpatialMinDLevelFix()"
+  data-diagnosed-with="eucalculia-diagnostics-2026-08-26-13-18.json (D=3, 105 ensayos, 0 monitores g08*/spa0*)"></div>
