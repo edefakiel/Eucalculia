@@ -5074,10 +5074,9 @@ body.euca-review-open {
   font-size:0.875rem;
   font-variant-numeric:tabular-nums;
   line-height:1.1;
-  white-space:normal;
-  overflow:visible;
-  overflow-wrap:anywhere;
-  text-overflow:clip;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
   text-shadow:none;
 }
 #app.input-ready #answerDisplay,
@@ -7945,10 +7944,10 @@ function currentVisualSystemContract(){
 }
 
 const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
-  "appVersion": "v7.1.19",
+  "appVersion": "v7.1.20",
   "releaseChannel": "stable",
-  "builtAt": "2026-08-30T10:00:00Z",
-  "artifact": "Eucalculia_v7_1_19.html",
+  "builtAt": "2026-08-30T18:00:00Z",
+  "artifact": "Eucalculia_v7_1_20.html",
   "artifactFormat": "single-file-html",
   "milestone": "PH6.C5.R3.22-SPATIAL-ADMISSION-ACCESSIBILITY-R1",
   "profileSchema": 23,
@@ -165993,10 +165992,10 @@ html[data-euca-resume-geometry="pending"] #particles {
     try{if(typeof SHEPARD_ROT_Y90!=="undefined")y=SHEPARD_ROT_Y90.slice()}catch(_){ }
     try{if(typeof SHEPARD_ROT_Z90!=="undefined")z=SHEPARD_ROT_Z90.slice()}catch(_){ }
     return Object.freeze([
-      {id:"quarter_turn_x_positive",matrix:x,label:"Quarter-turn forward",axis:"FROM YOUR PERSPECTIVE",glyph:"↷"},
-      {id:"quarter_turn_x_negative",matrix:matrixPower(x,3),label:"Quarter-turn backward",axis:"FROM YOUR PERSPECTIVE",glyph:"↶"},
-      {id:"quarter_turn_y_positive",matrix:y,label:"Quarter-turn right",axis:"FROM YOUR PERSPECTIVE",glyph:"↻"},
-      {id:"quarter_turn_y_negative",matrix:matrixPower(y,3),label:"Quarter-turn left",axis:"FROM YOUR PERSPECTIVE",glyph:"↺"},
+      {id:"quarter_turn_x_positive",matrix:x,label:"Top tips toward you",axis:"FROM YOUR PERSPECTIVE",glyph:"↷"},
+      {id:"quarter_turn_x_negative",matrix:matrixPower(x,3),label:"Top tips away from you",axis:"FROM YOUR PERSPECTIVE",glyph:"↶"},
+      {id:"quarter_turn_y_positive",matrix:y,label:"Front swings to your right",axis:"FROM YOUR PERSPECTIVE",glyph:"↻"},
+      {id:"quarter_turn_y_negative",matrix:matrixPower(y,3),label:"Front swings to your left",axis:"FROM YOUR PERSPECTIVE",glyph:"↺"},
       {id:"quarter_turn_z_positive",matrix:z,label:"Quarter-turn counterclockwise",axis:"FROM YOUR PERSPECTIVE",glyph:"↺"},
       {id:"quarter_turn_z_negative",matrix:matrixPower(z,3),label:"Quarter-turn clockwise",axis:"FROM YOUR PERSPECTIVE",glyph:"↻"}
     ]);
@@ -166200,7 +166199,7 @@ html[data-euca-resume-geometry="pending"] #particles {
     let svg=`<svg class="visual-predict-svg visual-predict-shepard" data-variant="shepard_rotation" data-candidates="4" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Source cube figure, a specified rotation, and four complete result states">`;
     svg+=`<rect x="18" y="28" width="246" height="190" rx="20" fill="#08080f" stroke="#342d59" stroke-width="2"/><text x="40" y="57" font-size="13" font-weight="900" letter-spacing="2" fill="#9b8cff">SOURCE</text>`;
     svg+=shepardFigureFitted(item.source,141,138,196,146);
-    svg+=`<rect x="282" y="28" width="260" height="190" rx="20" fill="#0d0b18" stroke="#4c3f83" stroke-width="2"/><text x="412" y="103" text-anchor="middle" font-size="17" font-weight="900" fill="#f3f0ff">${escapeHtml(item.operation.label)}</text><text x="412" y="134" text-anchor="middle" font-size="12" font-weight="900" letter-spacing="1.5" fill="#9b8cff">${escapeHtml(item.operation.axis)}</text><text x="412" y="172" text-anchor="middle" font-size="12" fill="#aaa3c7">Apply it to every cube</text>`;
+    svg+=`<rect x="282" y="28" width="260" height="190" rx="20" fill="#0d0b18" stroke="#4c3f83" stroke-width="2"/><text x="412" y="103" text-anchor="middle" font-size="17" font-weight="900" fill="#f3f0ff">${escapeHtml(item.operation.label)}</text><text x="412" y="134" text-anchor="middle" font-size="12" font-weight="900" letter-spacing="1.5" fill="#9b8cff">${escapeHtml(item.operation.axis)}</text><text x="412" y="170" text-anchor="middle" font-size="12" fill="#aaa3c7">Apply it to every cube</text>${item.operation.frame==="behind"?`<text x="412" y="194" text-anchor="middle" font-size="11" font-weight="700" fill="#8d7cff">The results show YOUR view</text>`:""}`;
     svg+=`<text x="280" y="246" text-anchor="middle" font-size="13" font-weight="900" letter-spacing="2" fill="#5aaeff">COMPLETE RESULTS</text>`;
     const slots=[{x:18,y:264},{x:282,y:264},{x:18,y:430},{x:282,y:430}];
     item.candidates.forEach((candidate,index)=>{const s=slots[index];svg+=candidateCardShell(s.x,s.y,246,146,index);svg+=shepardFigureFitted(candidate.state,s.x+132,s.y+80,186,128)});
@@ -200238,3 +200237,108 @@ html[data-euca-choice-contract="blocked"] #numpad {
   data-base-artifact="Demo integrated/Eucalculia_v7_1_18.html"
   data-base-sha256="7FBB6312EBF4F5E1794BEDF068D2C0329F8BEFBF21C5116F3A24CB484BFA6689"
   data-module-sha256="DDC6BAA63550DFAD607E561C041E94D0CC948D5F4C9BCBF62C397FA7BC3350B8"></div>
+<script>/* PH6.V7-1-20-UI-SEMANTICS:START */
+/* PH6.V7-1-20-UI-SEMANTICS — dos arreglos de la partida del autor (2026-08-30).
+   F1 · La píldora #answerDisplay (barra azul ENTER NUMBER) llevaba overflow:visible +
+       white-space:normal + overflow-wrap:anywhere: cualquier crecimiento del contenido
+       (p. ej. «1…» al meter el primer dígito de una respuesta de dos) pintaba FUERA del borde
+       redondeado. Ahora recorta en una línea con elipsis (nowrap + hidden + ellipsis) — los
+       contenidos reales («—», «1…», «12…», «0/1») caben siempre; la fuga es imposible.
+   F2 · «Quarter-turn forward/backward/right/left» era ambiguo incluso con el marco declarado
+       (¿«forward» se acerca o se aleja?). Los rótulos de volteo y giro nombran ahora LA PARTE
+       QUE SE MUEVE y su dirección respecto a TI, verificadas contra la matriz y la proyección:
+       x+ «Top tips toward you» (la cima gana profundidad hacia cámara), x− «Top tips away from
+       you», y+ «Front swings to your right» (el frente gana sx), y− «Front swings to your left».
+       Ids, matrices y oráculo intactos. Los volteos NO entran en el juego de dos marcos (un
+       «toward» egocéntrico desde detrás sería doblemente ambiguo); la inversión de marco sigue
+       donde el lenguaje es exacto: el par horario/antihorario. */
+(() => {
+  "use strict";
+  const API_NAME = "EUCALCULIA_V7_1_20_POLISH";
+  if(Object.getOwnPropertyDescriptor(globalThis, API_NAME)) return;
+
+  function audit(){
+    const block = [], warnings = [], details = {};
+    try{
+      // F1 · la píldora recorta: la regla base de #answerDisplay debe dar nowrap+hidden+ellipsis
+      const el = document.getElementById("answerDisplay");
+      if(!el) block.push("F1: #answerDisplay ausente");
+      else{
+        const cs = getComputedStyle(el);
+        details.pill = {overflow: cs.overflow, whiteSpace: cs.whiteSpace, textOverflow: cs.textOverflow};
+        if(cs.overflow !== "hidden") block.push("F1: la píldora no recorta (overflow=" + cs.overflow + ")");
+        if(cs.whiteSpace !== "nowrap") block.push("F1: la píldora envuelve líneas (white-space=" + cs.whiteSpace + ")");
+        if(cs.textOverflow !== "ellipsis") block.push("F1: la píldora no elipsa (text-overflow=" + cs.textOverflow + ")");
+      }
+
+      // F2 · rótulos de volteo/giro inequívocos y COHERENTES con la geometría servida
+      const gp = globalThis.EUCALCULIA_G08_VISUAL_PREDICT;
+      if(!gp || typeof gp.build !== "function"){ block.push("F2: familia visual_predict no expuesta"); }
+      else{
+        const expected = {
+          quarter_turn_x_positive: "Top tips toward you",
+          quarter_turn_x_negative: "Top tips away from you",
+          quarter_turn_y_positive: "Front swings to your right",
+          quarter_turn_y_negative: "Front swings to your left"
+        };
+        const ops = {};
+        for(const id of Object.keys(expected)){
+          let it = null;
+          for(let s = 1; s < 64 && !it; s++){ const t = gp.build({variant:"shepard_rotation", seed:s, level:7, operationId:id}); if(t && t.operation?.id === id) it = t; }
+          if(!it){ block.push("F2: no se pudo servir " + id); continue; }
+          ops[id] = it.operation;
+          if(it.operation.label !== expected[id]) block.push("F2: " + id + " dice «" + it.operation.label + "» (esperado «" + expected[id] + "»)");
+          if(it.operation.axis !== "FROM YOUR PERSPECTIVE") block.push("F2: " + id + " no declara FROM YOUR PERSPECTIVE");
+          if(it.operation.frame === "behind") block.push("F2: un volteo/giro salió en marco behind (prohibido: sólo el par z invierte marco)");
+        }
+        try{
+          if(typeof globalThis.shepardProject === "function" && ops.quarter_turn_x_positive?.matrix){
+            const apply = (M, p) => ({x:M[0]*p.x+M[1]*p.y+M[2]*p.z, y:M[3]*p.x+M[4]*p.y+M[5]*p.z, z:M[6]*p.x+M[7]*p.y+M[8]*p.z});
+            const P = globalThis.shepardProject, top = {x:0, y:2, z:0}, front = {x:0, y:0, z:2};
+            const d0 = P(top).depth;
+            details.xDepth = {antes:+d0.toFixed(2), xPos:+P(apply(ops.quarter_turn_x_positive.matrix, top)).depth.toFixed(2), xNeg:+P(apply(ops.quarter_turn_x_negative.matrix, top)).depth.toFixed(2)};
+            if(!(details.xDepth.xPos > d0 + .5)) block.push("F2: «toward you» no acerca la cima a cámara");
+            if(!(details.xDepth.xNeg < d0 - .3)) block.push("F2: «away from you» no aleja la cima");
+            const s0 = P(front).sx;
+            details.ySx = {antes:+s0.toFixed(1), yPos:+P(apply(ops.quarter_turn_y_positive.matrix, front)).sx.toFixed(1), yNeg:+P(apply(ops.quarter_turn_y_negative.matrix, front)).sx.toFixed(1)};
+            if(!(details.ySx.yPos > s0 + 1)) block.push("F2: «to your right» no lleva el frente a la derecha");
+            if(!(details.ySx.yNeg < s0 - 1)) block.push("F2: «to your left» no lleva el frente a la izquierda");
+          } else warnings.push("F2: proyección no accesible — rótulos verificados sólo por texto");
+        }catch(e){ block.push("F2: verificación geométrica lanzó: " + ((e && e.message) || e)); }
+        // F3 · la tarjeta BEHIND declara el ancla de vista; la de marco propio NO la necesita
+        try{
+          let zb = null, zv = null;
+          for(let s = 1; s < 80 && (!zb || !zv); s++){
+            const t = gp.build({variant:"shepard_rotation", seed:s, level:7, operationId:"quarter_turn_z_positive"});
+            if(t){ if(t.operation.frame === "behind" && !zb) zb = t; if(t.operation.frame !== "behind" && !zv) zv = t; }
+          }
+          if(zb){
+            const hb = String(gp.renderQuestion(zb) || "");
+            if(!hb.includes("The results show YOUR view")) block.push("F3: la tarjeta behind no declara el ancla de vista");
+          } else warnings.push("F3: no salió un ítem behind en 80 semillas");
+          if(zv){
+            const hv = String(gp.renderQuestion(zv) || "");
+            if(hv.includes("The results show YOUR view")) block.push("F3: la tarjeta de marco propio lleva el ancla (sobra: no hay desajuste que aclarar)");
+          }
+        }catch(e){ block.push("F3: verificación del ancla lanzó: " + ((e && e.message) || e)); }
+      }
+    }catch(e){ block.push("v7_1_20_polish: excepción: " + ((e && e.message) || e)); }
+    return {status: block.length ? "BLOCK" : (warnings.length ? "WARN" : "PASS"), block, warnings, details};
+  }
+
+  const api = Object.freeze({patch:"ph6.v7-1-20-ui-semantics", audit});
+  try{ Object.defineProperty(globalThis, API_NAME, {value:api, writable:false, configurable:false, enumerable:true}); }catch(_){ try{ globalThis[API_NAME] = api; }catch(__){ } }
+  try{ globalThis.auditV7120Polish = audit; }catch(_){ }
+  try{ if(typeof registerExtraFeatureAudit === "function") registerExtraFeatureAudit("v7120Polish", audit); }catch(_){ }
+  try{ if(typeof registerFeatureAudit === "function") registerFeatureAudit(["v7_1_20_polish"], audit, "auditV7120Polish"); }catch(_){ }
+})();
+/* PH6.V7-1-20-UI-SEMANTICS:END */</script>
+<div id="euca-v7-1-20-marker" hidden
+  data-milestone="PH6.V7-1-20-UI-SEMANTICS"
+  data-f1="pildora #answerDisplay: overflow:visible+wrap → nowrap+hidden+ellipsis (desbordaba al meter el primer digito de una respuesta de dos digitos)"
+  data-f2="rotulos de volteo/giro inequivocos: Top tips toward/away from you · Front swings to your right/left (forward/backward eran ambiguos aun con el marco declarado); direcciones verificadas contra matriz+proyeccion; volteos SOLO en tu marco — la inversion de marco queda en el par horario/antihorario"
+  data-f3="la tarjeta de marco BEHIND declara el ancla de vista (The results show YOUR view): el giro lo relata el testigo de detras, los estados son SIEMPRE tu vista — si se dibujaran desde atras la inversion se cancelaria (la camara define el marco); el desajuste relato-vista ES el ejercicio"
+  data-audit="runFeatureAudit('v7_1_20_polish')"
+  data-base-artifact="Demo integrated/Eucalculia_v7_1_19.html"
+  data-base-sha256="02F757F69E55EBCCDE035CCD1E9C1D10AF2408BE4C1DEBED0187DEAC3F26C694"
+  data-module-sha256="1BC7E1F1E980A4721E06BBFDB4AE329EEE6EA0A81CD3ADE9BE84F6EE804A322E"></div>
