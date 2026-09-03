@@ -7944,10 +7944,10 @@ function currentVisualSystemContract(){
 }
 
 const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
-  "appVersion": "v7.1.20",
+  "appVersion": "v7.1.21",
   "releaseChannel": "stable",
-  "builtAt": "2026-08-30T18:00:00Z",
-  "artifact": "Eucalculia_v7_1_20.html",
+  "builtAt": "2026-09-03T10:50:47Z",
+  "artifact": "Eucalculia_v7_1_21.html",
   "artifactFormat": "single-file-html",
   "milestone": "PH6.C5.R3.22-SPATIAL-ADMISSION-ACCESSIBILITY-R1",
   "profileSchema": 23,
@@ -180938,6 +180938,14 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     if(/\bfractions?\b/i.test(text))return text;
     return `For these fractions, ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
   }
+  // Order is a distinct semantic family. Add only the fraction-domain scope;
+  // never infer equivalence from "equal" inside >= or <= wording.
+  function asFractionOrderQuestion(question){
+    let text=String(question||"").trim()||"Compare LEFT and RIGHT.";
+    text=text.replace(/^As fractions of their visible wholes,\s*/i,"").replace(/^For these fractions,\s*/i,"");
+    if(/\bfractions?\b/i.test(text))return text;
+    return `For these fractions, ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+  }
   function fractionMidpointQuestion(denominator){
     return `For the shown fractions, enter the numerator halfway between LEFT and RIGHT when written with denominator ${Number(denominator)}.`;
   }
@@ -180948,7 +180956,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
     if(info.xrepBridge)return "Make the new picture show the same fraction of its whole as the picture you saw.";
     if(info.rationalEquivalence)return asFractionQuestion(rationalEquivalencePrompts[id]||task.prompt?.question||info.question);
     if(info.rationalBridge){
-      if(bridge.kind==="order")return asFractionQuestion(task.prompt?.question||info.question);
+      if(bridge.kind==="order")return asFractionOrderQuestion(task.prompt?.question||info.question);
       if(bridge.kind==="line")return asFractionQuestion(rationalLinePrompts[id]||"Where does LEFT fall on the magnitude line?");
       if(bridge.kind==="construct")return fractionMidpointQuestion(task.denominator);
     }
@@ -200342,3 +200350,190 @@ html[data-euca-choice-contract="blocked"] #numpad {
   data-base-artifact="Demo integrated/Eucalculia_v7_1_19.html"
   data-base-sha256="02F757F69E55EBCCDE035CCD1E9C1D10AF2408BE4C1DEBED0187DEAC3F26C694"
   data-module-sha256="1BC7E1F1E980A4721E06BBFDB4AE329EEE6EA0A81CD3ADE9BE84F6EE804A322E"></div>
+<script>/* PH6.V7-1-21-FRACTION-ORDER-PROMPT-HOTFIX:START */
+/* PH6.V7-1-21-FRACTION-ORDER-PROMPT-HOTFIX
+   Regression guard for the RAT-02 order prompt/oracle contract.
+
+   The underlying order pack owns the eight questions and their exact oracle.
+   The visual-integration layer may add fraction scope, but it must not infer
+   equivalence from the word "equal" inside the inclusive comparators >= / <=.
+   This audit executes every frame with both answer polarities and checks the
+   normalized question, pack validation, replay and review wording together. */
+(() => {
+  "use strict";
+
+  const API_NAME = "EUCALCULIA_V7_1_21_FRACTION_ORDER_PROMPT";
+  const PATCH_ID = "ph6.v7-1-21-fraction-order-prompt-hotfix";
+  const MILESTONE = "PH6.V7-1-21-FRACTION-ORDER-PROMPT-HOTFIX";
+  const REPORT_ID = "euca-v7-1-21-fraction-order-prompt-audit-report";
+  if(Object.getOwnPropertyDescriptor(globalThis, API_NAME)) return;
+
+  const EXPECTED = Object.freeze([
+    Object.freeze({id:"left_greater", relation:"gt", question:"Is LEFT greater than RIGHT?"}),
+    Object.freeze({id:"right_smaller", relation:"gt", question:"Is RIGHT smaller than LEFT?"}),
+    Object.freeze({id:"left_less", relation:"lt", question:"Is LEFT less than RIGHT?"}),
+    Object.freeze({id:"right_larger", relation:"lt", question:"Is RIGHT larger than LEFT?"}),
+    Object.freeze({id:"left_not_less", relation:"ge", question:"Is LEFT greater than or equal to RIGHT?"}),
+    Object.freeze({id:"right_no_larger", relation:"ge", question:"Is RIGHT less than or equal to LEFT?"}),
+    Object.freeze({id:"left_no_larger", relation:"le", question:"Is LEFT less than or equal to RIGHT?"}),
+    Object.freeze({id:"right_not_less", relation:"le", question:"Is RIGHT greater than or equal to LEFT?"})
+  ]);
+
+  const expectedScoped = question => {
+    const text = String(question || "").trim();
+    return `For these fractions, ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+  };
+
+  function relationSignature(text){
+    const value = String(text || "");
+    if(/LEFT greater than or equal to RIGHT/i.test(value)) return "left-ge-right";
+    if(/RIGHT less than or equal to LEFT/i.test(value)) return "right-le-left";
+    if(/LEFT less than or equal to RIGHT/i.test(value)) return "left-le-right";
+    if(/RIGHT greater than or equal to LEFT/i.test(value)) return "right-ge-left";
+    if(/LEFT greater than RIGHT/i.test(value)) return "left-gt-right";
+    if(/RIGHT smaller than LEFT/i.test(value)) return "right-lt-left";
+    if(/LEFT less than RIGHT/i.test(value)) return "left-lt-right";
+    if(/RIGHT larger than LEFT/i.test(value)) return "right-gt-left";
+    return "unknown";
+  }
+
+  function rowFor(frame, targetAnswer, index, rat, integration){
+    const envelope = rat.execute("order", {
+      profileId:1,
+      blockOrdinal:0,
+      trialIndex:index,
+      attempt:index,
+      layer:"L0",
+      locale:"en",
+      seed:`v7-1-21-order-${frame.id}-${targetAnswer ? "yes" : "no"}`,
+      difficulty:{level:3, ladderStep:(index % 3) + 1, promptId:frame.id, targetAnswer},
+      semanticInputs:[]
+    });
+    const task = envelope.task;
+    const solution = envelope.solution;
+    const validation = rat.validate("order", task, solution);
+    const replay = rat.replay(envelope.replay);
+    const review = rat.review("order", task, solution, {locale:"en"});
+    const normalized = integration.normalizedQuestion({
+      question:task.prompt.question,
+      rationalBridge:{kind:"order", task, solution}
+    });
+    const pos = {
+      a:1,b:1,
+      repA:`rat02_${task.left.view.kind || "value"}`,
+      repB:`rat02_${task.right.view.kind || "value"}`,
+      stimSeedA:1,stimSeedB:2,
+      question:task.prompt.question,
+      delayedPrompt:task.prompt.question,
+      isTrue:solution.correctAnswer,
+      responseFormat:"yesno",
+      answer:null,
+      targetOutcome:solution.correctAnswer,
+      catId:rat.packIds.order,
+      family:"rational_order",
+      canonicalFamily:"rational_order",
+      countsForMetaHistory:false,
+      memoryEligible:false,
+      l0ProbeCompositionBlocked:true,
+      rationalBridge:{kind:"order", task, solution, leftSource:task.left, rightSource:task.right}
+    };
+    const runtimeInfo = typeof globalThis.l0PlainTrialInfoFromPos==="function"
+      ? globalThis.l0PlainTrialInfoFromPos(pos,1,1,"L0")
+      : null;
+    const expectedQuestion = expectedScoped(frame.question);
+    const expectedSignature = relationSignature(frame.question);
+    return Object.freeze({
+      id:frame.id,
+      relation:frame.relation,
+      targetAnswer,
+      taskPromptId:task.prompt.id,
+      taskRelation:task.prompt.relation,
+      originalQuestion:task.prompt.question,
+      normalizedQuestion:normalized,
+      expectedQuestion,
+      relationSignature:relationSignature(normalized),
+      expectedSignature,
+      validation:validation.status,
+      correctAnswer:solution.correctAnswer,
+      replayExact:replay?.ok===true && replay?.taskMatch===true && replay?.solutionMatch===true,
+      runtimeQuestion:runtimeInfo?.question || null,
+      runtimeCorrectAnswer:runtimeInfo?.isTrue,
+      runtimeBridgeBound:runtimeInfo?.rationalBridge?.task===task,
+      reviewBound:Array.isArray(review?.lines) && review.lines.some(line => String(line).includes(`Under the wording \"${task.prompt.question}\"`) && String(line).endsWith(`${solution.correctAnswer ? "YES" : "NO"}.`))
+    });
+  }
+
+  function audit(){
+    const checks = [];
+    const check = (id, pass, detail=null) => checks.push(Object.freeze({id, pass:!!pass, detail}));
+    const rat = globalThis.EUCALCULIA_RAT02;
+    const integration = globalThis.EUCALCULIA_STIMULUS_INTEGRATION;
+    const rows = [];
+    const errors = [];
+
+    check("apis_available", typeof rat?.execute==="function" && typeof rat?.validate==="function" && typeof rat?.replay==="function" && typeof rat?.review==="function" && typeof integration?.normalizedQuestion==="function");
+    const actualFrames = Array.from(rat?.orderFrames || []);
+    check("order_frame_inventory_exact", JSON.stringify(actualFrames.map(({id,relation,question})=>({id,relation,question})))===JSON.stringify(EXPECTED), actualFrames);
+
+    if(rat && integration){
+      EXPECTED.forEach((frame, frameIndex) => {
+        [true,false].forEach((targetAnswer, polarityIndex) => {
+          try{ rows.push(rowFor(frame,targetAnswer,frameIndex*2+polarityIndex,rat,integration)); }
+          catch(error){ errors.push(`${frame.id}:${targetAnswer ? "yes" : "no"}:${error?.message || error}`); }
+        });
+      });
+    }
+
+    check("all_16_order_cases_execute", rows.length===16 && errors.length===0, errors);
+    check("pack_prompt_and_relation_unchanged", rows.every(row => row.taskPromptId===row.id && row.taskRelation===row.relation && row.originalQuestion===EXPECTED.find(frame=>frame.id===row.id)?.question), rows.filter(row => row.taskPromptId!==row.id || row.taskRelation!==row.relation));
+    check("normalized_question_preserves_exact_comparator", rows.every(row => row.normalizedQuestion===row.expectedQuestion && row.relationSignature===row.expectedSignature), rows.filter(row => row.normalizedQuestion!==row.expectedQuestion || row.relationSignature!==row.expectedSignature));
+    check("inclusive_comparators_survive", rows.filter(row => row.relation==="ge" || row.relation==="le").length===8 && rows.filter(row => row.relation==="ge" || row.relation==="le").every(row => /or equal to/i.test(row.normalizedQuestion)), rows.filter(row => (row.relation==="ge" || row.relation==="le") && !/or equal to/i.test(row.normalizedQuestion)));
+    check("never_collapses_to_equivalence", rows.every(row => !/^Do LEFT and RIGHT represent (?:the same|different) fraction\?$/i.test(row.normalizedQuestion)), rows.filter(row => /^Do LEFT and RIGHT represent/i.test(row.normalizedQuestion)));
+    check("single_fraction_scope", rows.every(row => (row.normalizedQuestion.match(/\bfractions?\b/gi)||[]).length===1), rows.filter(row => (row.normalizedQuestion.match(/\bfractions?\b/gi)||[]).length!==1));
+    check("oracle_and_validation_unchanged", rows.every(row => row.validation==="PASS" && row.correctAnswer===row.targetAnswer), rows.filter(row => row.validation!=="PASS" || row.correctAnswer!==row.targetAnswer));
+    check("both_yes_no_polarities_per_frame", EXPECTED.every(frame => rows.some(row=>row.id===frame.id&&row.targetAnswer===true&&row.correctAnswer===true) && rows.some(row=>row.id===frame.id&&row.targetAnswer===false&&row.correctAnswer===false)));
+    check("replay_exact", rows.every(row => row.replayExact), rows.filter(row => !row.replayExact));
+    check("runtime_question_and_oracle_bound", rows.every(row => row.runtimeQuestion===row.expectedQuestion && row.runtimeCorrectAnswer===row.correctAnswer && row.runtimeBridgeBound), rows.filter(row => row.runtimeQuestion!==row.expectedQuestion || row.runtimeCorrectAnswer!==row.correctAnswer || !row.runtimeBridgeBound));
+    check("review_uses_same_prompt_and_oracle", rows.every(row => row.reviewBound), rows.filter(row => !row.reviewBound));
+
+    const failed = checks.filter(row => !row.pass);
+    return Object.freeze({
+      milestone:MILESTONE,
+      patch:PATCH_ID,
+      status:failed.length ? "BLOCK" : "PASS",
+      summary:Object.freeze({pass:checks.length-failed.length, fail:failed.length, total:checks.length, cases:rows.length}),
+      checks:Object.freeze(checks),
+      cases:Object.freeze(rows)
+    });
+  }
+
+  function publish(report=audit()){
+    let node=document.getElementById(REPORT_ID);
+    if(!node){ node=document.createElement("script"); node.type="application/json"; node.id=REPORT_ID; document.body.appendChild(node); }
+    node.textContent=JSON.stringify(report);
+    document.documentElement.dataset.eucaFractionOrderPromptAudit=`${report.status}:${report.summary.pass}/${report.summary.fail}`;
+    document.documentElement.dataset.eucaFractionOrderPromptAuditFailures=report.checks.filter(row=>!row.pass).map(row=>row.id).join(",");
+    return report;
+  }
+
+  const api = Object.freeze({patch:PATCH_ID, milestone:MILESTONE, expected:EXPECTED, audit, publish});
+  try{ Object.defineProperty(globalThis, API_NAME, {value:api, writable:false, configurable:false, enumerable:true}); }catch(_){ try{ globalThis[API_NAME]=api; }catch(__){ } }
+  try{ globalThis.auditV7121FractionOrderPrompt=audit; }catch(_){ }
+  try{ if(typeof registerExtraFeatureAudit==="function") registerExtraFeatureAudit("v7121FractionOrderPrompt",audit); }catch(_){ }
+  try{ if(typeof registerFeatureAudit==="function") registerFeatureAudit(["v7_1_21_fraction_order_prompt"],audit,"auditV7121FractionOrderPrompt"); }catch(_){ }
+  try{
+    document.documentElement.dataset.eucaFractionOrderPrompt="ready";
+    const params=new URLSearchParams(location.search);
+    if(params.get("fractionOrderPromptAudit")==="1") queueMicrotask(()=>publish());
+  }catch(_){ }
+})();
+/* PH6.V7-1-21-FRACTION-ORDER-PROMPT-HOTFIX:END */</script>
+<div id="euca-v7-1-21-fraction-order-prompt-marker" hidden
+  data-milestone="PH6.V7-1-21-FRACTION-ORDER-PROMPT-HOTFIX"
+  data-status="TECHNICAL_CANDIDATE_LOCAL_NOT_PUBLISHED"
+  data-fix="RAT-02 order prompts retain gt/lt/ge/le wording; fraction scope no longer classifies inclusive order as equivalence"
+  data-invariants="RAT-02 pack, values, views, oracle, adaptation and review implementation unchanged"
+  data-audit="runFeatureAudit('v7_1_21_fraction_order_prompt')"
+  data-base-artifact="Demo integrated/Eucalculia_v7_1_20.html"
+  data-base-sha256="8DD1CF0AB78D1EEA47B7038578C5EBE1C0A8697E59D2C9A821F6B92C9EABF42C"
+  data-module-sha256="542034ED96AB6D889DA5135ECD403537CBE20252A2A3F30ED3B79FC225A05151"></div>
