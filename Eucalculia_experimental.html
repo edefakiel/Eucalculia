@@ -7155,6 +7155,7 @@ html[data-focus-origin="tab"] .guide-player-group > summary:focus-visible {
   </div>
 </details>
 
+<p id="storageSessionNotice" role="status" style="display:none;margin:8px 0;color:var(--bad);font-size:0.8rem;line-height:1.4"></p>
 <details id="settingsPanel" class="settingsPanel">
   <summary data-i18n-id="menu.settings.title">Settings</summary>
   <div class="panelBody">
@@ -7944,10 +7945,10 @@ function currentVisualSystemContract(){
 }
 
 const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
-  "appVersion": "v7.1.21",
+  "appVersion": "v7.1.22",
   "releaseChannel": "stable",
-  "builtAt": "2026-09-03T10:50:47Z",
-  "artifact": "Eucalculia_v7_1_21.html",
+  "builtAt": "2026-09-05T18:52:00Z",
+  "artifact": "Eucalculia_v7_1_22.html",
   "artifactFormat": "single-file-html",
   "milestone": "PH6.C5.R3.22-SPATIAL-ADMISSION-ACCESSIBILITY-R1",
   "profileSchema": 23,
@@ -7956,7 +7957,7 @@ const EUCALCULIA_BUILD_MANIFEST = Object.freeze({
   "sourceManifestVersion": 1,
   "numericViewVersion": "eucalculia.numeric-view@1",
   "contentPackVersion": "eucalculia.content-pack@1",
-  "sourceLayout": "src/eucalculia/c5_r3_22_spatial_admission_accessibility_r1/source-manifest.json",
+  "sourceLayout": "work/repair/build_candidate.cjs",
   "sourceDomains": ["session-core","content-oracles","adaptation","persistence","interface-components","accessibility","guide-prompts","audits"],
   "reproducibleBuild": true,
   "maskProfileVersion": "eucalculia.mask-profile@SYM01-native-1"
@@ -49538,6 +49539,22 @@ function safeRegisterAtomic(idOrAtomic, maybeAtomic={}){
   }
 }
 
+// Required executable atomics must fail at their owning registration boundary.
+// Cognitive demands and source-axis tags retain their separate metadata role.
+function registerRequiredAtomic(atomic){
+  if(!atomic || typeof atomic.id !== "string" || !atomic.id.trim() || typeof atomic.kind !== "string") throw new TypeError("Invalid required atomic declaration");
+  for(const field of ["evaluate","phrase","reviewLine"]) if(typeof atomic[field] !== "function") throw new TypeError(`Required atomic ${atomic.id} has no ${field}`);
+  const registered = registerAtomic(atomic);
+  assertRequiredAtomicReferences(atomic.id, [atomic.id]);
+  return registered;
+}
+function assertRequiredAtomicReferences(owner, ids){
+  if(!Array.isArray(ids) || !ids.length) throw new TypeError(`Required atomic references are absent: ${owner}`);
+  const invalid = ids.filter(id => { const atomic=ATOMIC_REGISTRY[id]; return !atomic || typeof atomic.kind!=="string" || ["evaluate","phrase","reviewLine"].some(field=>typeof atomic[field]!=="function"); });
+  if(invalid.length) throw new Error(`Unresolved executable atomics for ${owner}: ${invalid.join(", ")}`);
+  return true;
+}
+
 function registerSpec(spec){
   if(!spec || typeof spec.id !== "string" || !spec.id.length){
     if(typeof console !== "undefined" && console.warn) console.warn("[Eucalculia] registerSpec: missing id", spec);
@@ -71465,8 +71482,8 @@ function cachedPublicProgressSummaryForSave(){
   }catch(_){ }
   try { return buildPublicProgressSummary({save:true, light:true}); } catch(_){ return null; }
 }
-function buildLeanLocalStorageProfileBlobForHotSave(){
-  return {
+function buildCurrentProfileSnapshot({lean=false}={}){
+  const profile = {
     schemaVersion: PROFILE_SCHEMA_VERSION,
     appVersion:currentAppVersion(),
     savedAt:new Date().toISOString(),
@@ -71474,8 +71491,11 @@ function buildLeanLocalStorageProfileBlobForHotSave(){
     profileIntegrity:compactProfileIntegrityForSave(),
     manualModeChoice:compactManualModeChoiceForSave(),
     autoProfile:compactAutoProfileForSave(),
-    publicProgressSummary:cachedPublicProgressSummaryForSave(),
+    publicProgressSummary:lean ? cachedPublicProgressSummaryForSave() : buildPublicProgressSummary({save:true}),
     mode:"auto", modeChoice:"auto", runtimeMode:"D", metaAuto:true,
+    reps:sanitizeReps(State.reps).slice(),
+    metaLevel:State.metaLevel,
+    constructiveLedger:compactConstructiveLedgerForSave(),
     blockSizeAuto:State.blockSizeAuto,
     autoMetaLastLevel:State.autoMetaLastLevel,
     autoMetaLastState:State.autoMetaLastState,
@@ -71499,12 +71519,18 @@ function buildLeanLocalStorageProfileBlobForHotSave(){
     achievements:State.achievements,
     metaL1Stats:State.meta?.l1Stats, metaL2Stats:State.meta?.l2Stats, metaL3Stats:State.meta?.l3Stats,
     metaCompositionStats:State.meta?.compositionStats,
+    metaL2Diag:State.meta?.l2Diag, metaL3Diag:State.meta?.l3Diag,
+    metaFrameStats:State.meta?.frameStats,
+    metaLinguisticStats:State.meta?.linguisticStats,
+    metaPairingPatternStats:State.meta?.pairingPatternStats,
+    metaRepresentationTransformStats:State.meta?.representationTransformStats,
+    metaExecutiveStats:State.meta?.executiveStats,
     dExtensionStats:compactDExtensionStatsForSave(State.dExtensionStats),
     dLastL1ExtensionFamily:State.dLastL1ExtensionFamily,
     dL0Window:Array.isArray(State.dL0Window) ? State.dL0Window.slice(-120) : [],
     dL1Window:Array.isArray(State.dL1Window) ? State.dL1Window.slice(-120) : [],
     dL2Window:Array.isArray(State.dL2Window) ? State.dL2Window.slice(-120) : [],
-    adaptiveBaseline:compactAdaptiveBaselineForLocalStorage(State.adaptiveBaseline),
+    adaptiveBaseline:lean ? compactAdaptiveBaselineForLocalStorage(State.adaptiveBaseline) : State.adaptiveBaseline,
     adaptiveAxes:globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.compactForSave?.() || State.adaptiveAxes,
     sessionCount:State.sessionCount,
     totalPlaytimeMs:State.totalPlaytimeMs,
@@ -71516,6 +71542,21 @@ function buildLeanLocalStorageProfileBlobForHotSave(){
     peakLevelByMode:State.peakLevelByMode,
     debtlessSchema:{version:"2026-05-20.debtless-v1", publicMode:"auto", registryRuntimeMode:CONFIG.registryRuntimeMode || "debtless"}
   };
+  if(!lean){
+    Object.assign(profile, {
+      modeTelemetry:currentModeTelemetry(),
+      productionMonitor:compactProductionMonitorForSave(State.productionMonitor),
+      trialTelemetryBuffer:Array.isArray(State.trialTelemetryBuffer) ? State.trialTelemetryBuffer.slice(-120) : [],
+      samplerDiagnostics:compactSamplerDiagnosticsForSave(State.samplerDiagnostics),
+      audioDiagnostics:{...ensureAudioDiagnostics(), recent:ensureAudioDiagnostics().recent.slice(isPublicPerformanceBuild() ? -8 : -60)},
+      relationalConfusion:compactRelationalConfusionForSave(State.relationalConfusion),
+      metaDiagnostics:State.meta?.diagnostics
+    });
+  }
+  return profile;
+}
+function buildLeanLocalStorageProfileBlobForHotSave(){
+  return buildCurrentProfileSnapshot({lean:true});
 }
 function readProfileWrapperForSave(){
   if(isPublicPerformanceBuild() && CONFIG.publicBuildSaveWrapperMemoryCache && _profileWrapperCache && typeof _profileWrapperCache === "object"){
@@ -71976,6 +72017,80 @@ function migrateHistoryEntryToCurrent(entry){
   });
 }
 
+// Constructive curriculum history belongs to the same atomic profile payload.
+// Legacy keys are read once for occupied local slots only. After materialisation,
+// constructiveLedgerSchemaVersion prevents stale external keys from resurrecting
+// history after reset/import. The legacy keys remain inert recovery evidence;
+// no multi-key deletion is needed for a successful reset or import commit.
+function constructiveLedgerDateKey(){ return new Date().toISOString().slice(0,10); }
+function constructiveLedgerDayValid(day){
+  if(typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  try{ return new Date(day + "T00:00:00.000Z").toISOString().slice(0,10) === day; }catch(_){ return false; }
+}
+function constructiveLedgerCounter(value){
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(n))) : 0;
+}
+function normalizeConstructiveLedger(value, rollDay=true){
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const today = constructiveLedgerDateKey();
+  const day = constructiveLedgerDayValid(source.day) ? source.day : today;
+  const expired = rollDay && day !== today;
+  const result = {schemaVersion:1, day:expired ? today : day, todayTotal:expired ? 0 : constructiveLedgerCounter(source.todayTotal), byCat:{}};
+  const cats = source.byCat && typeof source.byCat === "object" && !Array.isArray(source.byCat) ? source.byCat : {};
+  const entries = Object.entries(cats).filter(([key,row]) => key.length > 0 && key.length <= 256 && !["__proto__","prototype","constructor"].includes(key) && row && typeof row === "object" && !Array.isArray(row));
+  entries.sort((a,b) => constructiveLedgerCounter(b[1].last) - constructiveLedgerCounter(a[1].last) || a[0].localeCompare(b[0]));
+  for(const [key,row] of entries.slice(0,400)){
+    const entry = {n:constructiveLedgerCounter(row.n), last:constructiveLedgerCounter(row.last)};
+    if(Object.prototype.hasOwnProperty.call(row,"nDual")) entry.nDual = Math.min(entry.n, constructiveLedgerCounter(row.nDual));
+    if(typeof row.lastTarget === "boolean") entry.lastTarget = row.lastTarget;
+    result.byCat[key] = entry;
+  }
+  return result;
+}
+function validateConstructiveLedgerShape(value){
+  if(!value || typeof value !== "object" || Array.isArray(value) || value.schemaVersion !== 1 || !constructiveLedgerDayValid(value.day)) return false;
+  if(!Number.isSafeInteger(value.todayTotal) || value.todayTotal < 0 || !value.byCat || typeof value.byCat !== "object" || Array.isArray(value.byCat)) return false;
+  const entries = Object.entries(value.byCat);
+  if(entries.length > 400) return false;
+  for(const [key,row] of entries){
+    if(!key || key.length > 256 || ["__proto__","prototype","constructor"].includes(key) || !row || typeof row !== "object" || Array.isArray(row)) return false;
+    if(!Number.isSafeInteger(row.n) || row.n < 0 || !Number.isSafeInteger(row.last) || row.last < 0) return false;
+    if(Object.prototype.hasOwnProperty.call(row,"nDual") && (!Number.isSafeInteger(row.nDual) || row.nDual < 0 || row.nDual > row.n)) return false;
+    if(Object.prototype.hasOwnProperty.call(row,"lastTarget") && typeof row.lastTarget !== "boolean") return false;
+  }
+  return true;
+}
+function materializeConstructiveLedgerWrapper(wrapper, options={}){
+  const output = cloneSchemaJson(wrapper);
+  const mayAdopt = options.adoptLegacy === true && output.constructiveLedgerSchemaVersion === undefined;
+  const storage = options.legacyStorage || null;
+  for(const slot of ["1","2","3"]){
+    const profile = output.profiles && output.profiles[slot];
+    if(!profile || typeof profile !== "object") continue;
+    if(Object.prototype.hasOwnProperty.call(profile,"constructiveLedger")) continue;
+    let legacy = null;
+    if(mayAdopt && storage){
+      // The caller has already verified the main wrapper. Reads never change it.
+      const raw = storage.getItem("euca:constructive_ledger:v1:" + slot);
+      if(raw){ try{ legacy = JSON.parse(raw); }catch(_){ legacy = null; } }
+    }
+    profile.constructiveLedger = normalizeConstructiveLedger(legacy, false);
+  }
+  output.constructiveLedgerSchemaVersion = 1;
+  return output;
+}
+function restoreConstructiveLedgerForProfile(profile, profileId){
+  State.constructiveLedger = normalizeConstructiveLedger(profile && profile.constructiveLedger);
+  State.constructiveLedgerOwner = String(profileId || State.activeProfile || 1);
+  return State.constructiveLedger;
+}
+function compactConstructiveLedgerForSave(){
+  const owner = String(State.activeProfile || 1);
+  const source = State.constructiveLedgerOwner === undefined || State.constructiveLedgerOwner === owner ? State.constructiveLedger : null;
+  return normalizeConstructiveLedger(source);
+}
+
 function validateProfileBlobSchema(profile, expectedVersion){
   if(!isSchemaRecord(profile)) return schemaContractFailure("invalid_profile", "profile", "A profile payload must be an object.");
   const assessed = assessSchemaVersion("profile", profile.schemaVersion);
@@ -71988,6 +72103,10 @@ function validateProfileBlobSchema(profile, expectedVersion){
     if(ownSchemaField(profile, key) && !modeValues.has(profile[key])){
       return schemaContractFailure("invalid_profile_mode", "profile", `Profile field ${key} has an unsupported value.`, {field:key, found:profile[key]});
     }
+  }
+  if(ownSchemaField(profile, "constructiveLedger")){
+    if(Number(profile.constructiveLedger?.schemaVersion) > 1) return schemaContractFailure("future_schema", "constructiveLedger", "Constructive history belongs to a newer schema.");
+    if(!validateConstructiveLedgerShape(profile.constructiveLedger)) return schemaContractFailure("invalid_constructive_ledger", "profile", "Constructive history failed its schema contract.");
   }
   if(ownSchemaField(profile, "reps") && !Array.isArray(profile.reps)){
     return schemaContractFailure("invalid_profile_reps", "profile", "Profile reps must be an array.");
@@ -72115,6 +72234,7 @@ function validateWrapperShape(wrapper){
   if(!isSchemaRecord(wrapper)) return schemaContractFailure("invalid_wrapper", "wrapper", "The persistence wrapper must be an object.");
   const assessed = assessSchemaVersion("wrapper", wrapper.schemaVersion);
   if(!assessed.ok) return assessed;
+  if(ownSchemaField(wrapper, "constructiveLedgerSchemaVersion") && wrapper.constructiveLedgerSchemaVersion !== 1) return schemaContractFailure(Number(wrapper.constructiveLedgerSchemaVersion) > 1 ? "future_schema" : "invalid_constructive_ledger_version", "constructiveLedger", "Unsupported constructive-history wrapper policy.");
   if(!isSchemaRecord(wrapper.profiles)) return schemaContractFailure("invalid_wrapper_profiles", "wrapper", "Wrapper profiles must be an object.");
   const active = Number(wrapper.activeProfile);
   if(!Number.isInteger(active) || active < 1 || active > 3){
@@ -73875,74 +73995,7 @@ function _saveImmediate(force=false, reason="save"){
     const fastSaveProfileBlob = shouldUseLeanProfileSaveFastPath(force, reason) ? buildLeanLocalStorageProfileBlobForHotSave() : null;
     // Build the blob for THIS profile. Same fields as before — the per-
     // profile shape is the legacy shape, unchanged.
-    const profileBlob = fastSaveProfileBlob || {
-      schemaVersion: PROFILE_SCHEMA_VERSION,
-      appVersion:currentAppVersion(),
-      savedAt:new Date().toISOString(),
-      runtimeSchema: EUCA_SCHEMA,
-      profileIntegrity:compactProfileIntegrityForSave(),
-      manualModeChoice:compactManualModeChoiceForSave(),
-      autoProfile:compactAutoProfileForSave(),
-      publicProgressSummary:buildPublicProgressSummary({save:true}),
-      productionMonitor: compactProductionMonitorForSave(State.productionMonitor),
-      mode:"auto", modeChoice:"auto", runtimeMode:"D", modeTelemetry:currentModeTelemetry(), reps:State.reps, metaLevel:State.metaLevel, metaAuto:true,
-      autoMetaLastLevel:State.autoMetaLastLevel,
-      autoMetaLastState:State.autoMetaLastState,
-      autoMetaStable:State.autoMetaStable,
-      autoCurriculum:State.autoCurriculum,
-      autoPhase:State.autoPhase,
-      metaAutoPhaseStats:State.meta.autoPhaseStats,
-      levelByMode:State.levelByMode, etByMode:State.etByMode,
-      etByModeAndValue:State.etByModeAndValue,
-      stats:State.stats, statsByMode:compactStatsByModeForSave(State.statsByMode),
-      posnerCatStats:State.posnerCatStats,
-      confusion:State.confusion, problemValues:State.problemValues,
-      subitizingCellStats:State.subitizingCellStats,
-      blockSize:State.blockSize,
-      blockSizeAuto:State.blockSizeAuto,
-      soundEnabled:State.soundEnabled,
-      hapticEnabled:!!State.hapticEnabled,
-      firstPlayedVersion:State.firstPlayedVersion || null,
-      lastPlayedVersion:State.lastPlayedVersion || null,
-      playedVersionCounts:State.playedVersionCounts || {},
-      progressHistory:compactProgressHistoryForSave(State.progressHistory),
-      // v6.5.22aq: persist compact diagnostic buffers as a capped tail.
-      // Without this, an exported diagnostic after reload can show aggregate
-      // errors but no concrete question context, making "bad question" reports
-      // impossible to reconstruct.
-      trialTelemetryBuffer:Array.isArray(State.trialTelemetryBuffer) ? State.trialTelemetryBuffer.slice(-120) : [],
-      samplerDiagnostics:compactSamplerDiagnosticsForSave(State.samplerDiagnostics),
-      audioDiagnostics:{...ensureAudioDiagnostics(), recent:ensureAudioDiagnostics().recent.slice(isPublicPerformanceBuild() ? -8 : -60)},
-      relationalConfusion:compactRelationalConfusionForSave(State.relationalConfusion),
-      achievements:State.achievements,
-      metaL1Stats:State.meta.l1Stats, metaL2Stats:State.meta.l2Stats,
-      metaL3Stats:State.meta.l3Stats,
-      metaL2Diag:State.meta.l2Diag, metaL3Diag:State.meta.l3Diag,
-      metaFrameStats:State.meta.frameStats,
-      metaLinguisticStats:State.meta.linguisticStats,
-      metaPairingPatternStats:State.meta.pairingPatternStats,
-      metaRepresentationTransformStats:State.meta.representationTransformStats,
-      metaCompositionStats:State.meta.compositionStats,
-      metaExecutiveStats:State.meta.executiveStats,
-      metaDiagnostics:State.meta.diagnostics,
-      dExtensionStats:compactDExtensionStatsForSave(State.dExtensionStats),
-      dLastL1ExtensionFamily:State.dLastL1ExtensionFamily,
-      dL0Window:State.dL0Window,
-      dL1Window:State.dL1Window,
-      dL2Window:State.dL2Window,
-      adaptiveBaseline:State.adaptiveBaseline,
-      adaptiveAxes:globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.compactForSave?.() || State.adaptiveAxes,
-      // v6.5.0: time/session telemetry persistence
-      sessionCount:State.sessionCount,
-      totalPlaytimeMs:State.totalPlaytimeMs,
-      firstSessionAt:State.firstSessionAt,
-      lastSessionAt:State.lastSessionAt,
-      lastSessionDateKey:State.lastSessionDateKey,
-      dayStreak:State.dayStreak,
-      bestDayStreak:State.bestDayStreak,
-      // v6.5.1: peak level (max ever attained per mode)
-      peakLevelByMode:State.peakLevelByMode,
-    };
+    const profileBlob = fastSaveProfileBlob || buildCurrentProfileSnapshot({lean:false});
 
     // Read the current wrapper if any, so we don't blow away other
     // profiles when saving the active one. If localStorage holds a
@@ -73979,6 +74032,7 @@ function _saveImmediate(force=false, reason="save"){
       };
     }
 
+    wrapper = materializeConstructiveLedgerWrapper(wrapper, {legacyStorage:getPersistenceStorage(), adoptLegacy:true});
     const active = String(State.activeProfile || 1);
     const localProfileBlob = fastSaveProfileBlob ? fastSaveProfileBlob : makeLocalStorageProfileBlob(profileBlob);
     wrapper.activeProfile = Number(active);
@@ -74048,7 +74102,7 @@ function _saveImmediate(force=false, reason="save"){
         const active = String(State.activeProfile || 1);
         const slot = wrapper.profiles[active];
         if(slot && typeof slot === "object"){
-          const heavy = ["trialTelemetryBuffer","progressHistory","productionMonitor","samplerDiagnostics","relationalConfusion","audioDiagnostics","metaDiagnostics","confusion","subitizingCellStats","posnerCatStats","problemValues"];
+          const heavy = ["trialTelemetryBuffer","productionMonitor","samplerDiagnostics","relationalConfusion","audioDiagnostics","metaDiagnostics"];
           for(const k of heavy){ try { delete slot[k]; } catch(_) {} }
           slot.shrunkForQuota = new Date().toISOString();
         }
@@ -74310,6 +74364,11 @@ function mergeProductionMonitor(base, saved){
 // already-initialised State shape to apply a verified import in place without
 // carrying stale fields from the previously active profile.
 let _pristineStateForSafeImport = null;
+function pruneLoadedPosnerCategoryStats(){
+  if(!State.posnerCatStats || typeof State.posnerCatStats !== "object") return;
+  const valid = new Set(POSNER_CATS.map(c => c.id).concat(["l0_state_chain", "l0_induction_seed", "l0_induction_terminal", "l0_induction_chain"]));
+  for(const id of Object.keys(State.posnerCatStats)) if(!valid.has(id)) delete State.posnerCatStats[id];
+}
 function load(){
   if(!_pristineStateForSafeImport){
     try { _pristineStateForSafeImport = cloneSchemaJson(State); }
@@ -74363,7 +74422,7 @@ function load(){
     const storedPayload = persistenceResolution.payload;
     const prepared = preparePersistencePayload(storedPayload);
     if(!prepared.ok) throw new PersistenceSchemaError(prepared);
-    const raw = prepared.value;
+    const raw = materializeConstructiveLedgerWrapper(prepared.value, {legacyStorage:getPersistenceStorage(), adoptLegacy:true});
     const legacyPrimary = persistenceResolution.status === "legacy_primary" ? persistenceResolution.primary : null;
     const sourceWasWrapper = legacyPrimary ? !!legacyPrimary.sourceWasWrapper : ownSchemaField(storedPayload, "profiles");
     const sourceActive = sourceWasWrapper ? Number(storedPayload.activeProfile) : 1;
@@ -74399,6 +74458,7 @@ function load(){
     State.trainingTimeMs = Number(raw.trainingTimeMs[String(active)] || 0);
     if(isPublicPerformanceBuild() && CONFIG.publicBuildSaveWrapperMemoryCache) _profileWrapperCache = raw;
     const slot = raw.profiles[String(active)];
+    restoreConstructiveLedgerForProfile(slot, active);
     if(!slot || typeof slot !== "object"){
       if(!State.productionMonitor) State.productionMonitor = {};
       State.productionMonitor.loadedSchema = schemaLoadRecord;
@@ -74467,12 +74527,10 @@ function load(){
     // Sanitize: drop any cat IDs that no longer exist in the current POSNER_CATS catalogue.
     // Without this, renamed/removed categories from older saved states accumulate as
     // orphan keys that bloat localStorage and can never be read by the new code.
-    if(State.posnerCatStats && typeof State.posnerCatStats === "object"){
-      const validPosnerIds = new Set(POSNER_CATS.map(c => c.id).concat(["l0_state_chain", "l0_induction_seed", "l0_induction_terminal", "l0_induction_chain"]));
-      for(const k of Object.keys(State.posnerCatStats)){
-        if(!validPosnerIds.has(k)) delete State.posnerCatStats[k];
-      }
-    }
+    // Later inline modules also register live categories. During initial parsing,
+    // defer obsolete-key cleanup until every module has installed its catalogue.
+    if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", pruneLoadedPosnerCategoryStats, {once:true});
+    else pruneLoadedPosnerCategoryStats();
     if(d.confusion) State.confusion=d.confusion;
     if(d.problemValues) State.problemValues=d.problemValues;
     if(d.subitizingCellStats) State.subitizingCellStats=d.subitizingCellStats;
@@ -74626,7 +74684,9 @@ function load(){
           ? "The active save could not be verified. A previous complete save is available below; saving is paused until you choose."
           : (newerSchema
             ? "Saved progress was created by a newer Eucalculia build. It was not loaded or changed; saving is paused."
-            : "Saved progress could not be read. Saving is paused to protect it — use Restore last backup in the Menu."),
+            : (!getPersistenceStorage() || e?.code === "SAVE_DENIED" || e?.name === "SecurityError"
+              ? "Storage is unavailable. You can keep training temporarily; use Export progress to keep this session."
+              : "Saved progress could not be read. Saving is paused to protect it — use Restore last backup in the Menu.")),
         false
       );
     } catch(_) {}
@@ -76882,12 +76942,12 @@ $("hapticToggleBtn").onclick = () => {
         _persistenceDisabled = persistenceWasDisabled;
         return;
       }
-      const parsed = resolved.payload ? cloneSchemaJson(resolved.payload) : {
+      const parsed = materializeConstructiveLedgerWrapper(resolved.payload || {
         schemaVersion:PROFILE_WRAPPER_VERSION,
         activeProfile:Number(State.activeProfile || 1),
         profiles:{"1":null,"2":null,"3":null},
         trainingTimeMs:{"1":0,"2":0,"3":0}
-      };
+      }, {legacyStorage:getPersistenceStorage(), adoptLegacy:true});
       backupCurrentProgress("before_reset");
       const active = String(State.activeProfile || 1);
       // Reset ONLY the active profile. The wrapper and sibling slots survive,
@@ -77030,31 +77090,68 @@ function _ioMsg(text, ok=true){
     _ioMsg._t = setTimeout(() => { el.textContent = ""; }, 4500);
   }
 }
+// Acquire Storage without letting a denied Window getter escape into UI callbacks.
+function getPersistenceStorage(){
+  try { return globalThis.localStorage || null; } catch(_) { return null; }
+}
+function updatePersistenceSessionNotice(){
+  const notice = $("storageSessionNotice");
+  if(!notice) return;
+  const fault = State.loadFailedNotice;
+  const unavailable = _persistenceDisabled && (!getPersistenceStorage() || fault?.name === "SecurityError" || fault?.code === "SAVE_DENIED");
+  notice.textContent = unavailable ? "Temporary session: storage is unavailable. Export progress before closing to keep your answers." : "";
+  notice.style.display = unavailable ? "" : "none";
+}
+function buildCurrentProgressExport(){
+  const storage = getPersistenceStorage();
+  let verified = null;
+  let completePackage = false;
+  if(storage){
+    try {
+      const resolved = resolveRecoverablePersistence(storage);
+      if(resolved.ok){ verified = resolved.payload; completePackage = true; }
+    } catch(_) { }
+  }
+  // The cache is a previously verified package, never an unverified raw read.
+  if(!completePackage && _profileWrapperCache){
+    const cached = preparePersistencePayload(_profileWrapperCache);
+    if(cached.ok) verified = cached.value;
+  }
+  let wrapper = verified ? cloneSchemaJson(verified) : {
+    schemaVersion:PROFILE_WRAPPER_VERSION, activeProfile:Number(State.activeProfile || 1),
+    profiles:{"1":null,"2":null,"3":null}, trainingTimeMs:{"1":0,"2":0,"3":0}
+  };
+  wrapper = materializeConstructiveLedgerWrapper(wrapper, {legacyStorage:storage, adoptLegacy:true});
+  const active = String(State.activeProfile || 1);
+  const lean = shouldUseLeanProfileSaveFastPath(true, "manual_export");
+  const profile = lean ? buildLeanLocalStorageProfileBlobForHotSave() : buildCurrentProfileSnapshot({lean:false});
+  wrapper.profiles[active] = lean ? profile : makeLocalStorageProfileBlob(profile);
+  wrapper.activeProfile = Number(active);
+  wrapper.schemaVersion = PROFILE_WRAPPER_VERSION;
+  if(!wrapper.trainingTimeMs) wrapper.trainingTimeMs = {"1":0,"2":0,"3":0};
+  wrapper.trainingTimeMs[active] = Math.max(0,Number(State.trainingTimeMs) || 0);
+  const prepared = preparePersistencePayload(cloneSchemaJson(wrapper));
+  if(!prepared.ok) throw new PersistenceSchemaError(prepared);
+  const text = JSON.stringify(prepared.value);
+  const reread = preparePersistencePayload(JSON.parse(text));
+  if(!reread.ok) throw new PersistenceSchemaError(reread);
+  return {payload:reread.value,text,activeProfile:Number(active),completePackage};
+}
 $("exportBtn").onclick = () => {
   try {
-    // Force a fresh save first so the export reflects the latest state.
-    if(typeof _saveImmediate === "function") _saveImmediate();
-    const resolved = resolveRecoverablePersistence(localStorage);
-    if(!resolved.ok){
-      _ioMsg("Export paused: choose a verified recovery save first.", false);
-      return;
-    }
-    const raw = resolved.payload ? JSON.stringify(resolved.payload) : null;
-    if(!raw){
-      _ioMsg("Nothing to export yet — no saved progress.", false);
-      return;
-    }
-    const blob = new Blob([raw], {type: "application/json"});
+    // Snapshot the current session independently of throttling or write locks.
+    const snapshot = buildCurrentProgressExport();
+    const blob = new Blob([snapshot.text], {type:"application/json"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const ts = new Date().toISOString().replace(/[:T]/g,"-").slice(0,16);
     a.href = url;
-    a.download = `eucalculia-progress-${ts}.json`;
+    a.download = 'eucalculia-progress-' + ts + '.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    _ioMsg("Exported.");
+    _ioMsg(snapshot.completePackage ? "Exported current progress." : "Exported this session's current progress. Other profiles could not be refreshed from storage.");
   } catch(e){
     console.warn("Eucalculia export failed —", e);
     _ioMsg("Export failed: " + (e?.name || "error"), false);
@@ -77353,7 +77450,7 @@ const SAFE_IMPORT_LIMITS = Object.freeze({
 });
 const SAFE_IMPORT_DANGEROUS_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 const SAFE_IMPORT_WRAPPER_KEYS = new Set([
-  "schemaVersion", "activeProfile", "profiles", "trainingTimeMs", "importExtensions"
+  "schemaVersion", "activeProfile", "profiles", "trainingTimeMs", "constructiveLedgerSchemaVersion", "importExtensions"
 ]);
 const SAFE_IMPORT_PROFILE_KEYS = new Set([
   "schemaVersion", "appVersion", "savedAt", "runtimeSchema",
@@ -77375,7 +77472,7 @@ const SAFE_IMPORT_PROFILE_KEYS = new Set([
   "adaptiveBaseline", "adaptiveAxes", "sessionCount", "totalPlaytimeMs", "firstSessionAt",
   "lastSessionAt", "lastSessionDateKey", "dayStreak", "bestDayStreak",
   "shrunkForQuota", "debtlessSchema", "temporalConsolidation",
-  "temporalConsolidationState", "importExtensions"
+  "temporalConsolidationState", "constructiveLedger", "importExtensions"
 ]);
 
 let _safeImportStage = null;
@@ -77870,7 +77967,7 @@ function inspectSafeImportText(text, metadata={}){
   if(JSON.stringify(parsed) !== sourceJson){
     return safeImportFailure("IMPORT_SOURCE_MUTATED", "Schema preparation modified the source object; import was stopped.");
   }
-  const sanitised = sanitizeSafeImportPreparedWrapper(prepared.value);
+  const sanitised = sanitizeSafeImportPreparedWrapper(materializeConstructiveLedgerWrapper(prepared.value, {adoptLegacy:false}));
   const semantic = validateSafeImportSemantics(sanitised.value);
   if(!semantic.ok) return semantic;
   const canonical = preparePersistencePayload(sanitised.value);
@@ -77976,7 +78073,10 @@ function resolveSafeImportCurrent(storage=localStorage){
       schemaCode:prepared.code || null, authority:prepared.authority || null
     });
   }
-  return safeImportSuccess(prepared.value, {payload:prepared.value, resolution:resolved});
+  let materialized;
+  try{ materialized = materializeConstructiveLedgerWrapper(prepared.value, {legacyStorage:storage, adoptLegacy:true}); }
+  catch(error){ return safeImportFailure("IMPORT_CURRENT_LEDGER", "Current constructive history could not be read; import was stopped before changing progress.", {name:error?.name || "error"}); }
+  return safeImportSuccess(materialized, {payload:materialized, resolution:resolved});
 }
 function safeImportProfileSummary(profile, trainingTime=0){
   if(!profile) return {empty:true, text:"Empty", trials:0, correct:0, accuracy:null, history:0, trainingTime:0};
@@ -78006,7 +78106,7 @@ function safeImportProfileSummary(profile, trainingTime=0){
 function buildSafeImportCandidate(inspection, currentPayload, mode="replace_all"){
   if(!inspection?.ok || !inspection.payload) return safeImportFailure("IMPORT_STAGE_MISSING", "No verified import is staged.");
   if(mode === "replace_all"){
-    const prepared = preparePersistencePayload(inspection.payload);
+    const prepared = preparePersistencePayload(materializeConstructiveLedgerWrapper(inspection.payload, {adoptLegacy:false}));
     return prepared.ok
       ? safeImportSuccess(prepared.value, {payload:prepared.value, mode, targetSlot:null})
       : safeImportFailure("IMPORT_CANDIDATE_SCHEMA", prepared.message || "Replacement candidate is invalid.");
@@ -78314,8 +78414,11 @@ function createVerifiedSafeImportBackup(storage=localStorage){
   let previousReceiptRaw = null;
   try { previousReceiptRaw = storage.getItem(SAFE_IMPORT_BACKUP_RECEIPT_KEY); }
   catch(error){ return safeImportFailure("IMPORT_BACKUP_READ", "The existing import-backup receipt could not be read.", {name:error?.name || "error"}); }
-  if(resolved.status === "legacy_primary" && resolved.payload){
-    const checkpoint = commitRecoverablePayload(resolved.payload, {storage, reason:"pre_import_checkpoint"});
+  let ledgerBaseline;
+  try{ ledgerBaseline = materializeConstructiveLedgerWrapper(resolved.payload || emptySafeImportWrapper(), {legacyStorage:storage, adoptLegacy:true}); }
+  catch(error){ return safeImportFailure("IMPORT_BACKUP_LEDGER", "Constructive history could not be read; the pre-import backup was not changed.", {name:error?.name || "error"}); }
+  if(resolved.payload && (resolved.status === "legacy_primary" || JSON.stringify(ledgerBaseline) !== JSON.stringify(resolved.payload))){
+    const checkpoint = commitRecoverablePayload(ledgerBaseline, {storage, reason:"pre_import_checkpoint"});
     if(!checkpoint.ok){
       return safeImportFailure("IMPORT_BACKUP_CHECKPOINT", "The legacy save could not be checkpointed before import.", {
         code:checkpoint.code || null, phase:checkpoint.phase || null
@@ -78510,9 +78613,11 @@ function restoreSafeImportBackup(options={}){
       expected:expectedSaveId, found:current.active?.saveId || null
     });
   }
+  const restoredPayload = materializeConstructiveLedgerWrapper(verified.payload, {adoptLegacy:false});
+  const restoredPayloadText = JSON.stringify(restoredPayload);
   let restored;
-  if(verified.empty){
-    restored = commitRecoverablePayload(verified.payload, {storage, reason:"restore_empty_pre_import_backup"});
+  if(verified.empty || restoredPayloadText !== verified.payloadText){
+    restored = commitRecoverablePayload(restoredPayload, {storage, reason:"restore_pre_import_backup"});
   } else {
     restored = promoteRecoverableCandidate(verified.candidate, {storage});
   }
@@ -78523,7 +78628,7 @@ function restoreSafeImportBackup(options={}){
   }
   const reopened = resolveRecoverablePersistence(storage);
   const reopenedText = reopened.ok && reopened.payload ? JSON.stringify(reopened.payload) : null;
-  if(!reopened.ok || recoverableChecksum(reopenedText || "") !== verified.checksum){
+  if(!reopened.ok || recoverableChecksum(reopenedText || "") !== recoverableChecksum(restoredPayloadText)){
     return safeImportFailure("IMPORT_UNDO_VERIFY", "The restored backup failed final read-back verification.");
   }
   if(options.consume !== false){
@@ -78543,7 +78648,8 @@ function restoreSafeImportBackup(options={}){
     hydrated
   });
 }
-function safeImportBackupSnapshot(storage=localStorage){
+function safeImportBackupSnapshot(storage=getPersistenceStorage()){
+  if(!storage) return {ok:false, code:"SAVE_DENIED", message:"Storage is unavailable in this session."};
   const verified = verifySafeImportBackupReceipt(storage);
   if(!verified.ok) return {ok:false, code:verified.code, message:verified.message};
   const current = resolveRecoverablePersistence(storage);
@@ -78559,9 +78665,10 @@ function safeImportBackupSnapshot(storage=localStorage){
   };
 }
 function updateUndoSafeImportButton(){
+  updatePersistenceSessionNotice();
   const button = $("undoImportBtn");
   if(!button) return false;
-  const snapshot = safeImportBackupSnapshot(localStorage);
+  const snapshot = safeImportBackupSnapshot(getPersistenceStorage());
   button.style.display = snapshot.ok && snapshot.undoAvailable ? "" : "none";
   button.disabled = !(snapshot.ok && snapshot.undoAvailable);
   return !button.disabled;
@@ -95691,29 +95798,27 @@ try{
     try{ return new Date().toISOString().slice(0,10); }catch(_){ return "1970-01-01"; }
   }
   function loadConstructiveLedger(customKey){
-    const empty = {day:constructiveLedgerToday(), todayTotal:0, byCat:{}};
+    if(!customKey) return compactConstructiveLedgerForSave();
     try{
-      if(typeof localStorage === "undefined") return empty;
-      const raw = localStorage.getItem(constructiveLedgerKey(customKey));
-      if(!raw) return empty;
-      const led = JSON.parse(raw);
-      if(!led || typeof led !== "object" || !led.byCat || typeof led.byCat !== "object") return empty;
-      if(led.day !== constructiveLedgerToday()){ led.day = constructiveLedgerToday(); led.todayTotal = 0; }
-      led.todayTotal = Math.max(0, Math.floor(Number(led.todayTotal) || 0));
-      return led;
-    }catch(_){ return empty; }
+      const storage = getPersistenceStorage();
+      const raw = storage && storage.getItem(constructiveLedgerKey(customKey));
+      return normalizeConstructiveLedger(raw ? JSON.parse(raw) : null);
+    }catch(_){ return normalizeConstructiveLedger(null); }
   }
   function saveConstructiveLedger(led, customKey){
-    try{
-      if(typeof localStorage === "undefined") return false;
-      const cats = Object.keys(led.byCat || {});
-      if(cats.length > 400){
-        cats.sort((a,b) => Number(led.byCat[a]?.last || 0) - Number(led.byCat[b]?.last || 0));
-        for(const id of cats.slice(0, cats.length - 400)) delete led.byCat[id];
-      }
-      localStorage.setItem(constructiveLedgerKey(customKey), JSON.stringify(led));
-      return true;
-    }catch(_){ return false; }
+    const value = normalizeConstructiveLedger(led);
+    if(customKey){
+      try{
+        const storage = getPersistenceStorage();
+        if(!storage) return false;
+        storage.setItem(constructiveLedgerKey(customKey), JSON.stringify(value));
+        return true;
+      }catch(_){ return false; }
+    }
+    State.constructiveLedger = value;
+    State.constructiveLedgerOwner = String(State.activeProfile || 1);
+    if(typeof save === "function") save();
+    return true;
   }
   function constructiveLedgerRecord(catId, target, isDual=false, customKey){
     const led = loadConstructiveLedger(customKey);
@@ -96284,7 +96389,7 @@ try{
   }
 
   function constructiveLedgerSnapshot(){
-    try{ return {key:constructiveLedgerKey(), ...loadConstructiveLedger()}; }catch(_){ return null; }
+    try{ return {key:"profile.constructiveLedger", profile:Number(State.activeProfile || 1), ...loadConstructiveLedger()}; }catch(_){ return null; }
   }
 
   function auditInlineExposureLedger(opts={}){
@@ -123619,7 +123724,7 @@ try { (() => {
     Object.freeze({scope:"Menu · Settings",selector:"#soundToggleBtn",label:"Sound feedback",help:"Enable or disable locally generated sound cues."}),
     Object.freeze({scope:"Menu · Settings",selector:"#hapticToggleBtn",label:"Haptic feedback",help:"Enable or disable vibration when the device supports it."}),
     Object.freeze({scope:"Menu · Settings",selector:"#shuffleYesNoToggle",label:"Shuffle YES/NO",help:"Optionally swap the visible YES/NO sides; Y/N always follow labels and arrows follow position."}),
-    Object.freeze({scope:"Menu · Data",selector:"#exportBtn",label:"Export progress",help:"Download the active saved-progress package."}),
+    Object.freeze({scope:"Menu · Data",selector:"#exportBtn",label:"Export progress",help:"Download your current progress, including this session’s answers."}),
     Object.freeze({scope:"Menu · Data",selector:"#diagnosticExportBtn",label:"Export diagnostics",help:"Download the detailed technical snapshot used for audit."}),
     Object.freeze({scope:"Menu · Data",selector:"#importBtn",label:"Import progress",help:"Validate and preview a progress file before any write; a protected undo is offered when available."}),
     Object.freeze({scope:"Menu",selector:"#resetBtn",label:"Reset",help:"Hold to arm, then confirm; resets only the active profile."}),
@@ -173793,6 +173898,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   function executePack(kind,context={}){return packs.execute(packByKind[kind],{profileId:context.profileId||1,blockOrdinal:context.blockOrdinal||0,trialIndex:context.trialIndex||0,attempt:context.attempt||0,layer:"L0",locale:context.locale||"en",difficulty:context.difficulty||null,semanticInputs:Array.isArray(context.semanticInputs)?context.semanticInputs:[],seed:String(context.seed||sessionRng.session().seed)});}
   function registerAtomics(){
     if(typeof safeRegisterAtomic!=="function")throw new Error("INT-01 requires declarative atomics");
+    registerRequiredAtomic({id:"post_mask_sign_assignment",kind:"operation",label:"Apply the stated signs to retained magnitudes",inputContract:"evaluate(leftMagnitude,rightMagnitude,{leftSign,rightSign}): {left,right}; nonnegative safe integers and signs +1 or -1; presentation timing belongs to the trial lifecycle",phrase:()=>"apply the explicitly stated sign to each retained magnitude",evaluate:(leftMagnitude,rightMagnitude,policy)=>{if(!Number.isSafeInteger(leftMagnitude)||!Number.isSafeInteger(rightMagnitude)||leftMagnitude<0||rightMagnitude<0||![-1,1].includes(policy?.leftSign)||![-1,1].includes(policy?.rightSign))throw new TypeError("Expected two nonnegative integer magnitudes and explicit signs");return applySigns(leftMagnitude,rightMagnitude,policy)},reviewLine:()=>"Apply each declared sign to its retained magnitude before combining or comparing the values.",source:PATCH_ID});
     safeRegisterAtomic({id:atomicByKind.relation,kind:"relation",label:"Signed integer relation",phrase:()=>"apply the stated signs, then compare LEFT and RIGHT",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.relation.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Apply the stated signs, then compare LEFT and RIGHT.",source:PATCH_ID});
     safeRegisterAtomic({id:atomicByKind.shift,kind:"operation",label:"Direct signed combination",phrase:()=>"apply the stated signs, then add LEFT and RIGHT",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.shift.solve(state).answer}catch(_){return null}},reviewLine:()=>"Apply the signs stated after the mask, then add LEFT and RIGHT.",source:PATCH_ID});
     safeRegisterAtomic({id:atomicByKind.inverse,kind:"operation",label:"Inverse signed change",phrase:()=>"apply the stated signs, then subtract LEFT from RIGHT",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.inverse.solve(state).answer}catch(_){return null}},reviewLine:()=>"Apply the signs, then subtract LEFT from RIGHT.",source:PATCH_ID});
@@ -174192,6 +174298,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   const responseByKind=freeze({equivalence:"yesno",unit:"numeric",scale:"numeric",fourth:"numeric"}),minLevelByKind=freeze({equivalence:1,unit:2,scale:3,fourth:4}),atomicByKind=freeze({equivalence:"exact_ratio_equivalence",unit:"exact_unit_rate",scale:"exact_common_scale_factor",fourth:"exact_fourth_proportional"}),SERVABLE_KINDS=freeze(["equivalence","unit"]),FAIL_CLOSED_KINDS=freeze(["scale","fourth"]);
   function executePack(kind,context={}){const difficulty={...(context.difficulty||{})};if(difficulty.targetValue===null||difficulty.targetValue===undefined||difficulty.targetValue==="")delete difficulty.targetValue;if(!difficulty.canonicalRepMatrix)difficulty.canonicalRepMatrix=currentCanonicalRepMatrix();return packs.execute(packByKind[kind],{profileId:context.profileId||1,blockOrdinal:context.blockOrdinal||0,trialIndex:context.trialIndex||0,attempt:context.attempt||0,layer:"L0",locale:context.locale||"en",difficulty,semanticInputs:Array.isArray(context.semanticInputs)?context.semanticInputs:[],seed:String(context.seed||sessionRng.session().seed)})}
   if(typeof safeRegisterAtomic!=="function")throw new Error("PROP-01 requires declarative atomics");
+  registerRequiredAtomic({id:"exact_cross_product",kind:"operation",label:"Exact ratio cross-products",inputContract:"evaluate(a,b,c,d): {left:Rational,right:Rational,equal:boolean} for semantic ratio operands a/b and c/d; denominators nonzero",phrase:()=>"compare the exact products a times d and c times b",evaluate:(a,b,c,d)=>{const denominatorB=exact(b),denominatorD=exact(d);if(denominatorB.compare(0n)===0||denominatorD.compare(0n)===0)throw new RangeError("Ratio denominator cannot be zero");const left=exact(a).mul(denominatorD),right=exact(c).mul(denominatorB);return freeze({left,right,equal:left.equals(right)})},reviewLine:()=>"The ratios are equal precisely when their exact cross-products are equal.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.equivalence,kind:"relation",label:"Exact ratio equivalence",phrase:()=>"compare two retained ratios by exact cross-products",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.equivalence.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Compare exact cross-products, not surface similarity.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.unit,kind:"operation",label:"Exact unit rate",phrase:()=>"normalize one retained quantity to one unit of another",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.unit.solve(state).answer}catch(_){return null}},reviewLine:()=>"Divide in the direction named by the prompt.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.scale,kind:"operation",label:"Exact common scale factor",phrase:()=>"recover the multiplier shared by both components",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.scale.solve(state).answer}catch(_){return null}},reviewLine:()=>"The same factor must map both components.",source:PATCH_ID});
@@ -174777,6 +174884,7 @@ html[data-euca-resume-geometry="pending"] #particles {
   function executePack(kind,context={}){const difficulty={...(context.difficulty||{})};if(difficulty.targetValue===null||difficulty.targetValue===undefined||difficulty.targetValue==="")delete difficulty.targetValue;if(!difficulty.canonicalRepMatrix)difficulty.canonicalRepMatrix=currentCanonicalRepMatrix();return packs.execute(packByKind[kind],{profileId:context.profileId||1,blockOrdinal:context.blockOrdinal||0,trialIndex:context.trialIndex||0,attempt:context.attempt||0,layer:"L0",locale:context.locale||"en",difficulty,semanticInputs:Array.isArray(context.semanticInputs)?context.semanticInputs:[],seed:String(context.seed||sessionRng.session().seed)})}
 
   if(typeof safeRegisterAtomic!=="function")throw new Error("CONS-01 requires declarative atomics");
+  registerRequiredAtomic({id:"exact_value_invariance",kind:"relation",label:"Exact value invariance",inputContract:"evaluate(beforeSemanticValue, afterSemanticValue): boolean",phrase:()=>"compare the exact value before and after a transformation",evaluate:(before,after)=>numeric.compare(before,after)===0,reviewLine:()=>"A transformation preserves quantity exactly when its before and after values are equal.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.rearrangement,kind:"relation",label:"Exact directed quantity transition",phrase:()=>"test a property of the instructed transition between the two visible sides",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.rearrangement.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Use the direction named in the question to identify the source and result.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.partition,kind:"relation",label:"Exact partition conservation",phrase:()=>"test exact product invariance under repartition",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.partition.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Multiply both partition dimensions and compare the exact totals.",source:PATCH_ID});
   safeRegisterAtomic({id:atomicByKind.restore,kind:"operation",label:"Exact conservation restoration",phrase:()=>"construct the exact repair of a changed quantity",applicability:state=>!!(state?.left&&state?.right),evaluate:state=>{try{return packByKind.restore.solve(state).answer}catch(_){return null}},reviewLine:()=>"Recover the original total by the exact difference.",source:PATCH_ID});
@@ -175493,15 +175601,26 @@ html[data-euca-resume-geometry="pending"] #particles {
   function executePack(kind,context={}){const difficulty={...(context.difficulty||{})};if(difficulty.targetValue===null||difficulty.targetValue===undefined||difficulty.targetValue==="")delete difficulty.targetValue;return packs.execute(packByKind[kind],{profileId:context.profileId||1,blockOrdinal:context.blockOrdinal||0,trialIndex:context.trialIndex||0,attempt:context.attempt||0,layer:"L0",locale:context.locale||"en",difficulty,semanticInputs:Array.isArray(context.semanticInputs)?context.semanticInputs:[],seed:String(context.seed||sessionRng.session().seed)})}
 
   const atomicByKind=freeze({completion:"eq01_solve_open_equality",judgment:"eq01_judge_exact_equality",discrimination:"eq01_discriminate_true_equality"});
-  const safeRegisterAtomic=declaration=>{try{if(typeof registerAtomicOperation==="function")return registerAtomicOperation(declaration)}catch(_){ }return null};
-  safeRegisterAtomic({id:atomicByKind.completion,kind:"operation",label:"Complete an exact equality",phrase:()=>"solve the unique missing exact value",applicability:state=>!!state?.equation,evaluate:state=>{try{return packByKind.completion.solve(state).answer}catch(_){return null}},reviewLine:()=>"Treat the equals sign as a relation between both complete expressions.",source:PATCH_ID});
-  safeRegisterAtomic({id:atomicByKind.judgment,kind:"relation",label:"Judge exact equality",phrase:()=>"compare both exact expression values",applicability:state=>!!state?.equation,evaluate:state=>{try{return packByKind.judgment.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Evaluate both sides independently, then compare them.",source:PATCH_ID});
-  safeRegisterAtomic({id:atomicByKind.discrimination,kind:"selection",label:"Discriminate a true equality",phrase:()=>"reject operational-error near misses",applicability:state=>Array.isArray(state?.optionEquations),evaluate:state=>{try{return packByKind.discrimination.solve(state).correctIndex}catch(_){return null}},reviewLine:()=>"Test every complete equality; syntax alone does not identify the valid one.",source:PATCH_ID});
+  // These are executable dependencies, so registration cannot silently return null.
+  function evaluateSharedExactExpression(expression, environment={}){
+    const evaluator=globalThis.EUCALCULIA_EQ02?.ast?.evaluateExpression || evalExpr;
+    return evaluator(expression, environment);
+  }
+  function evaluateSharedSymmetricEquality(equation, environment={}){
+    if(equation?.format!==EQUATION_FORMAT || equation.schemaVersion!==1) throw new TypeError("Expected exact equation AST v1");
+    return evaluateSharedExactExpression(equation.left,environment).equals(evaluateSharedExactExpression(equation.right,environment));
+  }
+  registerRequiredAtomic({id:"exact_expression_evaluation",kind:"operation",label:"Evaluate an exact expression",inputContract:"evaluate(expressionAST, environment): Rational; symbols must be explicitly bound; division uses EQ02 when installed",phrase:()=>"evaluate every exact operation in the expression",applicability:(expression,environment)=>{try{evaluateSharedExactExpression(expression,environment);return true}catch(_){return false}},evaluate:evaluateSharedExactExpression,reviewLine:()=>"Evaluate the complete expression with exact values and explicit symbol bindings.",source:PATCH_ID});
+  registerRequiredAtomic({id:"symmetric_equality_relation",kind:"relation",label:"Compare both exact equation members",inputContract:"evaluate(equationASTv1, environment): boolean; member order does not affect equality",phrase:()=>"compare the exact values of both complete members",applicability:(equation,environment)=>{try{evaluateSharedSymmetricEquality(equation,environment);return true}catch(_){return false}},evaluate:evaluateSharedSymmetricEquality,reviewLine:()=>"Equality compares both complete members and remains unchanged when their positions are exchanged.",source:PATCH_ID});
+  registerRequiredAtomic({id:atomicByKind.completion,kind:"operation",label:"Complete an exact equality",phrase:()=>"solve the unique missing exact value",applicability:state=>!!state?.equation,evaluate:state=>{try{return packByKind.completion.solve(state).answer}catch(_){return null}},reviewLine:()=>"Treat the equals sign as a relation between both complete expressions.",source:PATCH_ID});
+  registerRequiredAtomic({id:atomicByKind.judgment,kind:"relation",label:"Judge exact equality",phrase:()=>"compare both exact expression values",applicability:state=>!!state?.equation,evaluate:state=>{try{return packByKind.judgment.solve(state).correctAnswer}catch(_){return null}},reviewLine:()=>"Evaluate both sides independently, then compare them.",source:PATCH_ID});
+  registerRequiredAtomic({id:atomicByKind.discrimination,kind:"selection",label:"Discriminate a true equality",phrase:()=>"reject operational-error near misses",applicability:state=>Array.isArray(state?.optionEquations),evaluate:state=>{try{return packByKind.discrimination.solve(state).correctIndex}catch(_){return null}},reviewLine:()=>"Test every complete equality; syntax alone does not identify the valid one.",source:PATCH_ID});
 
   const contentSpecs={};
   for(const kind of Object.keys(PACK_IDS)){
     const id=PACK_IDS[kind],pack=packByKind[kind],responseFormat=responseByKind[kind],variants=kind==="completion"?COMPLETION_FRAMES:(kind==="judgment"?JUDGMENT_FRAMES:DISCRIMINATION_FRAMES),runtimeEntry={id,family:id,canonicalFamily:id,tier:minLevelByKind[kind],minLevel:minLevelByKind[kind],responseFormat,requiredSelections:1,frameTags:["exact_equality",kind,"mask_retention"],mechanismTags:["numeric_semantics",EQUATION_FORMAT,atomicByKind[kind]],canUse:()=>false,gen:()=>null,verify:()=>false,promptBuilder:task=>pack.prompt(task),reviewBuilder:task=>pack.buildReview(task,pack.solve(task))};
     const declaration={id,version:"1.0.0",status:"active",layer:"L0",family:id,minLevel:minLevelByKind[kind],domain:{substrate:"retained-positive-integer-with-signed-expressions",topology:kind==="discrimination"?"retained-pair-to-option-set":"retained-pair-to-equation",operation:kind,predicate:atomicByKind[kind],exactness:"exact",domainAuthority:DOMAIN_FORMAT,equationAuthority:EQUATION_FORMAT},response:{format:responseFormat,requiredSelections:1,immediate:true},generator:{run:context=>executePack(kind,context).task,present:true},oracle:{run:task=>{const source=task?.task||task,solution=pack.solve(source);return kind==="judgment"?solution.correctAnswer:(kind==="completion"?solution.answer:solution.correctIndex)},present:true,comparesRenderedText:false},render:{run:context=>pack.render(context?.task||context),present:true},review:{run:task=>{const source=task?.task||task;return pack.buildReview(source,pack.solve(source))},present:true},prompt:{run:task=>pack.prompt(task?.task||task),present:true,variants},compositionAxes:[kind,"exact_equality","noncanonical_position","mask_retention","semantic_negation"],atomics:[atomicByKind[kind],"exact_expression_evaluation","symmetric_equality_relation"],introducedIn:"PH6.B3.4",migrationAliases:[`eq01_${kind}`,id.replaceAll("_","-")],eligibility:{kind:"shared-b3-numeric-spine-dose",minLevel:minLevelByKind[kind]},responseFormat,axes:{family:id,operation:kind},cost:{stimulusCount:2,effectiveInputArity:kind==="discrimination"?6:4,responseSelections:1,boundedGeneration:true},limits:{minimumRelationalLevel:minLevelByKind[kind],sharedMaximumPerBlock:2,maximumTaskBytes:packs.limits.maxTaskBytes,maximumAbsoluteInput:MAX_INPUT,maximumAbsoluteAnswer:MAX_ANSWER},invariants:["exact-semantic-authority","positive-retained-input-guard","canonical-makeStim-input","equation-ast-oracle","mask-before-question","single-oracle"],help:{label:kind==="completion"?"Complete equality":kind==="judgment"?"Judge equality":"Find true equality",liveDefinition:false},tests:[{id:"exact-ast-oracle",required:true},{id:"linear-solver",required:true},{id:"replay",required:true},{id:"mutation",required:true},{id:"shared-dose",required:true},{id:"browser-play",required:true}],accessibility:kind==="completion"?{kind:"signed-numeric",responseFormat:"numeric",keyboard:["minus","0-9"],ariaLabel:"Enter the exact value that completes the equality."}:kind==="judgment"?{kind:"binary",responseFormat:"yesno",keyboard:["Y","N","ArrowLeft","ArrowRight"],ariaLabel:"Judge the retained exact equality."}:{kind:"choice",responseFormat:"choice",keyboard:["1","2","3","4"],ariaLabel:"Choose the one exact equality that is true."},telemetry:{contentSpecId:id,contentPackId:id,family:id,layer:"L0",semanticLayers:["L0","L1","L2"]},qa:{explicitAuditOnly:true,propertyTests:true,browserPlayRequired:true},runtimeEntry};
+    assertRequiredAtomicReferences(id,declaration.atomics);
     contentSpecs[kind]=contentRegistry.get(id)||contentRegistry.register(declaration);
   }
 
@@ -176038,15 +176157,16 @@ html[data-euca-resume-geometry="pending"] #particles {
   function executePack(kind,context={}){return packs.execute(packByKind[kind],{profileId:context.profileId||1,blockOrdinal:context.blockOrdinal||0,trialIndex:context.trialIndex||0,attempt:context.attempt||0,layer:"L0",locale:context.locale||"en",difficulty:{...(context.difficulty||{})},semanticInputs:Array.isArray(context.semanticInputs)?context.semanticInputs:[],seed:String(context.seed||sessionRng.session().seed)})}
 
   const atomicByKind=freeze({operator:"eq02_infer_missing_operator",move:"eq02_apply_common_equation_move",normalization:"eq02_normalize_equation_to_identity"});
-  const safeRegisterAtomic=declaration=>{try{if(typeof registerAtomicOperation==="function")return registerAtomicOperation(declaration)}catch(_){ }return null};
-  safeRegisterAtomic({id:atomicByKind.operator,kind:"operation",label:"Infer a missing exact operator",phrase:()=>"infer one operation from retained exact values",applicability:state=>state?.slot?.format===OPERATOR_SLOT_FORMAT,evaluate:state=>{try{return packByKind.operator.solve(state).correctIndex}catch(_){return null}},reviewLine:()=>"Evaluate all four operations; the symbol is not a visual pattern.",source:PATCH_ID});
-  safeRegisterAtomic({id:atomicByKind.move,kind:"transformation",label:"Apply one move to both equation members",phrase:()=>"transform both complete members by the same exact move",applicability:state=>!!state?.baseEquation&&!!state?.move,evaluate:state=>{try{return packByKind.move.solve(state).correctIndex}catch(_){return null}},reviewLine:()=>"The declared move acts on each complete member, not on one visible term.",source:PATCH_ID});
-  safeRegisterAtomic({id:atomicByKind.normalization,kind:"inverse",label:"Normalize an equality to an identity",phrase:()=>"infer a reversible common move from a target identity",applicability:state=>!!state?.baseEquation&&state?.targetIdentity!==undefined,evaluate:state=>{try{return packByKind.normalization.solve(state).correctIndex}catch(_){return null}},reviewLine:()=>"Evaluate the common member value, then apply its exact inverse to both members.",source:PATCH_ID});
+  // These are executable dependencies, so registration cannot silently return null.
+  registerRequiredAtomic({id:atomicByKind.operator,kind:"operation",label:"Infer a missing exact operator",phrase:()=>"infer one operation from retained exact values",applicability:state=>state?.slot?.format===OPERATOR_SLOT_FORMAT,evaluate:state=>{try{return packByKind.operator.solve(state).correctIndex}catch(_){return null}},reviewLine:()=>"Evaluate all four operations; the symbol is not a visual pattern.",source:PATCH_ID});
+  registerRequiredAtomic({id:atomicByKind.move,kind:"transformation",label:"Apply one move to both equation members",phrase:()=>"transform both complete members by the same exact move",applicability:state=>!!state?.baseEquation&&!!state?.move,evaluate:state=>{try{return packByKind.move.solve(state).correctIndex}catch(_){return null}},reviewLine:()=>"The declared move acts on each complete member, not on one visible term.",source:PATCH_ID});
+  registerRequiredAtomic({id:atomicByKind.normalization,kind:"inverse",label:"Normalize an equality to an identity",phrase:()=>"infer a reversible common move from a target identity",applicability:state=>!!state?.baseEquation&&state?.targetIdentity!==undefined,evaluate:state=>{try{return packByKind.normalization.solve(state).correctIndex}catch(_){return null}},reviewLine:()=>"Evaluate the common member value, then apply its exact inverse to both members.",source:PATCH_ID});
 
   const contentSpecs={};
   for(const kind of Object.keys(PACK_IDS)){
     const id=PACK_IDS[kind],pack=packByKind[kind],runtimeEntry={id,family:id,canonicalFamily:id,tier:minLevelByKind[kind],minLevel:minLevelByKind[kind],responseFormat:"choice",requiredSelections:1,frameTags:["exact_equality",kind,"mask_retention","reversible_move"],mechanismTags:["numeric_semantics",EQUATION_FORMAT,MOVE_FORMAT,atomicByKind[kind]],canUse:()=>false,gen:()=>null,verify:()=>false,promptBuilder:task=>pack.prompt(task),reviewBuilder:task=>pack.buildReview(task,pack.solve(task))};
     const declaration={id,version:"1.0.0",status:"active",layer:"L0",family:id,minLevel:minLevelByKind[kind],domain:{substrate:"retained-positive-integer-with-signed-rational-expressions",topology:"retained-pair-to-reversible-equation-operation",operation:kind,predicate:atomicByKind[kind],exactness:"exact",domainAuthority:DOMAIN_FORMAT,equationAuthority:EQUATION_FORMAT,moveAuthority:MOVE_FORMAT},response:{format:"choice",requiredSelections:1,immediate:true},generator:{run:context=>executePack(kind,context).task,present:true},oracle:{run:task=>pack.solve(task?.task||task).correctIndex,present:true,comparesRenderedText:false},render:{run:context=>pack.render(context?.task||context),present:true},review:{run:task=>{const source=task?.task||task;return pack.buildReview(source,pack.solve(source))},present:true},prompt:{run:task=>pack.prompt(task?.task||task),present:true,variants:framesByKind[kind]},compositionAxes:[kind,"exact_equality","reversible_move","mask_retention","operator_direction","identity_target"],atomics:[atomicByKind[kind],"exact_expression_evaluation","symmetric_equality_relation"],introducedIn:"PH6.B3.5",migrationAliases:[`eq02_${kind}`,id.replaceAll("_","-")],eligibility:{kind:"shared-b3-numeric-spine-dose",minLevel:minLevelByKind[kind]},responseFormat:"choice",axes:{family:id,operation:kind},cost:{stimulusCount:2,effectiveInputArity:kind==="operator"?4:(kind==="move"?7:6),responseSelections:1,boundedGeneration:true},limits:{minimumRelationalLevel:minLevelByKind[kind],sharedMaximumPerBlock:2,maximumTaskBytes:packs.limits.maxTaskBytes,maximumAbsoluteInput:MAX_INPUT,maximumAbsoluteRendered:MAX_RENDERED},invariants:["exact-semantic-authority","positive-retained-input-guard","canonical-makeStim-input","equation-ast-oracle","typed-move-oracle","mask-before-question","single-oracle"],help:{label:kind==="operator"?"Missing operator":kind==="move"?"Move both members":"Normalize equality",liveDefinition:false},tests:[{id:"exact-operator-oracle",required:true},{id:"typed-move-oracle",required:true},{id:"replay",required:true},{id:"mutation",required:true},{id:"shared-dose",required:true},{id:"browser-play",required:true}],accessibility:{kind:"choice",responseFormat:"choice",keyboard:["1","2","3","4"],ariaLabel:kind==="operator"?"Choose the exact missing operator.":kind==="move"?"Choose the result of applying the move to both equation members.":"Choose the reversible move that reaches the identity."},telemetry:{contentSpecId:id,contentPackId:id,family:id,layer:"L0",semanticLayers:["L0","L1","L2"]},qa:{explicitAuditOnly:true,propertyTests:true,browserPlayRequired:true},runtimeEntry};
+    assertRequiredAtomicReferences(id,declaration.atomics);
     contentSpecs[kind]=contentRegistry.get(id)||contentRegistry.register(declaration);
   }
 
@@ -177930,6 +178050,9 @@ html[data-euca-resume-geometry="pending"] #particles {
     });
   }
 
+  registerRequiredAtomic({id:PACK_ID,kind:"operation",label:"Construct the same exact rational value in another representation",inputContract:"evaluate(xrepTask): exact {numerator,denominator,semantic,sourceKey,targetKey} construction witness",phrase:()=>"construct the same exact fraction of the new visible whole",evaluate:task=>solveCase(task),applicability:task=>!!(task?.source?.view&&task?.target),reviewLine:()=>"Rescale the retained fraction to the new whole and preserve its exact rational value.",source:PATCH_ID});
+  registerRequiredAtomic({id:"exact_rational_equality",kind:"relation",label:"Exact rational equality",inputContract:"evaluate(leftSemanticValue,rightSemanticValue): boolean",phrase:()=>"compare exact rational values across their visual forms",evaluate:exactEqual,reviewLine:()=>"Equivalent fractions have the same exact rational value even when their visual forms differ.",source:PATCH_ID});
+  assertRequiredAtomicReferences(PACK_ID,[PACK_ID,"exact_rational_equality"]);
   const contentDeclaration = {
     id:PACK_ID, version:"2.0.0", status:"active", layer:"L0", family:FAMILY, minLevel:3,
     domain:{ substrate:"exact-rational", topology:"retained-source-to-visual-construction", operation:"cross-representation", predicate:"exact-rational-equality", exactness:"exact" },
@@ -187830,27 +187953,29 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function showCanonicalMask(){try{const app=document.getElementById("app"),canvas=document.getElementById("gameCanvas"),meta=document.getElementById("metaQuestion");if(!canvas)return false;if(app)app.dataset.unifiedSpatialMask="true";canvas.hidden=false;canvas.style.display="block";canvas.removeAttribute("aria-hidden");canvas.dataset.unifiedSpatialMask="true";delete canvas.dataset.spa05Disabled;if(meta){meta.hidden=true;meta.setAttribute("aria-hidden","true")}return true}catch(_){return false}}
   function restoreLegacyCanvas(){try{const canvas=document.getElementById("gameCanvas");if(canvas?.dataset.spa05Disabled==="true"||canvas?.dataset.unifiedSpatialMask==="true"){canvas.hidden=false;canvas.style.display="";canvas.removeAttribute("aria-hidden");delete canvas.dataset.spa05Disabled;delete canvas.dataset.unifiedSpatialMask}const app=document.getElementById("app");if(app)delete app.dataset.unifiedSpatialMask}catch(_){ }}
   function setCentralLabel(text){try{const label=document.querySelector("#metaQuestion .meta-label");if(label)label.textContent=String(text||"")}catch(_){ }}
-  function guardTrial(info,phase){return!!info&&stateRef()?.trialInfo===info&&info.spa05Phase===phase}
-  function schedule(key,callback,delay,meta={}){try{if(typeof scheduleOwnedRuntimeTask==="function")return scheduleOwnedRuntimeTask(key,callback,delay,meta)}catch(_){ }return setTimeout(callback,delay)}
+  function guardTrial(info,phase){const state=stateRef();return!!(info&&state&&state.running&&!state.paused&&state.trialInfo===info&&(!phase||info.spa05Phase===phase))}
+  function schedule(key,callback,delay,meta={}){if(typeof scheduleRuntimeTimeout!=="function")throw new Error(PATCH_ID+": scheduleRuntimeTimeout is required");const info=stateRef()?.trialInfo,phase=info?.spa05Phase;return scheduleRuntimeTimeout(key,()=>{if(!guardTrial(info,phase))return false;return callback()},delay,{...meta,protectedContinuation:true,owner:PATCH_ID})}
   function encodingDuration(item){return clampValue(item?.difficulty?.exposureMs||1500,900,2400)}
+  // The core phase clock is shifted by resumeClock; absolute wall deadlines are not an exposure clock.
+  function encodingRemaining(info){if(!guardTrial(info,"encode"))return 0;const stamp=runtimeClock(),phaseStart=Number(stateRef()?.phaseStartTime),started=Number.isFinite(phaseStart)?phaseStart:stamp;info.spa05EncodeDeadline=started+encodingDuration(info.pieceCompositionEpisode);return Math.max(0,info.spa05EncodeDeadline-stamp)}
   function initialMaskDuration(item){return clampValue(item?.difficulty?.initialMaskMs||235,150,600)}
   function postChoiceMaskDuration(item){return clampValue(item?.difficulty?.postChoiceMaskMs||180,120,500)}
   function paintPhaseChrome(info,phase,label,prompt){const paint=()=>{if(!guardTrial(info,phase))return;if(phase.startsWith("mask"))showCanonicalMask();else disableLegacyCanvas();setCentralLabel(label);if(typeof setPrompt==="function")setPrompt(prompt);if(typeof setAnswer==="function")setAnswer("—")};paint();try{queueMicrotask(paint);requestAnimationFrame(paint)}catch(_){ }}
   function syncChoiceLabels(item){try{document.querySelectorAll(".choiceBtn").forEach((button,index)=>{if(index>=4)return;const text=`${item.optionNoun} ${index+1}`,textNode=button.querySelector(".choiceText"),keyNode=button.querySelector(".choiceKey");if(textNode)textNode.textContent=text;if(keyNode)keyNode.textContent=String(index+1);button.dataset.v=String(index);button.setAttribute("aria-label",`Option ${index+1}: ${text}`)})}catch(_){ }}
-  function setPhase(info,phase,question,status){if(!info||stateRef()?.trialInfo!==info)return false;info.spa05Phase=phase;info.question=String(question||"");const app=document.getElementById("app");if(app)app.dataset.spa05Phase=phase;if(phase.startsWith("mask"))showCanonicalMask();else disableLegacyCanvas();if(status)try{setStatus(status,`${PATCH_ID}.${phase}`)}catch(_){State.status=status}if(typeof showMetaQuestion==="function")showMetaQuestion(0,info.question,"",null);setCentralLabel(phase==="probe"?"FOLLOW-UP":"SPATIAL");return true}
+  function setPhase(info,phase,question,status){if(!guardTrial(info))return false;info.spa05Phase=phase;info.question=String(question||"");const app=document.getElementById("app");if(app)app.dataset.spa05Phase=phase;if(phase.startsWith("mask"))showCanonicalMask();else disableLegacyCanvas();if(status)try{setStatus(status,`${PATCH_ID}.${phase}`)}catch(_){State.status=status}if(typeof showMetaQuestion==="function")showMetaQuestion(0,info.question,"",null);setCentralLabel(phase==="probe"?"FOLLOW-UP":"SPATIAL");return true}
   function beginInitialMask(info){if(!guardTrial(info,"encode"))return false;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }State.targetValue=null;State.pendingPanel="none";info.options=[];info.responseFormat="none";info.answerKind="none";info.delayedPrompt="";setPhase(info,"mask_before_choice","",null);showCanonicalMask();if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");return true}
   function openCandidatePhase(info){if(!guardTrial(info,"mask_before_choice"))return false;const item=info.pieceCompositionEpisode;info._spa05MaskScheduledPhase="";disableLegacyCanvas();State.targetValue=item.correctIndex;State.pendingPanel="choice";State.inputBuffer="";info.options=item.options;info.responseFormat="choice";info.answerKind="choice";info.correctIndex=item.correctIndex;info.semanticCorrectIndex=item.correctIndex;info.targetOutcome=item.correctIndex;info.choiceSelections=[];info.delayedPrompt="";if(typeof setChoiceOptions==="function")setChoiceOptions(item.options);setPhase(info,"choice",item.primaryQuestion,null);if(typeof setGameAriaLabel==="function")setGameAriaLabel(`${item.primaryQuestion} The retained reference is no longer visible.`);if(typeof beginInputPhase==="function")beginInputPhase();paintPhaseChrome(info,"choice","SPATIAL","CHOOSE ONE");syncChoiceLabels(item);return true}
   function retireCandidatesForProbe(info){if(!guardTrial(info,"choice"))return false;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }info.options=[];info.delayedPrompt="";setPhase(info,"mask_after_choice","","MASK");showCanonicalMask();if(typeof setPrompt==="function")setPrompt("WATCH");return true}
   function openProbePhase(info){if(!guardTrial(info,"mask_after_choice"))return false;const item=info.pieceCompositionEpisode,probe=buildProbe(item,info.primarySelectedIndex);info._spa05MaskScheduledPhase="";info.delayedProbe=probe;disableLegacyCanvas();State.targetValue=probe.answer;State.pendingPanel="bool";info.options=[];info.responseFormat="bool";info.answerKind="bool";info.isTrue=probe.answer;info.targetOutcome=probe.answer;info.delayedPrompt="";setPhase(info,"probe",probe.question,null);if(typeof setGameAriaLabel==="function")setGameAriaLabel(`Follow-up question. ${probe.question}`);if(typeof showPanel==="function")showPanel("bool");if(typeof beginInputPhase==="function")beginInputPhase();paintPhaseChrome(info,"probe","FOLLOW-UP","YES OR NO");return true}
 
   function installCurrentETHook(){try{const previous=globalThis.currentET;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function currentETSpa05(){const info=stateRef()?.trialInfo;if(info?.pieceCompositionEpisode&&info.spa05Phase==="encode")return encodingDuration(info.pieceCompositionEpisode);return previous.apply(this,arguments)};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.currentET=wrapped;try{currentET=wrapped}catch(_){ }return true}catch(_){return false}}
-  function installStatusHook(){try{const previous=globalThis.setStatus;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function setStatusSpa05(nextStatus,reason){const info=stateRef()?.trialInfo,target=String(nextStatus||"");if(info?.pieceCompositionEpisode&&target==="MASK"&&info.spa05Phase==="encode"){const remaining=Math.max(0,Number(info.spa05EncodeDeadline||0)-runtimeClock());if(remaining>12){if(!info._spa05EncodeReleaseScheduled){info._spa05EncodeReleaseScheduled=true;schedule("spa05_encode_release",()=>{if(!guardTrial(info,"encode"))return;info._spa05EncodeReleaseScheduled=false;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},remaining,{patch:PATCH_ID,phase:"encode",protectedContinuation:true})}return stateRef()?.status||"FLASH"}beginInitialMask(info)}const result=previous.apply(this,arguments);if(info?.pieceCompositionEpisode&&target==="MASK"&&(info.spa05Phase==="mask_before_choice"||info.spa05Phase==="mask_after_choice")){const phase=info.spa05Phase,desired=phase==="mask_after_choice"?postChoiceMaskDuration(info.pieceCompositionEpisode):initialMaskDuration(info.pieceCompositionEpisode),base=Math.max(0,Number(CONFIG?.maskMs)||0),stamp=runtimeClock();State.phaseStartTime=stamp+desired-base;const app=document.getElementById("app");if(app)app.dataset.spa05Status=String(State.status||target);try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }if(typeof showMetaQuestion==="function")showMetaQuestion(0,"","",null);setCentralLabel("SPATIAL");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");showCanonicalMask();if(info._spa05MaskScheduledPhase!==phase){info._spa05MaskScheduledPhase=phase;schedule(`spa05_${phase}_complete`,()=>phase==="mask_after_choice"?openProbePhase(info):openCandidatePhase(info),desired,{patch:PATCH_ID,phase,protectedContinuation:true})}}return result};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.setStatus=wrapped;try{setStatus=wrapped}catch(_){ }return true}catch(_){return false}}
-  function installBeginInputHook(){try{const previous=globalThis.beginInputPhase;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function beginInputPhaseSpa05(){const info=stateRef()?.trialInfo;if(info?.pieceCompositionEpisode&&info.spa05Phase==="encode")return false;if(info?.pieceCompositionEpisode&&info.spa05Phase==="mask_before_choice")return openCandidatePhase(info);if(info?.pieceCompositionEpisode&&info.spa05Phase==="mask_after_choice")return openProbePhase(info);return previous.apply(this,arguments)};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.beginInputPhase=wrapped;try{beginInputPhase=wrapped}catch(_){ }return true}catch(_){return false}}
+  function installStatusHook(){try{const previous=globalThis.setStatus;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function setStatusSpa05(nextStatus,reason){const state=stateRef(),info=state?.trialInfo,target=String(nextStatus||""),owned=!!info?.pieceCompositionEpisode;if(owned&&target!=="MENU"&&!guardTrial(info))return false;const enteringMask=owned&&target==="MASK"&&info.spa05Phase==="encode";if(enteringMask){const remaining=encodingRemaining(info);if(remaining>0){if(!info._spa05EncodeReleaseScheduled){info._spa05EncodeReleaseScheduled=true;schedule("spa05_encode_release",()=>{if(!guardTrial(info,"encode"))return;info._spa05EncodeReleaseScheduled=false;setStatus("MASK",PATCH_ID+".encode_deadline")},remaining,{patch:PATCH_ID,phase:"encode",protectedContinuation:true})}return state.status||"FLASH"}}const result=previous.apply(this,arguments);if(owned&&(result===false||!guardTrial(info)||state.status!==target))return result;if(enteringMask)beginInitialMask(info);if(owned&&target==="MASK"&&(info.spa05Phase==="mask_before_choice"||info.spa05Phase==="mask_after_choice")){const phase=info.spa05Phase;if(info._spa05MaskScheduledPhase===phase)return result;const desired=phase==="mask_after_choice"?postChoiceMaskDuration(info.pieceCompositionEpisode):initialMaskDuration(info.pieceCompositionEpisode),base=Math.max(0,Number(CONFIG?.maskMs)||0),stamp=runtimeClock();State.phaseStartTime=stamp+desired-base;const app=document.getElementById("app");if(app)app.dataset.spa05Status=String(State.status||target);try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }if(typeof showMetaQuestion==="function")showMetaQuestion(0,"","",null);setCentralLabel("SPATIAL");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");showCanonicalMask();info._spa05MaskScheduledPhase=phase;schedule("spa05_"+phase+"_complete",()=>phase==="mask_after_choice"?openProbePhase(info):openCandidatePhase(info),desired,{patch:PATCH_ID,phase,protectedContinuation:true})}return result};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;globalThis.setStatus=wrapped;try{setStatus=wrapped}catch(_){ }return true}catch(_){return false}}
+  function installBeginInputHook(){try{const previous=globalThis.beginInputPhase;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function beginInputPhaseSpa05(){const info=stateRef()?.trialInfo;if(info?.pieceCompositionEpisode&&!guardTrial(info))return false;if(info?.pieceCompositionEpisode&&info.spa05Phase==="encode")return false;if(info?.pieceCompositionEpisode&&info.spa05Phase==="mask_before_choice")return openCandidatePhase(info);if(info?.pieceCompositionEpisode&&info.spa05Phase==="mask_after_choice")return openProbePhase(info);return previous.apply(this,arguments)};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.beginInputPhase=wrapped;try{beginInputPhase=wrapped}catch(_){ }return true}catch(_){return false}}
 
   function monitor(){const state=stateRef();if(!state)return{shown:0};const root=state.productionMonitor||(state.productionMonitor={});return root.spa05PieceComposition||(root.spa05PieceComposition={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,spatialTrials:0,spatialCorrect:0,probeTrials:0,probeCorrect:0,compoundCorrect:0,byVariant:{},byProbeBranch:{},byErrorType:{},crossTab:{},recent:[]})}
   function recordCompound(info){const mon=monitor(),spatial=!!info.primaryCorrect,probe=!!info.probeCorrect,item=info.pieceCompositionEpisode,p=info.delayedProbe||{};mon.spatialTrials++;mon.probeTrials++;if(spatial)mon.spatialCorrect++;if(probe)mon.probeCorrect++;if(spatial&&probe)mon.compoundCorrect++;mon.byVariant[item.variant]=(Number(mon.byVariant[item.variant])||0)+1;mon.byProbeBranch[p.branch||"unknown"]=(Number(mon.byProbeBranch[p.branch||"unknown"])||0)+1;for(const row of item.candidates)mon.byErrorType[row.errorType]=(Number(mon.byErrorType[row.errorType])||0)+1;const key=`spatial_${spatial?"correct":"wrong"}__probe_${probe?"correct":"wrong"}`;mon.crossTab[key]=(Number(mon.crossTab[key])||0)+1;mon.recent.push({seed:item.seed,variant:item.variant,selectedIndex:info.primarySelectedIndex,correctIndex:item.correctIndex,spatialCorrect:spatial,probeId:p.id,probeBranch:p.branch,probeCorrect:probe,compoundCorrect:spatial&&probe,primaryRT:info.primaryRT,probeRT:info.probeRT});mon.recent=mon.recent.slice(-32)}
-  function installChoiceHandler(){try{const previous=globalThis.handleChoiceInputIndex;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function handleChoiceInputIndexSpa05(index,activationMeta=null){const state=stateRef(),info=state?.trialInfo,item=info?.pieceCompositionEpisode;if(!item||info?.spa05Phase!=="choice")return previous.apply(this,arguments);const idx=Number(index);if(state.status!=="INPUT"||state.pendingPanel!=="choice"||!Number.isInteger(idx)||idx<0||idx>=4||info.primarySelectedIndex!==undefined)return false;try{if(typeof noteUserInput==="function")noteUserInput("spa05_primary",idx,activationMeta)}catch(_){ }const intentAt=Number(activationMeta?.intentAt);info.primaryRT=Math.round(typeof cognitiveRTNow==="function"?cognitiveRTNow(Number.isFinite(intentAt)?intentAt:undefined):0);info.primarySelectedIndex=idx;info.primaryCorrect=idx===item.correctIndex;try{if(typeof setChoiceSelectionVisual==="function")setChoiceSelectionVisual([idx])}catch(_){ }try{document.querySelector(`.spa05-candidate[data-spa05-index="${idx}"]`)?.setAttribute("data-selected","true")}catch(_){ }try{setStatus("LOCKED",`${PATCH_ID}.primary_captured`)}catch(_){state.status="LOCKED"}schedule("spa05_primary_selection_retire",()=>retireCandidatesForProbe(info),110,{patch:PATCH_ID,selectedIndex:idx});return true};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.handleChoiceInputIndex=wrapped;try{handleChoiceInputIndex=wrapped}catch(_){ }return true}catch(_){return false}}
-  function installProcessInput(){try{const previous=globalThis.processInput;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function processInputSpa05(value,activationMeta=null){const state=stateRef(),info=state?.trialInfo;if(!info?.pieceCompositionEpisode||info.spa05Phase!=="probe")return previous.apply(this,arguments);if(state.status!=="INPUT"||state.pendingPanel!=="bool"||info.probeAnswer!==undefined)return false;const answer=value===true||value===1||value==="1";const intentAt=Number(activationMeta?.intentAt);info.probeRT=Math.round(typeof cognitiveRTNow==="function"?cognitiveRTNow(Number.isFinite(intentAt)?intentAt:undefined):0);info.probeAnswer=answer;info.probeCorrect=answer===!!info.delayedProbe?.answer;info.compoundCorrect=!!info.primaryCorrect&&!!info.probeCorrect;info.compoundActiveRT=Math.max(1,Number(info.primaryRT)||0)+Math.max(1,Number(info.probeRT)||0);info.compoundComponents={spatial:{answer:info.primarySelectedIndex,correctAnswer:info.pieceCompositionEpisode.correctIndex,correct:!!info.primaryCorrect,rt:info.primaryRT,variant:info.pieceCompositionEpisode.variant},probe:{answer,correctAnswer:!!info.delayedProbe?.answer,correct:!!info.probeCorrect,rt:info.probeRT,branch:info.delayedProbe?.branch}};info.spa05Phase="complete";recordCompound(info);const app=document.getElementById("app");if(app)app.dataset.spa05Phase="complete";const end=runtimeClock(),activeRt=clampValue(info.compoundActiveRT,1,60000),wallStart=Number(info.episodeWallStartedAt)||end-activeRt;State.targetValue=true;State.pendingPanel="bool";info.responseFormat="bool";info.answerKind="bool";info.isTrue=true;info.targetOutcome=true;info.answer=true;info.question=info.primaryQuestion;try{resetCognitiveTiming();State.trialStartTime=end-activeRt;State.timing.inputOpenedAt=State.trialStartTime;State.timing.trialWallStartedAt=wallStart}catch(_){ }return previous.call(this,!!info.compoundCorrect,activationMeta)};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.processInput=wrapped;try{processInput=wrapped}catch(_){ }return true}catch(_){return false}}
+  function installChoiceHandler(){try{const previous=globalThis.handleChoiceInputIndex;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function handleChoiceInputIndexSpa05(index,activationMeta=null){const state=stateRef(),info=state?.trialInfo,item=info?.pieceCompositionEpisode;if(!item||info?.spa05Phase!=="choice")return previous.apply(this,arguments);const idx=Number(index);if(!guardTrial(info,"choice")||state.status!=="INPUT"||state.pendingPanel!=="choice"||!Number.isInteger(idx)||idx<0||idx>=4||info.primarySelectedIndex!==undefined)return false;try{if(typeof noteUserInput==="function")noteUserInput("spa05_primary",idx,activationMeta)}catch(_){ }const intentAt=Number(activationMeta?.intentAt);info.primaryRT=Math.round(typeof cognitiveRTNow==="function"?cognitiveRTNow(Number.isFinite(intentAt)?intentAt:undefined):0);info.primarySelectedIndex=idx;info.primaryCorrect=idx===item.correctIndex;try{if(typeof setChoiceSelectionVisual==="function")setChoiceSelectionVisual([idx])}catch(_){ }try{document.querySelector(`.spa05-candidate[data-spa05-index="${idx}"]`)?.setAttribute("data-selected","true")}catch(_){ }try{setStatus("LOCKED",`${PATCH_ID}.primary_captured`)}catch(_){state.status="LOCKED"}schedule("spa05_primary_selection_retire",()=>retireCandidatesForProbe(info),110,{patch:PATCH_ID,selectedIndex:idx});return true};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.handleChoiceInputIndex=wrapped;try{handleChoiceInputIndex=wrapped}catch(_){ }return true}catch(_){return false}}
+  function installProcessInput(){try{const previous=globalThis.processInput;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function processInputSpa05(value,activationMeta=null){const state=stateRef(),info=state?.trialInfo;if(!info?.pieceCompositionEpisode||info.spa05Phase!=="probe")return previous.apply(this,arguments);if(!guardTrial(info,"probe")||state.status!=="INPUT"||state.pendingPanel!=="bool"||info.probeAnswer!==undefined)return false;const answer=value===true||value===1||value==="1";const intentAt=Number(activationMeta?.intentAt);info.probeRT=Math.round(typeof cognitiveRTNow==="function"?cognitiveRTNow(Number.isFinite(intentAt)?intentAt:undefined):0);info.probeAnswer=answer;info.probeCorrect=answer===!!info.delayedProbe?.answer;info.compoundCorrect=!!info.primaryCorrect&&!!info.probeCorrect;info.compoundActiveRT=Math.max(1,Number(info.primaryRT)||0)+Math.max(1,Number(info.probeRT)||0);info.compoundComponents={spatial:{answer:info.primarySelectedIndex,correctAnswer:info.pieceCompositionEpisode.correctIndex,correct:!!info.primaryCorrect,rt:info.primaryRT,variant:info.pieceCompositionEpisode.variant},probe:{answer,correctAnswer:!!info.delayedProbe?.answer,correct:!!info.probeCorrect,rt:info.probeRT,branch:info.delayedProbe?.branch}};info.spa05Phase="complete";recordCompound(info);const app=document.getElementById("app");if(app)app.dataset.spa05Phase="complete";const end=runtimeClock(),activeRt=clampValue(info.compoundActiveRT,1,60000),wallStart=Number(info.episodeWallStartedAt)||end-activeRt;State.targetValue=true;State.pendingPanel="bool";info.responseFormat="bool";info.answerKind="bool";info.isTrue=true;info.targetOutcome=true;info.answer=true;info.question=info.primaryQuestion;try{resetCognitiveTiming();State.trialStartTime=end-activeRt;State.timing.inputOpenedAt=State.trialStartTime;State.timing.trialWallStartedAt=wallStart}catch(_){ }return previous.call(this,!!info.compoundCorrect,activationMeta)};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.processInput=wrapped;try{processInput=wrapped}catch(_){ }return true}catch(_){return false}}
 
   function reviewReasons(info){const item=info.pieceCompositionEpisode,selected=item.candidates[Number(info.primarySelectedIndex)],probe=info.delayedProbe,base=item.variant==="block_design"?`Every square and diagonal orientation rotates ${item.operation.direction}; option ${item.correctIndex+1} preserves the complete design.`:item.variant==="form_board_exact_cover"?`Only option ${item.correctIndex+1} covers the retained ten-cell form with all three pieces, without gaps or overlap.`:`Only option ${item.correctIndex+1} has an exact cover by the retained L, I and T pieces.`;return[base,Number(info.primarySelectedIndex)===item.correctIndex?`${item.optionNoun} ${item.correctIndex+1} is exact.`:`${item.optionNoun} ${Number(info.primarySelectedIndex)+1} showed ${String(selected?.errorType||"a structural mismatch").replaceAll("_"," ")}.`,probe?.explanation||"The follow-up uses the same item you just worked with."]}
   function installReviewRenderers(){let build=false,paint=false;try{const previous=globalThis.h35ReviewBuildModel;if(typeof previous==="function"&&!previous.__eucaSpa05){const wrapped=function h35ReviewBuildModelSpa05(info){const model=previous.apply(this,arguments);if(!info?.pieceCompositionEpisode)return model;const item=info.pieceCompositionEpisode,probe=info.delayedProbe;return{...model,title:"",showStimulus:true,question:info.primaryQuestion,userAnswer:`Spatial: ${item.optionNoun} ${Number(info.primarySelectedIndex)+1}\nFollow-up: ${info.probeAnswer?"YES":"NO"}`,correctAnswer:`Spatial: ${item.optionNoun} ${Number(item.correctIndex)+1}\nFollow-up: ${probe?.answer?"YES":"NO"}`,reasons:reviewReasons(info),learning:""}};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.h35ReviewBuildModel=wrapped;try{h35ReviewBuildModel=wrapped}catch(_){ }build=true}else build=previous?.__eucaSpa05===true}catch(_){ }try{const previous=globalThis.h35ReviewPaintStimulus;if(typeof previous==="function"&&!previous.__eucaSpa05){const wrapped=function h35ReviewPaintStimulusSpa05(info){const host=document.getElementById("reviewVisualContext"),canvas=document.getElementById("reviewStimulusCanvas"),item=info?.pieceCompositionEpisode;let custom=document.getElementById("reviewSpa05");if(!item){host?.classList.remove("spa05-review");if(custom)custom.hidden=true;if(canvas)canvas.style.display="";return previous.apply(this,arguments)}if(!host||!canvas)return false;if(!custom){custom=document.createElement("div");custom.id="reviewSpa05";canvas.insertAdjacentElement("afterend",custom)}custom.innerHTML=renderReview(item,info);custom.hidden=false;canvas.style.display="none";host.hidden=false;host.classList.add("spa05-review");host.dataset.smallStimulus="false";return true};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.h35ReviewPaintStimulus=wrapped;try{h35ReviewPaintStimulus=wrapped}catch(_){ }paint=true}else paint=previous?.__eucaSpa05===true}catch(_){ }return{build,paint}}
@@ -187864,7 +187989,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function priorVisualServed(state,blockOrdinal){for(const key of SHARED_MONITORS){const mon=state?.productionMonitor?.[key];if(mon&&Number(mon.blockOrdinal)===Number(blockOrdinal)&&Number(mon.blockCount)>0)return true}return false}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of SHARED_MONITORS){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.spa05PieceCompositionEnabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.modeChoice!=="auto"||metaMemoryPending())return false;if(!forced&&state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,(Number.isFinite(Number(CONFIG.spa05PieceCompositionMinDLevel))?Number(CONFIG.spa05PieceCompositionMinDLevel):6)))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<5)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.spa05PieceCompositionMaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.spa05PieceCompositionCooldownTrials)||18))return false;return forced||randomSource("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.spa05PieceCompositionProbability)||.012))}catch(_){return false}}
-  function startSpa05(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),seedParam=queryValue("spa05Seed"),forcedSeed=seedParam===null?NaN:Number(seedParam),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((randomSource("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa05Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa05_piece_composition_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode","spa04-section-mode");app?.classList.add("spa05-piece-composition-mode");if(app)app.dataset.spa05Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa05_piece_composition_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa05_${item.variant}`,contentSpecId:`spa05.visual.${item.variant}`,contentSpecVersion:VERSION,responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:"",primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],pieceCompositionEpisode:item,spa05Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa05EncodeStartedAt:wallStart,spa05EncodeDeadline:wallStart+encodeMs,atomics:[item.variant==="block_design"?"block_design_rotation":item.variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly","spa05_delayed_probe"],atomicsUsed:[item.variant==="block_design"?"block_design_rotation":item.variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly","spa05_delayed_probe"],frameTags:["exact_discrete_geometry","canonical_mask","four_complete_candidates","delayed_probe"],mechanismTags:["temporal_separation","whole_configuration_matching","anti_fragmentation",item.variant],executiveTags:["visuospatial_maintenance","mental_composition","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa05ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode","","FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel("Retain the complete spatial reference. It will be removed before the options appear.");schedule("spa05_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode","",null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
+  function startSpa05(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;if(typeof scheduleRuntimeTimeout!=="function"){try{recordRuntimeError(new Error(PATCH_ID+": scheduleRuntimeTimeout is required"),{source:PATCH_ID+".start"})}catch(_){}return false;}const forced=forceRequested(),seedParam=queryValue("spa05Seed"),forcedSeed=seedParam===null?NaN:Number(seedParam),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((randomSource("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa05Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item)||!verifyItem(item,item.correctIndex))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa05_piece_composition_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode","spa04-section-mode");app?.classList.add("spa05-piece-composition-mode");if(app)app.dataset.spa05Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa05_piece_composition_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa05_${item.variant}`,contentSpecId:`spa05.visual.${item.variant}`,contentSpecVersion:VERSION,responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,correctIndex:item.correctIndex,semanticCorrectIndex:item.correctIndex,answerLabel:`${item.optionNoun} ${item.correctIndex+1}`,question:"",primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],pieceCompositionEpisode:item,spa05Phase:"encode",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa05EncodeStartedAt:wallStart,spa05EncodeDeadline:wallStart+encodeMs,atomics:[item.variant==="block_design"?"block_design_rotation":item.variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly","spa05_delayed_probe"],atomicsUsed:[item.variant==="block_design"?"block_design_rotation":item.variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly","spa05_delayed_probe"],frameTags:["exact_discrete_geometry","canonical_mask","four_complete_candidates","delayed_probe"],mechanismTags:["temporal_separation","whole_configuration_matching","anti_fragmentation",item.variant],executiveTags:["visuospatial_maintenance","mental_composition","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:2,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa05ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode","","FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel("Retain the complete spatial reference. It will be removed before the options appear.");schedule("spa05_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;setStatus("MASK",`${PATCH_ID}.encode_deadline`)},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode","",null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
   function installStartHook(){try{const previous=globalThis.maybeStartInlineGenerativeTrialAfterReset;if(typeof previous!=="function"||previous.__eucaSpa05)return previous?.__eucaSpa05===true;const wrapped=function maybeStartInlineGenerativeTrialAfterResetSpa05(attempt,forcedLevel){const app=document.getElementById("app");app?.classList.remove("spa05-piece-composition-mode");if(app){delete app.dataset.spa05Phase;delete app.dataset.spa05Status;delete app.dataset.unifiedSpatialMask}restoreLegacyCanvas();if(startSpa05(attempt,forcedLevel))return true;return previous.apply(this,arguments)};wrapped.__eucaSpa05=true;wrapped.__eucaSpa05Original=previous;copyPatchProperties(previous,wrapped);globalThis.maybeStartInlineGenerativeTrialAfterReset=wrapped;try{maybeStartInlineGenerativeTrialAfterReset=wrapped}catch(_){ }return true}catch(_){return false}}
 
   function registerSemantics(){try{const atomicRegistry=typeof ATOMIC_REGISTRY!=="undefined"?ATOMIC_REGISTRY:globalThis.ATOMIC_REGISTRY,specRegistry=typeof SPEC_REGISTRY!=="undefined"?SPEC_REGISTRY:globalThis.SPEC_REGISTRY,atoms=[{id:"block_design_rotation",label:"Rotate a complete block design exactly"},{id:"form_board_exact_cover",label:"Cover a retained form with a complete set of pieces"},{id:"inverse_piece_assembly",label:"Infer the form assembled by a retained set of pieces"},{id:"spa05_delayed_probe",label:"Answer one unpredictable relation about a retired composition episode"}];for(const atom of atoms)if(typeof registerAtomic==="function"&&(!atomicRegistry||!atomicRegistry[atom.id]))registerAtomic({id:atom.id,kind:"visuospatial_operation",phrase:()=>atom.label,evaluate:()=>null,reviewLine:()=>atom.label,minLevel:6,source:PATCH_ID});if(typeof registerSpec==="function")for(const variant of VARIANTS){const id=`spa05.visual.${variant}`;if(specRegistry?.[id])continue;const atomic=variant==="block_design"?"block_design_rotation":variant==="form_board_exact_cover"?"form_board_exact_cover":"inverse_piece_assembly",prompt={block_design:"Which design is the exact rotation?",form_board_exact_cover:"Which arrangement exactly covers the retained form?",inverse_assembly:"Which form can be built from all three retained pieces?"}[variant];registerSpec({id,layer:"AUTO",canonicalFamily:FAMILY,responseFormat:"choice",atomics:[atomic,"spa05_delayed_probe"],atomicsUsed:[atomic,"spa05_delayed_probe"],prompts:[{q:prompt}],promptBuilder:()=>prompt,verifier:(state,answer)=>Number(answer)===Number(state?.correctIndex),reviewBuilder:state=>Array.isArray(state?.reviewLines)?state.reviewLines:[],replayContract:{schemaVersion:1,required:["seed","variant","reference","operation","candidateSignatures","correctIndex"]},minLevel:6,frameTags:["exact_discrete_geometry","canonical_mask","complete_candidate_field"],source:"declarative_spa05"})}if(typeof REGISTRY_RUNTIME_INDEX!=="undefined"&&REGISTRY_RUNTIME_INDEX)REGISTRY_RUNTIME_INDEX.builtAt=0;if(typeof ensureRegistryRuntimeIndex==="function")ensureRegistryRuntimeIndex()}catch(_){ }}
@@ -188114,31 +188239,33 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function showCanonicalMask(){try{const app=document.getElementById("app"),canvas=document.getElementById("gameCanvas"),meta=document.getElementById("metaQuestion");if(!canvas)return false;if(app)app.dataset.unifiedSpatialMask="true";canvas.hidden=false;canvas.style.display="block";canvas.removeAttribute("aria-hidden");canvas.dataset.unifiedSpatialMask="true";delete canvas.dataset.spa05R2Disabled;if(meta){meta.classList.remove("visible");meta.hidden=true;meta.setAttribute("aria-hidden","true")}return true}catch(_){return false}}
   function restoreLegacyCanvas(){try{const canvas=document.getElementById("gameCanvas");if(canvas&&(canvas.dataset.spa05R2Disabled==="true"||canvas.dataset.unifiedSpatialMask==="true")){canvas.hidden=false;canvas.style.display="";canvas.removeAttribute("aria-hidden");delete canvas.dataset.spa05R2Disabled;delete canvas.dataset.unifiedSpatialMask}const app=document.getElementById("app");if(app)delete app.dataset.unifiedSpatialMask}catch(_){ }}
   function setCentralLabel(text){try{const label=document.querySelector("#metaQuestion .meta-label");if(label)label.textContent=String(text||"")}catch(_){ }}
-  function schedule(key,callback,delay,meta={}){try{if(typeof scheduleOwnedRuntimeTask==="function")return scheduleOwnedRuntimeTask(key,callback,delay,meta)}catch(_){ }return setTimeout(callback,delay)}
-  function guardTrial(info,phase){return!!info&&stateRef()?.trialInfo===info&&info.spa05R2Phase===phase}
+  function schedule(key,callback,delay,meta={}){if(typeof scheduleRuntimeTimeout!=="function")throw new Error(PATCH_ID+": scheduleRuntimeTimeout is required");const info=stateRef()?.trialInfo,phase=info?.spa05R2Phase;return scheduleRuntimeTimeout(key,()=>{if(!guardTrial(info,phase))return false;return callback()},delay,{...meta,protectedContinuation:true,owner:PATCH_ID})}
+  function guardTrial(info,phase){const state=stateRef();return!!(info&&state&&state.running&&!state.paused&&state.trialInfo===info&&(!phase||info.spa05R2Phase===phase))}
   function encodingDuration(item){return clampValue(item?.exposureMs||1500,900,2200)}
+  // The core phase clock is shifted by resumeClock; absolute wall deadlines are not an exposure clock.
+  function encodingRemaining(info){if(!guardTrial(info,"encode"))return 0;const stamp=runtimeClock(),phaseStart=Number(stateRef()?.phaseStartTime),started=Number.isFinite(phaseStart)?phaseStart:stamp;info.spa05R2EncodeDeadline=started+encodingDuration(info.spa05R2Episode);return Math.max(0,info.spa05R2EncodeDeadline-stamp)}
   function initialMaskDuration(item){return clampValue(item?.initialMaskMs||240,150,600)}
   function postPrimaryMaskDuration(item){return clampValue(item?.postPrimaryMaskMs||190,120,500)}
-  function setPhase(info,phase,question,status){if(!info||stateRef()?.trialInfo!==info)return false;info.spa05R2Phase=phase;info.question=String(question||"");const app=document.getElementById("app");if(app){app.dataset.spa05R2Phase=phase;app.dataset.spa05R2Substep=info.spa05R2Substep||""}const isMask=phase.startsWith("mask");if(isMask)showCanonicalMask();else disableLegacyCanvas();if(status)try{setStatus(status,`${PATCH_ID}.${phase}`)}catch(_){State.status=status}if(!isMask&&typeof showMetaQuestion==="function")showMetaQuestion(0,info.question,"",null);setCentralLabel(phase==="probe"?"FOLLOW-UP":"SPATIAL");return true}
+  function setPhase(info,phase,question,status){if(!guardTrial(info))return false;info.spa05R2Phase=phase;info.question=String(question||"");const app=document.getElementById("app");if(app){app.dataset.spa05R2Phase=phase;app.dataset.spa05R2Substep=info.spa05R2Substep||""}const isMask=phase.startsWith("mask");if(isMask)showCanonicalMask();else disableLegacyCanvas();if(status)try{setStatus(status,`${PATCH_ID}.${phase}`)}catch(_){State.status=status}if(!isMask&&typeof showMetaQuestion==="function")showMetaQuestion(0,info.question,"",null);setCentralLabel(phase==="probe"?"FOLLOW-UP":"SPATIAL");return true}
   function paintPhaseChrome(info,phase,label,prompt){const paint=()=>{if(!guardTrial(info,phase))return;if(phase.startsWith("mask"))showCanonicalMask();else disableLegacyCanvas();setCentralLabel(label);if(typeof setPrompt==="function")setPrompt(prompt);if(typeof setAnswer==="function")setAnswer("—")};paint();try{queueMicrotask(paint);requestAnimationFrame(paint)}catch(_){ }}
   function syncChoiceLabels(item,info){const labels=optionLabels(item,info),selected=selectedForStage(item,info);try{document.querySelectorAll(".choiceBtn").forEach((button,index)=>{if(index>=4)return;const text=labels[index]||`Option ${index+1}`,textNode=button.querySelector(".choiceText"),keyNode=button.querySelector(".choiceKey");if(textNode)textNode.textContent=text;if(keyNode)keyNode.textContent=String(index+1);button.dataset.v=String(index);button.setAttribute("aria-label",`Option ${index+1}: ${text}`);const duplicate=(item.variant==="block_repair"&&info.primaryAnswers.cells.length<2&&info.primaryAnswers.cells.includes(index))||((item.variant==="block_composition"||item.variant==="block_equivalence")&&info.primaryAnswers.indices.includes(index));button.setAttribute("aria-disabled",duplicate?"true":"false")});if(typeof setChoiceSelectionVisual==="function")setChoiceSelectionVisual(selected)}catch(_){ }}
 
   function beginInitialMask(info){if(!guardTrial(info,"encode"))return false;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }State.targetValue=null;State.pendingPanel="none";info.options=[];info.responseFormat="none";info.answerKind="none";info.delayedPrompt="";setPhase(info,"mask_before_primary","",null);showCanonicalMask();if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");return true}
   function openPrimaryPhase(info){if(!guardTrial(info,"mask_before_primary"))return false;const item=info.spa05R2Episode;info._spa05R2MaskScheduledPhase="";info.primaryAnswers={faces:[],cells:[],replacements:[],indices:[]};info.primaryOpenedAt=runtimeClock();disableLegacyCanvas();State.targetValue=0;State.pendingPanel="choice";State.inputBuffer="";info.responseFormat="choice";info.answerKind="choice";info.choiceSelections=[];info.delayedPrompt="";info.spa05R2Substep=primarySubstep(item,info);const labels=optionLabels(item,info);info.options=labels;if(typeof setChoiceOptions==="function")setChoiceOptions(labels);setPhase(info,"primary",primaryQuestion(item,info),null);if(typeof setGameAriaLabel==="function")setGameAriaLabel(`${info.question} The original design is no longer visible.`);if(typeof beginInputPhase==="function")beginInputPhase();paintPhaseChrome(info,"primary","SPATIAL","CHOOSE ONE");syncChoiceLabels(item,info);return true}
-  function refreshPrimary(info){const item=info.spa05R2Episode;info.spa05R2Substep=primarySubstep(item,info);const labels=optionLabels(item,info);info.options=labels;if(typeof setChoiceOptions==="function")setChoiceOptions(labels);setPhase(info,"primary",primaryQuestion(item,info),null);State.status="INPUT";State.pendingPanel="choice";paintPhaseChrome(info,"primary","SPATIAL","CHOOSE ONE");syncChoiceLabels(item,info)}
+  function refreshPrimary(info){if(!guardTrial(info,"primary"))return false;const item=info.spa05R2Episode;info.spa05R2Substep=primarySubstep(item,info);const labels=optionLabels(item,info);info.options=labels;if(typeof setChoiceOptions==="function")setChoiceOptions(labels);setPhase(info,"primary",primaryQuestion(item,info),null);State.status="INPUT";State.pendingPanel="choice";paintPhaseChrome(info,"primary","SPATIAL","CHOOSE ONE");syncChoiceLabels(item,info)}
   function retirePrimaryForProbe(info){if(!guardTrial(info,"primary"))return false;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }info.options=[];info.delayedPrompt="";setPhase(info,"mask_after_primary","","MASK");showCanonicalMask();if(typeof setPrompt==="function")setPrompt("WATCH");return true}
   function openProbePhase(info){if(!guardTrial(info,"mask_after_primary"))return false;const item=info.spa05R2Episode,probe=buildProbe(item,info.primaryAnswers);info._spa05R2MaskScheduledPhase="";info.delayedProbe=probe;disableLegacyCanvas();State.targetValue=probe.answer;State.pendingPanel="bool";info.options=[];info.responseFormat="bool";info.answerKind="bool";info.isTrue=probe.answer;info.targetOutcome=probe.answer;info.delayedPrompt="";setPhase(info,"probe",probe.question,null);if(typeof setGameAriaLabel==="function")setGameAriaLabel(`Follow-up question. ${probe.question}`);if(typeof showPanel==="function")showPanel("bool");if(typeof beginInputPhase==="function")beginInputPhase();paintPhaseChrome(info,"probe","FOLLOW-UP","YES OR NO");return true}
 
   function copyPatchProperties(source,target){try{for(const key of Reflect.ownKeys(source)){if(["length","name","prototype","arguments","caller"].includes(String(key))||String(key).startsWith("__eucaSpa05R2"))continue;try{Object.defineProperty(target,key,Object.getOwnPropertyDescriptor(source,key))}catch(_){ }}}catch(_){ }return target}
   function installCurrentETHook(){try{const previous=globalThis.currentET;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function currentETSpa05R2(){const info=stateRef()?.trialInfo;if(info?.spa05R2Episode&&info.spa05R2Phase==="encode")return encodingDuration(info.spa05R2Episode);return previous.apply(this,arguments)};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.currentET=wrapped;try{currentET=wrapped}catch(_){ }return true}catch(_){return false}}
-  function installStatusHook(){try{const previous=globalThis.setStatus;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function setStatusSpa05R2(nextStatus,reason){const info=stateRef()?.trialInfo,target=String(nextStatus||"");if(info?.spa05R2Episode&&target==="MASK"&&info.spa05R2Phase==="encode"){const remaining=Math.max(0,Number(info.spa05R2EncodeDeadline||0)-runtimeClock());if(remaining>12){if(!info._spa05R2EncodeReleaseScheduled){info._spa05R2EncodeReleaseScheduled=true;schedule("spa05_r2_encode_release",()=>{if(!guardTrial(info,"encode"))return;info._spa05R2EncodeReleaseScheduled=false;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},remaining,{patch:PATCH_ID,phase:"encode",protectedContinuation:true})}return stateRef()?.status||"FLASH"}beginInitialMask(info)}const result=previous.apply(this,arguments);if(info?.spa05R2Episode&&target==="MASK"&&(info.spa05R2Phase==="mask_before_primary"||info.spa05R2Phase==="mask_after_primary")){const phase=info.spa05R2Phase,desired=phase==="mask_after_primary"?postPrimaryMaskDuration(info.spa05R2Episode):initialMaskDuration(info.spa05R2Episode),base=Math.max(0,Number(CONFIG?.maskMs)||0),stamp=runtimeClock();State.phaseStartTime=stamp+desired-base;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }if(typeof showMetaQuestion==="function")showMetaQuestion(0,"","",null);setCentralLabel("SPATIAL");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");showCanonicalMask();if(info._spa05R2MaskScheduledPhase!==phase){info._spa05R2MaskScheduledPhase=phase;schedule(`spa05_r2_${phase}_complete`,()=>phase==="mask_after_primary"?openProbePhase(info):openPrimaryPhase(info),desired,{patch:PATCH_ID,phase,protectedContinuation:true})}}return result};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.setStatus=wrapped;try{setStatus=wrapped}catch(_){ }return true}catch(_){return false}}
-  function installBeginInputHook(){try{const previous=globalThis.beginInputPhase;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function beginInputPhaseSpa05R2(){const info=stateRef()?.trialInfo;if(info?.spa05R2Episode&&info.spa05R2Phase==="encode")return false;if(info?.spa05R2Episode&&info.spa05R2Phase==="mask_before_primary")return openPrimaryPhase(info);if(info?.spa05R2Episode&&info.spa05R2Phase==="mask_after_primary")return openProbePhase(info);return previous.apply(this,arguments)};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.beginInputPhase=wrapped;try{beginInputPhase=wrapped}catch(_){ }return true}catch(_){return false}}
+  function installStatusHook(){try{const previous=globalThis.setStatus;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function setStatusSpa05R2(nextStatus,reason){const state=stateRef(),info=state?.trialInfo,target=String(nextStatus||""),owned=!!info?.spa05R2Episode;if(owned&&target!=="MENU"&&!guardTrial(info))return false;const enteringMask=owned&&target==="MASK"&&info.spa05R2Phase==="encode";if(enteringMask){const remaining=encodingRemaining(info);if(remaining>0){if(!info._spa05R2EncodeReleaseScheduled){info._spa05R2EncodeReleaseScheduled=true;schedule("spa05_r2_encode_release",()=>{if(!guardTrial(info,"encode"))return;info._spa05R2EncodeReleaseScheduled=false;setStatus("MASK",PATCH_ID+".encode_deadline")},remaining,{patch:PATCH_ID,phase:"encode",protectedContinuation:true})}return state.status||"FLASH"}}const result=previous.apply(this,arguments);if(owned&&(result===false||!guardTrial(info)||state.status!==target))return result;if(enteringMask)beginInitialMask(info);if(owned&&target==="MASK"&&(info.spa05R2Phase==="mask_before_primary"||info.spa05R2Phase==="mask_after_primary")){const phase=info.spa05R2Phase;if(info._spa05R2MaskScheduledPhase===phase)return result;const desired=phase==="mask_after_primary"?postPrimaryMaskDuration(info.spa05R2Episode):initialMaskDuration(info.spa05R2Episode),base=Math.max(0,Number(CONFIG?.maskMs)||0),stamp=runtimeClock();State.phaseStartTime=stamp+desired-base;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }if(typeof showMetaQuestion==="function")showMetaQuestion(0,"","",null);setCentralLabel("SPATIAL");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");showCanonicalMask();info._spa05R2MaskScheduledPhase=phase;schedule("spa05_r2_"+phase+"_complete",()=>phase==="mask_after_primary"?openProbePhase(info):openPrimaryPhase(info),desired,{patch:PATCH_ID,phase,protectedContinuation:true})}return result};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.setStatus=wrapped;try{setStatus=wrapped}catch(_){ }return true}catch(_){return false}}
+  function installBeginInputHook(){try{const previous=globalThis.beginInputPhase;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function beginInputPhaseSpa05R2(){const info=stateRef()?.trialInfo;if(info?.spa05R2Episode&&!guardTrial(info))return false;if(info?.spa05R2Episode&&info.spa05R2Phase==="encode")return false;if(info?.spa05R2Episode&&info.spa05R2Phase==="mask_before_primary")return openPrimaryPhase(info);if(info?.spa05R2Episode&&info.spa05R2Phase==="mask_after_primary")return openProbePhase(info);return previous.apply(this,arguments)};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.beginInputPhase=wrapped;try{beginInputPhase=wrapped}catch(_){ }return true}catch(_){return false}}
   function acceptPrimarySelection(item,info,index){const answers=info.primaryAnswers,step=primarySubstep(item,info);if(step.startsWith("construction_face")){answers.faces.push(index);return true}if(step.startsWith("repair_cell")){if(answers.cells.includes(index))return false;answers.cells.push(index);return true}if(step.startsWith("repair_replacement")){answers.replacements.push(index);return true}if(answers.indices.includes(index))return false;answers.indices.push(index);return true}
-  function installChoiceHandler(){try{const previous=globalThis.handleChoiceInputIndex;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function handleChoiceInputIndexSpa05R2(index,activationMeta=null){const state=stateRef(),info=state?.trialInfo,item=info?.spa05R2Episode;if(!item||info?.spa05R2Phase!=="primary")return previous.apply(this,arguments);const idx=Number(index);if(state.status!=="INPUT"||state.pendingPanel!=="choice"||!Number.isInteger(idx)||idx<0||idx>=4)return false;if(!acceptPrimarySelection(item,info,idx))return false;try{if(typeof noteUserInput==="function")noteUserInput("spa05_r2_primary",idx,activationMeta)}catch(_){ }if(!primaryComplete(item,info)){refreshPrimary(info);return true}const intentAt=Number(activationMeta?.intentAt);info.primaryRT=Math.round(typeof cognitiveRTNow==="function"?cognitiveRTNow(Number.isFinite(intentAt)?intentAt:undefined):runtimeClock()-info.primaryOpenedAt);info.primaryCorrect=evaluatePrimary(item,info.primaryAnswers);info.primaryAnswerLabel=JSON.stringify(info.primaryAnswers);if(info.spatialAutoPolicy&&info.spatialFollowupEligible!==true){info.spatialPrimaryOnly=true;info.compoundCorrect=!!info.primaryCorrect;info.compoundActiveRT=Math.max(1,Number(info.primaryRT)||0);info.compoundComponents={primary:{answer:info.primaryAnswers,correctAnswer:primarySolution(item),correct:!!info.primaryCorrect,rt:info.primaryRT,variant:item.variant}};info.compoundScoring={components:["primary"],maximumPenalty:1,blockTrialIncrement:1};info.spa05R2Phase="complete";const app=document.getElementById("app");if(app)app.dataset.spa05R2Phase="complete";const end=runtimeClock(),activeRt=info.compoundActiveRT,wallStart=Number(info.episodeWallStartedAt)||end-activeRt;State.targetValue=true;State.pendingPanel="bool";info.responseFormat="bool";info.answerKind="bool";info.isTrue=true;info.targetOutcome=true;info.answer=true;info.question=info.primaryQuestion;try{resetCognitiveTiming();State.trialStartTime=end-activeRt;State.timing.inputOpenedAt=State.trialStartTime;State.timing.trialWallStartedAt=wallStart}catch(_){}return typeof globalThis.processInput==="function"?globalThis.processInput(!!info.primaryCorrect,activationMeta):false}try{setStatus("LOCKED",`${PATCH_ID}.primary_captured`)}catch(_){state.status="LOCKED"}schedule("spa05_r2_primary_retire",()=>retirePrimaryForProbe(info),110,{patch:PATCH_ID,answers:info.primaryAnswerLabel});return true};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.handleChoiceInputIndex=wrapped;try{handleChoiceInputIndex=wrapped}catch(_){ }return true}catch(_){return false}}
+  function installChoiceHandler(){try{const previous=globalThis.handleChoiceInputIndex;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function handleChoiceInputIndexSpa05R2(index,activationMeta=null){const state=stateRef(),info=state?.trialInfo,item=info?.spa05R2Episode;if(!item||info?.spa05R2Phase!=="primary")return previous.apply(this,arguments);const idx=Number(index);if(!guardTrial(info,"primary")||state.status!=="INPUT"||state.pendingPanel!=="choice"||!Number.isInteger(idx)||idx<0||idx>=4)return false;if(!acceptPrimarySelection(item,info,idx))return false;try{if(typeof noteUserInput==="function")noteUserInput("spa05_r2_primary",idx,activationMeta)}catch(_){ }if(!primaryComplete(item,info)){refreshPrimary(info);return true}const intentAt=Number(activationMeta?.intentAt);info.primaryRT=Math.round(typeof cognitiveRTNow==="function"?cognitiveRTNow(Number.isFinite(intentAt)?intentAt:undefined):runtimeClock()-info.primaryOpenedAt);info.primaryCorrect=evaluatePrimary(item,info.primaryAnswers);info.primaryAnswerLabel=JSON.stringify(info.primaryAnswers);if(info.spatialAutoPolicy&&info.spatialFollowupEligible!==true){info.spatialPrimaryOnly=true;info.compoundCorrect=!!info.primaryCorrect;info.compoundActiveRT=Math.max(1,Number(info.primaryRT)||0);info.compoundComponents={primary:{answer:info.primaryAnswers,correctAnswer:primarySolution(item),correct:!!info.primaryCorrect,rt:info.primaryRT,variant:item.variant}};info.compoundScoring={components:["primary"],maximumPenalty:1,blockTrialIncrement:1};info.spa05R2Phase="complete";const app=document.getElementById("app");if(app)app.dataset.spa05R2Phase="complete";const end=runtimeClock(),activeRt=info.compoundActiveRT,wallStart=Number(info.episodeWallStartedAt)||end-activeRt;State.targetValue=true;State.pendingPanel="bool";info.responseFormat="bool";info.answerKind="bool";info.isTrue=true;info.targetOutcome=true;info.answer=true;info.question=info.primaryQuestion;try{resetCognitiveTiming();State.trialStartTime=end-activeRt;State.timing.inputOpenedAt=State.trialStartTime;State.timing.trialWallStartedAt=wallStart}catch(_){}return typeof globalThis.processInput==="function"?globalThis.processInput(!!info.primaryCorrect,activationMeta):false}try{setStatus("LOCKED",`${PATCH_ID}.primary_captured`)}catch(_){state.status="LOCKED"}schedule("spa05_r2_primary_retire",()=>retirePrimaryForProbe(info),110,{patch:PATCH_ID,answers:info.primaryAnswerLabel});return true};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.handleChoiceInputIndex=wrapped;try{handleChoiceInputIndex=wrapped}catch(_){ }return true}catch(_){return false}}
 
   function monitor(){const state=stateRef();if(!state)return{shown:0};const root=state.productionMonitor||(state.productionMonitor={});return root.spa05R2PieceComposition||(root.spa05R2PieceComposition={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,primaryTrials:0,primaryCorrect:0,probeTrials:0,probeCorrect:0,compoundCorrect:0,byVariant:{},byProbeBranch:{},recent:[]})}
   function recordCompound(info){const mon=monitor(),primary=!!info.primaryCorrect,probe=!!info.probeCorrect,item=info.spa05R2Episode,p=info.delayedProbe||{};mon.primaryTrials++;mon.probeTrials++;if(primary)mon.primaryCorrect++;if(probe)mon.probeCorrect++;if(primary&&probe)mon.compoundCorrect++;mon.byVariant[item.variant]=(Number(mon.byVariant[item.variant])||0)+1;mon.byProbeBranch[p.branch||"unknown"]=(Number(mon.byProbeBranch[p.branch||"unknown"])||0)+1;mon.recent.push({seed:item.seed,variant:item.variant,answers:info.primaryAnswers,primaryCorrect:primary,probeId:p.id,probeAnswer:info.probeAnswer,probeCorrect:probe,compoundCorrect:primary&&probe,primaryRT:info.primaryRT,probeRT:info.probeRT});mon.recent=mon.recent.slice(-32)}
-  function installProcessInput(){try{const previous=globalThis.processInput;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function processInputSpa05R2(value,activationMeta=null){const state=stateRef(),info=state?.trialInfo;if(!info?.spa05R2Episode||info.spa05R2Phase!=="probe")return previous.apply(this,arguments);if(state.status!=="INPUT"||state.pendingPanel!=="bool"||info.probeAnswer!==undefined)return false;const answer=value===true||value===1||value==="1";const intentAt=Number(activationMeta?.intentAt);info.probeRT=Math.round(typeof cognitiveRTNow==="function"?cognitiveRTNow(Number.isFinite(intentAt)?intentAt:undefined):0);info.probeAnswer=answer;info.probeCorrect=answer===!!info.delayedProbe?.answer;info.compoundCorrect=!!info.primaryCorrect&&!!info.probeCorrect;info.compoundActiveRT=Math.max(1,Number(info.primaryRT)||0)+Math.max(1,Number(info.probeRT)||0);info.compoundComponents={primary:{answer:info.primaryAnswers,correctAnswer:primarySolution(info.spa05R2Episode),correct:!!info.primaryCorrect,rt:info.primaryRT,variant:info.spa05R2Episode.variant},probe:{answer,correctAnswer:!!info.delayedProbe?.answer,correct:!!info.probeCorrect,rt:info.probeRT,branch:info.delayedProbe?.branch}};info.spa05R2Phase="complete";recordCompound(info);const app=document.getElementById("app");if(app)app.dataset.spa05R2Phase="complete";const end=runtimeClock(),activeRt=clampValue(info.compoundActiveRT,1,60000),wallStart=Number(info.episodeWallStartedAt)||end-activeRt;State.targetValue=true;State.pendingPanel="bool";info.responseFormat="bool";info.answerKind="bool";info.isTrue=true;info.targetOutcome=true;info.answer=true;info.question=info.primaryQuestion;try{resetCognitiveTiming();State.trialStartTime=end-activeRt;State.timing.inputOpenedAt=State.trialStartTime;State.timing.trialWallStartedAt=wallStart}catch(_){ }return previous.call(this,!!info.compoundCorrect,activationMeta)};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.processInput=wrapped;try{processInput=wrapped}catch(_){ }return true}catch(_){return false}}
+  function installProcessInput(){try{const previous=globalThis.processInput;if(typeof previous!=="function"||previous.__eucaSpa05R2)return previous?.__eucaSpa05R2===true;const wrapped=function processInputSpa05R2(value,activationMeta=null){const state=stateRef(),info=state?.trialInfo;if(!info?.spa05R2Episode||info.spa05R2Phase!=="probe")return previous.apply(this,arguments);if(!guardTrial(info,"probe")||state.status!=="INPUT"||state.pendingPanel!=="bool"||info.probeAnswer!==undefined)return false;const answer=value===true||value===1||value==="1";const intentAt=Number(activationMeta?.intentAt);info.probeRT=Math.round(typeof cognitiveRTNow==="function"?cognitiveRTNow(Number.isFinite(intentAt)?intentAt:undefined):0);info.probeAnswer=answer;info.probeCorrect=answer===!!info.delayedProbe?.answer;info.compoundCorrect=!!info.primaryCorrect&&!!info.probeCorrect;info.compoundActiveRT=Math.max(1,Number(info.primaryRT)||0)+Math.max(1,Number(info.probeRT)||0);info.compoundComponents={primary:{answer:info.primaryAnswers,correctAnswer:primarySolution(info.spa05R2Episode),correct:!!info.primaryCorrect,rt:info.primaryRT,variant:info.spa05R2Episode.variant},probe:{answer,correctAnswer:!!info.delayedProbe?.answer,correct:!!info.probeCorrect,rt:info.probeRT,branch:info.delayedProbe?.branch}};info.spa05R2Phase="complete";recordCompound(info);const app=document.getElementById("app");if(app)app.dataset.spa05R2Phase="complete";const end=runtimeClock(),activeRt=clampValue(info.compoundActiveRT,1,60000),wallStart=Number(info.episodeWallStartedAt)||end-activeRt;State.targetValue=true;State.pendingPanel="bool";info.responseFormat="bool";info.answerKind="bool";info.isTrue=true;info.targetOutcome=true;info.answer=true;info.question=info.primaryQuestion;try{resetCognitiveTiming();State.trialStartTime=end-activeRt;State.timing.inputOpenedAt=State.trialStartTime;State.timing.trialWallStartedAt=wallStart}catch(_){ }return previous.call(this,!!info.compoundCorrect,activationMeta)};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Original=previous;globalThis.processInput=wrapped;try{processInput=wrapped}catch(_){ }return true}catch(_){return false}}
 
   function pluralOptionNoun(noun){return noun==="Patch"?"Patches":`${noun}s`}
   function answerSummary(item,answers){if(item.variant==="block_construction")return`Tiles ${answers.faces.map(value=>value+1).join(" and ")}`;if(item.variant==="block_repair")return`Spaces ${(answers.cells||[]).map(value=>value+1).join(" and ")} repaired with tiles ${(answers.replacements||[]).map(value=>value+1).join(" and ")}`;return`${pluralOptionNoun(item.optionNoun)} ${(answers.indices||[]).map(value=>value+1).join(" and ")}`}
@@ -188154,7 +188281,7 @@ body.euca-stimulus-atlas-audit [data-euca-stimulus-atlas],
   function priorVisualServed(state,blockOrdinal){for(const key of SHARED_MONITORS){const mon=state?.productionMonitor?.[key];if(mon&&Number(mon.blockOrdinal)===Number(blockOrdinal)&&Number(mon.blockCount)>0)return true}return false}
   function consumeSharedBudget(state,blockOrdinal,blockTrial){const root=state.productionMonitor||(state.productionMonitor={});for(const key of SHARED_MONITORS){const prior=root[key]||(root[key]={shown:0,blockCount:0,lastBlockTrial:-99,blockOrdinal:-1,byVariant:{},recent:[]});if(Number(prior.blockOrdinal)!==Number(blockOrdinal)){prior.blockOrdinal=blockOrdinal;prior.blockCount=0;prior.lastBlockTrial=-99}prior.blockCount=Math.max(1,Number(prior.blockCount)||0);prior.lastBlockTrial=blockTrial}}
   function shouldStart(attempt,forcedLevel){try{installConfig();const forced=forceRequested(),state=stateRef();if(CONFIG?.spa05R2Enabled===false||Number(attempt)!==0||forcedLevel!==null)return false;if(!state||!state.running||state.paused||state.modeChoice!=="auto"||metaMemoryPending())return false;if(!forced&&state.mode!=="D")return false;const level=Math.max(0,Number(state.levelByMode?.D||0));if(!forced&&level<Math.max(0,(Number.isFinite(Number(CONFIG.spa05R2MinDLevel))?Number(CONFIG.spa05R2MinDLevel):6)))return false;const blockTrial=Math.max(0,Number(state.blockTrials||0));if(!forced&&blockTrial<5)return false;const mon=monitor(),blockOrdinal=Math.max(0,integer(state.rngBlockOrdinal,0));if(mon.blockOrdinal!==blockOrdinal){mon.blockOrdinal=blockOrdinal;mon.blockCount=0;mon.lastBlockTrial=-99}if(!forced&&(mon.blockCount>=Math.max(0,Number(CONFIG.spa05R2MaxPerBlock)||1)||priorVisualServed(state,blockOrdinal)))return false;if(!forced&&blockTrial-Number(mon.lastBlockTrial||-99)<Math.max(0,Number(CONFIG.spa05R2CooldownTrials)||18))return false;return forced||randomSource("adaptation")<Math.max(0,Math.min(1,Number(CONFIG.spa05R2Probability)||.012))}catch(_){return false}}
-  function startSpa05R2(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;const forced=forceRequested(),seedParam=queryValue("spa05r2Seed")??queryValue("spa05Seed"),forcedSeed=seedParam===null?NaN:Number(seedParam),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((randomSource("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa05r2Variant")||queryValue("spa05Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa05_r2_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode","spa04-section-mode","spa05-piece-composition-mode");app?.classList.add("spa05-r2-mode");if(app)app.dataset.spa05R2Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa05_r2_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa05_r2_${item.variant}`,contentSpecId:`spa05.r2.${item.variant}`,contentSpecVersion:VERSION,responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,question:"",primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],spa05R2Episode:item,spa05R2Phase:"encode",spa05R2Substep:"",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa05R2EncodeStartedAt:wallStart,spa05R2EncodeDeadline:wallStart+encodeMs,atomics:[`spa05_${item.variant}`,"spa05_delayed_probe"],atomicsUsed:[`spa05_${item.variant}`,"spa05_delayed_probe"],frameTags:["exact_discrete_geometry","canonical_mask","compound_primary","delayed_probe"],mechanismTags:["temporal_separation","whole_configuration_matching","anti_fragmentation",item.variant],executiveTags:["visuospatial_maintenance","mental_composition","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:3,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa05R2ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode","","FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel("Remember the complete original Block Design.");schedule("spa05_r2_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;try{setStatus("MASK",`${PATCH_ID}.encode_deadline`)}catch(_){beginInitialMask(info)}},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode","",null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
+  function startSpa05R2(attempt,forcedLevel){if(!shouldStart(attempt,forcedLevel))return false;if(typeof scheduleRuntimeTimeout!=="function"){try{recordRuntimeError(new Error(PATCH_ID+": scheduleRuntimeTimeout is required"),{source:PATCH_ID+".start"})}catch(_){}return false;}const forced=forceRequested(),seedParam=queryValue("spa05r2Seed")??queryValue("spa05Seed"),forcedSeed=seedParam===null?NaN:Number(seedParam),seed=Number.isFinite(forcedSeed)?forcedSeed:(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.seedFor?.(FAMILY,"content")??((randomSource("content")*0xFFFFFFFF)>>>0)),requestedVariant=String(queryValue("spa05r2Variant")||queryValue("spa05Variant")||""),item=buildItem({seed,variant:requestedVariant,level:Number(globalThis.EUCALCULIA_SPATIAL_AUTO_COORDINATOR?.contentLevelFor?.(FAMILY) ?? stateRef()?.levelByMode?.D ?? 0)});if(!item||!geometryValid(item))return false;try{if(typeof invalidatePreparedTrial==="function")invalidatePreparedTrial("spa05_r2_commit");else{State.nextTrialPrepared=null;State.nextTrialPrepareInFlight=false}const app=document.getElementById("app");app?.classList.remove("productive-balance-mode","visual-predict-mode","visual-path-mode","masked-spatial-probe-mode","masked-paper-folding-mode","spa02-solid-net-mode","spa03-view-mode","spa04-section-mode","spa05-piece-composition-mode");app?.classList.add("spa05-r2-mode");if(app)app.dataset.spa05R2Phase="encode";try{if(typeof clearInputStimulus==="function")clearInputStimulus()}catch(_){ }disableLegacyCanvas();try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }try{if(typeof hideMemoryCue==="function")hideMemoryCue()}catch(_){ }State.currentTrialLevel=0;State.autoPhase="L0";State.currentTrialValue=null;State.currentTrialRep=null;State.mainStim=null;State.secStim=null;State.mainCache=null;State.secCache=null;State.targetValue=null;State.pendingPanel="none";State.inputBuffer="";const wallStart=runtimeClock(),encodeMs=encodingDuration(item);State.trialInfo={kind:"spa05_r2_compound",level:0,statsMode:"D",autoPhase:"L0",family:FAMILY,catFamily:FAMILY,catId:`spa05_r2_${item.variant}`,contentSpecId:`spa05.r2.${item.variant}`,contentSpecVersion:VERSION,responseFormat:"none",answerKind:"none",answer:null,targetOutcome:null,question:"",primaryQuestion:item.primaryQuestion,delayedPrompt:"",options:[],spa05R2Episode:item,spa05R2Phase:"encode",spa05R2Substep:"",questionLayout:"visual",rngOptionOrderVersion:String(globalThis.EUCALCULIA_SESSION_RNG_V1?.version||"1.1.0"),optionOrderPolicy:"visual_index_locked",episodeWallStartedAt:wallStart,spa05R2EncodeStartedAt:wallStart,spa05R2EncodeDeadline:wallStart+encodeMs,atomics:[`spa05_${item.variant}`,"spa05_delayed_probe"],atomicsUsed:[`spa05_${item.variant}`,"spa05_delayed_probe"],frameTags:["exact_discrete_geometry","canonical_mask","compound_primary","delayed_probe"],mechanismTags:["temporal_separation","whole_configuration_matching","anti_fragmentation",item.variant],executiveTags:["visuospatial_maintenance","mental_composition","relational_binding","interference_control"],demandVector:{visuospatial_transformation:3,relational_integration:3,response_selection:2,delayed_probe:1},countsForMetaHistory:false,countsForMastery:true,countsForAdaptation:false,memoryEligible:false,compoundScoring:{components:["spatial","probe"],maximumPenalty:1,blockTrialIncrement:1}};if(forced)State._spa05R2ForceConsumed=true;const blockOrdinal=Math.max(0,integer(State.rngBlockOrdinal,0)),blockTrial=Math.max(0,Number(State.blockTrials)||0),mon=monitor();mon.shown=(Number(mon.shown)||0)+1;mon.blockCount=(Number(mon.blockCount)||0)+1;mon.lastBlockTrial=blockTrial;consumeSharedBudget(State,blockOrdinal,blockTrial);const info=State.trialInfo;setPhase(info,"encode","","FLASH");if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—");if(typeof setGameAriaLabel==="function")setGameAriaLabel("Remember the complete original Block Design.");schedule("spa05_r2_encode_deadline",()=>{if(!guardTrial(info,"encode"))return;setStatus("MASK",`${PATCH_ID}.encode_deadline`)},encodeMs,{patch:PATCH_ID,phase:"encode",protectedContinuation:true});queueMicrotask(()=>{if(!guardTrial(info,"encode"))return;try{if(typeof hideAllPanels==="function")hideAllPanels()}catch(_){ }setPhase(info,"encode","",null);if(typeof setPrompt==="function")setPrompt("WATCH");if(typeof setAnswer==="function")setAnswer("—")});return true}catch(error){try{recordRuntimeError(error,{source:PATCH_ID+".start"})}catch(_){ }restoreLegacyCanvas();return false}}
   let activeStartWrapper=null;
   function installStartHook(){try{const previous=globalThis.maybeStartInlineGenerativeTrialAfterReset;if(typeof previous!=="function")return false;if(previous===activeStartWrapper||previous.__eucaSpa05R2Direct===previous){activeStartWrapper=previous;return true}const wrapped=function maybeStartInlineGenerativeTrialAfterResetSpa05R2(attempt,forcedLevel){if(activeStartWrapper!==wrapped)return previous.apply(this,arguments);const app=document.getElementById("app");app?.classList.remove("spa05-r2-mode","spa05-piece-composition-mode");if(app){delete app.dataset.spa05R2Phase;delete app.dataset.spa05R2Substep;delete app.dataset.unifiedSpatialMask}restoreLegacyCanvas();if(startSpa05R2(attempt,forcedLevel))return true;const config=typeof CONFIG==="object"&&CONFIG?CONFIG:null,hadLegacy=!!(config&&Object.prototype.hasOwnProperty.call(config,"spa05PieceCompositionEnabled")),legacyValue=config?.spa05PieceCompositionEnabled;try{if(config)config.spa05PieceCompositionEnabled=false;return previous.apply(this,arguments)}finally{if(config){if(hadLegacy)config.spa05PieceCompositionEnabled=legacyValue;else delete config.spa05PieceCompositionEnabled}}};copyPatchProperties(previous,wrapped);wrapped.__eucaSpa05R2=true;wrapped.__eucaSpa05R2Direct=wrapped;wrapped.__eucaSpa05R2Original=previous;activeStartWrapper=wrapped;globalThis.maybeStartInlineGenerativeTrialAfterReset=wrapped;try{maybeStartInlineGenerativeTrialAfterReset=wrapped}catch(_){ }return true}catch(_){return false}}
 
